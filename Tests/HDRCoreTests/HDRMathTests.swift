@@ -125,6 +125,68 @@ final class HDRMathTests: XCTestCase {
         XCTAssertEqual(output[0], 0, accuracy: 0)
     }
 
+    func testV4SceneRelativeShadowProtectionIsIdentifiableAndHighlightIndependent() {
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.toneCurveRevision = .sceneRelativeV4
+        let statistics = HDRSceneStatistics(
+            p01: 0.001, p05: 0.008, p10: 0.025, p25: 0.18,
+            p50: 0.42, p90: 0.88, p99: 1.0
+        )
+        let shadowSamples: [Float] = [0.001, 0.005, 0.01, 0.02, 0.05, 0.10]
+        var previousAverage = Float.greatestFiniteMagnitude
+        var sensitivity: Float = 0
+        var firstOutputs: [Float] = []
+        for protection: Float in [0, 0.25, 0.5, 0.75, 1] {
+            configuration.shadowProtection = protection
+            let outputs = shadowSamples.map {
+                HDRReference.toneExpand($0, configuration: configuration, sceneStatistics: statistics)
+            }
+            XCTAssertTrue(outputs.allSatisfy(\.isFinite))
+            for index in 1..<outputs.count {
+                XCTAssertGreaterThanOrEqual(outputs[index], outputs[index - 1] - 0.000_001)
+            }
+            let average = outputs.reduce(0, +) / Float(outputs.count)
+            XCTAssertLessThanOrEqual(average, previousAverage + 0.000_001)
+            previousAverage = average
+            if firstOutputs.isEmpty {
+                firstOutputs = outputs
+            } else {
+                sensitivity = max(sensitivity, zip(firstOutputs, outputs).map { abs($0 - $1) }.max() ?? 0)
+            }
+        }
+        XCTAssertGreaterThan(sensitivity, 0.001)
+
+        configuration.shadowProtection = 0
+        let unprotectedHighlight = HDRReference.toneExpand(0.9, configuration: configuration, sceneStatistics: statistics)
+        configuration.shadowProtection = 1
+        let protectedHighlight = HDRReference.toneExpand(0.9, configuration: configuration, sceneStatistics: statistics)
+        XCTAssertEqual(protectedHighlight, unprotectedHighlight, accuracy: 0.000_001)
+        XCTAssertEqual(HDRReference.toneExpand(0, configuration: configuration, sceneStatistics: statistics), 0, accuracy: 0)
+    }
+
+    func testV4SceneStatisticsPercentilesAndCausalState() throws {
+        let statistics = HDRSceneStatistics(samples: [0, 0.01, 0.05, 0.2, 0.5, 0.9, 1])
+        XCTAssertTrue(statistics.isFinite)
+        XCTAssertLessThanOrEqual(statistics.p01, statistics.p05)
+        XCTAssertLessThanOrEqual(statistics.p05, statistics.p10)
+        XCTAssertLessThanOrEqual(statistics.p10, statistics.p25)
+        XCTAssertLessThanOrEqual(statistics.p25, statistics.p50)
+        XCTAssertLessThanOrEqual(statistics.shadowFloor, statistics.shadowTop)
+
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.toneCurveRevision = .sceneRelativeV4
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        XCTAssertFalse(processor.sceneShadowCoordinates.valid)
+        processor.updateSceneStatistics(statistics, sceneCut: true)
+        let coordinates = processor.sceneShadowCoordinates
+        XCTAssertTrue(coordinates.valid)
+        XCTAssertEqual(coordinates.floor, statistics.shadowFloor, accuracy: 0.000_001)
+        XCTAssertEqual(coordinates.top, statistics.shadowTop, accuracy: 0.000_001)
+        processor.clearTemporalHistory()
+        XCTAssertFalse(processor.sceneShadowCoordinates.valid)
+    }
+
     func testTemporalStabilityHasSequentialSensitivityAndSceneCutResets() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
         var responsiveConfiguration = HDRConfiguration.calibratedV2

@@ -657,7 +657,7 @@ public final class HDRProcessor {
                         sequence: temporalSequence ?? 0
                     )
                     if sceneRelativeEnabled {
-                        sceneShadowState.updateAutomatic(
+                        _ = sceneShadowState.updateAutomatic(
                             statistics: HDRSceneStatistics(histogram: stats.histogram),
                             averageLuminance: average,
                             stability: temporalStability,
