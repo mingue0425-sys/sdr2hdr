@@ -1,0 +1,7 @@
+{
+  "frozenFailureVerdict" : "VIRGIN_FROZEN_FAIL",
+  "runtimeFailureVerdict" : "RUNTIME_REGRESSION",
+  "runtimeGateIsReachable" : true,
+  "status" : "PASS",
+  "transferFailureVerdict" : "TRANSFER_GENERALIZATION_FAIL"
+}

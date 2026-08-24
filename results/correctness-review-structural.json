@@ -1,0 +1,214 @@
+{
+  "auditArtifactHash" : "a81b728f3ed6c66044742c0694332340afb7c06f8b303c6186cfd4f3c1d0b7c6",
+  "checks" : [
+    {
+      "evidence" : "READY audit, manifest digest, lock digest and media digests matched (12 pairs)",
+      "id" : "dataset-audit-lock",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "scene assignment uses sequencePosition; requested\/evaluated IDs are exact",
+      "id" : "sparse-index-domain",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "shared HDRTemporalControlState plus GPU production\/offline regression test",
+      "id" : "temporal-production-offline-parity",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "16x9 sampling, 16-bin quantization, bin-center percentile and causal delay are shared",
+      "id" : "percentile-production-offline-parity",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "HLG vector OOTF applies one BT.2020-luminance-derived gain; colored vector test passed",
+      "id" : "hlg-bt2100-ootf",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "explicit BT.709 primaries\/transfer\/matrix\/range required",
+      "id" : "strict-sdr-metadata",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "same-master\/same-source relation is preserved; weaker relations are not promoted",
+      "id" : "relation-preservation",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "readiness counts only accepted MAIN_CALIBRATION records",
+      "id" : "eligible-only-diversity",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "deterministic repository source hash and missing-source hard failure are tested",
+      "id" : "source-freeze-hash",
+      "status" : "PASS"
+    },
+    {
+      "evidence" : "explicit completeness\/dataset\/transfer\/family\/runtime\/frozen gate machine is unit-tested",
+      "id" : "promotion-gate-wiring",
+      "status" : "PASS"
+    }
+  ],
+  "datasetLockHash" : "016188ed1f5a6d409f79a993453d28d8af3664a267c359cd80f0a0a79dff2cf7",
+  "generatedAt" : "2026-08-24T15:14:04Z",
+  "manifestHash" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
+  "manifestPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/manifest-v4.json",
+  "tune" : {
+    "complete" : true,
+    "evaluatedPairIDs" : [
+      "live_13_interview_3840x2160_15000k",
+      "live_9_face_close_3840x2160_15000k",
+      "video1_ive_blackhole",
+      "video2_newjeans_new_jeans",
+      "video3_newjeans_how_sweet"
+    ],
+    "evaluatedVideoCount" : 5,
+    "pairs" : [
+      {
+        "coveredSceneCount" : 4,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video1_ive_blackhole",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 4,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 4
+      },
+      {
+        "coveredSceneCount" : 2,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video2_newjeans_new_jeans",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 2,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 2
+      },
+      {
+        "coveredSceneCount" : 2,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video3_newjeans_how_sweet",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 2,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 2
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_9_face_close_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_13_interview_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      }
+    ],
+    "requestedPairIDs" : [
+      "live_13_interview_3840x2160_15000k",
+      "live_9_face_close_3840x2160_15000k",
+      "video1_ive_blackhole",
+      "video2_newjeans_new_jeans",
+      "video3_newjeans_how_sweet"
+    ],
+    "requestedVideoCount" : 5,
+    "split" : "tune"
+  },
+  "validation" : {
+    "complete" : true,
+    "evaluatedPairIDs" : [
+      "live_22_programming_night_3840x2160_15000k",
+      "live_4_campfire_3840x2160_15000k",
+      "video4_aespa_lemonade"
+    ],
+    "evaluatedVideoCount" : 3,
+    "pairs" : [
+      {
+        "coveredSceneCount" : 3,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video4_aespa_lemonade",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 3,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 3
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_22_programming_night_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_4_campfire_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      }
+    ],
+    "requestedPairIDs" : [
+      "live_22_programming_night_3840x2160_15000k",
+      "live_4_campfire_3840x2160_15000k",
+      "video4_aespa_lemonade"
+    ],
+    "requestedVideoCount" : 3,
+    "split" : "validation"
+  },
+  "verdict" : "CORRECTNESS_READY_FOR_V5",
+  "version" : "correctness-review-v1",
+  "virginFrozenObjectiveEvaluated" : false
+}

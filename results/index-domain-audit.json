@@ -1,0 +1,156 @@
+{
+  "sequencePositionMeaning" : "FrameSample.sequencePosition is the position in the sparse sampled sequence; SceneRange uses this domain",
+  "sourceIndexMeaning" : "FrameSample.index is the original\/source frame index",
+  "tune" : {
+    "complete" : true,
+    "evaluatedPairIDs" : [
+      "live_13_interview_3840x2160_15000k",
+      "live_9_face_close_3840x2160_15000k",
+      "video1_ive_blackhole",
+      "video2_newjeans_new_jeans",
+      "video3_newjeans_how_sweet"
+    ],
+    "evaluatedVideoCount" : 5,
+    "pairs" : [
+      {
+        "coveredSceneCount" : 4,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video1_ive_blackhole",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 4,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 4
+      },
+      {
+        "coveredSceneCount" : 2,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video2_newjeans_new_jeans",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 2,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 2
+      },
+      {
+        "coveredSceneCount" : 2,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video3_newjeans_how_sweet",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 2,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 2
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_9_face_close_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_13_interview_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "tune",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      }
+    ],
+    "requestedPairIDs" : [
+      "live_13_interview_3840x2160_15000k",
+      "live_9_face_close_3840x2160_15000k",
+      "video1_ive_blackhole",
+      "video2_newjeans_new_jeans",
+      "video3_newjeans_how_sweet"
+    ],
+    "requestedVideoCount" : 5,
+    "split" : "tune"
+  },
+  "validation" : {
+    "complete" : true,
+    "evaluatedPairIDs" : [
+      "live_22_programming_night_3840x2160_15000k",
+      "live_4_campfire_3840x2160_15000k",
+      "video4_aespa_lemonade"
+    ],
+    "evaluatedVideoCount" : 3,
+    "pairs" : [
+      {
+        "coveredSceneCount" : 3,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video4_aespa_lemonade",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 3,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 3
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_22_programming_night_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      },
+      {
+        "coveredSceneCount" : 1,
+        "matchedFrameCount" : 40,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "live_4_campfire_3840x2160_15000k",
+        "prepared" : true,
+        "requested" : true,
+        "sceneCount" : 1,
+        "split" : "validation",
+        "temporalFrameCount" : 40,
+        "temporalWindowCount" : 1
+      }
+    ],
+    "requestedPairIDs" : [
+      "live_22_programming_night_3840x2160_15000k",
+      "live_4_campfire_3840x2160_15000k",
+      "video4_aespa_lemonade"
+    ],
+    "requestedVideoCount" : 3,
+    "split" : "validation"
+  }
+}

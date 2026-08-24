@@ -1,0 +1,1248 @@
+{
+  "auditConfigHash" : "18a10e54889115cef739af5f129fe0467ae9b298353187bfea5599ee2da61b23",
+  "diversity" : {
+    "acceptedPairs" : 12,
+    "categories" : {
+      "animation" : 1,
+      "cinematic" : 1,
+      "dance" : 5,
+      "high-contrast" : 8,
+      "high-key" : 5,
+      "highlight-rich" : 2,
+      "indoor" : 4,
+      "low-contrast" : 6,
+      "low-key" : 5,
+      "low-saturation" : 1,
+      "night" : 3,
+      "outdoor" : 1,
+      "saturated" : 5,
+      "shadow-rich" : 3,
+      "skin" : 7
+    },
+    "conditionalPairs" : 0,
+    "contentFamilies" : {
+      "K-Choreo" : 5,
+      "LIVE" : 6,
+      "SoleMates" : 1
+    },
+    "frameRates" : {
+      "24.000" : 1,
+      "59.940" : 6,
+      "59.944" : 1,
+      "59.945" : 3,
+      "59.949" : 1
+    },
+    "frozenPairs" : 4,
+    "hdrTransfers" : {
+      "HLG" : 5,
+      "PQ" : 7
+    },
+    "mainCalibrationPairs" : 12,
+    "rejectedPairs" : 0,
+    "resolutions" : {
+      "2048x1024" : 1,
+      "3840x2026" : 5,
+      "3840x2160" : 6
+    },
+    "totalPairs" : 12,
+    "tunePairs" : 5,
+    "validationPairs" : 3,
+    "virginFrozenPairs" : 3
+  },
+  "frozenObjectiveEvaluated" : [
+
+  ],
+  "gateReasons" : [
+
+  ],
+  "generatedAt" : "2026-08-24T14:43:45Z",
+  "manifestPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/manifest-v4.json",
+  "manifestSHA256" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
+  "notes" : [
+    "This command performs manifest, integrity, metadata, decode-smoke, spatial and temporal alignment checks only.",
+    "No baseline, candidate, validation or frozen objective was evaluated.",
+    "Virgin frozen media may be inspected for integrity\/alignment but remains unavailable to calibration runners."
+  ],
+  "objectiveEvaluated" : false,
+  "pairs" : [
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8987242350455338,
+        "medianConfidence" : 0.8910474410694341,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8592639378773891,
+        "p50Confidence" : 0.8910474410694341,
+        "p90Confidence" : 0.9421907178703198,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+        "sha256" : "8f4a8cdcacfcac8333828a7690491e362332dd19e6087f80524ca3005b7ff0f8",
+        "sizeBytes" : 681301212
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 212.011,
+        "frameRate" : 59.94876899344752,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video1_ive_blackhole",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+        "sha256" : "31e4d5fc99a5c552378d161af960b86d602b25e403284eab2c1f31547a623271",
+        "sizeBytes" : 624273417
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 212.011,
+        "frameRate" : 59.947637804561644,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8846550053122192,
+        "medianConfidence" : 0.8704939820845828,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8654700092084111,
+        "p50Confidence" : 0.8704939820845828,
+        "p90Confidence" : 0.9428561710948754,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+        "sha256" : "901d67322ae4076737e9594f9b65395ea23683d380bdf5acab7d7a20d30b306b",
+        "sizeBytes" : 426355691
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 133.599,
+        "frameRate" : 59.944606632232954,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video2_newjeans_new_jeans",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+        "sha256" : "46297d224a28b54331b3e649b707d45359915eb9d6299ecb59f5a1c85629e1e4",
+        "sizeBytes" : 372477154
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 133.599,
+        "frameRate" : 59.944606632232954,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8896257633113887,
+        "medianConfidence" : 0.8760143183423917,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8746477665578097,
+        "p50Confidence" : 0.8760143183423917,
+        "p90Confidence" : 0.9420707224020821,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+        "sha256" : "14cb657c0cf89c6846b4f21d3bf1fd437c01ec9b8860e6cc5e2d36d5c213ff85",
+        "sizeBytes" : 798290138
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 240.556,
+        "frameRate" : 59.94454121784825,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video3_newjeans_how_sweet",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+        "sha256" : "df28f6a36093b98a0a48666775d9cb784408cc9796d0dfdfb3e04e12f9651339",
+        "sizeBytes" : 712145575
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 240.556,
+        "frameRate" : 59.94454121784825,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9138014520436372,
+        "medianConfidence" : 0.9084952982109256,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8942436142510931,
+        "p50Confidence" : 0.9084952982109256,
+        "p90Confidence" : 0.9428087112972512,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+        "sha256" : "643c413b3c8b588e479f2d7cd0d2381fce5b9896b40cd230655dc63a152da71b",
+        "sizeBytes" : 689583065
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 209.692,
+        "frameRate" : 59.94458142762439,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video4_aespa_lemonade",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+        "sha256" : "c568bba8230d83d1b90038f1b7927da3f76e68fbd28c9ebe3c91cc7230e42ac0",
+        "sizeBytes" : 616318033
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 209.692,
+        "frameRate" : 59.94458142762439,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9118513609689979,
+        "medianConfidence" : 0.9090689356784419,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8903172898231313,
+        "p50Confidence" : 0.9090689356784419,
+        "p90Confidence" : 0.9424786730637207,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+        "sha256" : "4ad1196a43e36f4e436d0c5360547091a9218267a174a5cc56e6fad9c410ff01",
+        "sizeBytes" : 537117705
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 164.213,
+        "frameRate" : 59.94445865458399,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video6_le_sserafim_hot",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+        "sha256" : "8dffc366cf8bd6dd3e011312d2d2a30a7e5fd43f2f05597cdc90a5c2215d17ad",
+        "sizeBytes" : 471313869
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 164.213,
+        "frameRate" : 59.94445865458399,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.8271061535072105,
+        "medianConfidence" : 0.827913227136548,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8132618919675226,
+        "p50Confidence" : 0.827913227136548,
+        "p90Confidence" : 0.8371909345140247,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 5,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_hdr_pq.mov",
+        "sha256" : "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136",
+        "sizeBytes" : 106811622
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 2.541667,
+        "frameRate" : 24,
+        "height" : 1024,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_hdr_pq.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/24",
+        "transfer" : "smpte2084",
+        "width" : 2048
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_hdr_pq.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "solemates_unh0400_0010",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit",
+        "SDR BT.709 transfer\/primaries supplied by source-documented manifest fallback"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 5,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_sdr.mov",
+        "sha256" : "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
+        "sizeBytes" : 62600378
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 2.541667,
+        "frameRate" : 24,
+        "height" : 1024,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_sdr.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/24",
+        "transfer" : "bt1886",
+        "width" : 2048
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_sdr.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "ASWF Digital Production Example Library \/ Netflix Animation Studios",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.7331582880500124,
+        "medianConfidence" : 0.7329761800915742,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.7325653830871547,
+        "p50Confidence" : 0.7329761800915742,
+        "p90Confidence" : 0.733788219512438,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/8_Drawing_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c",
+        "sizeBytes" : 14995231
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/8_Drawing_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/8_Drawing_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_8_drawing_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/8_Drawing_SDR_3840x2160_15000k.mp4",
+        "sha256" : "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
+        "sizeBytes" : 14932621
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/8_Drawing_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/8_Drawing_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9006247141712219,
+        "medianConfidence" : 0.9011909783780874,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8954622920970591,
+        "p50Confidence" : 0.9011909783780874,
+        "p90Confidence" : 0.9038098430074817,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/16_Night_Biking_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "c6797591b56d7dd2fd58ab33f063ca088d65889539efa83c1e0afa7296b0449a",
+        "sizeBytes" : 15271305
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/16_Night_Biking_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/16_Night_Biking_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_16_night_biking_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/16_Night_Biking_SDR_3840x2160_15000k.mp4",
+        "sha256" : "ba79a963385bee76125f02108e8cc14198bfe8539e892a751342a42191fb05aa",
+        "sizeBytes" : 15304369
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/16_Night_Biking_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/16_Night_Biking_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : -0.03333333333333054,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9225643301817806,
+        "medianConfidence" : 0.9225856473607992,
+        "offsetVariance" : 0.00013438999999999945,
+        "p10Confidence" : 0.9210380077883364,
+        "p50Confidence" : 0.9225856473607992,
+        "p90Confidence" : 0.9241598497924963,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "dae8689ad0e4e0290ad2d6f560c3492634d5bdc112b53db838985eb415fd6561",
+        "sizeBytes" : 15221863
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_22_programming_night_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+        "sha256" : "dff9653bdddbbb851607a3d12b52c8e368291de6a8c4f86e84bd935f3ecc1c8d",
+        "sizeBytes" : 15161007
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8709124486118782,
+        "medianConfidence" : 0.8715142008697396,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8512865824757492,
+        "p50Confidence" : 0.8715142008697396,
+        "p90Confidence" : 0.8912046725849962,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/4_Campfire_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "f6438393f7242402bc6a8bdc1008a36a52c97693c81239dfe28d04fc4b3939e1",
+        "sizeBytes" : 15004817
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/4_Campfire_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/4_Campfire_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_4_campfire_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/4_Campfire_SDR_3840x2160_15000k.mp4",
+        "sha256" : "d8f49295c5e55803c740d6d2a8af66a57672e2da4f69de1990c1d21471bff191",
+        "sizeBytes" : 15280943
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/4_Campfire_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/4_Campfire_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : -0.03333333333333054,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8132137403027278,
+        "medianConfidence" : 0.8133043069593591,
+        "offsetVariance" : 0.00013438999999999945,
+        "p10Confidence" : 0.8116452066943851,
+        "p50Confidence" : 0.8133043069593591,
+        "p90Confidence" : 0.8144981805512777,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "87fb5127fb9393cb40b2792dde8e6577395b4acd56bb73c7184edc32dc4e0fc3",
+        "sizeBytes" : 15069187
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_9_face_close_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/9_Face_Close_SDR_3840x2160_15000k.mp4",
+        "sha256" : "71fb4e49c4974dba225fb2f696a3ad04700682d028fd6b0aca0b08e95e0a9d26",
+        "sizeBytes" : 15055098
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/9_Face_Close_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/9_Face_Close_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8680664704315417,
+        "medianConfidence" : 0.867896100206838,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8665124120063288,
+        "p50Confidence" : 0.867896100206838,
+        "p90Confidence" : 0.8696823532911048,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/13_Interview_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "d67356a75a5a383d8ca5393cc09214f49460cc91a599a6cbbfe4bee370314d8d",
+        "sizeBytes" : 15279869
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/13_Interview_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/13_Interview_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "live_13_interview_3840x2160_15000k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/13_Interview_SDR_3840x2160_15000k.mp4",
+        "sha256" : "3c9c92f91406e9111e053e3c31a834842592127831f6f9429c4af1129bc2a497",
+        "sizeBytes" : 15340602
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/13_Interview_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/13_Interview_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    }
+  ],
+  "verdict" : "DATASET_V4_READY",
+  "version" : "dataset-v4-audit-v2"
+}

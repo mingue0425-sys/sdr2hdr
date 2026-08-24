@@ -1,0 +1,6 @@
+{
+  "evidence" : "production\/offline temporal parity is covered by strict GPU regression tests; this harness performs structural preparation only",
+  "model" : "shared HDRTemporalControlState; causal frame-N state is applied to frame-N+1",
+  "status" : "PASS",
+  "virginFrozenObjectiveEvaluated" : false
+}

@@ -1,0 +1,37 @@
+{
+  "auditConfigHash" : "18a10e54889115cef739af5f129fe0467ae9b298353187bfea5599ee2da61b23",
+  "auditHash" : "a81b728f3ed6c66044742c0694332340afb7c06f8b303c6186cfd4f3c1d0b7c6",
+  "eligiblePairIDs" : [
+    "live_13_interview_3840x2160_15000k",
+    "live_16_night_biking_3840x2160_15000k",
+    "live_22_programming_night_3840x2160_15000k",
+    "live_4_campfire_3840x2160_15000k",
+    "live_8_drawing_3840x2160_15000k",
+    "live_9_face_close_3840x2160_15000k",
+    "solemates_unh0400_0010",
+    "video1_ive_blackhole",
+    "video2_newjeans_new_jeans",
+    "video3_newjeans_how_sweet",
+    "video4_aespa_lemonade",
+    "video6_le_sserafim_hot"
+  ],
+  "lockHash" : "016188ed1f5a6d409f79a993453d28d8af3664a267c359cd80f0a0a79dff2cf7",
+  "manifestHash" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
+  "objectiveEvaluated" : false,
+  "relationByPairID" : {
+    "live_13_interview_3840x2160_15000k" : "same-source",
+    "live_16_night_biking_3840x2160_15000k" : "same-source",
+    "live_22_programming_night_3840x2160_15000k" : "same-source",
+    "live_4_campfire_3840x2160_15000k" : "same-source",
+    "live_8_drawing_3840x2160_15000k" : "same-source",
+    "live_9_face_close_3840x2160_15000k" : "same-source",
+    "solemates_unh0400_0010" : "same-master",
+    "video1_ive_blackhole" : "same-master",
+    "video2_newjeans_new_jeans" : "same-master",
+    "video3_newjeans_how_sweet" : "same-master",
+    "video4_aespa_lemonade" : "same-master",
+    "video6_le_sserafim_hot" : "same-master"
+  },
+  "status" : "PASS",
+  "virginFrozenObjectiveEvaluated" : false
+}

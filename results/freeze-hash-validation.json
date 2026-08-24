@@ -1,0 +1,9 @@
+{
+  "gitCommit" : "24f8e71450392b5dceef6a40b6f161dbfc48b20e",
+  "gitTree" : "92a3d270b1e16aaa5eeeee8c7a6be785083f6ac2",
+  "missingSourceIsHardFailure" : true,
+  "sourceHash" : "a33df929e652b1148432a682f2ec207a4d21f88cbe99a595f29abe0a5a8fd715",
+  "sourceMutationTest" : "PASS (unit test changes a required source and observes a different hash)",
+  "status" : "PASS",
+  "workingTreeDirty" : false
+}
