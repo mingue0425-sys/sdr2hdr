@@ -8,6 +8,20 @@ public enum V4ExpectedRelation: String, Codable, CaseIterable, Sendable {
     case sameContentDifferentGrade = "same-content-different-grade"
     case relatedContent = "related-content"
     case unknown
+
+    public var supportsMainCalibration: Bool {
+        self == .sameMaster || self == .sameSource
+    }
+
+    public func legacyRelation() -> ExpectedRelation {
+        switch self {
+        case .sameMaster: return .sameMaster
+        case .sameSource: return .sameSource
+        case .sameContentDifferentGrade: return .sameContentDifferentGrade
+        case .relatedContent: return .relatedContent
+        case .unknown: return .unknown
+        }
+    }
 }
 
 public struct V4PairRecord: Codable, Hashable, Sendable {
@@ -315,8 +329,25 @@ public struct V4StreamMetadata: Codable, Sendable {
         return (transferFamily == "PQ" || transferFamily == "HLG") && primaries.contains("2020")
     }
 
+    /// Main calibration accepts only explicitly tagged BT.709 SDR. Missing
+    /// colorimetry is not a safe inference point because the reference loss
+    /// function would otherwise mix unknown transfer/matrix semantics.
+    public var isExplicitBT709SDR: Bool {
+        let primaries = (colorPrimaries ?? "").lowercased()
+        let matrix = (matrix ?? "").lowercased()
+        let range = (colorRange ?? "").lowercased()
+        let supportedRange = ["tv", "mpeg", "limited", "pc", "jpeg", "full"].contains(range)
+        let transferValue = (transfer ?? "").lowercased()
+        let supportedTransferValues = [
+            "bt709", "bt.709", "bt1886", "bt.1886", "gamma22", "gamma28",
+            "srgb", "iec61966-2-1"
+        ]
+        let supportedTransfer = supportedTransferValues.contains(transferValue)
+        return supportedTransfer && primaries.contains("709") && matrix.contains("709") && supportedRange
+    }
+
     public var isSDRReference: Bool {
-        transferFamily == "SDR" && !(colorPrimaries ?? "").lowercased().contains("2020")
+        isExplicitBT709SDR
     }
 }
 
@@ -523,6 +554,10 @@ public struct V4DiversityReport: Codable, Sendable {
 
 public struct V4DatasetAuditReport: Codable, Sendable {
     public var version: String
+    /// Hash of the audit policy and implementation contract that produced
+    /// this evidence. Older reports decode with nil and are rejected by the
+    /// calibration evidence validator rather than silently reused.
+    public var auditConfigHash: String?
     public var generatedAt: String
     public var manifestPath: String
     public var manifestSHA256: String
@@ -541,9 +576,11 @@ public struct V4DatasetAuditReport: Codable, Sendable {
         diversity: V4DiversityReport,
         notes: [String],
         verdict: V4DatasetVerdict = .partial,
-        gateReasons: [String] = []
+        gateReasons: [String] = [],
+        auditConfigHash: String? = nil
     ) {
-        self.version = "dataset-v4-audit"
+        self.version = V4DatasetAuditor.auditEvidenceVersion
+        self.auditConfigHash = auditConfigHash ?? V4DatasetAuditor.auditConfigurationHash
         self.generatedAt = ISO8601DateFormatter().string(from: Date())
         self.manifestPath = manifestPath
         self.manifestSHA256 = manifestSHA256

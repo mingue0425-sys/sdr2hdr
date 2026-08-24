@@ -158,110 +158,57 @@ private final class OutputTexturePool: @unchecked Sendable {
 
 private final class TemporalState: @unchecked Sendable {
     private let lock = NSLock()
-    private var smoothedEstimate: Float = 0.5
-    private var adaptation: Float = 1.0
-    private var previousAutomaticEstimate: Float?
-    private var lastAutomaticSequence: UInt64 = 0
+    private var control = HDRTemporalControlState()
 
     func value() -> Float {
         lock.lock()
         defer { lock.unlock() }
-        return adaptation
+        return control.adaptation
     }
 
     func reset() {
         lock.lock()
-        smoothedEstimate = 0.5
-        adaptation = 1
-        previousAutomaticEstimate = nil
-        lastAutomaticSequence = 0
+        control.reset()
         lock.unlock()
     }
 
     func update(averageLuminance: Float, stability: Float, sceneCut: Bool) {
-        guard averageLuminance.isFinite else { return }
-        let target = min(max(averageLuminance, 0.001), 1)
         lock.lock()
-        defer { lock.unlock() }
-        if sceneCut {
-            smoothedEstimate = target
-        } else {
-            let alpha = 1 - min(max(stability, 0), 1)
-            smoothedEstimate += alpha * (target - smoothedEstimate)
-        }
-        // This is deliberately a small highlight-only compensation. It does
-        // not lift black or act as an automatic exposure control.
-        adaptation = min(max(0.94 + 0.12 * (0.5 - smoothedEstimate), 0.90), 1.06)
+        control.updateAverage(averageLuminance: averageLuminance, stability: stability, sceneCut: sceneCut)
+        lock.unlock()
     }
 
     func updateAutomatic(averageLuminance: Float, stability: Float, sequence: UInt64) {
-        guard averageLuminance.isFinite else { return }
         lock.lock()
-        guard sequence > lastAutomaticSequence else {
-            lock.unlock()
-            return
-        }
-        lastAutomaticSequence = sequence
-        let target = min(max(averageLuminance, 0.001), 1)
-        let sceneCut: Bool
-        if let previousAutomaticEstimate {
-            sceneCut = abs(log2(max(target, 0.001) / max(previousAutomaticEstimate, 0.001))) > 1.25
-        } else {
-            sceneCut = true
-        }
-        previousAutomaticEstimate = target
-        if sceneCut {
-            smoothedEstimate = target
-        } else {
-            let alpha = 1 - min(max(stability, 0), 1)
-            smoothedEstimate += alpha * (target - smoothedEstimate)
-        }
-        adaptation = min(max(0.94 + 0.12 * (0.5 - smoothedEstimate), 0.90), 1.06)
+        _ = control.updateAutomaticAverage(
+            averageLuminance: averageLuminance,
+            stability: stability,
+            sequence: sequence
+        )
         lock.unlock()
     }
 }
 
 private final class SceneShadowState: @unchecked Sendable {
     private let lock = NSLock()
-    private var floor: Float = HDRSceneStatistics.neutral.shadowFloor
-    private var top: Float = HDRSceneStatistics.neutral.shadowTop
-    private var valid = false
-    private var previousAverage: Float?
-    private var lastAutomaticSequence: UInt64 = 0
+    private var control = HDRTemporalControlState()
 
     func value() -> (floor: Float, top: Float, valid: Bool) {
         lock.lock()
         defer { lock.unlock() }
-        return (floor, top, valid)
+        return (control.shadowFloor, control.shadowTop, control.shadowStatisticsValid)
     }
 
     func reset() {
         lock.lock()
-        floor = HDRSceneStatistics.neutral.shadowFloor
-        top = HDRSceneStatistics.neutral.shadowTop
-        valid = false
-        previousAverage = nil
-        lastAutomaticSequence = 0
+        control.reset()
         lock.unlock()
     }
 
     func update(statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
-        guard statistics.isFinite else { return }
-        let targetFloor = statistics.shadowFloor
-        let targetTop = statistics.shadowTop
-        guard targetFloor.isFinite, targetTop.isFinite else { return }
         lock.lock()
-        defer { lock.unlock() }
-        let alpha = 1 - min(max(stability, 0), 1)
-        if sceneCut || !valid {
-            floor = targetFloor
-            top = targetTop
-        } else {
-            floor += alpha * (targetFloor - floor)
-            top += alpha * (targetTop - top)
-        }
-        top = max(top, floor + 0.025)
-        valid = true
+        control.updateStatistics(statistics, stability: stability, sceneCut: sceneCut)
+        lock.unlock()
     }
 
     /// Returns the same scene-cut decision used by the runtime temporal
@@ -273,33 +220,13 @@ private final class SceneShadowState: @unchecked Sendable {
         stability: Float,
         sequence: UInt64
     ) -> Bool {
-        guard statistics.isFinite, averageLuminance.isFinite else { return false }
         lock.lock()
-        guard sequence > lastAutomaticSequence else {
-            lock.unlock()
-            return false
-        }
-        lastAutomaticSequence = sequence
-        let target = min(max(averageLuminance, 0.001), 1)
-        let sceneCut: Bool
-        if let previousAverage {
-            sceneCut = abs(log2(max(target, 0.001) / max(previousAverage, 0.001))) > 1.25
-        } else {
-            sceneCut = true
-        }
-        previousAverage = target
-        let targetFloor = statistics.shadowFloor
-        let targetTop = statistics.shadowTop
-        let alpha = 1 - min(max(stability, 0), 1)
-        if sceneCut || !valid {
-            floor = targetFloor
-            top = targetTop
-        } else {
-            floor += alpha * (targetFloor - floor)
-            top += alpha * (targetTop - top)
-        }
-        top = max(top, floor + 0.025)
-        valid = true
+        let sceneCut = control.updateAutomaticStatistics(
+            statistics,
+            averageLuminance: averageLuminance,
+            stability: stability,
+            sequence: sequence
+        )
         lock.unlock()
         return sceneCut
     }
@@ -403,8 +330,8 @@ public final class HDRProcessor {
 
     /// Enables the 16x9 asynchronous source-luminance estimator. It adds 144
     /// texture reads and no CPU/GPU wait; completion updates the next frame's
-    /// temporal adaptation. Offline calibration disables it and supplies exact
-    /// sequential proxy estimates through updateTemporalEstimate.
+    /// temporal adaptation. Offline calibration enables the same estimator
+    /// and only waits after submission when it needs a numeric readback.
     public var automaticTemporalEstimationEnabled: Bool {
         get { stateLock.withLock { automaticTemporalEnabled } }
         set { stateLock.withLock { automaticTemporalEnabled = newValue } }
@@ -679,6 +606,10 @@ public final class HDRProcessor {
         configuration: HDRConfiguration,
         color: ResolvedColorDescription
     ) -> HDRShaderParameters {
+        // Snapshot the scene-relative state once. Completion handlers may
+        // update it concurrently; reading floor/top/valid independently could
+        // otherwise mix two causal frames into one shader parameter block.
+        let shadowCoordinates = sceneShadowState.value()
         let matrixKind: UInt32
         switch color.metadata.yCbCrMatrix {
         case .bt709: matrixKind = 0
@@ -720,9 +651,9 @@ public final class HDRProcessor {
             shadowProtection: configuration.shadowProtection,
             temporalAdaptation: temporalState.value(),
             masteringHeadroom: configuration.masteringHeadroom,
-            sceneShadowFloor: sceneShadowState.value().floor,
-            sceneShadowTop: sceneShadowState.value().top,
-            sceneStatisticsValid: configuration.toneCurveRevision == .sceneRelativeV4 && sceneShadowState.value().valid ? 1 : 0,
+            sceneShadowFloor: shadowCoordinates.floor,
+            sceneShadowTop: shadowCoordinates.top,
+            sceneStatisticsValid: configuration.toneCurveRevision == .sceneRelativeV4 && shadowCoordinates.valid ? 1 : 0,
             sceneStatisticsReserved: 0
         )
     }

@@ -305,18 +305,19 @@ public final class PairEvaluator {
         }
 
         let scenes = SceneDetector.detect(sequence: sdrSequence)
-        let sdrByIndex = Dictionary(uniqueKeysWithValues: sdrSequence.samples.map { ($0.index, $0) })
-        let hdrByIndex = Dictionary(uniqueKeysWithValues: hdrSequence.samples.map { ($0.index, $0) })
         let selectedMatches = representativeMatches(
             alignment.matches,
             scenes: scenes,
-            sdrByIndex: sdrByIndex,
+            sdrSamples: sdrSequence.samples,
             maxPerScene: experiment.maxFramesPerScene
         )
         var preparedMatches: [PreparedMatch] = []
         preparedMatches.reserveCapacity(selectedMatches.count)
         for match in selectedMatches {
-            guard let sdr = sdrByIndex[match.sdrIndex], let hdr = hdrByIndex[match.hdrIndex] else { continue }
+            guard let sdr = sample(for: match.sdrSequencePosition, sourceIndex: match.sdrIndex, in: sdrSequence),
+                  let hdr = sample(for: match.hdrSequencePosition, sourceIndex: match.hdrIndex, in: hdrSequence) else {
+                continue
+            }
             let reference = try HDRReferenceDecoder.decode(
                 pixelBuffer: hdr.pixelBuffer,
                 timestampSeconds: match.hdrTimeSeconds,
@@ -369,7 +370,8 @@ public final class PairEvaluator {
         windows.reserveCapacity(scenes.count)
         for scene in scenes {
             let sceneMatches = alignment.matches.filter {
-                $0.sdrIndex >= scene.startSample && $0.sdrIndex <= scene.endSample
+                guard let position = $0.sdrSequencePosition else { return false }
+                return scene.contains(sequencePosition: position)
             }
             guard let anchor = sceneMatches.max(by: { $0.confidence < $1.confidence }) else { continue }
             // Start at the detected shot boundary so the first sample exercises
@@ -413,20 +415,25 @@ public final class PairEvaluator {
     private func representativeMatches(
         _ matches: [MatchedFrame],
         scenes: [SceneRange],
-        sdrByIndex: [Int: FrameSample],
+        sdrSamples: [FrameSample],
         maxPerScene: Int
     ) -> [MatchedFrame] {
         guard !matches.isEmpty, maxPerScene > 0 else { return [] }
         var selected: [MatchedFrame] = []
         for scene in scenes {
             let sceneMatches = matches.filter {
-                $0.sdrIndex >= scene.startSample && $0.sdrIndex <= scene.endSample
+                guard let position = $0.sdrSequencePosition else { return false }
+                return scene.contains(sequencePosition: position)
             }
             guard !sceneMatches.isEmpty else { continue }
             let count = min(maxPerScene, sceneMatches.count)
             var candidates: [MatchedFrame] = []
             func appendUnique(_ match: MatchedFrame?) {
-                guard let match, !candidates.contains(where: { $0.sdrIndex == match.sdrIndex }) else { return }
+                guard let match,
+                      !candidates.contains(where: {
+                          ($0.sdrSequencePosition ?? $0.sdrIndex) ==
+                              (match.sdrSequencePosition ?? match.sdrIndex)
+                      }) else { return }
                 candidates.append(match)
             }
             appendUnique(sceneMatches.first)
@@ -434,7 +441,8 @@ public final class PairEvaluator {
             appendUnique(sceneMatches.last)
 
             let withSamples = sceneMatches.compactMap { match in
-                sdrByIndex[match.sdrIndex].map { (match, $0) }
+                sample(for: match.sdrSequencePosition, sourceIndex: match.sdrIndex, in: sdrSamples)
+                    .map { (match, $0) }
             }
             appendUnique(withSamples.max { $0.1.descriptor.meanLuma < $1.1.descriptor.meanLuma }?.0)
             appendUnique(withSamples.max { $0.1.descriptor.variance < $1.1.descriptor.variance }?.0)
@@ -457,9 +465,37 @@ public final class PairEvaluator {
                     appendUnique(sceneMatches[sourceIndex])
                 }
             }
-            selected.append(contentsOf: candidates.prefix(count).sorted { $0.sdrIndex < $1.sdrIndex })
+            selected.append(contentsOf: candidates.prefix(count).sorted {
+                ($0.sdrSequencePosition ?? $0.sdrIndex) < ($1.sdrSequencePosition ?? $1.sdrIndex)
+            })
         }
         return selected.isEmpty ? Array(matches.prefix(maxPerScene)) : selected
+    }
+
+    private func sample(
+        for sequencePosition: Int?,
+        sourceIndex: Int,
+        in sequence: FrameSequence
+    ) -> FrameSample? {
+        if let sequencePosition {
+            return sequence.samples.first { $0.sequencePosition == sequencePosition }
+        }
+        // Compatibility for historical alignment JSON that predates the
+        // explicit sequence-position fields. New alignments always take the
+        // sequence-position branch above, so sparse scene logic never mixes
+        // the two domains.
+        return sequence.samples.first { $0.index == sourceIndex }
+    }
+
+    private func sample(
+        for sequencePosition: Int?,
+        sourceIndex: Int,
+        in samples: [FrameSample]
+    ) -> FrameSample? {
+        if let sequencePosition {
+            return samples.first { $0.sequencePosition == sequencePosition }
+        }
+        return samples.first { $0.index == sourceIndex }
     }
 
     private static func percentile(_ values: [Float], _ fraction: Double) -> Float {
@@ -494,8 +530,8 @@ public final class PairEvaluator {
         let sceneMetrics = prepared.scenes.map { scene in
             let sceneAnalyses = analyses.filter { analysis in
                 let time = analysis.generated.timestampSeconds
-                guard let start = prepared.sdrSequence.samples.first(where: { $0.index >= scene.startSample })?.descriptor.timestampSeconds,
-                      let end = prepared.sdrSequence.samples.last(where: { $0.index <= scene.endSample })?.descriptor.timestampSeconds else { return false }
+                guard let start = prepared.sdrSequence.samples.first(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds,
+                      let end = prepared.sdrSequence.samples.last(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds else { return false }
                 return time >= start && time <= end
             }
             return ErrorMetrics.evaluateScene(

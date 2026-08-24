@@ -31,6 +31,102 @@ public struct V4SafetyThresholds: Codable, Sendable {
     public init() {}
 }
 
+public enum V4GateStatus: String, Codable, Sendable {
+    case pass = "PASS"
+    case fail = "FAIL"
+    case notMeasured = "NOT_MEASURED"
+}
+
+public enum V4PromotionMath {
+    /// Internal promotion values are ratios: 0.05 means 5 percent.
+    public static func improvementRatio(baseline: Double, candidate: Double) -> Double {
+        guard baseline.isFinite, candidate.isFinite, baseline > 0 else { return -.infinity }
+        return (baseline - candidate) / baseline
+    }
+
+    public static func improvementPercent(baseline: Double, candidate: Double) -> Double {
+        improvementRatio(baseline: baseline, candidate: candidate) * 100
+    }
+
+    public static func passesMinimumImprovement(baseline: Double, candidate: Double, minimumRatio: Double) -> Bool {
+        improvementRatio(baseline: baseline, candidate: candidate) >= minimumRatio
+    }
+}
+
+public struct V4PromotionGateResult: Codable, Sendable {
+    public var completeness: V4GateStatus
+    public var datasetIntegrity: V4GateStatus
+    public var identifiability: V4GateStatus
+    public var relativeShadow: V4GateStatus
+    public var overall: V4GateStatus
+    public var shadow: V4GateStatus
+    public var temporal: V4GateStatus
+    public var transfer: V4GateStatus
+    public var family: V4GateStatus
+    public var runtime: V4GateStatus
+    public var frozen: V4GateStatus
+    public var hardSafety: V4GateStatus
+
+    public init(
+        completeness: V4GateStatus = .notMeasured,
+        datasetIntegrity: V4GateStatus = .notMeasured,
+        identifiability: V4GateStatus = .notMeasured,
+        relativeShadow: V4GateStatus = .notMeasured,
+        overall: V4GateStatus = .notMeasured,
+        shadow: V4GateStatus = .notMeasured,
+        temporal: V4GateStatus = .notMeasured,
+        transfer: V4GateStatus = .notMeasured,
+        family: V4GateStatus = .notMeasured,
+        runtime: V4GateStatus = .notMeasured,
+        frozen: V4GateStatus = .notMeasured,
+        hardSafety: V4GateStatus = .notMeasured
+    ) {
+        self.completeness = completeness
+        self.datasetIntegrity = datasetIntegrity
+        self.identifiability = identifiability
+        self.relativeShadow = relativeShadow
+        self.overall = overall
+        self.shadow = shadow
+        self.temporal = temporal
+        self.transfer = transfer
+        self.family = family
+        self.runtime = runtime
+        self.frozen = frozen
+        self.hardSafety = hardSafety
+    }
+}
+
+public enum V4PromotionGateMachine {
+    public static func verdict(_ gates: V4PromotionGateResult) -> CalibrationV4Verdict {
+        if gates.completeness == .fail || gates.datasetIntegrity == .fail { return .validationFail }
+        if gates.identifiability == .fail { return .identifiabilityFail }
+        if gates.relativeShadow == .fail { return .relativeShadowInsufficient }
+        if gates.overall == .fail { return .validationFail }
+        if gates.shadow == .fail { return .shadowGeneralizationFail }
+        if gates.temporal == .fail { return .validationFail }
+        if gates.transfer == .fail { return .transferGeneralizationFail }
+        if gates.family == .fail { return .validationFail }
+        if gates.runtime == .fail || gates.runtime == .notMeasured { return .runtimeRegression }
+        if gates.frozen == .fail { return .virginFrozenFail }
+        if gates.hardSafety == .fail { return .keepV2 }
+        guard gates.completeness == .pass,
+              gates.datasetIntegrity == .pass,
+              gates.identifiability == .pass,
+              gates.relativeShadow == .pass,
+              gates.overall == .pass,
+              gates.shadow == .pass,
+              gates.temporal == .pass,
+              gates.transfer == .pass,
+              gates.family == .pass,
+              gates.runtime == .pass,
+              gates.frozen == .pass,
+              gates.hardSafety == .pass else {
+            return .validationFail
+        }
+        return .promote
+    }
+}
+
 public struct V4ParameterBounds: Codable, Sendable {
     public var paperWhiteNits: ClosedRange<Float> = 190...245
     public var peakNits: ClosedRange<Float> = 900...1_500
@@ -98,6 +194,13 @@ public struct V4FreezeArtifact: Codable, Sendable {
     public var codeHash: String
     public var manifestHash: String
     public var objectiveHash: String
+    public var sourceHash: String?
+    public var datasetLockHash: String?
+    public var auditArtifactHash: String?
+    public var evaluationConfigHash: String?
+    public var gitCommit: String?
+    public var gitTree: String?
+    public var workingTreeDirty: Bool?
     public var finalCandidateFrozen: Bool
     public var frozenOpened: Bool
 
@@ -110,7 +213,14 @@ public struct V4FreezeArtifact: Codable, Sendable {
         manifestHash: String,
         objectiveHash: String,
         finalCandidateFrozen: Bool,
-        frozenOpened: Bool
+        frozenOpened: Bool,
+        sourceHash: String? = nil,
+        datasetLockHash: String? = nil,
+        auditArtifactHash: String? = nil,
+        evaluationConfigHash: String? = nil,
+        gitCommit: String? = nil,
+        gitTree: String? = nil,
+        workingTreeDirty: Bool? = nil
     ) {
         self.version = version
         self.candidateID = candidateID
@@ -119,8 +229,229 @@ public struct V4FreezeArtifact: Codable, Sendable {
         self.codeHash = codeHash
         self.manifestHash = manifestHash
         self.objectiveHash = objectiveHash
+        self.sourceHash = sourceHash
+        self.datasetLockHash = datasetLockHash
+        self.auditArtifactHash = auditArtifactHash
+        self.evaluationConfigHash = evaluationConfigHash
+        self.gitCommit = gitCommit
+        self.gitTree = gitTree
+        self.workingTreeDirty = workingTreeDirty
         self.finalCandidateFrozen = finalCandidateFrozen
         self.frozenOpened = frozenOpened
+    }
+}
+
+public struct V4DatasetEvidence: Codable, Sendable {
+    public let manifestHash: String
+    public let lockHash: String
+    public let auditHash: String
+    public let auditConfigHash: String
+    public let eligiblePairIDs: [String]
+
+    public init(
+        manifestHash: String,
+        lockHash: String,
+        auditHash: String,
+        auditConfigHash: String,
+        eligiblePairIDs: [String]
+    ) {
+        self.manifestHash = manifestHash
+        self.lockHash = lockHash
+        self.auditHash = auditHash
+        self.auditConfigHash = auditConfigHash
+        self.eligiblePairIDs = eligiblePairIDs.sorted()
+    }
+}
+
+/// Validates the immutable dataset evidence required before a calibration
+/// runner may decode any candidate frames. A READY string alone is not proof
+/// of pair eligibility or media identity.
+public enum V4DatasetEvidenceValidator {
+    public static func validate(
+        manifestURL: URL,
+        auditURL: URL,
+        lockURL: URL,
+        requiredPairIDs: Set<String>? = nil
+    ) throws -> V4DatasetEvidence {
+        let manifestData = try Data(contentsOf: manifestURL)
+        let manifest = try JSONDecoder().decode(V4Manifest.self, from: manifestData)
+        try manifest.validate(relativeTo: manifestURL)
+        let manifestHash = try V4DatasetIntegrity.manifestSHA256(url: manifestURL)
+
+        let lockData = try Data(contentsOf: lockURL)
+        let lock = try JSONDecoder().decode(V4DatasetLock.self, from: lockData)
+        guard lock.manifestSHA256 == manifestHash else {
+            throw CalibrationError.invalidManifest("dataset lock manifest hash does not match current manifest")
+        }
+
+        let auditData = try Data(contentsOf: auditURL)
+        let audit = try JSONDecoder().decode(V4DatasetAuditReport.self, from: auditData)
+        guard audit.verdict == .ready else {
+            throw CalibrationError.invalidManifest("dataset audit is not READY: \(audit.verdict.rawValue)")
+        }
+        guard audit.version == V4DatasetAuditor.auditEvidenceVersion,
+              let auditConfigHash = audit.auditConfigHash,
+              auditConfigHash == V4DatasetAuditor.auditConfigurationHash else {
+            throw CalibrationError.invalidManifest("dataset audit evidence version/configuration is stale or missing")
+        }
+        guard audit.manifestSHA256 == manifestHash else {
+            throw CalibrationError.invalidManifest("dataset audit manifest hash does not match current manifest")
+        }
+        guard !audit.objectiveEvaluated, audit.frozenObjectiveEvaluated.isEmpty else {
+            throw CalibrationError.invalidCandidate("dataset audit evidence already contains objective evaluation")
+        }
+
+        var auditByID: [String: V4PairAudit] = [:]
+        for record in audit.pairs {
+            guard auditByID.updateValue(record, forKey: record.id) == nil else {
+                throw CalibrationError.invalidManifest("dataset audit contains duplicate pair id: \(record.id)")
+            }
+        }
+        let manifestIDs = Set(manifest.pairs.map(\.id))
+        guard Set(auditByID.keys) == manifestIDs else {
+            throw CalibrationError.invalidManifest("dataset audit pair IDs do not exactly match manifest")
+        }
+        if let requiredPairIDs, !requiredPairIDs.isSubset(of: manifestIDs) {
+            throw CalibrationError.invalidManifest("requested calibration pair is absent from manifest")
+        }
+
+        var lockByPath: [String: V4FileDigest] = [:]
+        for file in lock.files {
+            guard lockByPath.updateValue(file, forKey: file.path) == nil else {
+                throw CalibrationError.invalidManifest("dataset lock contains duplicate path: \(file.path)")
+            }
+        }
+        for pair in manifest.pairs {
+            guard pair.expectedRelation.supportsMainCalibration else {
+                throw CalibrationError.invalidManifest("pair \(pair.id) has relation \(pair.expectedRelation.rawValue), which is not eligible for main calibration")
+            }
+            guard let record = auditByID[pair.id],
+                  record.expectedRelation == pair.expectedRelation,
+                  record.suitability == .mainCalibration,
+                  record.status == .accepted,
+                  record.sdrReferenceValid == true,
+                  record.hdrReferenceValid == true,
+                  record.sdrDecode.passed,
+                  record.hdrDecode.passed,
+                  record.alignment.status == "ALIGNED" else {
+                throw CalibrationError.invalidManifest("pair \(pair.id) is not an eligible, fully audited main-calibration record")
+            }
+            let resolved = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+            let expectedPaths = Set([resolved.sdr.standardizedFileURL.path, resolved.hdr.standardizedFileURL.path])
+            for digest in [record.sdrDigest, record.hdrDigest] {
+                guard let digest else {
+                    throw CalibrationError.invalidManifest("pair \(pair.id) is missing an audit media digest")
+                }
+                guard expectedPaths.contains(URL(fileURLWithPath: digest.path).standardizedFileURL.path) else {
+                    throw CalibrationError.invalidManifest("audit digest path is not the manifest media path: \(digest.path)")
+                }
+                guard let locked = lockByPath[digest.path], locked.sha256 == digest.sha256,
+                      locked.sizeBytes == digest.sizeBytes else {
+                    throw CalibrationError.invalidManifest("dataset lock does not contain matching digest for \(digest.path)")
+                }
+                let current = try V4DatasetIntegrity.digest(url: URL(fileURLWithPath: digest.path))
+                guard current.sha256 == digest.sha256, current.sizeBytes == digest.sizeBytes else {
+                    throw CalibrationError.invalidManifest("media digest changed: \(digest.path)")
+                }
+            }
+        }
+        return V4DatasetEvidence(
+            manifestHash: manifestHash,
+            lockHash: try V4DatasetIntegrity.sha256(url: lockURL),
+            auditHash: try V4DatasetIntegrity.sha256(url: auditURL),
+            auditConfigHash: auditConfigHash,
+            eligiblePairIDs: manifest.pairs.map(\.id)
+        )
+    }
+}
+
+public struct V4GitEvidence: Codable, Sendable {
+    public let commit: String
+    public let tree: String
+    public let workingTreeDirty: Bool
+}
+
+public enum V4SourceHasher {
+    public static func repositoryRoot(for manifestURL: URL) throws -> URL {
+        var current = manifestURL.deletingLastPathComponent().standardizedFileURL
+        let fileManager = FileManager.default
+        while current.path != "/" {
+            if fileManager.fileExists(atPath: current.appendingPathComponent("Package.swift").path) {
+                return current
+            }
+            current.deleteLastPathComponent()
+        }
+        throw CalibrationError.invalidManifest("repository root with Package.swift was not found")
+    }
+
+    public static func sourceHash(repositoryRoot: URL) throws -> String {
+        let sources = repositoryRoot.appendingPathComponent("Sources")
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: sources.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw CalibrationError.invalidManifest("Sources directory is missing from repository root")
+        }
+        let requiredFiles = [
+            "Package.swift",
+            "Sources/HDRCore/HDRConfiguration.swift",
+            "Sources/HDRCore/HDRProcessor.swift",
+            "Sources/HDRCore/HDRReference.swift",
+            "Sources/HDRCalibration/V4Calibration.swift",
+            "Sources/HDRCalibration/V4DatasetAudit.swift",
+            "Sources/HDRCalibration/V4Models.swift",
+            "Sources/HDRCalibration/Decode.swift",
+            "Sources/HDRCalibration/Alignment.swift",
+            "Sources/HDRCalibration/FrameIO.swift",
+            "Sources/HDRCalibration/Evaluation.swift"
+        ]
+        for relative in requiredFiles {
+            guard FileManager.default.fileExists(atPath: repositoryRoot.appendingPathComponent(relative).path) else {
+                throw CalibrationError.invalidManifest("required source for freeze hash is missing: \(relative)")
+            }
+        }
+        let enumerator = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: [.isRegularFileKey])
+        var paths: [URL] = []
+        while let url = enumerator?.nextObject() as? URL {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
+            guard ["swift", "metal"].contains(url.pathExtension.lowercased()) else { continue }
+            paths.append(url)
+        }
+        paths.append(repositoryRoot.appendingPathComponent("Package.swift"))
+        paths.sort { $0.path < $1.path }
+        var data = Data()
+        for url in paths {
+            let relative = url.path.replacingOccurrences(of: repositoryRoot.path + "/", with: "")
+            data.append(Data(relative.utf8))
+            data.append(0)
+            data.append(try Data(contentsOf: url))
+            data.append(0)
+        }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    public static func gitEvidence(repositoryRoot: URL) throws -> V4GitEvidence {
+        func run(_ arguments: [String]) throws -> String {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+            process.arguments = ["-C", repositoryRoot.path] + arguments
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = FileHandle(forWritingAtPath: "/dev/null")
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw CalibrationError.invalidCandidate("git command failed: git \(arguments.joined(separator: " "))")
+            }
+            return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let commit = try run(["rev-parse", "HEAD"])
+        let tree = try run(["rev-parse", "HEAD^{tree}"])
+        // Include untracked source files: sourceHash includes every Swift and
+        // Metal file under Sources, so the dirty bit must describe the same
+        // working tree state rather than silently ignoring new source files.
+        let status = try run(["status", "--porcelain"])
+        return V4GitEvidence(commit: commit, tree: tree, workingTreeDirty: !status.isEmpty)
     }
 }
 
@@ -171,6 +502,7 @@ public struct V4FinalReport: Codable, Sendable {
     public var verdict: CalibrationV4Verdict
     public var reasons: [String]
     public var limitations: [String]
+    public var promotionGates: V4PromotionGateResult? = nil
 }
 
 private struct V4FrozenComparison: Codable, Sendable {
@@ -205,6 +537,11 @@ public final class CalibrationV4Runner {
         let manifest = try V4Manifest.load(from: manifestURL)
         try validateV4Split(manifest)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        let evidence = try V4DatasetEvidenceValidator.validate(
+            manifestURL: manifestURL,
+            auditURL: outputDirectory.appendingPathComponent("dataset-v4-final.json"),
+            lockURL: manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json")
+        )
 
         let transferByPair = try await probeTransfers(manifest)
         let records = makeLegacyRecords(manifest)
@@ -340,14 +677,20 @@ public final class CalibrationV4Runner {
         let selectedTune = selected.tune
         let candidate = selected.parameters
         let parameterHash = sha256(try encode(candidate))
-        let manifestHash = sha256(try Data(contentsOf: manifestURL))
+        let manifestHash = evidence.manifestHash
         let objectiveHash = sha256(try encode(configuration))
-        let codeHash = sourceCodeHash()
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        let sourceHash = try V4SourceHasher.sourceHash(repositoryRoot: repositoryRoot)
+        let gitEvidence = try V4SourceHasher.gitEvidence(repositoryRoot: repositoryRoot)
         let initialFreeze = V4FreezeArtifact(
             candidateID: selected.id, parameters: candidate,
-            parameterHash: parameterHash, codeHash: codeHash,
+            parameterHash: parameterHash, codeHash: sourceHash,
             manifestHash: manifestHash, objectiveHash: objectiveHash,
-            finalCandidateFrozen: true, frozenOpened: false
+            finalCandidateFrozen: true, frozenOpened: false,
+            sourceHash: sourceHash, datasetLockHash: evidence.lockHash,
+            auditArtifactHash: evidence.auditHash, evaluationConfigHash: objectiveHash,
+            gitCommit: gitEvidence.commit, gitTree: gitEvidence.tree,
+            workingTreeDirty: gitEvidence.workingTreeDirty
         )
         frozenGuard.finalizeCandidate()
         try writeJSON(selected, name: "calibrated-v4-candidate.json")
@@ -376,7 +719,12 @@ public final class CalibrationV4Runner {
             candidateID: initialFreeze.candidateID, parameters: initialFreeze.parameters,
             parameterHash: initialFreeze.parameterHash, codeHash: initialFreeze.codeHash,
             manifestHash: initialFreeze.manifestHash, objectiveHash: initialFreeze.objectiveHash,
-            finalCandidateFrozen: true, frozenOpened: true
+            finalCandidateFrozen: true, frozenOpened: true,
+            sourceHash: initialFreeze.sourceHash, datasetLockHash: initialFreeze.datasetLockHash,
+            auditArtifactHash: initialFreeze.auditArtifactHash,
+            evaluationConfigHash: initialFreeze.evaluationConfigHash,
+            gitCommit: initialFreeze.gitCommit, gitTree: initialFreeze.gitTree,
+            workingTreeDirty: initialFreeze.workingTreeDirty
         )
         try writeJSON(finalFreeze, name: "calibrated-v4-freeze.json")
 
@@ -389,7 +737,8 @@ public final class CalibrationV4Runner {
         let decision = finalVerdict(
             tuneV2: v2Tune, tuneV4: selectedTune,
             validationV2: v2Validation, validationV4: selectedValidation,
-            frozenV2: frozenV2, frozenV4: frozenV4
+            frozenV2: frozenV2, frozenV4: frozenV4,
+            manifest: manifest, transferByPair: transferByPair
         )
         let report = V4FinalReport(
             version: configuration.version,
@@ -416,7 +765,8 @@ public final class CalibrationV4Runner {
                 "The three Virgin Frozen pairs are a small holdout; family/transfer confidence intervals are limited.",
                 "Reference HDR creative grading and SDR information loss are not recoverable detail ground truth.",
                 "Runtime scene statistics use a 16x9, 16-bin causal GPU estimator; offline uses the same one-frame-late state transition."
-            ]
+            ],
+            promotionGates: decision.2
         )
         try writeArtifacts(report)
         return report
@@ -463,11 +813,15 @@ public final class CalibrationV4Runner {
                 hdr: urls.hdr.path,
                 license: pair.license,
                 source: pair.source,
-                expectedRelation: .sameMaster,
+                expectedRelation: legacyRelation(pair.expectedRelation),
                 notes: pair.notes,
                 split: pair.split
             )
         }
+    }
+
+    private func legacyRelation(_ relation: V4ExpectedRelation) -> ExpectedRelation {
+        relation.legacyRelation()
     }
 
     private func probeTransfers(_ manifest: V4Manifest) async throws -> [String: String] {
@@ -654,43 +1008,105 @@ public final class CalibrationV4Runner {
     private func finalVerdict(
         tuneV2: V2DatasetEvaluation, tuneV4: V2DatasetEvaluation,
         validationV2: V2DatasetEvaluation, validationV4: V2DatasetEvaluation,
-        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation
-    ) -> (CalibrationV4Verdict, [String]) {
+        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation,
+        manifest: V4Manifest, transferByPair: [String: String]
+    ) -> (CalibrationV4Verdict, [String], V4PromotionGateResult) {
         let tuneImprovement = improvement(tuneV2.metrics.objective, tuneV4.metrics.objective)
         let validationImprovement = improvement(validationV2.metrics.objective, validationV4.metrics.objective)
         let frozenImprovement = improvement(frozenV2.metrics.objective, frozenV4.metrics.objective)
+        let expectedTune = Set(manifest.pairs.filter { $0.split == .tune }.map(\.id))
+        let expectedValidation = Set(manifest.pairs.filter { $0.split == .validation }.map(\.id))
+        let expectedFrozen = Set(manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }.map(\.id))
+        let completeness = expectedTune == Set(tuneV2.videos.map(\.pairID)) &&
+            expectedTune == Set(tuneV4.videos.map(\.pairID)) &&
+            expectedValidation == Set(validationV2.videos.map(\.pairID)) &&
+            expectedValidation == Set(validationV4.videos.map(\.pairID)) &&
+            expectedFrozen == Set(frozenV2.videos.map(\.pairID)) &&
+            expectedFrozen == Set(frozenV4.videos.map(\.pairID))
+        let overall = tuneImprovement > 0 && validationImprovement > 0
+        let shadow = shadowSafe(tuneV2.metrics, tuneV4.metrics) &&
+            shadowSafe(validationV2.metrics, validationV4.metrics) &&
+            shadowSafe(frozenV2.metrics, frozenV4.metrics)
+        let temporal = temporalSafe(validationV2.metrics, validationV4.metrics) &&
+            temporalSafe(frozenV2.metrics, frozenV4.metrics)
+        let transfer = groupedSafetyGate(
+            candidate: frozenV4, baseline: frozenV2,
+            groupByID: transferByPair
+        )
+        let familyByID = Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
+            guard let family = pair.contentFamily, !family.isEmpty else { return nil }
+            return (pair.id, family)
+        })
+        let family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        let hardSafety = frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance &&
+            frozenV4.metrics.blackCrushRatio <= configuration.safety.zeroTolerance &&
+            frozenV4.metrics.invalidSampleCount == 0
+        let frozenPerVideoRegression = perVideoRegressionCount(candidate: frozenV4, baseline: frozenV2) == 0
+        let frozen = completeness && frozenImprovement >= configuration.safety.frozenMinimumImprovement && frozenPerVideoRegression
+        let gates = V4PromotionGateResult(
+            completeness: completeness ? .pass : .fail,
+            datasetIntegrity: .pass,
+            identifiability: .pass,
+            relativeShadow: .pass,
+            overall: overall ? .pass : .fail,
+            shadow: shadow ? .pass : .fail,
+            temporal: temporal ? .pass : .fail,
+            transfer: transfer ? .pass : .fail,
+            family: family ? .pass : .fail,
+            runtime: .notMeasured,
+            frozen: frozen ? .pass : .fail,
+            hardSafety: hardSafety ? .pass : .fail
+        )
         var reasons = [
-            String(format: "Tune V4 vs V2: %.2f%%", tuneImprovement),
-            String(format: "Validation V4 vs V2: %.2f%%", validationImprovement),
-            String(format: "Virgin Frozen V4 vs V2: %.2f%%", frozenImprovement),
-            String(format: "Virgin Frozen shadow V2=%.6f V4=%.6f", frozenV2.metrics.shadowError, frozenV4.metrics.shadowError)
+            String(format: "Tune V4 vs V2: %.2f%%", tuneImprovement * 100),
+            String(format: "Validation V4 vs V2: %.2f%%", validationImprovement * 100),
+            String(format: "Virgin Frozen V4 vs V2: %.2f%%", frozenImprovement * 100),
+            String(format: "Virgin Frozen shadow V2=%.6f V4=%.6f", frozenV2.metrics.shadowError, frozenV4.metrics.shadowError),
+            "Promotion gates: completeness=\(gates.completeness.rawValue), transfer=\(gates.transfer.rawValue), family=\(gates.family.rawValue), runtime=\(gates.runtime.rawValue)"
         ]
-        guard tuneImprovement > 0, validationImprovement > 0 else {
-            return (.validationFail, reasons + ["Tune/Validation improvement gate failed."])
+        let verdict = V4PromotionGateMachine.verdict(gates)
+        reasons.append("Final verdict gate: \(verdict.rawValue)")
+        return (verdict, reasons, gates)
+    }
+
+    private func shadowSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
+        candidate.shadowError <= baseline.shadowError + configuration.safety.shadowErrorTolerance &&
+            candidate.shadowLiftRatio <= baseline.shadowLiftRatio + configuration.safety.shadowLiftTolerance
+    }
+
+    private func temporalSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
+        candidate.temporalFlicker <= baseline.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance
+    }
+
+    private func perVideoRegressionCount(candidate: V2DatasetEvaluation, baseline: V2DatasetEvaluation) -> Int {
+        let baselineByID = Dictionary(uniqueKeysWithValues: baseline.videos.map { ($0.pairID, $0) })
+        return candidate.videos.reduce(into: 0) { count, video in
+            guard let reference = baselineByID[video.pairID] else { count += 1; return }
+            if video.metrics.objective > reference.metrics.objective * (1 + configuration.safety.frozenPerVideoRegressionTolerance) {
+                count += 1
+            }
         }
-        guard frozenImprovement >= configuration.safety.frozenMinimumImprovement else {
-            return (.virginFrozenFail, reasons + ["Virgin Frozen improvement is below the pre-registered 5% gate."])
+    }
+
+    private func groupedSafetyGate(
+        candidate: V2DatasetEvaluation,
+        baseline: V2DatasetEvaluation,
+        groupByID: [String: String]
+    ) -> Bool {
+        let candidateGroups = Dictionary(grouping: candidate.videos) { groupByID[$0.pairID] ?? "UNKNOWN" }
+        let baselineGroups = Dictionary(grouping: baseline.videos) { groupByID[$0.pairID] ?? "UNKNOWN" }
+        guard !candidateGroups.isEmpty, Set(candidateGroups.keys) == Set(baselineGroups.keys) else { return false }
+        for group in candidateGroups.keys {
+            guard let candidateValues = candidateGroups[group], let baselineValues = baselineGroups[group] else { return false }
+            let candidateMetric = V2MetricsEvaluator.aggregate(candidateValues.map(\.metrics))
+            let baselineMetric = V2MetricsEvaluator.aggregate(baselineValues.map(\.metrics))
+            if candidateMetric.objective > baselineMetric.objective * 1.05 ||
+                candidateMetric.shadowError > baselineMetric.shadowError + configuration.safety.shadowErrorTolerance ||
+                candidateMetric.temporalFlicker > baselineMetric.temporalFlicker * 1.05 + configuration.safety.temporalFlickerAbsoluteTolerance {
+                return false
+            }
         }
-        guard frozenV4.metrics.shadowError <= frozenV2.metrics.shadowError + configuration.safety.shadowErrorTolerance,
-              frozenV4.metrics.shadowLiftRatio <= frozenV2.metrics.shadowLiftRatio + configuration.safety.shadowLiftTolerance else {
-            return (.shadowGeneralizationFail, reasons + ["Virgin Frozen shadow gate failed."])
-        }
-        guard frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance,
-              frozenV4.metrics.blackCrushRatio <= configuration.safety.zeroTolerance,
-              frozenV4.metrics.invalidSampleCount == 0 else {
-            return (.keepV2, reasons + ["Virgin Frozen hard safety gate failed."])
-        }
-        let perVideoRegressions = zip(
-            frozenV2.videos.sorted { $0.pairID < $1.pairID },
-            frozenV4.videos.sorted { $0.pairID < $1.pairID }
-        ).filter { pair in
-            pair.1.metrics.objective > pair.0.metrics.objective * (1 + configuration.safety.frozenPerVideoRegressionTolerance)
-        }.count
-        guard perVideoRegressions == 0 else {
-            return (.virginFrozenFail, reasons + ["Virgin Frozen per-video regression count=" + String(perVideoRegressions)])
-        }
-        reasons.append("All V4 promotion gates passed; candidate is eligible for promotion.")
-        return (.promote, reasons)
+        return true
     }
 
     private func makeFailureReport(
@@ -884,21 +1300,6 @@ public final class CalibrationV4Runner {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    private func sourceCodeHash() -> String {
-        let paths = [
-            "Sources/HDRCore/HDRConfiguration.swift", "Sources/HDRCore/HDRReference.swift",
-            "Sources/HDRCore/HDRProcessor.swift", "Sources/HDRCore/MetalContext.swift",
-            "Sources/HDRCore/Shaders/SDRToHDR.metal", "Sources/HDRCalibration/Decode.swift",
-            "Sources/HDRCalibration/V2Runner.swift", "Sources/HDRCalibration/V4Calibration.swift"
-        ]
-        var data = Data()
-        for path in paths {
-            let url = URL(fileURLWithPath: path, relativeTo: manifestURL.deletingLastPathComponent())
-            data.append(Data(path.utf8))
-            data.append((try? Data(contentsOf: url)) ?? Data())
-        }
-        return sha256(data)
-    }
 
     private func halton(_ index: Int, base: Int) -> Double {
         var result = 0.0
@@ -913,7 +1314,7 @@ public final class CalibrationV4Runner {
     }
 
     private func improvement(_ baseline: Double, _ candidate: Double) -> Double {
-        (baseline - candidate) / max(baseline, 0.000000001) * 100
+        V4PromotionMath.improvementRatio(baseline: baseline, candidate: candidate)
     }
 
     private func log(_ message: String) {

@@ -193,6 +193,9 @@ public struct V2AlignmentSensitivityPoint: Codable, Sendable {
     public var candidateObjective: Double?
     public var candidateVsV1ImprovementPercent: Double?
     public var evaluatedFrames: Int
+    /// Explicitly records why a threshold could not be evaluated; a high
+    /// confidence threshold with no surviving pair is not a silent zero.
+    public var failureReason: String?
 }
 
 public struct V2AlignmentSensitivityReport: Codable, Sendable {

@@ -34,6 +34,9 @@ public enum HDRToneCurveRevision: UInt32, Sendable {
 /// The runtime estimator supplies these one frame late; offline calibration
 /// feeds the same state transition after each frame.
 public struct HDRSceneStatistics: Equatable, Sendable, Codable {
+    public static let productionProxyWidth = 16
+    public static let productionProxyHeight = 9
+    public static let productionHistogramBinCount = 16
     public var p01: Float
     public var p05: Float
     public var p10: Float
@@ -95,7 +98,8 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     /// estimator is deliberately coarse; its purpose is a stable control
     /// signal, not a diagnostic-quality histogram.
     public init(histogram: [UInt32]) {
-        let bins = Array(histogram.prefix(16)) + Array(repeating: 0, count: max(0, 16 - histogram.count))
+        let bins = Array(histogram.prefix(Self.productionHistogramBinCount)) +
+            Array(repeating: 0, count: max(0, Self.productionHistogramBinCount - histogram.count))
         let total = bins.reduce(0, +)
         func quantile(_ fraction: Double) -> Float {
             guard total > 0 else { return 0 }
@@ -104,7 +108,7 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
             for (index, count) in bins.enumerated() {
                 cumulative += UInt64(count)
                 if cumulative >= target {
-                    return (Float(index) + 0.5) / 16
+                    return (Float(index) + 0.5) / Float(Self.productionHistogramBinCount)
                 }
             }
             return 1
@@ -114,6 +118,44 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
             p25: quantile(0.25), p50: quantile(0.50), p90: quantile(0.90),
             p99: quantile(0.99)
         )
+    }
+
+    /// Exact CPU representation of the production estimator's input. The
+    /// caller must provide the same 16x9 linear-light samples that the Metal
+    /// estimator reads; no exact-percentile fallback is permitted here.
+    public init(productionLinearSamples: [Float]) {
+        var bins = Array(repeating: UInt32(0), count: Self.productionHistogramBinCount)
+        for value in productionLinearSamples where value.isFinite {
+            let clamped = min(max(value, 0), 0.999999)
+            let bin = min(Int(clamped * Float(Self.productionHistogramBinCount)), Self.productionHistogramBinCount - 1)
+            bins[bin] &+= 1
+        }
+        self.init(histogram: bins)
+    }
+
+    /// Quantizes a linear sample exactly as the production atomic estimator
+    /// does before accumulating its shared luminance sum.
+    public static func productionLinearAverage(linearSamples: [Float]) -> Float {
+        let finite = linearSamples.filter(\.isFinite).map { min(max($0, 0), 1) }
+        guard !finite.isEmpty else { return 0.5 }
+        let quantized = finite.reduce(UInt64(0)) { partial, value in
+            partial + UInt64(value * 65535 + 0.5)
+        }
+        return min(max(Float(quantized) / Float(finite.count) / 65535, 0.001), 1)
+    }
+
+    /// Returns the sparse positions used by the Metal estimator for a source
+    /// grid. This is shared by the offline parity harness and tests.
+    public static func productionSamplePositions(width: Int, height: Int) -> [(x: Int, y: Int)] {
+        guard width > 0, height > 0 else { return [] }
+        return (0..<productionProxyHeight).flatMap { gy in
+            (0..<productionProxyWidth).map { gx in
+                (
+                    min((gx * width + width / 2) / productionProxyWidth, width - 1),
+                    min((gy * height + height / 2) / productionProxyHeight, height - 1)
+                )
+            }
+        }
     }
 
     /// Relative coordinates for the shadow band. P05 is deliberately kept
@@ -134,6 +176,125 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
 
     public var isFinite: Bool {
         [p01, p05, p10, p25, p50, p90, p99].allSatisfy(\.isFinite)
+    }
+}
+
+/// Pure, causal temporal-control state shared by the realtime processor and
+/// offline calibration diagnostics.  The GPU estimator supplies a frame's
+/// average/statistics after that frame has been rendered; callers therefore
+/// apply this state before encoding the next frame.  Keeping the transition
+/// here prevents the calibration harness from silently inventing a different
+/// temporal model.
+public struct HDRTemporalControlState: Equatable, Sendable, Codable {
+    public private(set) var adaptation: Float
+    public private(set) var shadowFloor: Float
+    public private(set) var shadowTop: Float
+    public private(set) var shadowStatisticsValid: Bool
+
+    private var smoothedEstimate: Float
+    private var previousAutomaticAverage: Float?
+    private var lastAutomaticSequence: UInt64
+    private var previousShadowAverage: Float?
+    private var lastShadowSequence: UInt64
+
+    public init() {
+        adaptation = 1
+        shadowFloor = HDRSceneStatistics.neutral.shadowFloor
+        shadowTop = HDRSceneStatistics.neutral.shadowTop
+        shadowStatisticsValid = false
+        smoothedEstimate = 0.5
+        previousAutomaticAverage = nil
+        lastAutomaticSequence = 0
+        previousShadowAverage = nil
+        lastShadowSequence = 0
+    }
+
+    public mutating func reset() {
+        self = HDRTemporalControlState()
+    }
+
+    public mutating func updateAverage(averageLuminance: Float, stability: Float, sceneCut: Bool) {
+        guard averageLuminance.isFinite else { return }
+        let target = Self.clampAverage(averageLuminance)
+        applyAverage(target: target, stability: stability, sceneCut: sceneCut)
+    }
+
+    @discardableResult
+    public mutating func updateAutomaticAverage(
+        averageLuminance: Float,
+        stability: Float,
+        sequence: UInt64
+    ) -> Bool {
+        guard averageLuminance.isFinite, sequence > lastAutomaticSequence else { return false }
+        lastAutomaticSequence = sequence
+        let target = Self.clampAverage(averageLuminance)
+        let sceneCut = Self.isSceneCut(previous: previousAutomaticAverage, current: target)
+        previousAutomaticAverage = target
+        applyAverage(target: target, stability: stability, sceneCut: sceneCut)
+        return sceneCut
+    }
+
+    public mutating func updateStatistics(
+        _ statistics: HDRSceneStatistics,
+        stability: Float,
+        sceneCut: Bool
+    ) {
+        guard statistics.isFinite else { return }
+        applyStatistics(statistics, stability: stability, sceneCut: sceneCut || !shadowStatisticsValid)
+    }
+
+    @discardableResult
+    public mutating func updateAutomaticStatistics(
+        _ statistics: HDRSceneStatistics,
+        averageLuminance: Float,
+        stability: Float,
+        sequence: UInt64
+    ) -> Bool {
+        guard statistics.isFinite, averageLuminance.isFinite, sequence > lastShadowSequence else { return false }
+        lastShadowSequence = sequence
+        let target = Self.clampAverage(averageLuminance)
+        let sceneCut = Self.isSceneCut(previous: previousShadowAverage, current: target)
+        previousShadowAverage = target
+        applyStatistics(statistics, stability: stability, sceneCut: sceneCut || !shadowStatisticsValid)
+        return sceneCut
+    }
+
+    public static func isSceneCut(previous: Float?, current: Float) -> Bool {
+        guard let previous else { return true }
+        return abs(log2(max(current, 0.001) / max(previous, 0.001))) > 1.25
+    }
+
+    private mutating func applyAverage(target: Float, stability: Float, sceneCut: Bool) {
+        if sceneCut {
+            smoothedEstimate = target
+        } else {
+            let alpha = 1 - min(max(stability, 0), 1)
+            smoothedEstimate += alpha * (target - smoothedEstimate)
+        }
+        adaptation = Self.adaptation(for: smoothedEstimate)
+    }
+
+    private mutating func applyStatistics(_ statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
+        let targetFloor = statistics.shadowFloor
+        let targetTop = statistics.shadowTop
+        let alpha = 1 - min(max(stability, 0), 1)
+        if sceneCut {
+            shadowFloor = targetFloor
+            shadowTop = targetTop
+        } else {
+            shadowFloor += alpha * (targetFloor - shadowFloor)
+            shadowTop += alpha * (targetTop - shadowTop)
+        }
+        shadowTop = max(shadowTop, shadowFloor + 0.025)
+        shadowStatisticsValid = true
+    }
+
+    public static func adaptation(for smoothedAverage: Float) -> Float {
+        min(max(0.94 + 0.12 * (0.5 - smoothedAverage), 0.90), 1.06)
+    }
+
+    private static func clampAverage(_ value: Float) -> Float {
+        min(max(value, 0.001), 1)
     }
 }
 

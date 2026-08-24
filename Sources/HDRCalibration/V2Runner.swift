@@ -72,14 +72,14 @@ final class V2EvaluationEngine {
                 evaluator = created
             }
             let accepted = prepared.matches.filter { $0.match.confidence >= confidenceThreshold }
-                .sorted { $0.match.sdrIndex < $1.match.sdrIndex }
-            guard !accepted.isEmpty else { continue }
+                .sorted { ($0.match.sdrSequencePosition ?? .max) < ($1.match.sdrSequencePosition ?? .max) }
+            guard !accepted.isEmpty else {
+                throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no accepted matched frames")
+            }
             evaluator.clearTemporalHistory()
-            let sceneRelative = parameters.toneCurveRevision == HDRToneCurveRevision.sceneRelativeV4.rawValue
-            let sceneStarts = Set(prepared.scenes.map(\.startSample))
             var frameData: [V2FrameData] = []
             frameData.reserveCapacity(accepted.count)
-            for (index, item) in accepted.enumerated() {
+            for item in accepted {
                 let generated = try evaluator.evaluate(
                     pixelBuffer: item.sdr.pixelBuffer,
                     timestampSeconds: item.match.sdrTimeSeconds,
@@ -91,19 +91,12 @@ final class V2EvaluationEngine {
                     sourceLuma: item.sourceLuma,
                     confidence: item.match.confidence
                 ))
-                if sceneRelative {
-                    let sceneCut = index == 0 || sceneStarts.contains(item.match.sdrIndex)
-                    evaluator.updateSceneStatistics(sdrBT709Signals: item.sourceLuma, sceneCut: sceneCut)
-                    evaluator.updateTemporalEstimate(
-                        averageLuminance: HDRSceneStatistics.linearAverage(sdrBT709Signals: item.sourceLuma),
-                        sceneCut: sceneCut
-                    )
-                }
             }
             var scenes: [V2SceneEvaluation] = []
             for scene in prepared.scenes {
                 let sceneFrames = zip(accepted, frameData).compactMap { item, data -> V2FrameData? in
-                    item.match.sdrIndex >= scene.startSample && item.match.sdrIndex <= scene.endSample ? data : nil
+                    guard let position = item.match.sdrSequencePosition else { return nil }
+                    return scene.contains(sequencePosition: position) ? data : nil
                 }
                 guard !sceneFrames.isEmpty else { continue }
                 scenes.append(V2MetricsEvaluator.evaluateScene(
@@ -114,17 +107,16 @@ final class V2EvaluationEngine {
                     weights: weights
                 ))
             }
-            guard !scenes.isEmpty else { continue }
+            guard !scenes.isEmpty else {
+                throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no scene received an accepted frame")
+            }
             var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
             let temporal = try evaluateTemporalWindows(
                 prepared.temporalWindows.filter { window in
                     window.frames.first.map { $0.confidence >= confidenceThreshold } ?? false
                 },
                 evaluator: evaluator,
-                configuration: configuration,
-                enabled: parameters.toneCurveRevision == HDRToneCurveRevision.shadowProtectedV3.rawValue ||
-                    parameters.toneCurveRevision == HDRToneCurveRevision.sceneRelativeV4.rawValue,
-                sceneRelative: sceneRelative
+                configuration: configuration
             )
             let oldTemporalContribution = videoMetrics.weightedContributions["temporal"] ?? 0
             let temporalContribution = weights.temporal * (
@@ -148,7 +140,13 @@ final class V2EvaluationEngine {
                 scenes: scenes
             ))
         }
-        guard !videos.isEmpty else { throw CalibrationError.noValidPairs }
+        let requestedIDs = Set(preparedPairs.map(\.record.id))
+        let evaluatedIDs = Set(videos.map(\.pairID))
+        guard !videos.isEmpty, requestedIDs == evaluatedIDs else {
+            let missing = requestedIDs.subtracting(evaluatedIDs).sorted().joined(separator: ",")
+            let extra = evaluatedIDs.subtracting(requestedIDs).sorted().joined(separator: ",")
+            throw CalibrationError.incompleteEvaluation("requested/evaluated pair IDs differ; missing=[\(missing)] extra=[\(extra)]")
+        }
         return V2DatasetEvaluation(
             label: label,
             split: split,
@@ -160,18 +158,10 @@ final class V2EvaluationEngine {
         )
     }
 
-    private func sourceAverage(_ values: [Float]) -> Float {
-        guard !values.isEmpty else { return 0.5 }
-        let signal = values.reduce(0, +) / Float(values.count)
-        return HDRColorMath.inverseBT709(min(max(signal, 0), 1))
-    }
-
     private func evaluateTemporalWindows(
         _ windows: [PreparedTemporalWindow],
         evaluator: HDRCoreOfflineEvaluator,
-        configuration: HDRConfiguration,
-        enabled: Bool,
-        sceneRelative: Bool
+        configuration: HDRConfiguration
     ) throws -> (luminance: Double, highlight: Double, flicker: Double, cutOvershoot: Double, cutRecovery: Double) {
         var values: [(Double, Double, Double)] = []
         var overshoots: [Double] = []
@@ -181,27 +171,19 @@ final class V2EvaluationEngine {
             var frames: [V2FrameData] = []
             frames.reserveCapacity(window.frames.count)
             var adaptations: [Float] = []
-            for (index, item) in window.frames.enumerated() {
+            for item in window.frames {
                 let generated = try evaluator.evaluate(
                     pixelBuffer: item.sdr.pixelBuffer,
                     timestampSeconds: item.sdr.descriptor.timestampSeconds,
                     configuration: configuration,
-                    averageLuminance: enabled && !sceneRelative ? sourceAverage(item.sourceLuma) : nil,
-                    sceneCut: enabled && !sceneRelative && index == 0
+                    averageLuminance: nil,
+                    sceneCut: false
                 )
                 adaptations.append(evaluator.temporalAdaptation)
                 frames.append(V2FrameData(
                     reference: item.reference, generated: generated,
                     sourceLuma: item.sourceLuma, confidence: item.confidence
                 ))
-                if enabled && sceneRelative {
-                    let sceneCut = index == 0
-                    evaluator.updateSceneStatistics(sdrBT709Signals: item.sourceLuma, sceneCut: sceneCut)
-                    evaluator.updateTemporalEstimate(
-                        averageLuminance: HDRSceneStatistics.linearAverage(sdrBT709Signals: item.sourceLuma),
-                        sceneCut: sceneCut
-                    )
-                }
             }
             let metric = V2MetricsEvaluator.temporalMetrics(frames)
             values.append(metric)
@@ -375,7 +357,7 @@ public final class CalibrationV2Runner {
             throw CalibrationError.invalidManifest("V2 requires at least 2 tune, 1 validation, and 1 frozen video")
         }
 
-        let audit = DatasetV2Discovery.audit(rootURL: manifestURL.deletingLastPathComponent())
+        let audit = try DatasetV2Discovery.audit(rootURL: manifestURL.deletingLastPathComponent())
         try write(audit, name: "data-video-v2-dataset-audit.json")
         try write(split, name: "data-video-v2-split.json")
 
@@ -479,7 +461,7 @@ public final class CalibrationV2Runner {
         let report = V2FinalReport(
             version: "calibration-v2",
             generatedAt: ISO8601DateFormatter().string(from: Date()),
-            reproducibility: ReproducibilityV2.collect(manifestURL: manifestURL, configuration: configuration, device: device),
+            reproducibility: try ReproducibilityV2.collect(manifestURL: manifestURL, configuration: configuration, device: device),
             split: split,
             defaultTune: defaultTune, v1Tune: v1Tune, candidateTune: selected?.tune,
             defaultValidation: defaultValidation, v1Validation: v1Validation, candidateValidation: selected?.validation,
@@ -586,20 +568,39 @@ public final class CalibrationV2Runner {
     ) throws -> V2AlignmentSensitivityReport {
         var points: [V2AlignmentSensitivityPoint] = []
         for threshold in configuration.alignmentSensitivityThresholds {
-            let baseline = try? engine.evaluate(preparedPairs: prepared, parameters: defaultParameters, label: "default", split: split, confidenceThreshold: threshold)
-            let v1 = try? engine.evaluate(preparedPairs: prepared, parameters: v1Parameters, label: "v1", split: split, confidenceThreshold: threshold)
-            let v2 = try? engine.evaluate(preparedPairs: prepared, parameters: candidate, label: "v2", split: split, confidenceThreshold: threshold)
+            let baseline: V2DatasetEvaluation
+            let v1: V2DatasetEvaluation
+            let v2: V2DatasetEvaluation
+            do {
+                baseline = try engine.evaluate(preparedPairs: prepared, parameters: defaultParameters, label: "default", split: split, confidenceThreshold: threshold)
+                v1 = try engine.evaluate(preparedPairs: prepared, parameters: v1Parameters, label: "v1", split: split, confidenceThreshold: threshold)
+                v2 = try engine.evaluate(preparedPairs: prepared, parameters: candidate, label: "v2", split: split, confidenceThreshold: threshold)
+            } catch {
+                points.append(V2AlignmentSensitivityPoint(
+                    threshold: threshold,
+                    baselineObjective: nil,
+                    v1Objective: nil,
+                    candidateObjective: nil,
+                    candidateVsV1ImprovementPercent: nil,
+                    evaluatedFrames: 0,
+                    failureReason: error.localizedDescription
+                ))
+                continue
+            }
             let improvement: Double?
-            if let old = v1?.metrics.objective, let new = v2?.metrics.objective, old > 0 {
+            if v1.metrics.objective > 0 {
+                let old = v1.metrics.objective
+                let new = v2.metrics.objective
                 improvement = (old - new) / old * 100
             } else { improvement = nil }
             points.append(V2AlignmentSensitivityPoint(
                 threshold: threshold,
-                baselineObjective: baseline?.metrics.objective,
-                v1Objective: v1?.metrics.objective,
-                candidateObjective: v2?.metrics.objective,
+                baselineObjective: baseline.metrics.objective,
+                v1Objective: v1.metrics.objective,
+                candidateObjective: v2.metrics.objective,
                 candidateVsV1ImprovementPercent: improvement,
-                evaluatedFrames: v2?.frameCount ?? 0
+                evaluatedFrames: v2.frameCount,
+                failureReason: nil
             ))
         }
         let highConfidence = points.filter { $0.threshold >= 0.70 && $0.evaluatedFrames > 0 }
@@ -665,7 +666,7 @@ public final class CalibrationV2Runner {
                 var changed = parameters
                 perturb(&changed, name: name, factor: Float(1 + percent / 100))
                 changed.displayHeadroom = changed.peakNits / changed.paperWhiteNits
-                guard (try? changed.configuration()) != nil else { continue }
+                _ = try changed.configuration()
                 let tuneResult = try engine.evaluate(preparedPairs: tune, parameters: changed, label: "sensitivity", split: .tune, confidenceThreshold: configuration.alignmentSearchThreshold)
                 let validationResult = try engine.evaluate(preparedPairs: validation, parameters: changed, label: "sensitivity", split: .validation, confidenceThreshold: configuration.alignmentSearchThreshold)
                 let objective = combinedObjective([tuneResult, validationResult])
@@ -721,16 +722,18 @@ public final class CalibrationV2Runner {
             return (.keepV1, ["No candidate passed Tune/Validation safety selection."])
         }
         var reasons: [String] = []
-        func improvement(_ old: Double, _ new: Double) -> Double { (old - new) / max(old, 1e-9) * 100 }
+        func improvement(_ old: Double, _ new: Double) -> Double {
+            V4PromotionMath.improvementRatio(baseline: old, candidate: new)
+        }
         let tuneDefault = improvement(defaultTune.metrics.objective, candidateTune.metrics.objective)
         let tuneV1 = improvement(v1Tune.metrics.objective, candidateTune.metrics.objective)
         let validationDefault = improvement(defaultValidation.metrics.objective, candidateValidation.metrics.objective)
         let validationV1 = improvement(v1Validation.metrics.objective, candidateValidation.metrics.objective)
         let frozenDefault = improvement(defaultFrozen.metrics.objective, candidateFrozen.metrics.objective)
         let frozenV1 = improvement(v1Frozen.metrics.objective, candidateFrozen.metrics.objective)
-        reasons.append(String(format: "Tune improvement: %.2f%% vs default, %.2f%% vs v1", tuneDefault, tuneV1))
-        reasons.append(String(format: "Validation improvement: %.2f%% vs default, %.2f%% vs v1", validationDefault, validationV1))
-        reasons.append(String(format: "Frozen improvement: %.2f%% vs default, %.2f%% vs v1", frozenDefault, frozenV1))
+        reasons.append(String(format: "Tune improvement: %.2f%% vs default, %.2f%% vs v1", tuneDefault * 100, tuneV1 * 100))
+        reasons.append(String(format: "Validation improvement: %.2f%% vs default, %.2f%% vs v1", validationDefault * 100, validationV1 * 100))
+        reasons.append(String(format: "Frozen improvement: %.2f%% vs default, %.2f%% vs v1", frozenDefault * 100, frozenV1 * 100))
         let metricsSafe = candidateFrozen.metrics.shadowError <= v1Frozen.metrics.shadowError * 1.10 + 0.01 &&
             candidateFrozen.metrics.hueP95Error <= v1Frozen.metrics.hueP95Error * 1.10 + 0.01 &&
             candidateFrozen.metrics.clippingRatio <= max(0.05, v1Frozen.metrics.clippingRatio + 0.02) &&
@@ -738,7 +741,7 @@ public final class CalibrationV2Runner {
             candidateFrozen.metrics.temporalFlicker <= v1Frozen.metrics.temporalFlicker * 1.15 + 0.01
         let alignmentRobust = alignmentSensitivity.filter { $0.split != .frozen }.allSatisfy(\.robust)
         if tuneDefault > 0, tuneV1 > 0, validationDefault > 0, validationV1 > 0,
-           frozenDefault > 0, frozenV1 >= 5, metricsSafe, alignmentRobust {
+           frozenDefault > 0, frozenV1 >= 0.05, metricsSafe, alignmentRobust {
             return (.promote, reasons + ["All promotion gates passed."])
         }
         if frozenV1 > 0 && metricsSafe {

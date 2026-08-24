@@ -160,13 +160,12 @@ public enum V4MetadataProbe {
 public enum V4DatasetIntegrity {
     public static func sha256(url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
+        defer { handle.closeFile() }
         var digest = SHA256()
-        while autoreleasepool(invoking: {
-            guard let data = try? handle.read(upToCount: 1_048_576), !data.isEmpty else { return false }
+        while true {
+            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { break }
             digest.update(data: data)
-            return true
-        }) {}
+        }
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
@@ -244,6 +243,8 @@ public enum V4AuditTemporalAligner {
                 matches.append(MatchedFrame(
                     sdrIndex: sample.index,
                     hdrIndex: nearest.index,
+                    sdrSequencePosition: sample.sequencePosition,
+                    hdrSequencePosition: nearest.sequencePosition,
                     sdrTimeSeconds: sample.descriptor.timestampSeconds,
                     hdrTimeSeconds: nearest.descriptor.timestampSeconds,
                     confidence: confidence
@@ -327,6 +328,33 @@ public enum V4AuditTemporalAligner {
 }
 
 public enum V4DatasetAuditor {
+    /// Version and digest of the audit policy are part of the immutable
+    /// evidence contract. A change to metadata, decode, alignment,
+    /// eligibility, or diversity policy requires a fresh audit artifact.
+    public static let auditEvidenceVersion = "dataset-v4-audit-v2"
+
+    private static let auditConfigurationMaterial = """
+    metadata:explicit-bt709-sdr-with-documented-fallback-v3
+    hdr:explicit-pq-or-hlg-v2
+    decode:first-middle-last-v2
+    alignment:temporal-spatial-v4
+    eligibility:main-calibration-only-v2
+    diversity:eligible-records-only-v2
+    """
+
+    public static let auditConfigurationHash: String = {
+        SHA256.hash(data: Data(auditConfigurationMaterial.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }()
+
+    /// Readiness aggregation intentionally accepts the audit records as an
+    /// explicit input so tests and import tooling can prove that rejected or
+    /// conditional records never contribute to diversity gates.
+    public static func diversityReport(manifest: V4Manifest, audits: [V4PairAudit]) -> V4DiversityReport {
+        makeDiversityReport(manifest: manifest, audits: audits)
+    }
+
     public static func audit(manifestURL: URL) async throws -> V4DatasetAuditReport {
         let manifest = try V4Manifest.load(from: manifestURL)
         let manifestHash = try V4DatasetIntegrity.manifestSHA256(url: manifestURL)
@@ -367,7 +395,12 @@ public enum V4DatasetAuditor {
                 var sdr = try await V4MetadataProbe.probe(url: urls.sdr)
                 var hdr = try await V4MetadataProbe.probe(url: urls.hdr)
                 var notes: [String] = audit.notes
-                applyManifestFallbacks(&sdr, transfer: pair.referenceTransfer, primaries: pair.referencePrimaries, notes: &notes, label: "SDR")
+                // SDR eligibility is strict for unannotated media. A pair may
+                // use a fallback only when the manifest carries both BT.709
+                // and a supported SDR transfer from the source documentation;
+                // the audit records that provenance in notes. The model-level
+                // `isExplicitBT709SDR` check still rejects an unannotated nil.
+                applyDocumentedSDRFallback(&sdr, pair: pair, notes: &notes)
                 if let hdrTransfer = pair.referenceTransfer, hdr.transfer == nil {
                     hdr.transfer = hdrTransfer
                     notes.append("HDR transfer supplied by manifest because container omitted it")
@@ -483,8 +516,26 @@ public enum V4DatasetAuditor {
                 "Virgin frozen media may be inspected for integrity/alignment but remains unavailable to calibration runners."
             ],
             verdict: verdict.verdict,
-            gateReasons: verdict.reasons
+            gateReasons: verdict.reasons,
+            auditConfigHash: auditConfigurationHash
         )
+    }
+
+    private static func applyDocumentedSDRFallback(
+        _ metadata: inout V4StreamMetadata,
+        pair: V4PairRecord,
+        notes: inout [String]
+    ) {
+        guard metadata.transfer == nil || metadata.colorPrimaries == nil else { return }
+        guard let transfer = pair.referenceTransfer?.lowercased(),
+              let primaries = pair.referencePrimaries?.lowercased(),
+              primaries.contains("709"),
+              ["bt709", "bt.709", "bt1886", "bt.1886", "gamma22", "gamma28", "srgb", "iec61966-2-1"].contains(transfer) else {
+            return
+        }
+        if metadata.transfer == nil { metadata.transfer = transfer }
+        if metadata.colorPrimaries == nil { metadata.colorPrimaries = primaries }
+        notes.append("SDR BT.709 transfer/primaries supplied by source-documented manifest fallback")
     }
 
     private static func makeVerdict(
@@ -524,23 +575,6 @@ public enum V4DatasetAuditor {
         return (.partial, reasons)
     }
 
-    private static func applyManifestFallbacks(
-        _ metadata: inout V4StreamMetadata,
-        transfer: String?,
-        primaries: String?,
-        notes: inout [String],
-        label: String
-    ) {
-        if metadata.transfer == nil, let transfer {
-            metadata.transfer = transfer
-            notes.append("\(label) transfer supplied by manifest because container omitted it")
-        }
-        if metadata.colorPrimaries == nil, let primaries {
-            metadata.colorPrimaries = primaries
-            notes.append("\(label) primaries supplied by manifest because container omitted them")
-        }
-    }
-
     private static func metadataIssues(sdr: V4StreamMetadata, hdr: V4StreamMetadata) -> [String] {
         var issues: [String] = []
         guard sdr.durationSeconds.isFinite, sdr.durationSeconds > 0,
@@ -556,15 +590,12 @@ public enum V4DatasetAuditor {
             issues.append("INVALID_HDR_REFERENCE transfer=\(hdr.transfer ?? "missing"), primaries=\(hdr.colorPrimaries ?? "missing")")
             return issues
         }
-        if sdr.transferFamily == "PQ" || sdr.transferFamily == "HLG" {
-            issues.append("INVALID SDR reference is tagged as HDR transfer")
-        }
-        if !sdr.isSDRReference {
-            if (sdr.colorPrimaries ?? "").lowercased().contains("2020") {
-                issues.append("SDR_WIDE_GAMUT source is not BT.709; keep out of the BT.709 main calibration path")
-            } else if sdr.transfer == nil {
-                issues.append("SDR_TRANSFER_UNDECLARED; manifest fallback must be explicit")
-            }
+        if !sdr.isExplicitBT709SDR {
+            issues.append(
+                "INVALID_SDR_REFERENCE_METADATA primaries=\(sdr.colorPrimaries ?? "missing"), " +
+                "transfer=\(sdr.transfer ?? "missing"), matrix=\(sdr.matrix ?? "missing"), " +
+                "range=\(sdr.colorRange ?? "missing")"
+            )
         }
         if let bitDepth = hdr.bitDepth, bitDepth < 10 {
             issues.append("HDR_BIT_DEPTH_WARNING=\(bitDepth)")
@@ -629,7 +660,8 @@ public enum V4DatasetAuditor {
         }
         let indexed = samples.enumerated().map { index, sample in
             FrameSample(
-                index: index,
+                index: sample.index,
+                sequencePosition: index,
                 timestamp: sample.timestamp,
                 pixelBuffer: sample.pixelBuffer,
                 descriptor: sample.descriptor,
@@ -700,25 +732,34 @@ public enum V4DatasetAuditor {
     private static func makeDiversityReport(manifest: V4Manifest, audits: [V4PairAudit]) -> V4DiversityReport {
         var report = V4DiversityReport(totalPairs: manifest.pairs.count)
         for audit in audits {
+            let eligible = audit.suitability == .mainCalibration && audit.status == .accepted
             switch audit.suitability {
-            case .mainCalibration: report.mainCalibrationPairs += 1; report.acceptedPairs += 1
+            case .mainCalibration:
+                if eligible {
+                    report.mainCalibrationPairs += 1
+                    report.acceptedPairs += 1
+                } else {
+                    report.rejectedPairs += 1
+                }
             case .conditional: report.conditionalPairs += 1
             case .diagnosticOnly: report.conditionalPairs += 1
             case .reject: report.rejectedPairs += 1
             }
-            switch audit.split {
-            case .tune: report.tunePairs += 1
-            case .validation: report.validationPairs += 1
-            case .frozen: report.frozenPairs += 1
+            if eligible {
+                switch audit.split {
+                case .tune: report.tunePairs += 1
+                case .validation: report.validationPairs += 1
+                case .frozen: report.frozenPairs += 1
+                }
             }
-            if audit.virginFrozen { report.virginFrozenPairs += 1 }
-            if let metadata = audit.hdrMetadata {
+            if eligible, audit.virginFrozen { report.virginFrozenPairs += 1 }
+            if eligible, let metadata = audit.hdrMetadata {
                 report.hdrTransfers[metadata.transferFamily, default: 0] += 1
                 report.resolutions["\(metadata.width)x\(metadata.height)", default: 0] += 1
                 let fps = String(format: "%.3f", metadata.frameRate)
                 report.frameRates[fps, default: 0] += 1
             }
-            if let pair = manifest.pairs.first(where: { $0.id == audit.id }) {
+            if eligible, let pair = manifest.pairs.first(where: { $0.id == audit.id }) {
                 report.contentFamilies[pair.contentFamily ?? "UNSPECIFIED", default: 0] += 1
                 for category in pair.contentCategory { report.categories[category, default: 0] += 1 }
             }
@@ -773,7 +814,10 @@ public enum V4ReportWriter {
         lines.append("# Dataset V4 audit")
         lines.append("")
         lines.append("- Manifest: `\(report.manifestPath)`")
-        lines.append("- Manifest SHA-256: `\(report.manifestSHA256)`")
+       lines.append("- Manifest SHA-256: `\(report.manifestSHA256)`")
+       lines.append("- Audit evidence version: `\(report.version)`")
+        let auditConfigHash = report.auditConfigHash ?? "MISSING"
+        lines.append("- Audit configuration SHA-256: `\(auditConfigHash)`")
         lines.append("- Objective evaluation: `\(report.objectiveEvaluated ? "YES" : "NO")`")
         lines.append("- Frozen objective IDs: `\(report.frozenObjectiveEvaluated.isEmpty ? "NONE" : report.frozenObjectiveEvaluated.joined(separator: ", "))`")
         lines.append("- Verdict: `\(report.verdict.rawValue)`")

@@ -10,6 +10,10 @@ public enum DatasetSplit: String, Codable, CaseIterable, Sendable {
 
 public enum ExpectedRelation: String, Codable, Sendable {
     case sameMaster = "same_master"
+    case sameSource = "same_source"
+    case sameContentDifferentGrade = "same_content_different_grade"
+    case relatedContent = "related_content"
+    case unknown
 }
 
 public struct PairManifest: Codable, Sendable {
@@ -266,6 +270,10 @@ public struct FrameDescriptor: Codable, Equatable, Sendable {
 public struct MatchedFrame: Codable, Equatable, Sendable {
     public var sdrIndex: Int
     public var hdrIndex: Int
+    /// Sequence positions are the only domain valid for scene membership and
+    /// temporal ordering. The source indices remain for PTS/source tracing.
+    public var sdrSequencePosition: Int?
+    public var hdrSequencePosition: Int?
     public var sdrTimeSeconds: Double
     public var hdrTimeSeconds: Double
     public var confidence: Double
@@ -273,12 +281,16 @@ public struct MatchedFrame: Codable, Equatable, Sendable {
     public init(
         sdrIndex: Int,
         hdrIndex: Int,
+        sdrSequencePosition: Int? = nil,
+        hdrSequencePosition: Int? = nil,
         sdrTimeSeconds: Double,
         hdrTimeSeconds: Double,
         confidence: Double
     ) {
         self.sdrIndex = sdrIndex
         self.hdrIndex = hdrIndex
+        self.sdrSequencePosition = sdrSequencePosition
+        self.hdrSequencePosition = hdrSequencePosition
         self.sdrTimeSeconds = sdrTimeSeconds
         self.hdrTimeSeconds = hdrTimeSeconds
         self.confidence = confidence
@@ -659,6 +671,7 @@ public enum CalibrationError: Error, LocalizedError {
     case decodeFailed(String)
     case outputWriteFailed(String)
     case invalidCandidate(String)
+    case incompleteEvaluation(String)
 
     public var errorDescription: String? {
         switch self {
@@ -670,6 +683,7 @@ public enum CalibrationError: Error, LocalizedError {
         case .decodeFailed(let reason): return "decode failed: \(reason)"
         case .outputWriteFailed(let reason): return "output write failed: \(reason)"
         case .invalidCandidate(let reason): return "invalid candidate: \(reason)"
-        }
+        case .incompleteEvaluation(let reason): return "incomplete evaluation: \(reason)"
     }
+}
 }

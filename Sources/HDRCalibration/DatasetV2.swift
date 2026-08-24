@@ -3,18 +3,18 @@ import Foundation
 import Metal
 
 public enum DatasetV2Discovery {
-    public static func audit(rootURL: URL) -> V2DatasetAudit {
+    public static func audit(rootURL: URL) throws -> V2DatasetAudit {
         let fileManager = FileManager.default
-        let groupURLs = (try? fileManager.contentsOfDirectory(
+        let groupURLs = try fileManager.contentsOfDirectory(
             at: rootURL,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
-        )) ?? []
+        )
         var entries: [V2AuditEntry] = []
         for groupURL in groupURLs.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            let isDirectory = (try? groupURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            let isDirectory = try groupURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false
             guard isDirectory else { continue }
-            let files = (try? fileManager.contentsOfDirectory(at: groupURL, includingPropertiesForKeys: nil)) ?? []
+            let files = try fileManager.contentsOfDirectory(at: groupURL, includingPropertiesForKeys: nil)
             let sdr = files.first { $0.lastPathComponent.hasSuffix(".f628.mp4") }
             let hdr = files.first { $0.lastPathComponent.hasSuffix(".f642.mp4") }
             var warnings: [String] = []
@@ -82,7 +82,7 @@ public enum ReproducibilityV2 {
         manifestURL: URL,
         configuration: V2SearchConfiguration,
         device: MTLDevice?
-    ) -> V2Reproducibility {
+    ) throws -> V2Reproducibility {
         V2Reproducibility(
             gitCommit: command(["/usr/bin/git", "rev-parse", "HEAD"], workingDirectory: manifestURL.deletingLastPathComponent()) ?? "NOT_A_GIT_REPOSITORY",
             buildMode: "release calibration executable; offline GPU readback",
@@ -90,7 +90,7 @@ public enum ReproducibilityV2 {
             operatingSystem: ProcessInfo.processInfo.operatingSystemVersionString,
             swiftVersion: command(["/usr/bin/swift", "--version"]) ?? command(["/usr/bin/xcrun", "swift", "--version"]) ?? "NOT_MEASURED",
             ffmpegVersion: firstLine(command(["/opt/homebrew/bin/ffmpeg", "-version"]) ?? command(["/usr/local/bin/ffmpeg", "-version"])) ?? "NOT_MEASURED",
-            datasetManifestSHA256: sha256(url: manifestURL),
+            datasetManifestSHA256: try sha256(url: manifestURL),
             splitSeed: configuration.splitSeed,
             searchSeed: configuration.searchSeed,
             globalCandidates: configuration.globalCandidates,
@@ -101,8 +101,8 @@ public enum ReproducibilityV2 {
         )
     }
 
-    public static func sha256(url: URL) -> String {
-        guard let data = try? Data(contentsOf: url) else { return "UNAVAILABLE" }
+    public static func sha256(url: URL) throws -> String {
+        let data = try Data(contentsOf: url)
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 

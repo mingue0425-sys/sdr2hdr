@@ -121,6 +121,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v2-run          --manifest data_video/manifest-v2.json --seed 20260823 --output results/data-video-v2-final.json
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
       HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --seed 20260824 --output results/data-video-v4-final.json
+      HDRCalibrate correctness-review --manifest data_video/manifest-v4.json --output results/correctness-review-fixes.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-import-live --root "/path/to/LIVE" --manifest data_video/manifest-v4.json --select 6 [--dry-run]
 
@@ -152,10 +153,23 @@ private func run(arguments: [String]) async throws {
         )
         return
     }
+    if cli.command == "correctness-review" {
+        let manifestURL = try cli.requiredManifest()
+        let report = try await V4CorrectnessReview.run(
+            manifestURL: manifestURL,
+            outputDirectory: cli.output.deletingLastPathComponent()
+        )
+        print("correctness verdict: \(report.verdict)")
+        print("Tune structural completeness: \(report.tune.evaluatedVideoCount)/\(report.tune.requestedVideoCount)")
+        print("Validation structural completeness: \(report.validation.evaluatedVideoCount)/\(report.validation.requestedVideoCount)")
+        print("Virgin Frozen objective: NOT MEASURED")
+        print("correctness report: \(cli.output.deletingLastPathComponent().appendingPathComponent("correctness-review-fixes.json").path)")
+        return
+    }
     if cli.command == "v2-audit" {
         let manifestURL = try cli.requiredManifest()
         let manifest = try PairManifest.load(from: manifestURL)
-        let audit = DatasetV2Discovery.audit(rootURL: manifestURL.deletingLastPathComponent())
+        let audit = try DatasetV2Discovery.audit(rootURL: manifestURL.deletingLastPathComponent())
         let split = DatasetV2Discovery.splitDocument(manifest: manifest, seed: 92)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

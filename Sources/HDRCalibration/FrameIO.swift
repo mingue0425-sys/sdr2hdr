@@ -9,7 +9,11 @@ public enum CalibrationPixelFormat {
 }
 
 public struct FrameSample {
+    /// Index in the original source timeline. This may be sparse when the
+    /// reader uses stride sampling.
     public let index: Int
+    /// Position in `FrameSequence.samples`. Never compare this with `index`.
+    public let sequencePosition: Int
     public let timestamp: CMTime
     public let pixelBuffer: CVPixelBuffer
     public let descriptor: FrameDescriptor
@@ -17,12 +21,14 @@ public struct FrameSample {
 
     public init(
         index: Int,
+        sequencePosition: Int? = nil,
         timestamp: CMTime,
         pixelBuffer: CVPixelBuffer,
         descriptor: FrameDescriptor,
         lumaGrid: [Float]
     ) {
         self.index = index
+        self.sequencePosition = sequencePosition ?? index
         self.timestamp = timestamp
         self.pixelBuffer = pixelBuffer
         self.descriptor = descriptor
@@ -161,6 +167,7 @@ public enum FrameReader {
             let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
             samples.append(FrameSample(
                 index: frameIndex,
+                sequencePosition: samples.count,
                 timestamp: timestamp,
                 pixelBuffer: pixelBuffer,
                 descriptor: descriptor,
@@ -249,7 +256,11 @@ private enum FFmpegFrameReader {
         let outputFPSForTimestamp = max(outputFPS, 0.001)
         var samples: [FrameSample] = []
         var index = 0
-        while let data = readExactly(stdout.fileHandleForReading, count: frameBytes), data.count == frameBytes {
+        while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
+            guard data.count == frameBytes else {
+                process.terminate()
+                throw CalibrationError.decodeFailed("ffmpeg returned a truncated raw frame for \(url.lastPathComponent)")
+            }
             let pixelBuffer = try makePixelBuffer(
                 data: data,
                 width: proxyWidth,
@@ -261,7 +272,16 @@ private enum FFmpegFrameReader {
             let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
             let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
             let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
-            samples.append(FrameSample(index: index, timestamp: timestamp, pixelBuffer: pixelBuffer, descriptor: descriptor, lumaGrid: grid))
+            let sourceFrameIndex = Int((((startSeconds ?? 0) + Double(index) / outputFPSForTimestamp) *
+                max(nominalFrameRate, outputFPSForTimestamp)).rounded())
+            samples.append(FrameSample(
+                index: sourceFrameIndex,
+                sequencePosition: index,
+                timestamp: timestamp,
+                pixelBuffer: pixelBuffer,
+                descriptor: descriptor,
+                lumaGrid: grid
+            ))
             index += 1
         }
         process.waitUntilExit()
@@ -279,11 +299,11 @@ private enum FFmpegFrameReader {
         )
     }
 
-    private static func readExactly(_ handle: FileHandle, count: Int) -> Data? {
+    private static func readExactly(_ handle: FileHandle, count: Int) throws -> Data? {
         var data = Data()
         data.reserveCapacity(count)
         while data.count < count {
-            guard let chunk = try? handle.read(upToCount: count - data.count), !chunk.isEmpty else { break }
+            guard let chunk = try handle.read(upToCount: count - data.count), !chunk.isEmpty else { break }
             data.append(chunk)
         }
         return data.isEmpty ? nil : data

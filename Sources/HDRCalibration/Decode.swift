@@ -50,15 +50,36 @@ public enum HDRReferenceTransferMath {
     }
 
     public static func hlgDisplayNits(signal: Float, peakNits: Float = 1_000) -> Float {
+        hlgDisplayRGBNits(signal: SIMD3(repeating: signal), peakNits: peakNits).x
+    }
+
+    /// BT.2100 HLG inverse OETF followed by the display-side OOTF. The OOTF
+    /// is a vector operation: system gamma is derived from BT.2020 scene
+    /// luminance and applied as one gain to RGB, preserving hue/chroma ratios.
+    public static func hlgDisplayRGBNits(signal: SIMD3<Float>, peakNits: Float = 1_000) -> SIMD3<Float> {
         let a: Float = 0.17883277
         let b: Float = 1 - 4 * a
         let c: Float = 0.55991073
-        let clamped = max(signal, 0)
-        let scene = clamped <= 0.5
-            ? (clamped * clamped) / 3
-            : (exp((clamped - c) / a) + b) / 12
+        func inverseOETF(_ value: Float) -> Float {
+            let clamped = min(max(value, 0), 1)
+            return clamped <= 0.5
+                ? (clamped * clamped) / 3
+                : (exp((clamped - c) / a) + b) / 12
+        }
+        let scene = SIMD3(
+            inverseOETF(signal.x), inverseOETF(signal.y), inverseOETF(signal.z)
+        )
+        let sceneLuminance = max(simd_dot(scene, HDRColorMath.bt2020Luminance), 0)
         let systemGamma = 1.2 + 0.42 * log10(max(peakNits, 100) / 1_000)
-        return max(0, pow(max(scene, 0), systemGamma) * peakNits)
+        let ootfGain = sceneLuminance > 0
+            ? pow(sceneLuminance, systemGamma - 1)
+            : 0
+        let display = scene * ootfGain * max(peakNits, 1)
+        return SIMD3(
+            display.x.isFinite ? max(display.x, 0) : 0,
+            display.y.isFinite ? max(display.y, 0) : 0,
+            display.z.isFinite ? max(display.z, 0) : 0
+        )
     }
 }
 
@@ -120,10 +141,8 @@ public enum HDRReferenceDecoder {
                         HDRReferenceTransferMath.decodeNits(signal: signal.z, transfer: .pq)
                     )
                 case .hlg:
-                    decoded = SIMD3<Float>(
-                        HDRReferenceTransferMath.decodeNits(signal: signal.x, transfer: .hlg, targetPeakNits: referencePeakNits),
-                        HDRReferenceTransferMath.decodeNits(signal: signal.y, transfer: .hlg, targetPeakNits: referencePeakNits),
-                        HDRReferenceTransferMath.decodeNits(signal: signal.z, transfer: .hlg, targetPeakNits: referencePeakNits)
+                    decoded = HDRReferenceTransferMath.hlgDisplayRGBNits(
+                        signal: signal, peakNits: referencePeakNits
                     )
                 case .unknown:
                     throw CalibrationError.unsupportedReference("unknown transfer")
@@ -152,7 +171,10 @@ public final class HDRCoreOfflineEvaluator {
     public init(device: MTLDevice, configuration: HDRConfiguration, gridWidth: Int = 32, gridHeight: Int = 18) throws {
         self.device = device
         self.processor = try HDRProcessor(device: device, configuration: configuration)
-        self.processor.automaticTemporalEstimationEnabled = false
+        // Offline evaluation must execute the same causal GPU estimator as
+        // production. It waits only because calibration needs a readback;
+        // the estimator itself remains the production 16x9/16-bin path.
+        self.processor.automaticTemporalEstimationEnabled = true
         self.gridWidth = gridWidth
         self.gridHeight = gridHeight
         self.readbackTexture = nil
@@ -166,7 +188,7 @@ public final class HDRCoreOfflineEvaluator {
         sceneCut: Bool = false
     ) throws -> GeneratedFrame {
         try processor.update(configuration: configuration)
-        if let averageLuminance {
+        if let averageLuminance, !processor.automaticTemporalEstimationEnabled {
             processor.updateTemporalEstimate(averageLuminance: averageLuminance, sceneCut: sceneCut)
         }
         let width = CVPixelBufferGetWidth(pixelBuffer)
@@ -226,12 +248,13 @@ public final class HDRCoreOfflineEvaluator {
         processor.resetTemporalState(averageLuminance: averageLuminance)
     }
 
-    /// Applies a source-statistics update after a frame has been processed.
-    /// This ordering mirrors HDRProcessor's asynchronous runtime estimator:
-    /// frame N is rendered with state from N-1, then N updates state for N+1.
+    /// Applies a production-compatible source-statistics update after a frame
+    /// has been processed. Callers must provide the same 16x9 linear-light
+    /// samples used by the runtime estimator; the shared histogram quantizer
+    /// is used rather than exact CPU percentiles.
     public func updateSceneStatistics(sdrBT709Signals: [Float], sceneCut: Bool = false) {
         processor.updateSceneStatistics(
-            HDRSceneStatistics(sdrBT709Signals: sdrBT709Signals),
+            HDRSceneStatistics(productionLinearSamples: sdrBT709Signals.map { HDRColorMath.inverseBT709($0) }),
             sceneCut: sceneCut
         )
     }
@@ -246,6 +269,10 @@ public final class HDRCoreOfflineEvaluator {
     }
 
     public var temporalAdaptation: Float { processor.temporalAdaptation }
+
+    public var sceneShadowCoordinates: (floor: Float, top: Float, valid: Bool) {
+        processor.sceneShadowCoordinates
+    }
 
     private func makeReadbackTexture(width: Int, height: Int) throws -> MTLTexture {
         if let readbackTexture,

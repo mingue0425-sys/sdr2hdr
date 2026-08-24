@@ -2,15 +2,52 @@ import Foundation
 
 public struct SceneRange: Codable, Sendable {
     public let id: String
-    public let startSample: Int
-    public let endSample: Int
+    /// Scene bounds are positions in `FrameSequence.samples`, not source
+    /// frame indices. The explicit name prevents sparse-index mixing.
+    public let startSequencePosition: Int
+    public let endSequencePosition: Int
     public let tags: [String]
 
-    public init(id: String, startSample: Int, endSample: Int, tags: [String]) {
+    public init(id: String, startSequencePosition: Int, endSequencePosition: Int, tags: [String]) {
         self.id = id
-        self.startSample = startSample
-        self.endSample = endSample
+        self.startSequencePosition = startSequencePosition
+        self.endSequencePosition = endSequencePosition
         self.tags = tags
+    }
+
+    /// Compatibility initializer for historical callers. The old names were
+    /// ambiguous, but their values were always sequence positions.
+    public init(id: String, startSample: Int, endSample: Int, tags: [String]) {
+        self.init(id: id, startSequencePosition: startSample, endSequencePosition: endSample, tags: tags)
+    }
+
+    public var startSample: Int { startSequencePosition }
+    public var endSample: Int { endSequencePosition }
+
+    public func contains(sequencePosition: Int) -> Bool {
+        sequencePosition >= startSequencePosition && sequencePosition <= endSequencePosition
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, startSequencePosition, endSequencePosition, startSample, endSample, tags
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        startSequencePosition = try container.decodeIfPresent(Int.self, forKey: .startSequencePosition)
+            ?? container.decode(Int.self, forKey: .startSample)
+        endSequencePosition = try container.decodeIfPresent(Int.self, forKey: .endSequencePosition)
+            ?? container.decode(Int.self, forKey: .endSample)
+        tags = try container.decode([String].self, forKey: .tags)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(startSequencePosition, forKey: .startSequencePosition)
+        try container.encode(endSequencePosition, forKey: .endSequencePosition)
+        try container.encode(tags, forKey: .tags)
     }
 }
 
@@ -67,9 +104,11 @@ public enum TemporalAligner {
             )
             let confidence = max(0, min(1, exp(-distance * 4)))
             if confidence >= confidenceThreshold {
-                matches.append(MatchedFrame(
-                    sdrIndex: sample.index,
-                    hdrIndex: nearest.index,
+            matches.append(MatchedFrame(
+                sdrIndex: sample.index,
+                hdrIndex: nearest.index,
+                sdrSequencePosition: sample.sequencePosition,
+                hdrSequencePosition: nearest.sequencePosition,
                     sdrTimeSeconds: sample.descriptor.timestampSeconds,
                     hdrTimeSeconds: nearest.descriptor.timestampSeconds,
                     confidence: confidence
@@ -124,7 +163,7 @@ public enum SceneDetector {
             let end = max(start, boundaries[index + 1] - 1)
             let values = Array(sequence.samples[start...end].map(\.descriptor.meanLuma))
             let tags = classify(values: values)
-            scenes.append(SceneRange(id: String(format: "scene_%04d", index + 1), startSample: start, endSample: end, tags: tags))
+            scenes.append(SceneRange(id: String(format: "scene_%04d", index + 1), startSequencePosition: start, endSequencePosition: end, tags: tags))
         }
         return scenes
     }

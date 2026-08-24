@@ -536,7 +536,7 @@ public enum V4LiveImporter {
         guard FileManager.default.fileExists(atPath: root.path) else {
             throw CalibrationError.invalidManifest("LIVE root does not exist: \(root.path)")
         }
-        let directories = allDirectories(root: root)
+        let directories = try allDirectories(root: root)
         let sdrDirectory = directories.first(where: {
             let name = $0.lastPathComponent.lowercased()
             return name == "open-sourced_sdr" || (name.contains("sdr") && !name.contains("hdr"))
@@ -557,15 +557,18 @@ public enum V4LiveImporter {
         return DiscoveredFiles(root: root, sdrDirectory: sdrDirectory, hdrDirectory: hdrDirectory, sdr: sdr, hdr: hdr, extensionCounts: extensionCounts)
     }
 
-    private static func allDirectories(root: URL) -> [URL] {
+    private static func allDirectories(root: URL) throws -> [URL] {
         var result = [root]
         guard let enumerator = FileManager.default.enumerator(
             at: root,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
-        ) else { return result }
+        ) else {
+            throw CalibrationError.invalidManifest("could not enumerate LIVE root: \(root.path)")
+        }
         for case let url as URL in enumerator {
-            if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+            let values = try url.resourceValues(forKeys: [.isDirectoryKey])
+            if values.isDirectory == true {
                 result.append(url)
             }
         }
@@ -577,13 +580,17 @@ public enum V4LiveImporter {
             at: directory,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
-        ) else { return [] }
-        return enumerator.compactMap { item -> URL? in
-            guard let url = item as? URL,
-                  (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
-                  ["mp4", "mov", "mkv"].contains(url.pathExtension.lowercased()) else { return nil }
-            return url
-        }.sorted { $0.path < $1.path }
+        ) else {
+            throw CalibrationError.invalidManifest("could not enumerate LIVE media directory: \(directory.path)")
+        }
+        var files: [URL] = []
+        for case let url as URL in enumerator {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true,
+                  ["mp4", "mov", "mkv"].contains(url.pathExtension.lowercased()) else { continue }
+            files.append(url)
+        }
+        return files.sorted { $0.path < $1.path }
     }
 
     private static func parse(_ url: URL, side: String) -> LiveFile? {

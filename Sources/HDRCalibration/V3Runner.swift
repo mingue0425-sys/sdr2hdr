@@ -120,11 +120,17 @@ public final class CalibrationV3Runner {
             ($0.validation?.objective ?? .infinity) < ($1.validation?.objective ?? .infinity)
         }
         let selectedParameters = selectedSummary?.parameters
-        let selectedTune = selectedParameters.flatMap { value in
-            try? evaluate(engine, tunePrepared, value, "calibrated-v3", .tune)
-        }
-        let selectedValidation = selectedParameters.flatMap { value in
-            try? evaluate(engine, validationPrepared, value, "calibrated-v3", .validation)
+        let selectedTune: V2DatasetEvaluation?
+        let selectedValidation: V2DatasetEvaluation?
+        if let selectedParameters {
+            // A selected candidate is part of the historical report's
+            // correctness evidence. Never silently turn a failed evaluation
+            // into a partial candidate record.
+            selectedTune = try evaluate(engine, tunePrepared, selectedParameters, "calibrated-v3", .tune)
+            selectedValidation = try evaluate(engine, validationPrepared, selectedParameters, "calibrated-v3", .validation)
+        } else {
+            selectedTune = nil
+            selectedValidation = nil
         }
 
         let identification = identificationTable(
@@ -320,7 +326,7 @@ public final class CalibrationV3Runner {
 
     private func validationRejections(_ candidate: V2MetricBreakdown, v2: V2MetricBreakdown) -> [String] {
         var reasons: [String] = []
-        if improvement(v2.objective, candidate.objective) <= 3 { reasons.append("overall improvement <= 3%") }
+        if improvement(v2.objective, candidate.objective) <= 0.03 { reasons.append("overall improvement <= 3%") }
         if candidate.shadowError >= v2.shadowError { reasons.append("shadow error not improved") }
         if candidate.shadowLiftRatio >= v2.shadowLiftRatio { reasons.append("shadow lift not improved") }
         if candidate.temporalFlicker > v2.temporalFlicker * 1.02 + 0.001 { reasons.append("temporal flicker regression") }
@@ -375,9 +381,9 @@ public final class CalibrationV3Runner {
         let validationGain = improvement(v2Validation.metrics.objective, validation.metrics.objective)
         let frozenGain = improvement(v2Frozen.metrics.objective, frozen.metrics.objective)
         let reasons = [
-            String(format: "V3 vs V2 Tune: %.2f%%", tuneGain),
-            String(format: "V3 vs V2 Validation: %.2f%%", validationGain),
-            String(format: "V3 vs V2 LEGACY_FROZEN: %.2f%%", frozenGain)
+            String(format: "V3 vs V2 Tune: %.2f%%", tuneGain * 100),
+            String(format: "V3 vs V2 Validation: %.2f%%", validationGain * 100),
+            String(format: "V3 vs V2 LEGACY_FROZEN: %.2f%%", frozenGain * 100)
         ]
         guard tune.metrics.shadowError < v2Tune.metrics.shadowError,
               validation.metrics.shadowError < v2Validation.metrics.shadowError,
@@ -389,7 +395,7 @@ public final class CalibrationV3Runner {
               validation.metrics.highlightPumping <= v2Validation.metrics.highlightPumping * 1.02 + 0.001 else {
             return (.temporalInsufficient, reasons + ["Temporal regression gate failed."])
         }
-        guard tuneGain > 0, validationGain > 3 else {
+        guard tuneGain > 0, validationGain > 0.03 else {
             return (.validationFail, reasons + ["Tune/Validation objective gate failed."])
         }
         guard frozenGain > 0 else {
@@ -431,7 +437,7 @@ public final class CalibrationV3Runner {
     }
 
     private func improvement(_ baseline: Double, _ candidate: Double) -> Double {
-        (baseline - candidate) / max(baseline, 0.000_000_001) * 100
+        V4PromotionMath.improvementRatio(baseline: baseline, candidate: candidate)
     }
 
     private func writeArtifacts(_ report: V3FinalReport) throws {
