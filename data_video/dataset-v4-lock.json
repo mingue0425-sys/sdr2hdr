@@ -1,0 +1,127 @@
+{
+  "files" : [
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/13_Interview_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "d67356a75a5a383d8ca5393cc09214f49460cc91a599a6cbbfe4bee370314d8d",
+      "sizeBytes" : 15279869
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/16_Night_Biking_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "c6797591b56d7dd2fd58ab33f063ca088d65889539efa83c1e0afa7296b0449a",
+      "sizeBytes" : 15271305
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "dae8689ad0e4e0290ad2d6f560c3492634d5bdc112b53db838985eb415fd6561",
+      "sizeBytes" : 15221863
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/4_Campfire_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "f6438393f7242402bc6a8bdc1008a36a52c97693c81239dfe28d04fc4b3939e1",
+      "sizeBytes" : 15004817
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/8_Drawing_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c",
+      "sizeBytes" : 14995231
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "87fb5127fb9393cb40b2792dde8e6577395b4acd56bb73c7184edc32dc4e0fc3",
+      "sizeBytes" : 15069187
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/13_Interview_SDR_3840x2160_15000k.mp4",
+      "sha256" : "3c9c92f91406e9111e053e3c31a834842592127831f6f9429c4af1129bc2a497",
+      "sizeBytes" : 15340602
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/16_Night_Biking_SDR_3840x2160_15000k.mp4",
+      "sha256" : "ba79a963385bee76125f02108e8cc14198bfe8539e892a751342a42191fb05aa",
+      "sizeBytes" : 15304369
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+      "sha256" : "dff9653bdddbbb851607a3d12b52c8e368291de6a8c4f86e84bd935f3ecc1c8d",
+      "sizeBytes" : 15161007
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/4_Campfire_SDR_3840x2160_15000k.mp4",
+      "sha256" : "d8f49295c5e55803c740d6d2a8af66a57672e2da4f69de1990c1d21471bff191",
+      "sizeBytes" : 15280943
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/8_Drawing_SDR_3840x2160_15000k.mp4",
+      "sha256" : "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
+      "sizeBytes" : 14932621
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/9_Face_Close_SDR_3840x2160_15000k.mp4",
+      "sha256" : "71fb4e49c4974dba225fb2f696a3ad04700682d028fd6b0aca0b08e95e0a9d26",
+      "sizeBytes" : 15055098
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_hdr_pq.mov",
+      "sha256" : "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136",
+      "sizeBytes" : 106811622
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/v4\/solemates\/solemates_sdr.mov",
+      "sha256" : "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
+      "sizeBytes" : 62600378
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+      "sha256" : "31e4d5fc99a5c552378d161af960b86d602b25e403284eab2c1f31547a623271",
+      "sizeBytes" : 624273417
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video1\/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+      "sha256" : "8f4a8cdcacfcac8333828a7690491e362332dd19e6087f80524ca3005b7ff0f8",
+      "sizeBytes" : 681301212
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+      "sha256" : "46297d224a28b54331b3e649b707d45359915eb9d6299ecb59f5a1c85629e1e4",
+      "sizeBytes" : 372477154
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video2\/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+      "sha256" : "901d67322ae4076737e9594f9b65395ea23683d380bdf5acab7d7a20d30b306b",
+      "sizeBytes" : 426355691
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "sha256" : "df28f6a36093b98a0a48666775d9cb784408cc9796d0dfdfb3e04e12f9651339",
+      "sizeBytes" : 712145575
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "sha256" : "14cb657c0cf89c6846b4f21d3bf1fd437c01ec9b8860e6cc5e2d36d5c213ff85",
+      "sizeBytes" : 798290138
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "sha256" : "c568bba8230d83d1b90038f1b7927da3f76e68fbd28c9ebe3c91cc7230e42ac0",
+      "sizeBytes" : 616318033
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "sha256" : "643c413b3c8b588e479f2d7cd0d2381fce5b9896b40cd230655dc63a152da71b",
+      "sizeBytes" : 689583065
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+      "sha256" : "8dffc366cf8bd6dd3e011312d2d2a30a7e5fd43f2f05597cdc90a5c2215d17ad",
+      "sizeBytes" : 471313869
+    },
+    {
+      "path" : "\/Volumes\/game\/sdr2hdr\/data_video\/video6\/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+      "sha256" : "4ad1196a43e36f4e436d0c5360547091a9218267a174a5cc56e6fad9c410ff01",
+      "sizeBytes" : 537117705
+    }
+  ],
+  "generatedAt" : "2026-08-24T11:39:31Z",
+  "manifestSHA256" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
+  "version" : 1
+}

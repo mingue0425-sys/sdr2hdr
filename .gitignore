@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+.cache/
+.DS_Store
+
+# Local media and partial downloader files.
+*.mp4*
+*.mov
+*.mkv
+*.webm*
+*.ytdl
+*.zip
+
+# Calibration output is reproducible and can be regenerated locally.
+results/

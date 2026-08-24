@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "pairs": [
+    {
+      "id": "video1_ive_blackhole",
+      "sdr": "video1/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+      "hdr": "video1/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+      "license": "user_provided_local",
+      "source": "data_video",
+      "expectedRelation": "same_master",
+      "split": "tune",
+      "notes": "split-seed 92; SDR BT.709 paired with HDR BT.2020 HLG"
+    },
+    {
+      "id": "video2_newjeans_new_jeans",
+      "sdr": "video2/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+      "hdr": "video2/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+      "license": "user_provided_local",
+      "source": "data_video",
+      "expectedRelation": "same_master",
+      "split": "tune",
+      "notes": "split-seed 92; SDR BT.709 paired with HDR BT.2020 HLG"
+    },
+    {
+      "id": "video3_newjeans_how_sweet",
+      "sdr": "video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "hdr": "video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "license": "user_provided_local",
+      "source": "data_video",
+      "expectedRelation": "same_master",
+      "split": "tune",
+      "notes": "split-seed 92; SDR BT.709 paired with HDR BT.2020 HLG"
+    },
+    {
+      "id": "video4_aespa_lemonade",
+      "sdr": "video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "hdr": "video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "license": "user_provided_local",
+      "source": "data_video",
+      "expectedRelation": "same_master",
+      "split": "validation",
+      "notes": "new V2 validation video; split-seed 92"
+    },
+    {
+      "id": "video6_le_sserafim_hot",
+      "sdr": "video6/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+      "hdr": "video6/[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+      "license": "user_provided_local",
+      "source": "data_video",
+      "expectedRelation": "same_master",
+      "split": "frozen",
+      "notes": "new V2 frozen video; split-seed 92; do not evaluate before final selection"
+    }
+  ]
+}
