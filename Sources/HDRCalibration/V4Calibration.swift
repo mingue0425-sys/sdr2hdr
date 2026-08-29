@@ -1,3 +1,4 @@
+import CoreVideo
 import CryptoKit
 import Foundation
 import HDRCore
@@ -13,6 +14,28 @@ public enum CalibrationV4Verdict: String, Codable, Sendable {
     case shadowGeneralizationFail = "SHADOW_GENERALIZATION_FAIL"
     case runtimeRegression = "RUNTIME_REGRESSION"
     case identifiabilityFail = "IDENTIFIABILITY_FAIL"
+    case incompleteEvaluation = "INCOMPLETE_EVALUATION"
+}
+
+public struct V4RuntimeThresholds: Codable, Sendable {
+    public var width: Int = 1_920
+    public var height: Int = 1_080
+    public var warmupFrames: Int = 30
+    public var measuredFrames: Int = 300
+    public var gpuP50RelativeTolerance: Double = 0.08
+    public var gpuP95RelativeTolerance: Double = 0.10
+    public var cpuP95RelativeTolerance: Double = 0.15
+    public var absoluteToleranceMilliseconds: Double = 0.10
+
+    public var isValid: Bool {
+        width > 0 && height > 0 && warmupFrames >= 0 && measuredFrames > 0 &&
+            gpuP50RelativeTolerance.isFinite && gpuP50RelativeTolerance >= 0 &&
+            gpuP95RelativeTolerance.isFinite && gpuP95RelativeTolerance >= 0 &&
+            cpuP95RelativeTolerance.isFinite && cpuP95RelativeTolerance >= 0 &&
+            absoluteToleranceMilliseconds.isFinite && absoluteToleranceMilliseconds >= 0
+    }
+
+    public init() {}
 }
 
 public struct V4SafetyThresholds: Codable, Sendable {
@@ -27,6 +50,9 @@ public struct V4SafetyThresholds: Codable, Sendable {
     public var frozenMinimumImprovement: Double = 0.05
     public var frozenPerVideoRegressionTolerance: Double = 0.02
     public var zeroTolerance: Double = 0.000001
+    public var runtime: V4RuntimeThresholds? = V4RuntimeThresholds()
+
+    public var runtimeThresholds: V4RuntimeThresholds { runtime ?? V4RuntimeThresholds() }
 
     public init() {}
 }
@@ -96,8 +122,106 @@ public struct V4PromotionGateResult: Codable, Sendable {
     }
 }
 
+public enum V4FrozenStatus: String, Codable, Sendable {
+    case notOpened = "NOT_OPENED"
+    case openedAndEvaluated = "OPENED_AND_EVALUATED"
+    case notEvaluatedDuePrecondition = "NOT_EVALUATED_DUE_PRECONDITION"
+}
+
+public struct V4PreFrozenGateResult: Codable, Sendable {
+    public var datasetIntegrity: V4GateStatus
+    public var identifiability: V4GateStatus
+    public var validationOverall: V4GateStatus
+    public var validationShadow: V4GateStatus
+    public var validationTemporal: V4GateStatus
+    public var transferCoverage: V4GateStatus
+    /// Minimum Virgin Frozen pair-count gate. Kept separate from family
+    /// diversity so a 2-family/2-pair holdout reports family=PASS while still
+    /// remaining ineligible to open Frozen until the preregistered count is met.
+    public var pairCoverage: V4GateStatus
+    public var familyCoverage: V4GateStatus
+    public var runtime: V4GateStatus
+
+    public init(
+        datasetIntegrity: V4GateStatus = .notMeasured,
+        identifiability: V4GateStatus = .notMeasured,
+        validationOverall: V4GateStatus = .notMeasured,
+        validationShadow: V4GateStatus = .notMeasured,
+        validationTemporal: V4GateStatus = .notMeasured,
+        transferCoverage: V4GateStatus = .notMeasured,
+        pairCoverage: V4GateStatus = .notMeasured,
+        familyCoverage: V4GateStatus = .notMeasured,
+        runtime: V4GateStatus = .notMeasured
+    ) {
+        self.datasetIntegrity = datasetIntegrity
+        self.identifiability = identifiability
+        self.validationOverall = validationOverall
+        self.validationShadow = validationShadow
+        self.validationTemporal = validationTemporal
+        self.transferCoverage = transferCoverage
+        self.pairCoverage = pairCoverage
+        self.familyCoverage = familyCoverage
+        self.runtime = runtime
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case datasetIntegrity, identifiability, validationOverall, validationShadow, validationTemporal
+        case transferCoverage, pairCoverage, familyCoverage, runtime
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        datasetIntegrity = try container.decode(V4GateStatus.self, forKey: .datasetIntegrity)
+        identifiability = try container.decode(V4GateStatus.self, forKey: .identifiability)
+        validationOverall = try container.decode(V4GateStatus.self, forKey: .validationOverall)
+        validationShadow = try container.decode(V4GateStatus.self, forKey: .validationShadow)
+        validationTemporal = try container.decode(V4GateStatus.self, forKey: .validationTemporal)
+        transferCoverage = try container.decode(V4GateStatus.self, forKey: .transferCoverage)
+        // Older pre-v5 artifacts predate the independent pair-count gate.
+        // Decode them fail-closed rather than treating family coverage as a
+        // proxy for pair-count completeness.
+        pairCoverage = try container.decodeIfPresent(V4GateStatus.self, forKey: .pairCoverage) ?? .notMeasured
+        familyCoverage = try container.decode(V4GateStatus.self, forKey: .familyCoverage)
+        runtime = try container.decode(V4GateStatus.self, forKey: .runtime)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(datasetIntegrity, forKey: .datasetIntegrity)
+        try container.encode(identifiability, forKey: .identifiability)
+        try container.encode(validationOverall, forKey: .validationOverall)
+        try container.encode(validationShadow, forKey: .validationShadow)
+        try container.encode(validationTemporal, forKey: .validationTemporal)
+        try container.encode(transferCoverage, forKey: .transferCoverage)
+        try container.encode(pairCoverage, forKey: .pairCoverage)
+        try container.encode(familyCoverage, forKey: .familyCoverage)
+        try container.encode(runtime, forKey: .runtime)
+    }
+
+    public var failures: [String] {
+        [
+            ("datasetIntegrity", datasetIntegrity),
+            ("identifiability", identifiability),
+            ("validationOverall", validationOverall),
+            ("validationShadow", validationShadow),
+            ("validationTemporal", validationTemporal),
+            ("transferCoverage", transferCoverage),
+            ("pairCoverage", pairCoverage),
+            ("familyCoverage", familyCoverage),
+            ("runtime", runtime)
+        ].compactMap { name, status in
+            status == .pass ? nil : "\(name)=\(status.rawValue)"
+        }
+    }
+
+    public var canOpenVirginFrozen: Bool { failures.isEmpty }
+}
+
 public enum V4PromotionGateMachine {
     public static func verdict(_ gates: V4PromotionGateResult) -> CalibrationV4Verdict {
+        // Hard-safety and frozen-holdout failures are more informative than a
+        // runtime failure and must never be masked by an unmeasured runtime.
+        if gates.hardSafety == .fail { return .keepV2 }
         if gates.completeness == .fail || gates.datasetIntegrity == .fail { return .validationFail }
         if gates.identifiability == .fail { return .identifiabilityFail }
         if gates.relativeShadow == .fail { return .relativeShadowInsufficient }
@@ -106,24 +230,118 @@ public enum V4PromotionGateMachine {
         if gates.temporal == .fail { return .validationFail }
         if gates.transfer == .fail { return .transferGeneralizationFail }
         if gates.family == .fail { return .validationFail }
-        if gates.runtime == .fail || gates.runtime == .notMeasured { return .runtimeRegression }
         if gates.frozen == .fail { return .virginFrozenFail }
-        if gates.hardSafety == .fail { return .keepV2 }
-        guard gates.completeness == .pass,
-              gates.datasetIntegrity == .pass,
-              gates.identifiability == .pass,
-              gates.relativeShadow == .pass,
-              gates.overall == .pass,
-              gates.shadow == .pass,
-              gates.temporal == .pass,
-              gates.transfer == .pass,
-              gates.family == .pass,
-              gates.runtime == .pass,
-              gates.frozen == .pass,
-              gates.hardSafety == .pass else {
-            return .validationFail
-        }
+        if gates.runtime == .fail { return .runtimeRegression }
+
+        let statuses = [
+            gates.completeness, gates.datasetIntegrity, gates.identifiability,
+            gates.relativeShadow, gates.overall, gates.shadow, gates.temporal,
+            gates.transfer, gates.family, gates.runtime, gates.frozen, gates.hardSafety
+        ]
+        if statuses.contains(.notMeasured) { return .incompleteEvaluation }
         return .promote
+    }
+}
+
+public struct V4RuntimeMeasurement: Codable, Sendable {
+    public var gpuP50Milliseconds: Double
+    public var gpuP95Milliseconds: Double
+    public var gpuP99Milliseconds: Double
+    public var cpuSubmissionP50Milliseconds: Double
+    public var cpuSubmissionP95Milliseconds: Double
+    public var cpuSubmissionP99Milliseconds: Double
+
+    public init(
+        gpuP50Milliseconds: Double,
+        gpuP95Milliseconds: Double,
+        gpuP99Milliseconds: Double,
+        cpuSubmissionP50Milliseconds: Double,
+        cpuSubmissionP95Milliseconds: Double,
+        cpuSubmissionP99Milliseconds: Double
+    ) {
+        self.gpuP50Milliseconds = gpuP50Milliseconds
+        self.gpuP95Milliseconds = gpuP95Milliseconds
+        self.gpuP99Milliseconds = gpuP99Milliseconds
+        self.cpuSubmissionP50Milliseconds = cpuSubmissionP50Milliseconds
+        self.cpuSubmissionP95Milliseconds = cpuSubmissionP95Milliseconds
+        self.cpuSubmissionP99Milliseconds = cpuSubmissionP99Milliseconds
+    }
+
+    public var isValid: Bool {
+        let finite = [gpuP50Milliseconds, gpuP95Milliseconds, gpuP99Milliseconds,
+                      cpuSubmissionP50Milliseconds, cpuSubmissionP95Milliseconds,
+                      cpuSubmissionP99Milliseconds].allSatisfy { $0.isFinite }
+        return finite &&
+            gpuP50Milliseconds > 0 && gpuP50Milliseconds <= gpuP95Milliseconds && gpuP95Milliseconds <= gpuP99Milliseconds &&
+            cpuSubmissionP50Milliseconds >= 0 && cpuSubmissionP50Milliseconds <= cpuSubmissionP95Milliseconds &&
+            cpuSubmissionP95Milliseconds <= cpuSubmissionP99Milliseconds
+    }
+}
+
+public struct V4RuntimeBenchmarkResult: Codable, Sendable {
+    public var status: V4GateStatus
+    public var deviceName: String
+    public var width: Int
+    public var height: Int
+    public var warmupFrames: Int
+    public var measuredFrames: Int
+    public var thresholds: V4RuntimeThresholds
+    public var baseline: V4RuntimeMeasurement?
+    public var candidate: V4RuntimeMeasurement?
+    public var reasons: [String]
+
+    public init(
+        status: V4GateStatus,
+        deviceName: String,
+        width: Int,
+        height: Int,
+        warmupFrames: Int,
+        measuredFrames: Int,
+        thresholds: V4RuntimeThresholds,
+        baseline: V4RuntimeMeasurement?,
+        candidate: V4RuntimeMeasurement?,
+        reasons: [String]
+    ) {
+        self.status = status
+        self.deviceName = deviceName
+        self.width = width
+        self.height = height
+        self.warmupFrames = warmupFrames
+        self.measuredFrames = measuredFrames
+        self.thresholds = thresholds
+        self.baseline = baseline
+        self.candidate = candidate
+        self.reasons = reasons
+    }
+}
+
+public enum V4RuntimeGate {
+    public static func status(
+        baseline: V4RuntimeMeasurement,
+        candidate: V4RuntimeMeasurement,
+        thresholds: V4RuntimeThresholds
+    ) -> (V4GateStatus, [String]) {
+        guard baseline.isValid, candidate.isValid, thresholds.isValid else {
+            return (.notMeasured, ["runtime measurement or benchmark configuration is invalid"])
+        }
+        func allowed(_ baselineValue: Double, _ relative: Double) -> Double {
+            baselineValue * (1 + relative) + thresholds.absoluteToleranceMilliseconds
+        }
+        var reasons: [String] = []
+        if candidate.gpuP50Milliseconds > allowed(baseline.gpuP50Milliseconds, thresholds.gpuP50RelativeTolerance) {
+            reasons.append(String(format: "GPU p50 regression: V2 %.3f ms, V4 %.3f ms", baseline.gpuP50Milliseconds, candidate.gpuP50Milliseconds))
+        }
+        if candidate.gpuP95Milliseconds > allowed(baseline.gpuP95Milliseconds, thresholds.gpuP95RelativeTolerance) {
+            reasons.append(String(format: "GPU p95 regression: V2 %.3f ms, V4 %.3f ms", baseline.gpuP95Milliseconds, candidate.gpuP95Milliseconds))
+        }
+        if candidate.cpuSubmissionP95Milliseconds > allowed(baseline.cpuSubmissionP95Milliseconds, thresholds.cpuP95RelativeTolerance) {
+            reasons.append(String(format: "CPU submission p95 regression: V2 %.3f ms, V4 %.3f ms", baseline.cpuSubmissionP95Milliseconds, candidate.cpuSubmissionP95Milliseconds))
+        }
+        if reasons.isEmpty {
+            reasons.append(String(format: "runtime within tolerance: GPU p50 %.3f→%.3f ms, GPU p95 %.3f→%.3f ms, CPU p95 %.3f→%.3f ms", baseline.gpuP50Milliseconds, candidate.gpuP50Milliseconds, baseline.gpuP95Milliseconds, candidate.gpuP95Milliseconds, baseline.cpuSubmissionP95Milliseconds, candidate.cpuSubmissionP95Milliseconds))
+            return (.pass, reasons)
+        }
+        return (.fail, reasons)
     }
 }
 
@@ -159,8 +377,47 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     /// Frozen before any Virgin Frozen access. This is part of the promotion
     /// protocol rather than an after-the-fact tuning knob.
     public var safety = V4SafetyThresholds()
+    /// Preregistered before any Virgin Frozen objective access. Tune and
+    /// Validation retain their explicit source-family requirements. Frozen
+    /// family generalisation is deliberately expressed by diversity below,
+    /// rather than by requiring the legacy `K-Choreo` label.
+    public var requiredTransfersBySplit: [DatasetSplit: Set<String>] = [
+        .tune: ["HLG", "PQ"],
+        .validation: ["HLG", "PQ"],
+        .frozen: ["HLG", "PQ"]
+    ]
+    public var requiredFamiliesBySplit: [DatasetSplit: Set<String>] = [
+        .tune: ["K-Choreo", "LIVE"],
+        .validation: ["K-Choreo", "LIVE"],
+        .frozen: []
+    ]
 
     public init() {}
+
+    /// V5 holdout policy is exposed as named values so callers cannot infer a
+    /// requirement from an evaluation result or silently omit a subgroup.
+    public var frozenCoveragePolicy: V4FrozenCoveragePolicy {
+        V4FrozenCoveragePolicy(
+            requiredTransfers: requiredTransfersBySplit[.frozen] ?? V4FrozenCoveragePolicy.v5.requiredTransfers,
+            requiredFamilies: requiredFamiliesBySplit[.frozen] ?? [],
+            minimumVirginFrozenPairs: V4FrozenCoveragePolicy.v5.minimumVirginFrozenPairs,
+            minimumDistinctVirginFrozenFamilies: V4FrozenCoveragePolicy.v5.minimumDistinctVirginFrozenFamilies,
+            rationale: V4FrozenCoveragePolicy.v5.rationale
+        )
+    }
+
+    public var requiredFrozenTransfers: Set<String> { frozenCoveragePolicy.requiredTransfers }
+    public var requiredFrozenFamilies: Set<String> { frozenCoveragePolicy.requiredFamilies }
+    public var minimumVirginFrozenPairs: Int { frozenCoveragePolicy.minimumVirginFrozenPairs }
+    public var minimumDistinctFrozenFamilies: Int { frozenCoveragePolicy.minimumDistinctVirginFrozenFamilies }
+    public var temporalWindowPolicy: V4TemporalWindowPolicy { .v5 }
+}
+
+public enum V4CoveragePolicy {
+    public static func status(observed: Set<String>, required: Set<String>?) -> V4GateStatus {
+        guard let required, !required.isEmpty else { return .notMeasured }
+        return required.isSubset(of: observed) ? .pass : .fail
+    }
 }
 
 public struct V4SensitivityRecord: Codable, Sendable {
@@ -195,6 +452,7 @@ public struct V4FreezeArtifact: Codable, Sendable {
     public var manifestHash: String
     public var objectiveHash: String
     public var sourceHash: String?
+    public var executableHash: String?
     public var datasetLockHash: String?
     public var auditArtifactHash: String?
     public var evaluationConfigHash: String?
@@ -215,6 +473,7 @@ public struct V4FreezeArtifact: Codable, Sendable {
         finalCandidateFrozen: Bool,
         frozenOpened: Bool,
         sourceHash: String? = nil,
+        executableHash: String? = nil,
         datasetLockHash: String? = nil,
         auditArtifactHash: String? = nil,
         evaluationConfigHash: String? = nil,
@@ -230,6 +489,7 @@ public struct V4FreezeArtifact: Codable, Sendable {
         self.manifestHash = manifestHash
         self.objectiveHash = objectiveHash
         self.sourceHash = sourceHash
+        self.executableHash = executableHash
         self.datasetLockHash = datasetLockHash
         self.auditArtifactHash = auditArtifactHash
         self.evaluationConfigHash = evaluationConfigHash
@@ -321,6 +581,7 @@ public enum V4DatasetEvidenceValidator {
                 throw CalibrationError.invalidManifest("dataset lock contains duplicate path: \(file.path)")
             }
         }
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         for pair in manifest.pairs {
             guard pair.expectedRelation.supportsMainCalibration else {
                 throw CalibrationError.invalidManifest("pair \(pair.id) has relation \(pair.expectedRelation.rawValue), which is not eligible for main calibration")
@@ -333,23 +594,28 @@ public enum V4DatasetEvidenceValidator {
                   record.hdrReferenceValid == true,
                   record.sdrDecode.passed,
                   record.hdrDecode.passed,
-                  record.alignment.status == "ALIGNED" else {
+                  V4AlignmentPolicy.supportsMainCalibration(record.alignment) else {
                 throw CalibrationError.invalidManifest("pair \(pair.id) is not an eligible, fully audited main-calibration record")
             }
             let resolved = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
-            let expectedPaths = Set([resolved.sdr.standardizedFileURL.path, resolved.hdr.standardizedFileURL.path])
-            for digest in [record.sdrDigest, record.hdrDigest] {
+            let mediaByPortablePath = [
+                record.sdrDigest?.portablePath(repositoryRoot: repositoryRoot): resolved.sdr,
+                record.hdrDigest?.portablePath(repositoryRoot: repositoryRoot): resolved.hdr
+            ].compactMapValues { $0 }
+            for (digest, resolvedURL) in zip([record.sdrDigest, record.hdrDigest], [resolved.sdr, resolved.hdr]) {
                 guard let digest else {
                     throw CalibrationError.invalidManifest("pair \(pair.id) is missing an audit media digest")
                 }
-                guard expectedPaths.contains(URL(fileURLWithPath: digest.path).standardizedFileURL.path) else {
+                let portablePath = digest.portablePath(repositoryRoot: repositoryRoot)
+                guard mediaByPortablePath[portablePath]?.standardizedFileURL.path == resolvedURL.standardizedFileURL.path else {
                     throw CalibrationError.invalidManifest("audit digest path is not the manifest media path: \(digest.path)")
                 }
-                guard let locked = lockByPath[digest.path], locked.sha256 == digest.sha256,
+                guard let locked = lockByPath[digest.path] ?? lockByPath[portablePath],
+                      locked.sha256 == digest.sha256,
                       locked.sizeBytes == digest.sizeBytes else {
                     throw CalibrationError.invalidManifest("dataset lock does not contain matching digest for \(digest.path)")
                 }
-                let current = try V4DatasetIntegrity.digest(url: URL(fileURLWithPath: digest.path))
+                let current = try V4DatasetIntegrity.digest(url: resolvedURL)
                 guard current.sha256 == digest.sha256, current.sizeBytes == digest.sizeBytes else {
                     throw CalibrationError.invalidManifest("media digest changed: \(digest.path)")
                 }
@@ -373,8 +639,11 @@ public struct V4GitEvidence: Codable, Sendable {
 
 public enum V4SourceHasher {
     public static func repositoryRoot(for manifestURL: URL) throws -> URL {
-        var current = manifestURL.deletingLastPathComponent().standardizedFileURL
         let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+        let startsAtDirectory = fileManager.fileExists(atPath: manifestURL.path, isDirectory: &isDirectory) &&
+            isDirectory.boolValue
+        var current = (startsAtDirectory ? manifestURL : manifestURL.deletingLastPathComponent()).standardizedFileURL
         while current.path != "/" {
             if fileManager.fileExists(atPath: current.appendingPathComponent("Package.swift").path) {
                 return current
@@ -401,7 +670,10 @@ public enum V4SourceHasher {
             "Sources/HDRCalibration/Decode.swift",
             "Sources/HDRCalibration/Alignment.swift",
             "Sources/HDRCalibration/FrameIO.swift",
-            "Sources/HDRCalibration/Evaluation.swift"
+            "Sources/HDRCalibration/Evaluation.swift",
+            "Sources/HDRCalibration/CorrectnessReview.swift",
+            "Sources/HDRCalibration/V2Runner.swift",
+            "Sources/HDRCalibration/V5Preflight.swift"
         ]
         for relative in requiredFiles {
             guard FileManager.default.fileExists(atPath: repositoryRoot.appendingPathComponent(relative).path) else {
@@ -427,6 +699,34 @@ public enum V4SourceHasher {
             data.append(0)
         }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Hashes the executable that is performing the calibration. A source
+    /// tree hash alone cannot identify a stale prebuilt binary.
+    public static func executableHash(url: URL? = nil) throws -> String {
+        let executableURL: URL
+        if let url {
+            executableURL = url.standardizedFileURL
+        } else {
+            guard let argument = CommandLine.arguments.first, !argument.isEmpty else {
+                throw CalibrationError.invalidCandidate("executing binary path is unavailable")
+            }
+            executableURL = argument.hasPrefix("/")
+                ? URL(fileURLWithPath: argument).standardizedFileURL
+                : URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                    .appendingPathComponent(argument).standardizedFileURL
+        }
+        guard FileManager.default.isReadableFile(atPath: executableURL.path) else {
+            throw CalibrationError.invalidCandidate("executing binary is not readable: \(executableURL.path)")
+        }
+        let handle = try FileHandle(forReadingFrom: executableURL)
+        defer { handle.closeFile() }
+        var digest = SHA256()
+        while true {
+            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { break }
+            digest.update(data: data)
+        }
+        return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     public static func gitEvidence(repositoryRoot: URL) throws -> V4GitEvidence {
@@ -455,6 +755,47 @@ public enum V4SourceHasher {
     }
 }
 
+public enum V4CodeIdentityPolicy {
+    public static func status(executableHash: String?, workingTreeDirty: Bool) -> V4GateStatus {
+        guard let executableHash, executableHash.count == 64 else { return .notMeasured }
+        return workingTreeDirty ? .fail : .pass
+    }
+}
+
+/// Candidate freeze is an executable boundary, not merely a hash diagnostic.
+/// There is intentionally no unchecked/no-argument production entry point.
+public enum V4CandidateFreezeGuard {
+    public static func requireClean(workingTreeDirty: Bool) throws {
+        guard !workingTreeDirty else {
+            throw CalibrationError.invalidCandidate("candidate freeze rejected: working tree is dirty")
+        }
+    }
+
+    public static func status(workingTreeDirty: Bool) -> V4GateStatus {
+        workingTreeDirty ? .fail : .pass
+    }
+}
+
+public final class V4FrozenObjectiveAccessRegistry: @unchecked Sendable {
+    public static let shared = V4FrozenObjectiveAccessRegistry()
+    private let lock = NSLock()
+    private var eventCountStorage = 0
+    private var pairIDsStorage = Set<String>()
+
+    private init() {}
+
+    public func record(pairIDs: [String]) {
+        lock.withLock {
+            eventCountStorage += 1
+            pairIDsStorage.formUnion(pairIDs)
+        }
+    }
+
+    public func snapshot() -> (eventCount: Int, pairIDs: [String]) {
+        lock.withLock { (eventCountStorage, pairIDsStorage.sorted()) }
+    }
+}
+
 public final class V4FrozenExperimentGuard: @unchecked Sendable {
     private let lock = NSLock()
     private var finalCandidateFrozen = false
@@ -462,7 +803,8 @@ public final class V4FrozenExperimentGuard: @unchecked Sendable {
 
     public init() {}
 
-    public func finalizeCandidate() {
+    public func finalizeCandidate(workingTreeDirty: Bool) throws {
+        try V4CandidateFreezeGuard.requireClean(workingTreeDirty: workingTreeDirty)
         lock.lock()
         finalCandidateFrozen = true
         lock.unlock()
@@ -503,6 +845,9 @@ public struct V4FinalReport: Codable, Sendable {
     public var reasons: [String]
     public var limitations: [String]
     public var promotionGates: V4PromotionGateResult? = nil
+    public var preFrozenGates: V4PreFrozenGateResult? = nil
+    public var frozenStatus: V4FrozenStatus? = nil
+    public var runtimeBenchmark: V4RuntimeBenchmarkResult? = nil
 }
 
 private struct V4FrozenComparison: Codable, Sendable {
@@ -519,6 +864,7 @@ public final class CalibrationV4Runner {
 
     private let device: MTLDevice
     private let frozenGuard = V4FrozenExperimentGuard()
+    private var coverageReasons: [String] = []
 
     public init(
         manifestURL: URL,
@@ -676,35 +1022,118 @@ public final class CalibrationV4Runner {
 
         let selectedTune = selected.tune
         let candidate = selected.parameters
+        let requiredCoverage = try validateRequiredCoverage(manifest: manifest, transferByPair: transferByPair)
+        guard requiredCoverage.canOpenVirginFrozen else {
+            let report = makeFailureReport(
+                manifest: manifest, transferByPair: transferByPair, baseline: baseline,
+                shadowAudit: shadowAudit, sensitivity: sensitivity,
+                reason: "required coverage preregistration failed before Virgin Frozen access: " +
+                    requiredCoverage.failures.joined(separator: ", "),
+                verdict: .validationFail,
+                global: global, local: local, validation: validationCandidates,
+                selected: selected, selectedValidation: selectedValidation,
+                candidate: candidate, preFrozenGates: requiredCoverage,
+                frozenStatus: .notEvaluatedDuePrecondition
+            )
+            try writeArtifacts(report)
+            return report
+        }
         let parameterHash = sha256(try encode(candidate))
         let manifestHash = evidence.manifestHash
         let objectiveHash = sha256(try encode(configuration))
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let sourceHash = try V4SourceHasher.sourceHash(repositoryRoot: repositoryRoot)
+        let executableHash = try V4SourceHasher.executableHash()
         let gitEvidence = try V4SourceHasher.gitEvidence(repositoryRoot: repositoryRoot)
+        let codeIdentity = V4CodeIdentityPolicy.status(
+            executableHash: executableHash,
+            workingTreeDirty: gitEvidence.workingTreeDirty
+        )
+        guard codeIdentity == .pass else {
+            let report = makeFailureReport(
+                manifest: manifest, transferByPair: transferByPair, baseline: baseline,
+                shadowAudit: shadowAudit, sensitivity: sensitivity,
+                reason: "executing code identity is not reproducible: codeIdentity=\(codeIdentity.rawValue), workingTreeDirty=\(gitEvidence.workingTreeDirty)",
+                verdict: .incompleteEvaluation,
+                global: global, local: local, validation: validationCandidates,
+                selected: selected, selectedValidation: selectedValidation,
+                candidate: candidate, preFrozenGates: requiredCoverage,
+                frozenStatus: .notEvaluatedDuePrecondition
+            )
+            try writeArtifacts(report)
+            return report
+        }
         let initialFreeze = V4FreezeArtifact(
             candidateID: selected.id, parameters: candidate,
-            parameterHash: parameterHash, codeHash: sourceHash,
+            parameterHash: parameterHash, codeHash: executableHash,
             manifestHash: manifestHash, objectiveHash: objectiveHash,
             finalCandidateFrozen: true, frozenOpened: false,
-            sourceHash: sourceHash, datasetLockHash: evidence.lockHash,
+            sourceHash: sourceHash, executableHash: executableHash,
+            datasetLockHash: evidence.lockHash,
             auditArtifactHash: evidence.auditHash, evaluationConfigHash: objectiveHash,
             gitCommit: gitEvidence.commit, gitTree: gitEvidence.tree,
             workingTreeDirty: gitEvidence.workingTreeDirty
         )
-        frozenGuard.finalizeCandidate()
+        try frozenGuard.finalizeCandidate(workingTreeDirty: gitEvidence.workingTreeDirty)
         try writeJSON(selected, name: "calibrated-v4-candidate.json")
         try writeJSON(initialFreeze, name: "calibrated-v4-freeze.json")
-        log("candidate " + selected.id + " frozen; opening exactly three Virgin Frozen pairs once")
 
+        let runtimeBenchmark: V4RuntimeBenchmarkResult
+        do {
+            runtimeBenchmark = try benchmarkRuntime(baseline: v2, candidate: candidate)
+        } catch {
+            runtimeBenchmark = V4RuntimeBenchmarkResult(
+                status: .notMeasured,
+                deviceName: device.name,
+                width: configuration.safety.runtimeThresholds.width,
+                height: configuration.safety.runtimeThresholds.height,
+                warmupFrames: configuration.safety.runtimeThresholds.warmupFrames,
+                measuredFrames: 0,
+                thresholds: configuration.safety.runtimeThresholds,
+                baseline: nil,
+                candidate: nil,
+                reasons: ["runtime benchmark failed: \(error.localizedDescription)"]
+            )
+        }
+        try writeJSON(runtimeBenchmark, name: "data-video-v4-runtime.json")
+
+        let preFrozenGates = V4PreFrozenGateResult(
+            datasetIntegrity: .pass,
+            identifiability: .pass,
+            validationOverall: selectedValidation.metrics.objective < v2Validation.metrics.objective ? .pass : .fail,
+            validationShadow: shadowSafe(v2Validation.metrics, selectedValidation.metrics) ? .pass : .fail,
+            validationTemporal: temporalSafe(v2Validation.metrics, selectedValidation.metrics) ? .pass : .fail,
+            transferCoverage: requiredCoverage.transferCoverage,
+            pairCoverage: requiredCoverage.pairCoverage,
+            familyCoverage: requiredCoverage.familyCoverage,
+            runtime: runtimeBenchmark.status
+        )
+        guard preFrozenGates.canOpenVirginFrozen else {
+            let report = makeFailureReport(
+                manifest: manifest, transferByPair: transferByPair, baseline: baseline,
+                shadowAudit: shadowAudit, sensitivity: sensitivity,
+                reason: "pre-Frozen gate failed before Virgin Frozen access: " +
+                    (preFrozenGates.failures + coverageReasons).joined(separator: ", "),
+                verdict: .incompleteEvaluation,
+                global: global, local: local, validation: validationCandidates,
+                selected: selected, selectedValidation: selectedValidation,
+                candidate: candidate, preFrozenGates: preFrozenGates,
+                frozenStatus: .notEvaluatedDuePrecondition
+            )
+            try writeArtifacts(report)
+            return report
+        }
+
+        log("candidate \(selected.id) frozen; all pre-Frozen gates passed; opening exactly three Virgin Frozen pairs once")
         try frozenGuard.openVirginFrozenOnce()
         let frozenRecords = records.filter { record in
             virginV4.contains(where: { $0.id == record.id })
         }
-        guard frozenRecords.count == 3 else {
-            throw CalibrationError.invalidManifest("V4 requires exactly three Virgin Frozen records, found " + String(frozenRecords.count))
+        guard frozenRecords.count >= configuration.minimumVirginFrozenPairs else {
+            throw CalibrationError.invalidManifest("V4 requires at least (configuration.minimumVirginFrozenPairs) Virgin Frozen records, found " + String(frozenRecords.count))
         }
         let frozenPrepared = try await repository.prepare(records: frozenRecords)
+        V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(engine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
         let frozenV1 = try evaluate(engine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
         let frozenV2 = try evaluate(engine, frozenPrepared, v2, "v2-virgin-frozen", .frozen, manifest)
@@ -720,7 +1149,8 @@ public final class CalibrationV4Runner {
             parameterHash: initialFreeze.parameterHash, codeHash: initialFreeze.codeHash,
             manifestHash: initialFreeze.manifestHash, objectiveHash: initialFreeze.objectiveHash,
             finalCandidateFrozen: true, frozenOpened: true,
-            sourceHash: initialFreeze.sourceHash, datasetLockHash: initialFreeze.datasetLockHash,
+            sourceHash: initialFreeze.sourceHash, executableHash: initialFreeze.executableHash,
+            datasetLockHash: initialFreeze.datasetLockHash,
             auditArtifactHash: initialFreeze.auditArtifactHash,
             evaluationConfigHash: initialFreeze.evaluationConfigHash,
             gitCommit: initialFreeze.gitCommit, gitTree: initialFreeze.gitTree,
@@ -738,12 +1168,13 @@ public final class CalibrationV4Runner {
             tuneV2: v2Tune, tuneV4: selectedTune,
             validationV2: v2Validation, validationV4: selectedValidation,
             frozenV2: frozenV2, frozenV4: frozenV4,
-            manifest: manifest, transferByPair: transferByPair
+            manifest: manifest, transferByPair: transferByPair,
+            runtime: runtimeBenchmark
         )
         let report = V4FinalReport(
             version: configuration.version,
             generatedAt: ISO8601DateFormatter().string(from: Date()),
-            manifestPath: manifestURL.path,
+            manifestPath: portableManifestPath,
             configuration: configuration,
             split: splitDocument(manifest),
             transferByPair: transferByPair,
@@ -766,7 +1197,10 @@ public final class CalibrationV4Runner {
                 "Reference HDR creative grading and SDR information loss are not recoverable detail ground truth.",
                 "Runtime scene statistics use a 16x9, 16-bin causal GPU estimator; offline uses the same one-frame-late state transition."
             ],
-            promotionGates: decision.2
+            promotionGates: decision.2,
+            preFrozenGates: preFrozenGates,
+            frozenStatus: .openedAndEvaluated,
+            runtimeBenchmark: runtimeBenchmark
         )
         try writeArtifacts(report)
         return report
@@ -776,9 +1210,9 @@ public final class CalibrationV4Runner {
         let tune = manifest.pairs.filter { $0.split == .tune }
         let validation = manifest.pairs.filter { $0.split == .validation }
         let virgin = manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }
-        guard tune.count == 5, validation.count == 3, virgin.count == 3 else {
+        guard tune.count == 5, validation.count == 3, virgin.count >= configuration.minimumVirginFrozenPairs else {
             throw CalibrationError.invalidManifest(
-                String(format: "V4 expected Tune=5, Validation=3, Virgin Frozen=3; got %d, %d, %d", tune.count, validation.count, virgin.count)
+                String(format: "V4 expected Tune=5, Validation=3, Virgin Frozen>=%d; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
             )
         }
     }
@@ -1009,7 +1443,8 @@ public final class CalibrationV4Runner {
         tuneV2: V2DatasetEvaluation, tuneV4: V2DatasetEvaluation,
         validationV2: V2DatasetEvaluation, validationV4: V2DatasetEvaluation,
         frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation,
-        manifest: V4Manifest, transferByPair: [String: String]
+        manifest: V4Manifest, transferByPair: [String: String],
+        runtime: V4RuntimeBenchmarkResult
     ) -> (CalibrationV4Verdict, [String], V4PromotionGateResult) {
         let tuneImprovement = improvement(tuneV2.metrics.objective, tuneV4.metrics.objective)
         let validationImprovement = improvement(validationV2.metrics.objective, validationV4.metrics.objective)
@@ -1053,7 +1488,7 @@ public final class CalibrationV4Runner {
             temporal: temporal ? .pass : .fail,
             transfer: transfer ? .pass : .fail,
             family: family ? .pass : .fail,
-            runtime: .notMeasured,
+            runtime: runtime.status,
             frozen: frozen ? .pass : .fail,
             hardSafety: hardSafety ? .pass : .fail
         )
@@ -1063,7 +1498,7 @@ public final class CalibrationV4Runner {
             String(format: "Virgin Frozen V4 vs V2: %.2f%%", frozenImprovement * 100),
             String(format: "Virgin Frozen shadow V2=%.6f V4=%.6f", frozenV2.metrics.shadowError, frozenV4.metrics.shadowError),
             "Promotion gates: completeness=\(gates.completeness.rawValue), transfer=\(gates.transfer.rawValue), family=\(gates.family.rawValue), runtime=\(gates.runtime.rawValue)"
-        ]
+        ] + runtime.reasons
         let verdict = V4PromotionGateMachine.verdict(gates)
         reasons.append("Final verdict gate: \(verdict.rawValue)")
         return (verdict, reasons, gates)
@@ -1109,6 +1544,170 @@ public final class CalibrationV4Runner {
         return true
     }
 
+    func benchmarkRuntime(
+        baseline baselineParameters: CalibrationParameters,
+        candidate candidateParameters: CalibrationParameters
+    ) throws -> V4RuntimeBenchmarkResult {
+        let thresholds = configuration.safety.runtimeThresholds
+        guard thresholds.isValid else {
+            return V4RuntimeBenchmarkResult(
+                status: .notMeasured,
+                deviceName: device.name,
+                width: thresholds.width,
+                height: thresholds.height,
+                warmupFrames: thresholds.warmupFrames,
+                measuredFrames: 0,
+                thresholds: thresholds,
+                baseline: nil,
+                candidate: nil,
+                reasons: ["runtime benchmark configuration is invalid"]
+            )
+        }
+        guard let queue = device.makeCommandQueue() else {
+            throw CalibrationError.decodeFailed("runtime benchmark command queue unavailable")
+        }
+        let pixelBuffer = try makeRuntimePixelBuffer(width: thresholds.width, height: thresholds.height)
+        let baselineProcessor = try HDRProcessor(device: device, configuration: try baselineParameters.configuration())
+        let candidateProcessor = try HDRProcessor(device: device, configuration: try candidateParameters.configuration())
+        try baselineProcessor.prepare(width: thresholds.width, height: thresholds.height)
+        try candidateProcessor.prepare(width: thresholds.width, height: thresholds.height)
+
+        var baselineGPU: [Double] = []
+        var baselineCPU: [Double] = []
+        var candidateGPU: [Double] = []
+        var candidateCPU: [Double] = []
+        baselineGPU.reserveCapacity(thresholds.measuredFrames)
+        baselineCPU.reserveCapacity(thresholds.measuredFrames)
+        candidateGPU.reserveCapacity(thresholds.measuredFrames)
+        candidateCPU.reserveCapacity(thresholds.measuredFrames)
+
+        func measure(_ processor: HDRProcessor, collectGPU: inout [Double], collectCPU: inout [Double], collect: Bool) throws {
+            guard let commandBuffer = queue.makeCommandBuffer() else {
+                throw HDRProcessorError.commandBufferCreationFailed
+            }
+            let cpuStart = ProcessInfo.processInfo.systemUptime
+            _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+            let encodeEnd = ProcessInfo.processInfo.systemUptime
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+            if let error = commandBuffer.error { throw error }
+            guard commandBuffer.gpuStartTime > 0,
+                  commandBuffer.gpuEndTime > commandBuffer.gpuStartTime else {
+                throw CalibrationError.incompleteEvaluation("Metal GPU timing unavailable for runtime benchmark")
+            }
+            if collect {
+                collectGPU.append((commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1_000)
+                collectCPU.append((encodeEnd - cpuStart) * 1_000)
+            }
+        }
+
+        let totalIterations = thresholds.warmupFrames + thresholds.measuredFrames
+        for iteration in 0..<totalIterations {
+            let collect = iteration >= thresholds.warmupFrames
+            // Alternate order to avoid consistently favoring the first or
+            // second processor through thermal/cache/queue ordering effects.
+            if iteration.isMultiple(of: 2) {
+                try measure(baselineProcessor, collectGPU: &baselineGPU, collectCPU: &baselineCPU, collect: collect)
+                try measure(candidateProcessor, collectGPU: &candidateGPU, collectCPU: &candidateCPU, collect: collect)
+            } else {
+                try measure(candidateProcessor, collectGPU: &candidateGPU, collectCPU: &candidateCPU, collect: collect)
+                try measure(baselineProcessor, collectGPU: &baselineGPU, collectCPU: &baselineCPU, collect: collect)
+            }
+        }
+        guard baselineGPU.count == thresholds.measuredFrames,
+              candidateGPU.count == thresholds.measuredFrames,
+              baselineCPU.count == thresholds.measuredFrames,
+              candidateCPU.count == thresholds.measuredFrames else {
+            throw CalibrationError.incompleteEvaluation("runtime benchmark did not collect the requested frame count")
+        }
+
+        let baseline = V4RuntimeMeasurement(
+            gpuP50Milliseconds: runtimePercentile(baselineGPU, 0.50),
+            gpuP95Milliseconds: runtimePercentile(baselineGPU, 0.95),
+            gpuP99Milliseconds: runtimePercentile(baselineGPU, 0.99),
+            cpuSubmissionP50Milliseconds: runtimePercentile(baselineCPU, 0.50),
+            cpuSubmissionP95Milliseconds: runtimePercentile(baselineCPU, 0.95),
+            cpuSubmissionP99Milliseconds: runtimePercentile(baselineCPU, 0.99)
+        )
+        let candidate = V4RuntimeMeasurement(
+            gpuP50Milliseconds: runtimePercentile(candidateGPU, 0.50),
+            gpuP95Milliseconds: runtimePercentile(candidateGPU, 0.95),
+            gpuP99Milliseconds: runtimePercentile(candidateGPU, 0.99),
+            cpuSubmissionP50Milliseconds: runtimePercentile(candidateCPU, 0.50),
+            cpuSubmissionP95Milliseconds: runtimePercentile(candidateCPU, 0.95),
+            cpuSubmissionP99Milliseconds: runtimePercentile(candidateCPU, 0.99)
+        )
+        let gate = V4RuntimeGate.status(baseline: baseline, candidate: candidate, thresholds: thresholds)
+        return V4RuntimeBenchmarkResult(
+            status: gate.0,
+            deviceName: device.name,
+            width: thresholds.width,
+            height: thresholds.height,
+            warmupFrames: thresholds.warmupFrames,
+            measuredFrames: thresholds.measuredFrames,
+            thresholds: thresholds,
+            baseline: baseline,
+            candidate: candidate,
+            reasons: gate.1
+        )
+    }
+
+    private func runtimePercentile(_ values: [Double], _ fraction: Double) -> Double {
+        guard !values.isEmpty else { return .nan }
+        let sorted = values.sorted()
+        let index = min(max(Int(Double(sorted.count - 1) * fraction), 0), sorted.count - 1)
+        return sorted[index]
+    }
+
+    private func makeRuntimePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: CFDictionary = [
+            kCVPixelBufferMetalCompatibilityKey as String: true,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+        ] as CFDictionary
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            attributes,
+            &pixelBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw CalibrationError.decodeFailed("runtime benchmark pixel buffer creation failed: \(status)")
+        }
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_709_2, .shouldPropagate)
+
+        guard CVPixelBufferLockBaseAddress(pixelBuffer, []) == kCVReturnSuccess else {
+            throw CalibrationError.decodeFailed("runtime benchmark pixel buffer lock failed")
+        }
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0)?.assumingMemoryBound(to: UInt8.self),
+              let uvBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1)?.assumingMemoryBound(to: UInt8.self) else {
+            throw CalibrationError.decodeFailed("runtime benchmark pixel buffer planes unavailable")
+        }
+        let yRowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+        for y in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 0) {
+            let row = yBase.advanced(by: y * yRowBytes)
+            for x in 0..<CVPixelBufferGetWidthOfPlane(pixelBuffer, 0) {
+                let ramp = Float(x) / Float(max(width - 1, 1))
+                row[x] = UInt8(min(max(16 + Int(ramp * 219), 16), 235))
+            }
+        }
+        let uvRowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1)
+        let uvWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1)
+        for y in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 1) {
+            let row = uvBase.advanced(by: y * uvRowBytes)
+            for x in 0..<uvWidth {
+                row[2 * x] = 128
+                row[2 * x + 1] = 128
+            }
+        }
+        return pixelBuffer
+    }
+
     private func makeFailureReport(
         manifest: V4Manifest,
         transferByPair: [String: String],
@@ -1119,12 +1718,20 @@ public final class CalibrationV4Runner {
         verdict: CalibrationV4Verdict,
         global: [V4CandidateRecord] = [],
         local: [V4CandidateRecord] = [],
-        validation: [V4CandidateRecord] = []
+        validation: [V4CandidateRecord] = [],
+        selected: V4CandidateRecord? = nil,
+        selectedValidation: V2DatasetEvaluation? = nil,
+        candidate: CalibrationParameters? = nil,
+        preFrozenGates: V4PreFrozenGateResult? = nil,
+        frozenStatus: V4FrozenStatus = .notEvaluatedDuePrecondition
     ) -> V4FinalReport {
-        V4FinalReport(
+        let initialFreeze = makeSealedCandidateFreeze(
+            selected: selected, candidate: candidate, selectedValidation: selectedValidation
+        )
+        return V4FinalReport(
             version: configuration.version,
             generatedAt: ISO8601DateFormatter().string(from: Date()),
-            manifestPath: manifestURL.path,
+            manifestPath: portableManifestPath,
             configuration: configuration,
             split: splitDocument(manifest),
             transferByPair: transferByPair,
@@ -1132,11 +1739,113 @@ public final class CalibrationV4Runner {
             shadowAudit: shadowAudit,
             sensitivity: sensitivity,
             globalCandidates: global, localCandidates: local,
-            validationCandidates: validation, selectedCandidate: nil,
-            freeze: nil, frozen: [:], transferAnalysis: [:], familyAnalysis: [:],
+            validationCandidates: validation,
+            selectedCandidate: selected,
+            freeze: initialFreeze,
+            frozen: [:],
+            transferAnalysis: [:],
+            familyAnalysis: [:],
             verdict: verdict, reasons: [reason], limitations: [
                 "Virgin Frozen remained sealed because V4 preconditions were not satisfied."
-            ]
+            ],
+            preFrozenGates: preFrozenGates,
+            frozenStatus: frozenStatus
+        )
+    }
+
+    private func makeSealedCandidateFreeze(
+        selected: V4CandidateRecord?,
+        candidate: CalibrationParameters?,
+        selectedValidation: V2DatasetEvaluation?
+    ) -> V4FreezeArtifact? {
+        guard let selected, let candidate else { return nil }
+        do {
+            let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+            let sourceHash = try V4SourceHasher.sourceHash(repositoryRoot: repositoryRoot)
+            let executableHash = try V4SourceHasher.executableHash()
+            let gitEvidence = try V4SourceHasher.gitEvidence(repositoryRoot: repositoryRoot)
+            try V4CandidateFreezeGuard.requireClean(workingTreeDirty: gitEvidence.workingTreeDirty)
+            return V4FreezeArtifact(
+                candidateID: selected.id,
+                parameters: candidate,
+                parameterHash: sha256(try encode(candidate)),
+                codeHash: executableHash,
+                manifestHash: "",
+                objectiveHash: sha256(try encode(configuration)),
+                finalCandidateFrozen: true,
+                frozenOpened: false,
+                sourceHash: sourceHash,
+                executableHash: executableHash,
+                evaluationConfigHash: sha256(try encode(configuration)),
+                gitCommit: gitEvidence.commit,
+                gitTree: gitEvidence.tree,
+                workingTreeDirty: gitEvidence.workingTreeDirty
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private var portableManifestPath: String {
+        guard let root = try? V4SourceHasher.repositoryRoot(for: manifestURL) else {
+            return manifestURL.lastPathComponent
+        }
+        return V4EvidencePath.portable(manifestURL, repositoryRoot: root)
+    }
+
+    private func validateRequiredCoverage(
+        manifest: V4Manifest,
+        transferByPair: [String: String]
+    ) throws -> V4PreFrozenGateResult {
+        var reasons: [String] = []
+        var transfersPass = true
+        var pairsPass = true
+        var familiesPass = true
+
+        func check(_ split: DatasetSplit) {
+            let pairs = manifest.pairs.filter {
+                $0.split == split && (split == .frozen ? $0.virginFrozen : !$0.virginFrozen)
+            }
+            let observedTransfers = Set(pairs.compactMap { transferByPair[$0.id] })
+            let observedFamilies = Set(pairs.compactMap { $0.contentFamily })
+            let requiredTransfers = split == .frozen
+                ? configuration.frozenCoveragePolicy.requiredTransfers
+                : (configuration.requiredTransfersBySplit[split] ?? [])
+            let requiredFamilies = split == .frozen
+                ? configuration.frozenCoveragePolicy.requiredFamilies
+                : (configuration.requiredFamiliesBySplit[split] ?? [])
+            let missingTransfers = requiredTransfers.subtracting(observedTransfers)
+            let missingFamilies = requiredFamilies.subtracting(observedFamilies)
+            let transferStatus = V4CoveragePolicy.status(observed: observedTransfers, required: requiredTransfers)
+            let familyStatus: V4GateStatus
+            let pairStatus: V4GateStatus
+            if split == .frozen {
+                let named = requiredFamilies.isEmpty ? .pass : V4CoveragePolicy.status(observed: observedFamilies, required: requiredFamilies)
+                let policy = configuration.frozenCoveragePolicy
+                familyStatus = named == .pass && policy.familyStatus(observed: observedFamilies) == .pass ? .pass : .fail
+                pairStatus = policy.pairStatus(count: pairs.count)
+            } else {
+                familyStatus = V4CoveragePolicy.status(observed: observedFamilies, required: requiredFamilies)
+                pairStatus = .pass
+            }
+            transfersPass = transfersPass && transferStatus == .pass
+            pairsPass = pairsPass && pairStatus == .pass
+            familiesPass = familiesPass && familyStatus == .pass
+            let pairReason = split == .frozen
+                ? "; virginPairs=\(pairs.count)/\(configuration.minimumVirginFrozenPairs), distinctFamilies=\(observedFamilies.count)/\(configuration.minimumDistinctFrozenFamilies)"
+                : ""
+            reasons.append("\(split.rawValue): missing transfers=[\(missingTransfers.sorted().joined(separator: ","))] families=[\(missingFamilies.sorted().joined(separator: ","))]\(pairReason)")
+        }
+        check(.tune)
+        check(.validation)
+        check(.frozen)
+        if !transfersPass || !pairsPass || !familiesPass {
+            coverageReasons.append(contentsOf: reasons)
+        }
+        return V4PreFrozenGateResult(
+            transferCoverage: transfersPass ? .pass : .fail,
+            pairCoverage: pairsPass ? .pass : .fail,
+            familyCoverage: familiesPass ? .pass : .fail
         )
     }
 

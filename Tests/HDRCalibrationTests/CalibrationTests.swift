@@ -1,6 +1,6 @@
 import CoreMedia
 import CoreVideo
-import HDRCalibration
+@testable import HDRCalibration
 import HDRCore
 import Metal
 import simd
@@ -27,6 +27,11 @@ final class CalibrationTests: XCTestCase {
         let result = TemporalAligner.align(sdr: sdr, hdr: hdr, offsetRangeSeconds: -1...1, offsetStep: 1)
         XCTAssertEqual(result.coarseOffsetSeconds, 1, accuracy: 0.001)
         XCTAssertGreaterThanOrEqual(result.matches.count, 2)
+
+        let shared = PairEvaluator.align(sdr: sdr, hdr: hdr, confidenceThreshold: 0.60)
+        let direct = TemporalAligner.align(sdr: sdr, hdr: hdr, confidenceThreshold: 0.60)
+        XCTAssertEqual(shared.status, direct.status)
+        XCTAssertEqual(shared.matches, direct.matches)
     }
 
     func testSplitAssignmentDoesNotChangeDuringManifestRoundTrip() throws {
@@ -380,6 +385,416 @@ final class CalibrationTests: XCTestCase {
         }
     }
 
+    func testProductionAndOfflineProcessorBurstTemporalParity() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.toneCurveRevision = .sceneRelativeV4
+        let production = try HDRProcessor(device: device, configuration: configuration)
+        let offline = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
+        production.clearTemporalHistory()
+        offline.clearTemporalHistory()
+        production.temporalTraceEnabled = true
+        production.clearTemporalTrace()
+        let values: [SIMD3<Float>] = [
+            SIMD3(repeating: 0.04), SIMD3(repeating: 0.72), SIMD3(repeating: 0.11)
+        ]
+        var commandBuffers: [MTLCommandBuffer] = []
+        for (index, value) in values.enumerated() {
+            let pixelBuffer = try makeCalibrationBGRA(width: 32, height: 18, rgb: value)
+            let commandBuffer = try production.makeCommandBuffer()
+            _ = try production.process(
+                pixelBuffer: pixelBuffer,
+                timestamp: CMTime(seconds: Double(index) / 30, preferredTimescale: 600),
+                commandBuffer: commandBuffer
+            )
+            commandBuffer.commit()
+            commandBuffers.append(commandBuffer)
+        }
+        for commandBuffer in commandBuffers {
+            commandBuffer.waitUntilCompleted()
+            XCTAssertNil(commandBuffer.error)
+        }
+
+        let submissions = production.temporalSubmissionTrace
+        let completions = production.temporalCompletionTrace
+        XCTAssertEqual(submissions.count, values.count)
+        XCTAssertEqual(completions.count, values.count)
+        XCTAssertEqual(production.temporalSubmissionSequence, UInt64(values.count))
+        XCTAssertEqual(production.lastCompletedTemporalSequence, UInt64(values.count))
+
+        let neutralShadow = offline.sceneShadowCoordinates
+        var temporalByVersion: [UInt64: Float] = [0: offline.temporalAdaptation]
+        var shadowByVersion: [UInt64: (Float, Float, Bool)] = [0: (neutralShadow.floor, neutralShadow.top, neutralShadow.valid)]
+        for (index, value) in values.enumerated() {
+            let pixelBuffer = try makeCalibrationBGRA(width: 32, height: 18, rgb: value)
+            _ = try offline.evaluate(
+                pixelBuffer: pixelBuffer,
+                timestampSeconds: Double(index) / 30,
+                configuration: configuration
+            )
+            let version = UInt64(index + 1)
+            temporalByVersion[version] = offline.temporalAdaptation
+            let shadow = offline.sceneShadowCoordinates
+            shadowByVersion[version] = (shadow.floor, shadow.top, shadow.valid)
+        }
+
+        var previousTemporalVersion: UInt64 = 0
+        var previousSceneVersion: UInt64 = 0
+        for trace in submissions {
+            XCTAssertLessThan(trace.temporalStateVersionConsumed, trace.submissionSequence)
+            XCTAssertLessThan(trace.sceneStateVersionConsumed, trace.submissionSequence)
+            XCTAssertGreaterThanOrEqual(trace.temporalStateVersionConsumed, previousTemporalVersion)
+            XCTAssertGreaterThanOrEqual(trace.sceneStateVersionConsumed, previousSceneVersion)
+            previousTemporalVersion = trace.temporalStateVersionConsumed
+            previousSceneVersion = trace.sceneStateVersionConsumed
+            let expectedTemporal = try XCTUnwrap(temporalByVersion[trace.temporalStateVersionConsumed])
+            let expectedShadow = try XCTUnwrap(shadowByVersion[trace.sceneStateVersionConsumed])
+            XCTAssertEqual(trace.temporalAdaptationUsed, expectedTemporal, accuracy: 0.000_001)
+            XCTAssertEqual(trace.sceneShadowFloorUsed, expectedShadow.0, accuracy: 0.000_001)
+            XCTAssertEqual(trace.sceneShadowTopUsed, expectedShadow.1, accuracy: 0.000_001)
+            XCTAssertEqual(trace.sceneStatisticsValidUsed, expectedShadow.2)
+        }
+
+        var lastSequence: UInt64 = 0
+        var lastTemporalVersion: UInt64 = 0
+        var lastSceneVersion: UInt64 = 0
+        for trace in completions {
+            XCTAssertGreaterThan(trace.submissionSequence, lastSequence)
+            XCTAssertGreaterThanOrEqual(trace.temporalStateVersionProduced, lastTemporalVersion)
+            XCTAssertGreaterThanOrEqual(trace.sceneStateVersionProduced, lastSceneVersion)
+            lastSequence = trace.submissionSequence
+            lastTemporalVersion = trace.temporalStateVersionProduced
+            lastSceneVersion = trace.sceneStateVersionProduced
+        }
+    }
+
+    func testOfflineEvaluatorReportsStateAppliedToCurrentFrameBeforeCompletionUpdate() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.temporalStability = 0.8
+        let evaluator = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
+        evaluator.clearTemporalHistory()
+
+        let dark = try makeCalibrationBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.03))
+        let first = try evaluator.evaluate(pixelBuffer: dark, timestampSeconds: 0, configuration: configuration)
+        let nextFrameState = evaluator.temporalAdaptation
+        XCTAssertEqual(first.temporalAdaptationUsed, 1, accuracy: 0.000_001)
+        XCTAssertGreaterThan(abs(nextFrameState - first.temporalAdaptationUsed), 0.000_001)
+
+        let bright = try makeCalibrationBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.80))
+        let second = try evaluator.evaluate(pixelBuffer: bright, timestampSeconds: 1.0 / 30, configuration: configuration)
+        XCTAssertEqual(second.temporalAdaptationUsed, nextFrameState, accuracy: 0.000_001)
+    }
+
+    func testSparseSpatialEvaluationNeverCarriesTemporalStateBetweenSamples() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let configuration = HDRConfiguration.calibratedV2
+        let evaluator = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
+        let dark = try makeCalibrationBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.03))
+        let bright = try makeCalibrationBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.80))
+
+        let first = try evaluator.evaluateSpatiallyIndependent(
+            pixelBuffer: dark, timestampSeconds: 0, configuration: configuration
+        )
+        let second = try evaluator.evaluateSpatiallyIndependent(
+            pixelBuffer: bright, timestampSeconds: 10, configuration: configuration
+        )
+        XCTAssertEqual(first.temporalAdaptationUsed, 1, accuracy: 0.000_001)
+        XCTAssertEqual(second.temporalAdaptationUsed, 1, accuracy: 0.000_001)
+        XCTAssertEqual(evaluator.temporalAdaptation, 1, accuracy: 0.000_001)
+    }
+
+    func testDiagnosticsKeepEqualConfigurationsOnIndependentTemporalHistories() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let prepared = try makePreparedDiagnosticPair(values: [0.03, 0.80, 0.10, 0.65])
+        let parameters = CalibrationParameters(configuration: .calibratedV2)
+        let engine = V2EvaluationEngine(device: device, weights: V2ObjectiveWeights())
+        let diagnostics = try engine.diagnostics(
+            preparedPairs: [prepared],
+            defaultParameters: parameters,
+            v1Parameters: parameters,
+            candidateParameters: parameters,
+            confidenceThreshold: 0.60
+        )
+        let curves = [
+            diagnostics.luminanceMapping, diagnostics.percentileCurves,
+            diagnostics.hueErrorByLuminance, diagnostics.chromaErrorByLuminance,
+            diagnostics.saturationRatioByLuminance
+        ]
+        XCTAssertFalse(curves.flatMap { $0 }.isEmpty)
+        for point in curves.flatMap({ $0 }) {
+            XCTAssertEqual(point.defaultBaseline, point.calibratedV1, accuracy: 0.000_001)
+            XCTAssertEqual(point.defaultBaseline, point.candidateV2, accuracy: 0.000_001)
+        }
+    }
+
+    func testFileDigestSupportsPortableRepositoryPathsAndLegacyAbsolutePaths() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sdr2hdr-digest-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let fileURL = temporaryDirectory.appendingPathComponent("media.bin")
+        try Data([1, 2, 3]).write(to: fileURL)
+        let digest = try V4DatasetIntegrity.digest(url: fileURL)
+
+        if digest.path.hasPrefix("repo:") {
+            XCTAssertTrue(digest.path.hasPrefix("repo:tmp"))
+            XCTAssertFalse(digest.path.contains("/Volumes/game/sdr2hdr"))
+        } else {
+            XCTAssertTrue(digest.path.hasPrefix(FileManager.default.temporaryDirectory.path))
+        }
+        _ = device
+    }
+
+    func testCommittedV4EvidenceUsesPortablePathsAndCurrentManifestHash() throws {
+        let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let manifestURL = root.appendingPathComponent("data_video/manifest-v4.json")
+        let lockURL = root.appendingPathComponent("data_video/dataset-v4-lock.json")
+        let auditURL = root.appendingPathComponent("results/dataset-v4-final.json")
+        let lock = try JSONDecoder().decode(V4DatasetLock.self, from: Data(contentsOf: lockURL))
+        let audit = try JSONDecoder().decode(V4DatasetAuditReport.self, from: Data(contentsOf: auditURL))
+
+        XCTAssertEqual(lock.manifestSHA256, try V4DatasetIntegrity.manifestSHA256(url: manifestURL))
+        XCTAssertTrue(lock.files.allSatisfy { $0.path.hasPrefix("repo:") })
+        XCTAssertTrue(audit.manifestPath.hasPrefix("repo:"))
+        XCTAssertTrue(audit.pairs.allSatisfy { pair in
+            pair.sdrPath.hasPrefix("repo:") && pair.hdrPath.hasPrefix("repo:") &&
+                pair.sdrDigest?.path.hasPrefix("repo:") == true &&
+                pair.hdrDigest?.path.hasPrefix("repo:") == true &&
+                pair.sdrMetadata?.path.hasPrefix("repo:") == true &&
+                pair.hdrMetadata?.path.hasPrefix("repo:") == true
+        })
+    }
+
+    func testPreFrozenGatesBlockHoldoutForFailuresAndNotMeasuredStates() {
+        var runtimeFailure = V4PreFrozenGateResult(runtime: .pass)
+        runtimeFailure.runtime = .fail
+        XCTAssertFalse(runtimeFailure.canOpenVirginFrozen)
+
+        var notMeasuredCoverage = V4PreFrozenGateResult(transferCoverage: .pass)
+        notMeasuredCoverage.transferCoverage = .notMeasured
+        XCTAssertFalse(notMeasuredCoverage.canOpenVirginFrozen)
+
+        let allPass = V4PreFrozenGateResult(
+            datasetIntegrity: .pass, identifiability: .pass, validationOverall: .pass,
+            validationShadow: .pass, validationTemporal: .pass,
+            transferCoverage: .pass, pairCoverage: .pass, familyCoverage: .pass, runtime: .pass
+        )
+        XCTAssertTrue(allPass.canOpenVirginFrozen)
+    }
+
+    func testPreFrozenGateDecodesLegacyArtifactsWithoutPairCoverageFailClosed() throws {
+        let legacy = """
+        {
+          "datasetIntegrity":"PASS",
+          "identifiability":"PASS",
+          "validationOverall":"PASS",
+          "validationShadow":"PASS",
+          "validationTemporal":"PASS",
+          "transferCoverage":"PASS",
+          "familyCoverage":"PASS",
+          "runtime":"PASS"
+        }
+        """
+        let decoded = try JSONDecoder().decode(V4PreFrozenGateResult.self, from: Data(legacy.utf8))
+        XCTAssertEqual(decoded.pairCoverage, .notMeasured)
+        XCTAssertFalse(decoded.canOpenVirginFrozen)
+    }
+
+    func testCoveragePolicyRejectsMissingOrUnregisteredSubgroups() {
+        XCTAssertEqual(
+            V4CoveragePolicy.status(observed: ["PQ"], required: ["PQ", "HLG"]),
+            .fail
+        )
+        XCTAssertEqual(V4CoveragePolicy.status(observed: ["PQ"], required: []), .notMeasured)
+        let configuration = V4CalibrationConfiguration()
+        XCTAssertEqual(configuration.requiredTransfersBySplit[.frozen], ["HLG", "PQ"])
+        XCTAssertEqual(configuration.requiredFrozenTransfers, ["HLG", "PQ"])
+        XCTAssertTrue(configuration.requiredFrozenFamilies.isEmpty)
+        XCTAssertEqual(configuration.minimumVirginFrozenPairs, 3)
+        XCTAssertEqual(configuration.minimumDistinctFrozenFamilies, 2)
+        XCTAssertFalse(configuration.frozenCoveragePolicy.familyStatus(observed: ["K-Choreo"]).rawValue == "PASS")
+        XCTAssertEqual(configuration.frozenCoveragePolicy.familyStatus(observed: ["LIVE", "SoleMates"]), .pass)
+        XCTAssertEqual(configuration.frozenCoveragePolicy.pairStatus(count: 2), .fail)
+        XCTAssertEqual(configuration.frozenCoveragePolicy.pairStatus(count: 3), .pass)
+
+        let twoFamiliesButTwoPairs = V4PreFrozenGateResult(
+            datasetIntegrity: .pass, identifiability: .pass, validationOverall: .pass,
+            validationShadow: .pass, validationTemporal: .pass, transferCoverage: .pass,
+            pairCoverage: .fail, familyCoverage: .pass, runtime: .pass
+        )
+        XCTAssertFalse(twoFamiliesButTwoPairs.canOpenVirginFrozen)
+        XCTAssertEqual(twoFamiliesButTwoPairs.familyCoverage, .pass)
+        XCTAssertEqual(twoFamiliesButTwoPairs.pairCoverage, .fail)
+    }
+
+    func testHistoricalFrozenObjectiveProvenanceConsumesOnlyEvaluatedPairIDs() throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sdr2hdr-provenance-\(UUID().uuidString)")
+        let results = base.appendingPathComponent("results")
+        let dataset = base.appendingPathComponent("dataset")
+        try FileManager.default.createDirectory(at: results, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dataset, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let frozen: [String: Any] = [
+            "calibratedV2": ["videos": [["pairID": "night-biking"]]],
+            "calibratedV4": ["videos": [["pairID": "night-biking"]]]
+        ]
+        let frozenData = try JSONSerialization.data(withJSONObject: frozen)
+        try frozenData.write(to: results.appendingPathComponent("data-video-v4-frozen.json"))
+        let ledger = """
+        {"version":"test","entries":[
+          {"pairID":"manual-consumed","status":"CONSUMED_HOLDOUT","evidence":"prior exposed metric"},
+          {"pairID":"still-virgin","status":"VIRGIN_FROZEN","evidence":"no objective"}
+        ]}
+        """
+        try Data(ledger.utf8).write(to: dataset.appendingPathComponent("holdout-provenance-v5.json"))
+
+        let audit = V4HistoricalObjectiveProvenance.audit(
+            repositoryRoot: base, outputDirectory: results
+        )
+        XCTAssertTrue(audit.consumedSet.contains("night-biking"))
+        XCTAssertTrue(audit.consumedSet.contains("manual-consumed"))
+        XCTAssertFalse(audit.consumedSet.contains("still-virgin"))
+        XCTAssertFalse(audit.evidence(for: "night-biking").isEmpty)
+    }
+
+    func testNewHLGHoldoutDiscoveryUsesMetadataAndNormalizedSourceIdentity() {
+        let sdrURL = URL(fileURLWithPath: "/tmp/My_Scene_SDR_BT709_2160p.mp4")
+        let hdrURL = URL(fileURLWithPath: "/tmp/My-Scene-HLG-BT2100-10bit.mov")
+        XCTAssertEqual(
+            V4NewHLGHoldoutAuditor.normalizedSourceKey(sdrURL),
+            V4NewHLGHoldoutAuditor.normalizedSourceKey(hdrURL)
+        )
+
+        var hlg = makeV4Metadata(primaries: "bt2020", transfer: "arib-std-b67", bitDepth: 10)
+        hlg.matrix = "bt2020nc"
+        hlg.colorRange = "tv"
+        XCTAssertTrue(V4NewHLGHoldoutAuditor.isHLGReference(hlg))
+        hlg.bitDepth = 8
+        XCTAssertFalse(V4NewHLGHoldoutAuditor.isHLGReference(hlg))
+        hlg.bitDepth = 10
+        hlg.colorPrimaries = "bt709"
+        XCTAssertFalse(V4NewHLGHoldoutAuditor.isHLGReference(hlg))
+    }
+
+    func testFrozenCoverageEligibilityRejectsNonAcceptedAuditEvidence() {
+        let smoke = V4DecodeSmoke(
+            attempted: true, firstFrame: true, middleFrame: true, lastFrame: true, decodedSampleCount: 3
+        )
+        let aligned = V4AlignmentSummary(
+            sampledFrames: 8, matchedFrames: 8, rejectedFrames: 0, matchRatio: 1,
+            meanConfidence: 0.9, medianConfidence: 0.9, p10Confidence: 0.8,
+            p50Confidence: 0.9, p90Confidence: 0.95,
+            confidenceAtLeast60: 1, confidenceAtLeast70: 1, confidenceAtLeast80: 1,
+            status: "ALIGNED"
+        )
+        let eligible = V4PairAudit(
+            id: "eligible-hlg", source: "test", split: .frozen, virginFrozen: true,
+            expectedRelation: .sameSource, suitability: .mainCalibration, status: .accepted,
+            sdrPath: "repo:sdr", hdrPath: "repo:hdr", sdrReferenceValid: true, hdrReferenceValid: true,
+            sdrDecode: smoke, hdrDecode: smoke, alignment: aligned
+        )
+        XCTAssertTrue(V4CoverageAuditEligibility.isEligible(eligible))
+
+        var rejected = eligible
+        rejected.status = .alignmentUnreliable
+        XCTAssertFalse(V4CoverageAuditEligibility.isEligible(rejected))
+        rejected = eligible
+        rejected.suitability = .conditional
+        XCTAssertFalse(V4CoverageAuditEligibility.isEligible(rejected))
+        rejected = eligible
+        rejected.hdrDecode = V4DecodeSmoke(attempted: true)
+        XCTAssertFalse(V4CoverageAuditEligibility.isEligible(rejected))
+    }
+
+    func testTemporalWindowPolicyHasExplicitBoundaryReasonsAndSupport() {
+        let policy = V4TemporalWindowPolicy.v5
+        let full = policy.decision(actualDecodedFrameCount: 16)
+        XCTAssertTrue(full.accepted)
+        XCTAssertTrue(full.fullLength)
+        XCTAssertEqual(full.acceptanceReason, .fullTargetLength)
+        XCTAssertEqual(full.measuredFrameCount, 15)
+
+        let short15 = policy.decision(actualDecodedFrameCount: 15)
+        XCTAssertTrue(short15.accepted)
+        XCTAssertFalse(short15.fullLength)
+        XCTAssertEqual(short15.acceptanceReason, .validShortWindowAboveMinimum)
+
+        let short11 = policy.decision(actualDecodedFrameCount: 11)
+        XCTAssertTrue(short11.accepted)
+        XCTAssertEqual(short11.acceptanceReason, .validShortWindowAboveMinimum)
+
+        let minimum = policy.decision(actualDecodedFrameCount: 8)
+        XCTAssertTrue(minimum.accepted)
+        XCTAssertEqual(minimum.measuredFrameCount, 7)
+
+        let below = policy.decision(actualDecodedFrameCount: 7)
+        XCTAssertFalse(below.accepted)
+        XCTAssertEqual(below.acceptanceReason, .rejectedBelowMinimum)
+        XCTAssertFalse(policy.decision(actualDecodedFrameCount: 0).accepted)
+    }
+
+    func testTemporalWindowEvidenceCarriesDecisionAndReason() throws {
+        let evidence = V4TemporalWindowEvidence(
+            sceneID: "interview-scene",
+            requestedFrameCount: 16,
+            preparedSDRFrameCount: 11,
+            preparedHDRFrameCount: 11,
+            validContiguousFrameCount: 11,
+            startSeconds: 0,
+            error: nil
+        )
+        XCTAssertEqual(evidence.targetFrameCount, 16)
+        XCTAssertEqual(evidence.minimumRequiredFrameCount, 8)
+        XCTAssertEqual(evidence.actualDecodedFrameCount, 11)
+        XCTAssertEqual(evidence.warmupFrameCount, 1)
+        XCTAssertEqual(evidence.measuredFrameCount, 10)
+        XCTAssertTrue(evidence.accepted)
+        XCTAssertEqual(evidence.acceptanceReason, "VALID_SHORT_WINDOW_ABOVE_MINIMUM")
+        let decoded = try JSONDecoder().decode(
+            V4TemporalWindowEvidence.self,
+            from: JSONEncoder().encode(evidence)
+        )
+        XCTAssertEqual(decoded, evidence)
+    }
+
+    func testCorrectnessPassRequiresRequiredExecutedCheck() throws {
+        let pass = V4CorrectnessCheck(
+            id: "required", required: true, executed: true, status: "PASS",
+            evidence: V4CorrectnessEvidence(summary: "measured", numerical: ["maxAbsoluteError": 0])
+        )
+        XCTAssertTrue(pass.required && pass.executed && pass.status == "PASS")
+        let notRun = V4CorrectnessCheck(
+            id: "not-run", required: true, executed: false, status: "PASS",
+            evidence: V4CorrectnessEvidence(summary: "not actually measured")
+        )
+        XCTAssertFalse(notRun.executed && notRun.status == "PASS")
+        let encoded = try JSONEncoder().encode(notRun)
+        let decoded = try JSONDecoder().decode(V4CorrectnessCheck.self, from: encoded)
+        XCTAssertFalse(decoded.executed)
+        XCTAssertEqual(decoded.status, "PASS")
+    }
+
+    func testCandidateFreezeGuardRejectsDirtyTreeAndAllowsCleanTree() {
+        XCTAssertThrowsError(try V4CandidateFreezeGuard.requireClean(workingTreeDirty: true))
+        XCTAssertNoThrow(try V4CandidateFreezeGuard.requireClean(workingTreeDirty: false))
+        XCTAssertEqual(V4CandidateFreezeGuard.status(workingTreeDirty: true), .fail)
+        XCTAssertEqual(V4CandidateFreezeGuard.status(workingTreeDirty: false), .pass)
+        let experimentGuard = V4FrozenExperimentGuard()
+        XCTAssertThrowsError(try experimentGuard.finalizeCandidate(workingTreeDirty: true))
+        XCTAssertNoThrow(try experimentGuard.finalizeCandidate(workingTreeDirty: false))
+        XCTAssertNoThrow(try experimentGuard.openVirginFrozenOnce())
+    }
+
+    func testTemporalStateIsolationResetsOnlyWhenConfigurationChanges() {
+        XCTAssertTrue(V2TemporalStateIsolation.requiresReset(previousConfigurationKey: nil, currentConfigurationKey: "v2"))
+        XCTAssertFalse(V2TemporalStateIsolation.requiresReset(previousConfigurationKey: "v2", currentConfigurationKey: "v2"))
+        XCTAssertTrue(V2TemporalStateIsolation.requiresReset(previousConfigurationKey: "v2", currentConfigurationKey: "v4"))
+    }
+
     func testHLGColoredVectorUsesOneBT2100OOTFGain() {
         let signal = SIMD3<Float>(0.75, 0.50, 0.25)
         let output = HDRReferenceTransferMath.hlgDisplayRGBNits(signal: signal, peakNits: 1_000)
@@ -493,7 +908,9 @@ final class CalibrationTests: XCTestCase {
             "Sources/HDRCore/HDRReference.swift", "Sources/HDRCalibration/V4Calibration.swift",
             "Sources/HDRCalibration/V4DatasetAudit.swift", "Sources/HDRCalibration/V4Models.swift",
             "Sources/HDRCalibration/Decode.swift", "Sources/HDRCalibration/Alignment.swift",
-            "Sources/HDRCalibration/FrameIO.swift", "Sources/HDRCalibration/Evaluation.swift"
+            "Sources/HDRCalibration/FrameIO.swift", "Sources/HDRCalibration/Evaluation.swift",
+            "Sources/HDRCalibration/CorrectnessReview.swift", "Sources/HDRCalibration/V2Runner.swift",
+            "Sources/HDRCalibration/V5Preflight.swift"
         ]
         for path in required { try Data(path.utf8).write(to: root.appendingPathComponent(path)) }
         let before = try V4SourceHasher.sourceHash(repositoryRoot: root)
@@ -502,6 +919,54 @@ final class CalibrationTests: XCTestCase {
         XCTAssertNotEqual(before, after)
         try FileManager.default.removeItem(at: root.appendingPathComponent("Sources/HDRCalibration/V4Calibration.swift"))
         XCTAssertThrowsError(try V4SourceHasher.sourceHash(repositoryRoot: root))
+
+        let executable = root.appendingPathComponent("calibrator.bin")
+        try Data("binary-v1".utf8).write(to: executable)
+        let executableBefore = try V4SourceHasher.executableHash(url: executable)
+        try Data("binary-v2".utf8).write(to: executable)
+        let executableAfter = try V4SourceHasher.executableHash(url: executable)
+        XCTAssertNotEqual(executableBefore, executableAfter)
+        XCTAssertEqual(
+            V4CodeIdentityPolicy.status(executableHash: executableAfter, workingTreeDirty: false),
+            .pass
+        )
+        XCTAssertEqual(
+            V4CodeIdentityPolicy.status(executableHash: executableAfter, workingTreeDirty: true),
+            .fail
+        )
+        XCTAssertEqual(
+            V4CodeIdentityPolicy.status(executableHash: nil, workingTreeDirty: false),
+            .notMeasured
+        )
+    }
+
+    func testV4AlignmentPolicyRejectsSparseHighConfidenceSurvivor() {
+        let sparse = V4AlignmentSummary(
+            sampledFrames: 40, matchedFrames: 1, rejectedFrames: 39,
+            matchRatio: 0.025, meanConfidence: 0.99, medianConfidence: 0.99,
+            p10Confidence: 0.99, p50Confidence: 0.99, p90Confidence: 0.99,
+            confidenceAtLeast60: 0.025, confidenceAtLeast70: 0.025,
+            confidenceAtLeast80: 0.025, status: "ALIGNED"
+        )
+        XCTAssertEqual(
+            V4AlignmentPolicy.status(
+                sampledFrames: sparse.sampledFrames,
+                matchedFrames: sparse.matchedFrames,
+                medianConfidence: sparse.medianConfidence,
+                p10Confidence: sparse.p10Confidence
+            ),
+            "REJECT"
+        )
+        XCTAssertFalse(V4AlignmentPolicy.supportsMainCalibration(sparse))
+
+        let complete = V4AlignmentSummary(
+            sampledFrames: 40, matchedFrames: 36, rejectedFrames: 4,
+            matchRatio: 0.9, meanConfidence: 0.86, medianConfidence: 0.88,
+            p10Confidence: 0.74, p50Confidence: 0.88, p90Confidence: 0.96,
+            confidenceAtLeast60: 0.9, confidenceAtLeast70: 0.85,
+            confidenceAtLeast80: 0.7, status: "ALIGNED"
+        )
+        XCTAssertTrue(V4AlignmentPolicy.supportsMainCalibration(complete))
     }
 
     func testPromotionGateStateMachineMakesTransferFamilyRuntimeAndFrozenFailuresReachable() {
@@ -524,7 +989,72 @@ final class CalibrationTests: XCTestCase {
         pass.shadow = .pass; pass.completeness = .fail
         XCTAssertEqual(V4PromotionGateMachine.verdict(pass), .validationFail)
         pass.completeness = .pass; pass.runtime = .notMeasured
-        XCTAssertEqual(V4PromotionGateMachine.verdict(pass), .runtimeRegression)
+        XCTAssertEqual(V4PromotionGateMachine.verdict(pass), .incompleteEvaluation)
+        pass.hardSafety = .fail
+        XCTAssertEqual(V4PromotionGateMachine.verdict(pass), .keepV2)
+        pass.hardSafety = .pass; pass.frozen = .fail; pass.runtime = .fail
+        XCTAssertEqual(V4PromotionGateMachine.verdict(pass), .virginFrozenFail)
+    }
+
+    func testV4RuntimeGateUsesMeasuredLatencyAndRejectsInvalidEvidence() {
+        var thresholds = V4RuntimeThresholds()
+        thresholds.measuredFrames = 120
+        thresholds.absoluteToleranceMilliseconds = 0
+        thresholds.gpuP50RelativeTolerance = 0.10
+        thresholds.gpuP95RelativeTolerance = 0.10
+        thresholds.cpuP95RelativeTolerance = 0.20
+        let baseline = V4RuntimeMeasurement(
+            gpuP50Milliseconds: 2.0, gpuP95Milliseconds: 2.5, gpuP99Milliseconds: 3.0,
+            cpuSubmissionP50Milliseconds: 0.20, cpuSubmissionP95Milliseconds: 0.30, cpuSubmissionP99Milliseconds: 0.40
+        )
+        let passing = V4RuntimeMeasurement(
+            gpuP50Milliseconds: 2.1, gpuP95Milliseconds: 2.7, gpuP99Milliseconds: 3.5,
+            cpuSubmissionP50Milliseconds: 0.21, cpuSubmissionP95Milliseconds: 0.35, cpuSubmissionP99Milliseconds: 0.50
+        )
+        XCTAssertEqual(V4RuntimeGate.status(baseline: baseline, candidate: passing, thresholds: thresholds).0, .pass)
+
+        var regressing = passing
+        regressing.gpuP95Milliseconds = 3.0
+        XCTAssertEqual(V4RuntimeGate.status(baseline: baseline, candidate: regressing, thresholds: thresholds).0, .fail)
+
+        var invalid = passing
+        invalid.gpuP50Milliseconds = .nan
+        XCTAssertEqual(V4RuntimeGate.status(baseline: baseline, candidate: invalid, thresholds: thresholds).0, .notMeasured)
+
+        var unordered = passing
+        unordered.gpuP95Milliseconds = unordered.gpuP50Milliseconds - 0.1
+        XCTAssertEqual(V4RuntimeGate.status(baseline: baseline, candidate: unordered, thresholds: thresholds).0, .notMeasured)
+
+        var invalidThresholds = thresholds
+        invalidThresholds.gpuP95RelativeTolerance = -0.01
+        XCTAssertEqual(V4RuntimeGate.status(baseline: baseline, candidate: passing, thresholds: invalidThresholds).0, .notMeasured)
+    }
+
+    func testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = V4CalibrationConfiguration()
+        var thresholds = V4RuntimeThresholds()
+        thresholds.width = 32
+        thresholds.height = 18
+        thresholds.warmupFrames = 1
+        thresholds.measuredFrames = 4
+        thresholds.gpuP50RelativeTolerance = 10
+        thresholds.gpuP95RelativeTolerance = 10
+        thresholds.cpuP95RelativeTolerance = 10
+        thresholds.absoluteToleranceMilliseconds = 10
+        configuration.safety.runtime = thresholds
+        let runner = try CalibrationV4Runner(
+            manifestURL: URL(fileURLWithPath: "/tmp/not-read-by-runtime-test.json"),
+            outputDirectory: FileManager.default.temporaryDirectory,
+            configuration: configuration,
+            device: device
+        )
+        let parameters = CalibrationParameters(configuration: .calibratedV2)
+        let result = try runner.benchmarkRuntime(baseline: parameters, candidate: parameters)
+        XCTAssertEqual(result.status, .pass)
+        XCTAssertEqual(result.measuredFrames, thresholds.measuredFrames)
+        XCTAssertTrue(result.baseline?.isValid == true)
+        XCTAssertTrue(result.candidate?.isValid == true)
     }
 
     func testV4DigestChangesWhenMediaChanges() throws {
@@ -651,6 +1181,66 @@ final class CalibrationTests: XCTestCase {
             nominalFrameRate: 1,
             durationSeconds: 3,
             samples: samples
+        )
+    }
+
+    private func makePreparedDiagnosticPair(values: [Float]) throws -> PreparedPair {
+        var samples: [FrameSample] = []
+        var matches: [PreparedMatch] = []
+        for (index, value) in values.enumerated() {
+            let time = Double(index) / 30
+            let pixelBuffer = try makeCalibrationBGRA(
+                width: 32, height: 18, rgb: SIMD3(repeating: value)
+            )
+            let descriptorGrid = Array(repeating: value, count: 64 * 36)
+            let descriptor = FrameDescriptorBuilder.make(
+                timestamp: CMTime(seconds: time, preferredTimescale: 600),
+                lumaGrid: descriptorGrid
+            )
+            let sample = FrameSample(
+                index: index, sequencePosition: index,
+                timestamp: CMTime(seconds: time, preferredTimescale: 600),
+                pixelBuffer: pixelBuffer, descriptor: descriptor,
+                lumaGrid: descriptorGrid
+            )
+            samples.append(sample)
+            let match = MatchedFrame(
+                sdrIndex: index, hdrIndex: index,
+                sdrSequencePosition: index, hdrSequencePosition: index,
+                sdrTimeSeconds: time, hdrTimeSeconds: time, confidence: 1
+            )
+            matches.append(PreparedMatch(
+                match: match, sdr: sample, hdr: sample,
+                reference: ReferenceFrame(
+                    timestampSeconds: time, width: 32, height: 18,
+                    rgbNits: Array(repeating: SIMD3(repeating: value * 1_000), count: 32 * 18)
+                ),
+                sourceLuma: Array(repeating: value, count: 32 * 18)
+            ))
+        }
+        let sequence = FrameSequence(
+            url: URL(fileURLWithPath: "/tmp/diagnostic.mp4"),
+            pixelFormat: kCVPixelFormatType_32BGRA,
+            width: 32, height: 18, nominalFrameRate: 30,
+            durationSeconds: Double(values.count) / 30, samples: samples
+        )
+        return PreparedPair(
+            record: PairRecord(
+                id: "diagnostic", sdr: "sdr", hdr: "hdr",
+                license: "test", source: "test", split: .tune
+            ),
+            sdrSequence: sequence,
+            alignment: AlignmentResult(
+                status: "ALIGNED", coarseOffsetSeconds: 0,
+                matches: matches.map(\.match), rejectedFrames: 0,
+                medianConfidence: 1
+            ),
+            scenes: [SceneRange(
+                id: "scene-0", startSequencePosition: 0,
+                endSequencePosition: max(values.count - 1, 0), tags: []
+            )],
+            matches: matches,
+            temporalWindows: []
         )
     }
 

@@ -171,8 +171,9 @@ public enum V4DatasetIntegrity {
 
     public static func digest(url: URL) throws -> V4FileDigest {
         let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        let repositoryRoot = try? V4SourceHasher.repositoryRoot(for: url)
         return V4FileDigest(
-            path: url.path,
+            path: repositoryRoot.map { url.portableRepositoryPath(relativeTo: $0) } ?? url.standardizedFileURL.path,
             sizeBytes: Int64(values.fileSize ?? 0),
             sha256: try sha256(url: url)
         )
@@ -191,6 +192,12 @@ public enum V4DatasetIntegrity {
             .filter { $0.count > 1 }
             .map { $0.map(\.path).sorted() }
             .sorted { ($0.first ?? "") < ($1.first ?? "") }
+    }
+}
+
+private extension URL {
+    func portableRepositoryPath(relativeTo repositoryRoot: URL) -> String {
+        V4EvidencePath.portable(self, repositoryRoot: repositoryRoot)
     }
 }
 
@@ -358,6 +365,7 @@ public enum V4DatasetAuditor {
     public static func audit(manifestURL: URL) async throws -> V4DatasetAuditReport {
         let manifest = try V4Manifest.load(from: manifestURL)
         let manifestHash = try V4DatasetIntegrity.manifestSHA256(url: manifestURL)
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let guardrail = V4FrozenAccessGuard()
         var audits: [V4PairAudit] = []
         var digests: [V4FileDigest] = []
@@ -374,8 +382,8 @@ public enum V4DatasetAuditor {
                 expectedRelation: pair.expectedRelation,
                 suitability: .reject,
                 status: .missingFile,
-                sdrPath: urls.sdr.path,
-                hdrPath: urls.hdr.path,
+                sdrPath: urls.sdr.portableRepositoryPath(relativeTo: repositoryRoot),
+                hdrPath: urls.hdr.portableRepositoryPath(relativeTo: repositoryRoot),
                 notes: ["objective evaluation is forbidden in dataset-audit"]
             )
             guard FileManager.default.fileExists(atPath: urls.sdr.path),
@@ -394,6 +402,8 @@ public enum V4DatasetAuditor {
 
                 var sdr = try await V4MetadataProbe.probe(url: urls.sdr)
                 var hdr = try await V4MetadataProbe.probe(url: urls.hdr)
+                sdr.path = urls.sdr.portableRepositoryPath(relativeTo: repositoryRoot)
+                hdr.path = urls.hdr.portableRepositoryPath(relativeTo: repositoryRoot)
                 var notes: [String] = audit.notes
                 // SDR eligibility is strict for unannotated media. A pair may
                 // use a fallback only when the manifest carries both BT.709
@@ -506,7 +516,7 @@ public enum V4DatasetAuditor {
         let diversity = makeDiversityReport(manifest: manifest, audits: audits)
         let verdict = makeVerdict(audits: audits, diversity: diversity)
         return V4DatasetAuditReport(
-            manifestPath: manifestURL.path,
+            manifestPath: V4EvidencePath.portable(manifestURL, repositoryRoot: repositoryRoot),
             manifestSHA256: manifestHash,
             pairs: audits,
             diversity: diversity,
@@ -708,7 +718,12 @@ public enum V4DatasetAuditor {
         let aspectHDR = Double(hdrMetadata.width) / Double(max(hdrMetadata.height, 1))
         let aspectDelta = abs(aspectSDR - aspectHDR) / max(aspectSDR, aspectHDR)
         let spatial = aspectDelta < 0.02 ? ["same_aspect_uniform_scale"] : aspectDelta < 0.12 ? ["recoverable_crop_or_letterbox"] : ["large_geometry_difference"]
-        let status = matched == 0 || percentile(0.5) < 0.60 ? "REJECT" : percentile(0.5) < 0.70 ? "CONDITIONAL" : "ALIGNED"
+        let status = V4AlignmentPolicy.status(
+            sampledFrames: sampled,
+            matchedFrames: matched,
+            medianConfidence: percentile(0.50),
+            p10Confidence: percentile(0.10)
+        )
         return V4AlignmentSummary(
             sampledFrames: sampled,
             matchedFrames: matched,
@@ -820,7 +835,8 @@ public enum V4ReportWriter {
         lines.append("- Audit configuration SHA-256: `\(auditConfigHash)`")
         lines.append("- Objective evaluation: `\(report.objectiveEvaluated ? "YES" : "NO")`")
         lines.append("- Frozen objective IDs: `\(report.frozenObjectiveEvaluated.isEmpty ? "NONE" : report.frozenObjectiveEvaluated.joined(separator: ", "))`")
-        lines.append("- Verdict: `\(report.verdict.rawValue)`")
+        lines.append("- Structural dataset verdict: `\(report.verdict.rawValue)`")
+        lines.append("- Readiness scope: `DATASET_INTEGRITY_ONLY`; Pre-V5 holdout readiness is evaluated separately by `correctness-review`.")
         for reason in report.gateReasons { lines.append("- Gate: \(reason)") }
         lines.append("")
         lines.append("## Pair summary")

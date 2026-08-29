@@ -1,0 +1,10 @@
+{
+  "version": "pre-v5-holdout-provenance-v1",
+  "entries": [
+    {
+      "pairID": "live_16_night_biking_3840x2160_15000k",
+      "status": "CONSUMED_HOLDOUT",
+      "evidence": "V4 Virgin Frozen objective result was previously exposed; never treat this pair as virgin again."
+    }
+  ]
+}

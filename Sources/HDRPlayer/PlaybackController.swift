@@ -482,10 +482,10 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             )
             return AVPlayerItemVideoOutput(pixelBufferAttributes: attributes)
         }
-        let attributes: [String: Any] = [
+        let attributes: [String: any Sendable] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
             kCVPixelBufferMetalCompatibilityKey as String: true,
-            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+            kCVPixelBufferIOSurfacePropertiesKey as String: [String: any Sendable]()
         ]
         return AVPlayerItemVideoOutput(outputSettings: attributes)
     }

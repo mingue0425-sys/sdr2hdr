@@ -240,7 +240,8 @@ private func run(arguments: [String]) async throws {
         let rejected = report.pairs.filter { $0.suitability == .reject }.count
         print("V4 dataset audit: pairs=\(report.pairs.count), main=\(main), conditional=\(conditional), rejected=\(rejected)")
         print("V4 virgin frozen pairs: \(report.diversity.virginFrozenPairs); objective evaluation: NOT PERFORMED")
-        print("V4 verdict: \(report.verdict.rawValue)")
+        print("V4 structural dataset verdict: \(report.verdict.rawValue)")
+        print("V4 readiness scope: DATASET_INTEGRITY_ONLY (Pre-V5 holdout readiness is evaluated separately by correctness-review)")
         print("V4 report: \(cli.output.path)")
         return
     }
