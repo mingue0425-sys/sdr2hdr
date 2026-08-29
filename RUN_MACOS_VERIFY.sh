@@ -15,7 +15,7 @@ esac
 cd "$ROOT"
 mkdir -p results .build/pre-v5-verify-cache
 CACHE_DIR="$ROOT/.build/pre-v5-verify-cache"
-CACHE_VERSION="pre-v5-fast-cache-v1"
+CACHE_VERSION="pre-v5-fast-cache-v2-fail-closed"
 
 stage() {
   local label="$1"
@@ -67,6 +67,9 @@ if scope == 'audit':
     source_roots = [root/'Sources/HDRCalibration']
 else:
     source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
+    # The CLI owns semantic exit-code behavior for correctness-review, so it is
+    # part of the correctness cache identity as well.
+    add_file(root/'Sources/HDRCalibrate/main.swift')
 
 for base in source_roots:
     if base.exists():
@@ -114,6 +117,8 @@ root = pathlib.Path(sys.argv[1])
 scope = sys.argv[2]
 paths = [root/'Package.swift', root/'data_video/manifest-v4.json', root/'dataset/holdout-provenance-v5.json']
 source_roots = [root/'Sources/HDRCalibration'] if scope == 'audit' else [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
+if scope != 'audit':
+    paths.append(root/'Sources/HDRCalibrate/main.swift')
 for base in source_roots:
     if base.exists():
         paths.extend(sorted(base.rglob('*.swift')))
@@ -165,6 +170,8 @@ prime_cache_from_current_artifacts() {
     return 1
   fi
 
+  # Never bless an artifact set that is fresh but semantically failing.
+  assert_pre_v5_ready
   cache_store audit "$audit_key"
   cache_store correctness "$correctness_key"
   echo 'FAST CACHE PRIMED from fresh existing artifacts.'
@@ -194,6 +201,176 @@ run_correctness() {
     | tee results/pre-v5-macos-correctness.log
 }
 
+
+assert_pre_v5_ready() {
+  python3 - "$ROOT" <<'PYVERIFY'
+import json
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+results = root / "results"
+errors = []
+
+def load_required(path):
+    if path is None:
+        return None
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = path
+    if not path.exists():
+        errors.append(f"missing required artifact: {relative}")
+        return None
+    if path.stat().st_size == 0:
+        errors.append(f"empty required artifact: {relative}")
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception as exc:
+        errors.append(f"invalid JSON in {relative}: {exc}")
+        return None
+
+final_path = results / "pre-v5-final-correctness.json"
+coverage_path = results / "pre-v5-frozen-coverage-policy.json"
+burst_candidates = [
+    results / "temporal-burst-parity.json",
+    results / "pre-v5-temporal-burst-parity.json",
+]
+
+final = load_required(final_path)
+coverage = load_required(coverage_path)
+
+burst_path = next(
+    (path for path in burst_candidates if path.exists() and path.stat().st_size > 0),
+    None,
+)
+if burst_path is None:
+    errors.append("missing required artifact: results/temporal-burst-parity.json")
+    burst = None
+else:
+    burst = load_required(burst_path)
+
+if isinstance(final, dict):
+    verdict = final.get("verdict")
+    if verdict != "CORRECTNESS_READY_FOR_V5":
+        errors.append(
+            f"correctness verdict is {verdict!r}, expected 'CORRECTNESS_READY_FOR_V5'"
+        )
+
+    for key in ("virginFrozenObjectiveEvaluationCount", "objectiveEvaluationCount"):
+        value = final.get(key)
+        if value != 0:
+            errors.append(
+                f"{key} must be 0 during correctness review, got {value!r}"
+            )
+
+    checks = final.get("checks")
+    if not isinstance(checks, list):
+        errors.append("pre-v5-final-correctness.json has no checks array")
+    else:
+        seen = set()
+        for check in checks:
+            if not isinstance(check, dict):
+                errors.append(
+                    "pre-v5-final-correctness.json contains a non-object check"
+                )
+                continue
+
+            check_id = str(check.get("id", "<missing-id>"))
+            seen.add(check_id)
+            required = bool(check.get("required", True))
+            status = check.get("status")
+            executed = check.get(
+                "executed",
+                status not in ("NOT_RUN", "NOT_MEASURED", "SKIPPED"),
+            )
+            if required and (executed is not True or status != "PASS"):
+                errors.append(
+                    f"required check {check_id} is not PASS/executed "
+                    f"(status={status!r}, executed={executed!r})"
+                )
+
+        critical = {
+            "holdoutProvenance",
+            "transferCoverageSemantics",
+            "frozenPairCountSemantics",
+            "familyCoverageSemantics",
+            "newHLGVirginHoldout",
+            "realTemporalWindowPreparation",
+            "temporalBurstParity",
+            "runtime-measurement",
+            "freeze-integrity",
+        }
+        missing = sorted(critical - seen)
+        if missing:
+            errors.append(
+                "missing critical correctness checks: " + ", ".join(missing)
+            )
+
+if isinstance(coverage, dict):
+    for key in ("transferStatus", "pairCountStatus", "familyStatus"):
+        status = coverage.get(key)
+        if status != "PASS":
+            errors.append(
+                f"frozen coverage {key}={status!r}, expected 'PASS'"
+            )
+
+if isinstance(burst, dict):
+    status = burst.get("status")
+    if status != "PASS":
+        errors.append(
+            f"temporal burst parity status={status!r}, expected 'PASS'"
+        )
+
+    evidence = burst.get("evidence")
+    if not isinstance(evidence, dict):
+        errors.append("temporal burst parity evidence is missing")
+    else:
+        counts = evidence.get("counts", {})
+        numerical = evidence.get("numerical", {})
+        max_in_flight = (
+            counts.get("maxFramesInFlight")
+            if isinstance(counts, dict)
+            else None
+        )
+        max_error = (
+            numerical.get("maxAbsoluteError")
+            if isinstance(numerical, dict)
+            else None
+        )
+
+        if (
+            not isinstance(max_in_flight, (int, float))
+            or isinstance(max_in_flight, bool)
+            or max_in_flight < 2
+        ):
+            errors.append(
+                "temporal burst parity did not exercise a burst "
+                f"(maxFramesInFlight={max_in_flight!r})"
+            )
+
+        if (
+            not isinstance(max_error, (int, float))
+            or isinstance(max_error, bool)
+            or max_error > 1e-6
+        ):
+            errors.append(
+                "temporal burst parity numerical mismatch "
+                f"(maxAbsoluteError={max_error!r}, expected <= 1e-6)"
+            )
+
+if errors:
+    print("PRE-V5 VERIFY FAILED:", file=sys.stderr)
+    for error in errors:
+        print(f"  - {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print("PRE-V5 semantic gates: PASS")
+PYVERIFY
+}
+
 run_audit_cached() {
   local calibrator="$1" key="$2"
   if cache_hit audit "$key" \
@@ -218,8 +395,12 @@ run_correctness_cached() {
     echo 'CACHE HIT: correctness inputs unchanged; reusing pre-V5 correctness artifacts'
   else
     stage 'correctness review' run_correctness "$calibrator"
-    cache_store correctness "$key"
   fi
+
+  # Cache presence/freshness is not sufficient. A cached FAIL must remain a
+  # failing verification and must never be promoted into a green cache entry.
+  assert_pre_v5_ready
+  cache_store correctness "$key"
 }
 
 print_summary() {
@@ -303,6 +484,7 @@ else
   stage 'debug tests' swift test -c debug --disable-index-store
   stage 'release tests' swift test -c release --disable-index-store
   stage 'correctness review' run_correctness "$CALIBRATOR"
+  assert_pre_v5_ready
 
   # Seed the fast cache only after the full content-validating run succeeds.
   AUDIT_KEY="$(fingerprint audit)"

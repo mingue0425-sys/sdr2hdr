@@ -164,6 +164,11 @@ private func run(arguments: [String]) async throws {
         print("Validation structural completeness: \(report.validation.evaluatedVideoCount)/\(report.validation.requestedVideoCount)")
         print("Virgin Frozen objective: NOT MEASURED")
         print("correctness report: \(cli.output.deletingLastPathComponent().appendingPathComponent("correctness-review-fixes.json").path)")
+        guard report.verdict == "CORRECTNESS_READY_FOR_V5" else {
+            throw CalibrationError.incompleteEvaluation(
+                "correctness-review did not reach CORRECTNESS_READY_FOR_V5: \(report.verdict)"
+            )
+        }
         return
     }
     if cli.command == "v2-audit" {
