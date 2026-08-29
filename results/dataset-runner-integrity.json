@@ -1,6 +1,6 @@
 {
   "auditConfigHash" : "18a10e54889115cef739af5f129fe0467ae9b298353187bfea5599ee2da61b23",
-  "auditHash" : "a81b728f3ed6c66044742c0694332340afb7c06f8b303c6186cfd4f3c1d0b7c6",
+  "auditHash" : "6a08d14af22605f372d6eb7b5af1060b7c6ca93c0a44f803415b8c34121312b1",
   "eligiblePairIDs" : [
     "live_13_interview_3840x2160_15000k",
     "live_16_night_biking_3840x2160_15000k",
@@ -15,8 +15,8 @@
     "video4_aespa_lemonade",
     "video6_le_sserafim_hot"
   ],
-  "lockHash" : "016188ed1f5a6d409f79a993453d28d8af3664a267c359cd80f0a0a79dff2cf7",
-  "manifestHash" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
+  "lockHash" : "3e44ace27334cb1ca0a2a7296811f127856c0683b5d453212f88b0285c29319b",
+  "manifestHash" : "28d055234d764e036ae45e2104e0885313593acd8c7e5bf2b406a611f79c7654",
   "objectiveEvaluated" : false,
   "relationByPairID" : {
     "live_13_interview_3840x2160_15000k" : "same-source",

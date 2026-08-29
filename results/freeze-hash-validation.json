@@ -1,9 +1,10 @@
 {
-  "gitCommit" : "24f8e71450392b5dceef6a40b6f161dbfc48b20e",
-  "gitTree" : "92a3d270b1e16aaa5eeeee8c7a6be785083f6ac2",
-  "missingSourceIsHardFailure" : true,
-  "sourceHash" : "a33df929e652b1148432a682f2ec207a4d21f88cbe99a595f29abe0a5a8fd715",
-  "sourceMutationTest" : "PASS (unit test changes a required source and observes a different hash)",
+  "executableHash" : "d8f5f0ac8b6289ee7f76faa0a71d4270a83499501454891143d053f51200d86e",
+  "gitCommit" : "0f687b852eb4ac4dccd5ed91a04f121521c966ac",
+  "gitTree" : "32463f2b4b6703a086ed7e92c1ca69b87a18aa64",
+  "missingSourceHardFailureTest" : "PASS",
+  "sourceHash" : "6c105cb68476666c90e951b5df5fe5ea88d324ea694d7fa972361c324fe1c3da",
+  "sourceMutationTest" : "PASS",
   "status" : "PASS",
-  "workingTreeDirty" : false
+  "workingTreeDirty" : true
 }

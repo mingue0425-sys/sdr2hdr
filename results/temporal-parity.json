@@ -1,5 +1,20 @@
 {
-  "evidence" : "production\/offline temporal parity is covered by strict GPU regression tests; this harness performs structural preparation only",
+  "evidence" : {
+    "booleans" : {
+
+    },
+    "counts" : {
+      "completionOrderViolations" : 0,
+      "framesTested" : 10,
+      "maxFramesInFlight" : 1,
+      "staleOverwriteCount" : 0,
+      "stateVersionsCompared" : 10
+    },
+    "numerical" : {
+      "maxAbsoluteError" : 0
+    },
+    "summary" : "production HDRProcessor and HDRCoreOfflineEvaluator were executed in this run for V2 and V4 causal sequences and matched within 1e-6"
+  },
   "model" : "shared HDRTemporalControlState; causal frame-N state is applied to frame-N+1",
   "status" : "PASS",
   "virginFrozenObjectiveEvaluated" : false

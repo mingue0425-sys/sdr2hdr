@@ -1,61 +1,506 @@
 {
-  "auditArtifactHash" : "a81b728f3ed6c66044742c0694332340afb7c06f8b303c6186cfd4f3c1d0b7c6",
+  "auditArtifactHash" : "6a08d14af22605f372d6eb7b5af1060b7c6ca93c0a44f803415b8c34121312b1",
   "checks" : [
     {
-      "evidence" : "READY audit, manifest digest, lock digest and media digests matched (12 pairs)",
+      "evidence" : {
+        "booleans" : {
+          "objectiveEvaluated" : false,
+          "virginFrozenObjectiveEvaluated" : false
+        },
+        "counts" : {
+          "eligiblePairs" : 12
+        },
+        "numerical" : {
+
+        },
+        "summary" : "validator consumed READY audit + manifest\/lock\/media digests for 12 eligible pairs in this run"
+      },
+      "executed" : true,
       "id" : "dataset-audit-lock",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "scene assignment uses sequencePosition; requested\/evaluated IDs are exact",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "this run prepared Tune\/Validation proxies and checked exact requested\/evaluated IDs using sequencePosition"
+      },
+      "executed" : true,
       "id" : "sparse-index-domain",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "shared HDRTemporalControlState plus GPU production\/offline regression test",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "sparse spatial evaluation is isolated to deterministic neutral temporal state; contiguous-window evidence is reported separately"
+      },
+      "executed" : true,
+      "id" : "sparseSpatialTemporalSeparation",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "decoded 234 paired contiguous frames across 15 valid windows"
+      },
+      "executed" : true,
+      "id" : "realTemporalWindowPreparation",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "pre-Frozen gate machine was executed with FAIL and NOT_MEASURED states; both block holdout access and produce incomplete\/failure verdicts"
+      },
+      "executed" : true,
+      "id" : "preFrozenHoldoutPreservation",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "contaminationDetected" : false
+        },
+        "counts" : {
+          "declaredVirginPairs" : 2,
+          "historicalArtifactsScanned" : 5,
+          "historicallyConsumedVirginPairs" : 0
+        },
+        "numerical" : {
+
+        },
+        "summary" : "no manifest-declared Virgin Frozen pair appears in prior frozen objective artifacts"
+      },
+      "executed" : true,
+      "id" : "holdoutProvenance",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "virginFrozenHLGRequired" : true,
+          "virginFrozenPQRequired" : true
+        },
+        "counts" : {
+          "failureCount" : 1,
+          "ineligibleRequestedRecordCount" : 0
+        },
+        "numerical" : {
+
+        },
+        "summary" : "preregistered transfer coverage failed closed: frozen:FAIL:missing=HLG;ineligible="
+      },
+      "executed" : true,
+      "id" : "transferCoverageSemantics",
+      "required" : true,
+      "status" : "FAIL"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+          "eligibleVirginFrozenPairs" : 2,
+          "ineligibleRequestedRecordCount" : 0,
+          "minimumVirginFrozenPairs" : 3,
+          "requestedVirginFrozenPairs" : 2
+        },
+        "numerical" : {
+
+        },
+        "summary" : "Virgin Frozen pair-count gate failed closed: eligible=2;minimum=3;ineligible="
+      },
+      "executed" : true,
+      "id" : "frozenPairCountSemantics",
+      "required" : true,
+      "status" : "FAIL"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "legacyKChoreoNameRequired" : false
+        },
+        "counts" : {
+          "failureCount" : 0,
+          "ineligibleRequestedRecordCount" : 0
+        },
+        "numerical" : {
+
+        },
+        "summary" : "preregistered family diversity is present using only fully accepted main-calibration audit records"
+      },
+      "executed" : true,
+      "id" : "familyCoverageSemantics",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "found" : false,
+          "objectiveEvaluated" : false,
+          "required" : true
+        },
+        "counts" : {
+          "candidateCount" : 0,
+          "consumedHLGPairCount" : 5,
+          "objectiveEvaluationCount" : 0
+        },
+        "numerical" : {
+
+        },
+        "summary" : "no unconsumed local HLG\/BT.2020 candidate passed metadata, same-source identity, decode, and alignment gates"
+      },
+      "executed" : true,
+      "id" : "newHLGVirginHoldout",
+      "required" : true,
+      "status" : "FAIL"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "portablePathsEqual" : true,
+          "sourceHashesEqual" : true
+        },
+        "counts" : {
+          "relocatedCheckoutsCompared" : 2
+        },
+        "numerical" : {
+
+        },
+        "summary" : "copied identical source trees into two different checkout roots and verified identical source identity plus repository-relative evidence paths"
+      },
+      "executed" : true,
+      "id" : "evidencePortability",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "existing V4 evidence artifacts contain no user- or volume-specific absolute paths"
+      },
+      "executed" : true,
+      "id" : "absolutePathLeakCheck",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "all requested Tune\/Validation pairs have aligned coverage and at least one genuinely prepared contiguous temporal window"
+      },
+      "executed" : true,
+      "id" : "structuralCompleteness",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+          "completionOrderViolations" : 0,
+          "framesTested" : 10,
+          "maxFramesInFlight" : 1,
+          "staleOverwriteCount" : 0,
+          "stateVersionsCompared" : 10
+        },
+        "numerical" : {
+          "maxAbsoluteError" : 0
+        },
+        "summary" : "production HDRProcessor and HDRCoreOfflineEvaluator were executed in this run for V2 and V4 causal sequences and matched within 1e-6"
+      },
+      "executed" : true,
       "id" : "temporal-production-offline-parity",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "16x9 sampling, 16-bin quantization, bin-center percentile and causal delay are shared",
+      "evidence" : {
+        "booleans" : {
+          "stateAppliedBeforeCompletionUpdate" : true
+        },
+        "counts" : {
+          "framesTested" : 1
+        },
+        "numerical" : {
+          "firstFrameStateUsed" : 1,
+          "stateAfterFirstFrame" : 0.999267578125,
+          "stateDelta" : 0.000732421875
+        },
+        "summary" : "first-frame diagnostic records state applied to the current frame before the completion update"
+      },
+      "executed" : true,
+      "id" : "one-frame-causal-diagnostic",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "frameByFrameConsumedStateCompared" : true
+        },
+        "counts" : {
+          "completionOrderViolations" : 0,
+          "consumedVersionRegressions" : 0,
+          "framesTested" : 3,
+          "maxFramesInFlight" : 3,
+          "staleOverwriteCount" : 0,
+          "stateVersionsCompared" : 3,
+          "versionOrderingViolations" : 0
+        },
+        "numerical" : {
+          "maxAbsoluteError" : 0
+        },
+        "summary" : "frame-by-frame burst trace verifies each encoded frame against the serial reference state identified by its actual latest-completed state version"
+      },
+      "executed" : true,
+      "id" : "temporalBurstParity",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+          "framesTested" : 1,
+          "samplePositions" : 144,
+          "samplesTested" : 144
+        },
+        "numerical" : {
+          "p05MaxError" : 0,
+          "p10MaxError" : 0,
+          "p25MaxError" : 0,
+          "shadowFloorMaxError" : 0,
+          "shadowTopMaxError" : 0
+        },
+        "summary" : "16x9\/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+      },
+      "executed" : true,
       "id" : "percentile-production-offline-parity",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "HLG vector OOTF applies one BT.2020-luminance-derived gain; colored vector test passed",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+          "coloredVectorsTested" : 1,
+          "finiteFailures" : 0,
+          "grayVectorsTested" : 3
+        },
+        "numerical" : {
+          "maxLuminanceError" : 1.52587890625e-05,
+          "maxRGBError" : 3.0517578125e-05
+        },
+        "summary" : "gray and colored HLG vectors were evaluated in this run and matched one BT.2020-luminance-derived OOTF gain"
+      },
+      "executed" : true,
       "id" : "hlg-bt2100-ootf",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "explicit BT.709 primaries\/transfer\/matrix\/range required",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "explicit BT.709 SDR metadata was accepted and six missing\/wrong primaries-transfer-matrix-range cases were rejected in this run"
+      },
+      "executed" : true,
       "id" : "strict-sdr-metadata",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "same-master\/same-source relation is preserved; weaker relations are not promoted",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "current manifest relations were evaluated directly; only main-calibration relations are accepted"
+      },
+      "executed" : true,
       "id" : "relation-preservation",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "readiness counts only accepted MAIN_CALIBRATION records",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "synthetic accepted+rejected audit records were aggregated in this run; rejected\/Frozen record contributed to no diversity count"
+      },
+      "executed" : true,
       "id" : "eligible-only-diversity",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "deterministic repository source hash and missing-source hard failure are tested",
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "source and executable mutations changed their independent hashes; removing a required source caused the required-source hard failure"
+      },
+      "executed" : true,
       "id" : "source-freeze-hash",
+      "required" : true,
       "status" : "PASS"
     },
     {
-      "evidence" : "explicit completeness\/dataset\/transfer\/family\/runtime\/frozen gate machine is unit-tested",
+      "evidence" : {
+        "booleans" : {
+          "cleanTreeFreezeAllowed" : true,
+          "dirtyTreeFreezeRejected" : true,
+          "workingTreeDirty" : true
+        },
+        "counts" : {
+          "workingTreeStatusEntries" : 1
+        },
+        "numerical" : {
+
+        },
+        "summary" : "candidate freeze guard was exercised with both dirty and clean working-tree states"
+      },
+      "executed" : true,
+      "id" : "freeze-integrity",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "realGPUAndCPUPath" : true,
+          "thresholdsSatisfied" : true
+        },
+        "counts" : {
+          "framesTested" : 300
+        },
+        "numerical" : {
+          "baselineCPUP95Milliseconds" : 0.04958332283422351,
+          "baselineGPUP50Milliseconds" : 0.4021250060759485,
+          "baselineGPUP95Milliseconds" : 0.5762083455920219,
+          "candidateCPUP95Milliseconds" : 0.051875016652047634,
+          "candidateGPUP50Milliseconds" : 0.4022083303425461,
+          "candidateGPUP95Milliseconds" : 0.5754999874625355,
+          "framesTested" : 300,
+          "warmupFrames" : 30
+        },
+        "summary" : "runtime within tolerance: GPU p50 0.402→0.402 ms, GPU p95 0.576→0.575 ms, CPU p95 0.050→0.052 ms"
+      },
+      "executed" : true,
+      "id" : "runtime-measurement",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+
+        },
+        "counts" : {
+
+        },
+        "numerical" : {
+
+        },
+        "summary" : "gate machine was executed in this run for pass, transfer fail, runtime fail, frozen fail, not-measured, and hard-safety precedence states"
+      },
+      "executed" : true,
       "id" : "promotion-gate-wiring",
+      "required" : true,
       "status" : "PASS"
     }
   ],
-  "datasetLockHash" : "016188ed1f5a6d409f79a993453d28d8af3664a267c359cd80f0a0a79dff2cf7",
-  "generatedAt" : "2026-08-24T15:14:04Z",
-  "manifestHash" : "95309c20d38b1ec0e292409c095f7ca62d5fe45e46c0fe05b2618d3b0b173474",
-  "manifestPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/manifest-v4.json",
+  "datasetLockHash" : "3e44ace27334cb1ca0a2a7296811f127856c0683b5d453212f88b0285c29319b",
+  "generatedAt" : "2026-08-29T11:05:17Z",
+  "manifestHash" : "28d055234d764e036ae45e2104e0885313593acd8c7e5bf2b406a611f79c7654",
+  "manifestPath" : "repo:data_video\/manifest-v4.json",
   "tune" : {
     "complete" : true,
     "evaluatedPairIDs" : [
@@ -69,73 +514,253 @@
     "pairs" : [
       {
         "coveredSceneCount" : 4,
+        "decodedTemporalFrameCount" : 64,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video1_ive_blackhole",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 4,
         "requested" : true,
+        "requestedTemporalWindowCount" : 4,
         "sceneCount" : 4,
         "split" : "tune",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 4
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 0.033,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0002",
+            "startSeconds" : 52.911,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0003",
+            "startSeconds" : 159.016,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0004",
+            "startSeconds" : 207.779,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 4
       },
       {
         "coveredSceneCount" : 2,
+        "decodedTemporalFrameCount" : 32,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video2_newjeans_new_jeans",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 2,
         "requested" : true,
+        "requestedTemporalWindowCount" : 2,
         "sceneCount" : 2,
         "split" : "tune",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 2
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 0,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0002",
+            "startSeconds" : 130.868,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 2
       },
       {
         "coveredSceneCount" : 2,
+        "decodedTemporalFrameCount" : 32,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video3_newjeans_how_sweet",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 2,
         "requested" : true,
+        "requestedTemporalWindowCount" : 2,
         "sceneCount" : 2,
         "split" : "tune",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 2
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 120.253,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0002",
+            "startSeconds" : 235.636,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 2
       },
       {
         "coveredSceneCount" : 1,
+        "decodedTemporalFrameCount" : 16,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "live_9_face_close_3840x2160_15000k",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 1,
         "requested" : true,
+        "requestedTemporalWindowCount" : 1,
         "sceneCount" : 1,
         "split" : "tune",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 1
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 0.05,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 1
       },
       {
         "coveredSceneCount" : 1,
+        "decodedTemporalFrameCount" : 11,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "live_13_interview_3840x2160_15000k",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 1,
         "requested" : true,
+        "requestedTemporalWindowCount" : 1,
         "sceneCount" : 1,
         "split" : "tune",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 1
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "VALID_SHORT_WINDOW_ABOVE_MINIMUM",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 11,
+            "fullLength" : false,
+            "measuredFrameCount" : 10,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 11,
+            "preparedSDRFrameCount" : 11,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 7.839,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 11,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 1
       }
     ],
     "requestedPairIDs" : [
@@ -159,45 +784,137 @@
     "pairs" : [
       {
         "coveredSceneCount" : 3,
+        "decodedTemporalFrameCount" : 48,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video4_aespa_lemonade",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 3,
         "requested" : true,
+        "requestedTemporalWindowCount" : 3,
         "sceneCount" : 3,
         "split" : "validation",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 3
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 0,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0002",
+            "startSeconds" : 157.22699999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0003",
+            "startSeconds" : 205.456,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 3
       },
       {
         "coveredSceneCount" : 1,
+        "decodedTemporalFrameCount" : 16,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "live_22_programming_night_3840x2160_15000k",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 1,
         "requested" : true,
+        "requestedTemporalWindowCount" : 1,
         "sceneCount" : 1,
         "split" : "validation",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 1
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 5.981,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 1
       },
       {
         "coveredSceneCount" : 1,
+        "decodedTemporalFrameCount" : 15,
         "matchedFrameCount" : 40,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "live_4_campfire_3840x2160_15000k",
         "prepared" : true,
+        "preparedTemporalWindowCount" : 1,
         "requested" : true,
+        "requestedTemporalWindowCount" : 1,
         "sceneCount" : 1,
         "split" : "validation",
-        "temporalFrameCount" : 40,
-        "temporalWindowCount" : 1
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "VALID_SHORT_WINDOW_ABOVE_MINIMUM",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 15,
+            "fullLength" : false,
+            "measuredFrameCount" : 14,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 15,
+            "preparedSDRFrameCount" : 15,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 7.772,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 15,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 1
       }
     ],
     "requestedPairIDs" : [
@@ -208,7 +925,7 @@
     "requestedVideoCount" : 3,
     "split" : "validation"
   },
-  "verdict" : "CORRECTNESS_READY_FOR_V5",
-  "version" : "correctness-review-v1",
+  "verdict" : "NEW_HLG_VIRGIN_REQUIRED",
+  "version" : "correctness-review-v3",
   "virginFrozenObjectiveEvaluated" : false
 }

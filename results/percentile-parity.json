@@ -1,5 +1,22 @@
 {
-  "evidence" : "production-compatible estimator is shared by HDRCore and offline evaluation; constant-dark, bin-boundary, ramp and sequence tests pass",
+  "evidence" : {
+    "booleans" : {
+
+    },
+    "counts" : {
+      "framesTested" : 1,
+      "samplePositions" : 144,
+      "samplesTested" : 144
+    },
+    "numerical" : {
+      "p05MaxError" : 0,
+      "p10MaxError" : 0,
+      "p25MaxError" : 0,
+      "shadowFloorMaxError" : 0,
+      "shadowTopMaxError" : 0
+    },
+    "summary" : "16x9\/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+  },
   "model" : "16x9 sparse sampling, 16-bin histogram, bin-center quantization, causal delay",
   "status" : "PASS",
   "virginFrozenObjectiveEvaluated" : false

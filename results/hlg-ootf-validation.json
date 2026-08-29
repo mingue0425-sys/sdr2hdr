@@ -1,10 +1,15 @@
 {
   "coloredVectorTest" : "PASS",
+  "coloredVectorsTested" : 1,
   "decodedRGBNits" : [
     175.46002,
     55.183903,
     13.795976
   ],
+  "finiteFailures" : 0,
+  "grayVectorsTested" : 3,
+  "maxLuminanceError" : 1.52587890625e-05,
+  "maxRGBError" : 3.0517578125e-05,
   "ootf" : "BT.2020 luminance-derived single vector gain",
   "signal" : [
     0.75,
