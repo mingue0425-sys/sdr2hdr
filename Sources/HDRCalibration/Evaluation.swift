@@ -257,6 +257,17 @@ struct PreparedTemporalFrame {
 struct PreparedTemporalWindow {
     let sceneID: String
     let frames: [PreparedTemporalFrame]
+    let decision: V4TemporalWindowDecision
+
+    init(
+        sceneID: String,
+        frames: [PreparedTemporalFrame],
+        decision: V4TemporalWindowDecision? = nil
+    ) {
+        self.sceneID = sceneID
+        self.frames = frames
+        self.decision = decision ?? V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: frames.count)
+    }
 }
 
 struct PreparedPair {
@@ -277,6 +288,20 @@ public final class PairEvaluator {
         self.experiment = experiment
     }
 
+    /// Single alignment entry point shared by the production calibration
+    /// preparation path and the structural correctness review.
+    public static func align(
+        sdr: FrameSequence,
+        hdr: FrameSequence,
+        confidenceThreshold: Double
+    ) -> AlignmentResult {
+        TemporalAligner.align(
+            sdr: sdr,
+            hdr: hdr,
+            confidenceThreshold: confidenceThreshold
+        )
+    }
+
     func prepare(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
         let urls = record.resolvedURLs(relativeTo: manifestURL)
         let hdrMetadata = try await MetadataProbe.probe(url: urls.hdr)
@@ -295,13 +320,24 @@ public final class PairEvaluator {
             pixelFormat: CalibrationPixelFormat.hdrP010,
             maxFrames: maxFrames
         )
-        let alignment = TemporalAligner.align(
+        let alignment = Self.align(
             sdr: sdrSequence,
             hdr: hdrSequence,
             confidenceThreshold: experiment.alignmentConfidenceThreshold
         )
-        guard alignment.status != "REJECT" else {
-            throw CalibrationError.alignmentFailed("\(record.id): median confidence \(alignment.medianConfidence)")
+        let sortedConfidence = alignment.matches.map(\.confidence).sorted()
+        let p10Index = max(0, Int(Double(max(sortedConfidence.count - 1, 0)) * 0.10))
+        let p10Confidence = sortedConfidence.isEmpty ? 0 : sortedConfidence[p10Index]
+        let policyStatus = V4AlignmentPolicy.status(
+            sampledFrames: sdrSequence.samples.count,
+            matchedFrames: alignment.matches.count,
+            medianConfidence: alignment.medianConfidence,
+            p10Confidence: p10Confidence
+        )
+        guard alignment.status != "REJECT", policyStatus != "REJECT" else {
+            throw CalibrationError.alignmentFailed(
+                "\(record.id): aligner=\(alignment.status), policy=\(policyStatus), median confidence \(alignment.medianConfidence), p10 \(p10Confidence)"
+            )
         }
 
         let scenes = SceneDetector.detect(sequence: sdrSequence)
@@ -380,14 +416,18 @@ public final class PairEvaluator {
             let offset = anchor.hdrTimeSeconds - anchor.sdrTimeSeconds
             let sdr = try await FrameReader.readWindow(
                 url: sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12,
-                startSeconds: start, frameCount: 16, framesPerSecond: 30
+                startSeconds: start, frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
+                framesPerSecond: 30
             )
             let hdr = try await FrameReader.readWindow(
                 url: hdrURL, pixelFormat: CalibrationPixelFormat.hdrP010,
-                startSeconds: max(start + offset, 0), frameCount: 16, framesPerSecond: 30
+                startSeconds: max(start + offset, 0),
+                frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
+                framesPerSecond: 30
             )
             let count = min(sdr.samples.count, hdr.samples.count)
-            guard count >= 8 else { continue }
+            let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
+            guard decision.accepted else { continue }
             var frames: [PreparedTemporalFrame] = []
             frames.reserveCapacity(count)
             for index in 0..<count {
@@ -407,7 +447,7 @@ public final class PairEvaluator {
                     confidence: anchor.confidence
                 ))
             }
-            windows.append(PreparedTemporalWindow(sceneID: scene.id, frames: frames))
+            windows.append(PreparedTemporalWindow(sceneID: scene.id, frames: frames, decision: decision))
         }
         return windows
     }
@@ -513,12 +553,15 @@ public final class PairEvaluator {
         let evaluator = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
         var analyses: [FrameAnalysis] = []
         analyses.reserveCapacity(prepared.matches.count)
+        evaluator.clearTemporalHistory()
+        evaluator.automaticTemporalEstimationEnabled = false
         for preparedMatch in prepared.matches {
             let generated = try evaluator.evaluate(
                 pixelBuffer: preparedMatch.sdr.pixelBuffer,
                 timestampSeconds: preparedMatch.match.sdrTimeSeconds,
                 configuration: configuration
             )
+            evaluator.clearTemporalHistory()
             analyses.append(FrameAnalysis(
                 reference: preparedMatch.reference,
                 generated: generated,
@@ -526,6 +569,7 @@ public final class PairEvaluator {
                 confidence: preparedMatch.match.confidence
             ))
         }
+        evaluator.automaticTemporalEstimationEnabled = true
 
         let sceneMetrics = prepared.scenes.map { scene in
             let sceneAnalyses = analyses.filter { analysis in

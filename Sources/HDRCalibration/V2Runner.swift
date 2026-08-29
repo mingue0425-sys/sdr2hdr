@@ -7,6 +7,15 @@ private func v2Log(_ message: String) {
     FileHandle.standardError.write(Data(("[HDRCalibrate V2] " + message + "\n").utf8))
 }
 
+public enum V2TemporalStateIsolation {
+    /// A temporal evaluator may be reused only for the exact same parameter
+    /// configuration.  A missing or changed key requires a causal-history
+    /// reset before evaluating the next configuration.
+    public static func requiresReset(previousConfigurationKey: String?, currentConfigurationKey: String) -> Bool {
+        previousConfigurationKey != currentConfigurationKey
+    }
+}
+
 final class V2PreparedRepository {
     private let manifestURL: URL
     private let evaluator: PairEvaluator
@@ -47,6 +56,10 @@ final class V2EvaluationEngine {
     private let device: MTLDevice
     private let weights: V2ObjectiveWeights
     private var evaluators: [String: HDRCoreOfflineEvaluator] = [:]
+    /// Temporal history belongs to a (pair, configuration) evaluation.  A
+    /// cached evaluator may be reused for speed, but changing parameters must
+    /// reset its causal state before the first frame of the new configuration.
+    private var evaluatorConfigurationKeys: [String: String] = [:]
 
     init(device: MTLDevice, weights: V2ObjectiveWeights) {
         self.device = device
@@ -63,12 +76,21 @@ final class V2EvaluationEngine {
         var videos: [V2VideoEvaluation] = []
         for prepared in preparedPairs {
             let configuration = try parameters.configuration()
+            let configurationKey = try Self.configurationKey(parameters)
             let evaluator: HDRCoreOfflineEvaluator
             if let cached = evaluators[prepared.record.id] {
                 evaluator = cached
+                if V2TemporalStateIsolation.requiresReset(
+                    previousConfigurationKey: evaluatorConfigurationKeys[prepared.record.id],
+                    currentConfigurationKey: configurationKey
+                ) {
+                    evaluator.clearTemporalHistory()
+                    evaluatorConfigurationKeys[prepared.record.id] = configurationKey
+                }
             } else {
                 let created = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
                 evaluators[prepared.record.id] = created
+                evaluatorConfigurationKeys[prepared.record.id] = configurationKey
                 evaluator = created
             }
             let accepted = prepared.matches.filter { $0.match.confidence >= confidenceThreshold }
@@ -76,11 +98,10 @@ final class V2EvaluationEngine {
             guard !accepted.isEmpty else {
                 throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no accepted matched frames")
             }
-            evaluator.clearTemporalHistory()
             var frameData: [V2FrameData] = []
             frameData.reserveCapacity(accepted.count)
             for item in accepted {
-                let generated = try evaluator.evaluate(
+                let generated = try evaluator.evaluateSpatiallyIndependent(
                     pixelBuffer: item.sdr.pixelBuffer,
                     timestampSeconds: item.match.sdrTimeSeconds,
                     configuration: configuration
@@ -113,7 +134,8 @@ final class V2EvaluationEngine {
             var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
             let temporal = try evaluateTemporalWindows(
                 prepared.temporalWindows.filter { window in
-                    window.frames.first.map { $0.confidence >= confidenceThreshold } ?? false
+                    window.decision.accepted &&
+                        (window.frames.first.map { $0.confidence >= confidenceThreshold } ?? false)
                 },
                 evaluator: evaluator,
                 configuration: configuration
@@ -158,6 +180,12 @@ final class V2EvaluationEngine {
         )
     }
 
+    private static func configurationKey(_ parameters: CalibrationParameters) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(decoding: try encoder.encode(parameters), as: UTF8.self)
+    }
+
     private func evaluateTemporalWindows(
         _ windows: [PreparedTemporalWindow],
         evaluator: HDRCoreOfflineEvaluator,
@@ -168,6 +196,7 @@ final class V2EvaluationEngine {
         var recoveries: [Double] = []
         for window in windows {
             evaluator.clearTemporalHistory()
+            evaluator.automaticTemporalEstimationEnabled = true
             var frames: [V2FrameData] = []
             frames.reserveCapacity(window.frames.count)
             var adaptations: [Float] = []
@@ -179,7 +208,7 @@ final class V2EvaluationEngine {
                     averageLuminance: nil,
                     sceneCut: false
                 )
-                adaptations.append(evaluator.temporalAdaptation)
+                adaptations.append(generated.temporalAdaptationUsed)
                 frames.append(V2FrameData(
                     reference: item.reference, generated: generated,
                     sourceLuma: item.sourceLuma, confidence: item.confidence
@@ -231,11 +260,31 @@ final class V2EvaluationEngine {
         var samples: [Sample] = []
         for prepared in preparedPairs {
             let accepted = prepared.matches.filter { $0.match.confidence >= confidenceThreshold }
-            let evaluator = try HDRCoreOfflineEvaluator(device: device, configuration: try defaultParameters.configuration())
+            let baselineEvaluator = try HDRCoreOfflineEvaluator(
+                device: device, configuration: try defaultParameters.configuration()
+            )
+            let v1Evaluator = try HDRCoreOfflineEvaluator(
+                device: device, configuration: try v1Parameters.configuration()
+            )
+            let candidateEvaluator = try HDRCoreOfflineEvaluator(
+                device: device, configuration: try candidateParameters.configuration()
+            )
+            baselineEvaluator.clearTemporalHistory()
+            v1Evaluator.clearTemporalHistory()
+            candidateEvaluator.clearTemporalHistory()
             for item in accepted {
-                let baseline = try evaluator.evaluate(pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds, configuration: try defaultParameters.configuration())
-                let v1 = try evaluator.evaluate(pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds, configuration: try v1Parameters.configuration())
-                let v2 = try evaluator.evaluate(pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds, configuration: try candidateParameters.configuration())
+                let baseline = try baselineEvaluator.evaluateSpatiallyIndependent(
+                    pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds,
+                    configuration: try defaultParameters.configuration()
+                )
+                let v1 = try v1Evaluator.evaluateSpatiallyIndependent(
+                    pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds,
+                    configuration: try v1Parameters.configuration()
+                )
+                let v2 = try candidateEvaluator.evaluateSpatiallyIndependent(
+                    pixelBuffer: item.sdr.pixelBuffer, timestampSeconds: item.match.sdrTimeSeconds,
+                    configuration: try candidateParameters.configuration()
+                )
                 for index in 0..<min(item.reference.rgbNits.count, item.sourceLuma.count, baseline.rgbNits.count, v1.rgbNits.count, v2.rgbNits.count) {
                     let referenceRGB = item.reference.rgbNits[index]
                     let refICtCp = PerceptualColorV2.ictcp(rgbNits: referenceRGB)

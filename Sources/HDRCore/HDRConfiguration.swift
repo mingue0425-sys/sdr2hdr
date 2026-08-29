@@ -209,6 +209,9 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
         lastShadowSequence = 0
     }
 
+    public var automaticSequence: UInt64 { lastAutomaticSequence }
+    public var shadowSequence: UInt64 { lastShadowSequence }
+
     public mutating func reset() {
         self = HDRTemporalControlState()
     }

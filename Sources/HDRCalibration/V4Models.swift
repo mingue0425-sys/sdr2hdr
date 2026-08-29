@@ -209,6 +209,32 @@ public struct V4FileDigest: Codable, Hashable, Sendable {
         self.sizeBytes = sizeBytes
         self.sha256 = sha256
     }
+
+    /// Portable identity for repository-backed evidence. Existing absolute-path
+    /// artifacts remain decodable and can still be resolved locally.
+    public func portablePath(repositoryRoot: URL) -> String {
+        if path.hasPrefix("repo:") { return path }
+        return V4EvidencePath.portable(URL(fileURLWithPath: path), repositoryRoot: repositoryRoot)
+    }
+
+    public func localURL(repositoryRoot: URL, expectedURL: URL? = nil) -> URL {
+        if path.hasPrefix("repo:") {
+            return repositoryRoot.appendingPathComponent(String(path.dropFirst(5)))
+        }
+        if let expectedURL {
+            return expectedURL
+        }
+        return URL(fileURLWithPath: path)
+    }
+}
+
+public enum V4EvidencePath {
+    public static func portable(_ url: URL, repositoryRoot: URL) -> String {
+        let standardizedPath = url.standardizedFileURL.path
+        let rootPath = repositoryRoot.standardizedFileURL.path
+        guard standardizedPath.hasPrefix(rootPath + "/") else { return standardizedPath }
+        return "repo:\(standardizedPath.dropFirst(rootPath.count + 1))"
+    }
 }
 
 public struct V4DatasetLock: Codable, Sendable {
@@ -430,6 +456,47 @@ public struct V4AlignmentSummary: Codable, Sendable {
         self.offsetVariance = offsetVariance
         self.spatialChecks = spatialChecks
         self.status = status
+    }
+}
+
+public enum V4AlignmentPolicy {
+    public static let minimumMatchedFrames = 8
+    public static let minimumMatchRatio = 0.60
+    public static let minimumP10Confidence = 0.60
+    public static let alignedMedianConfidence = 0.70
+
+    public static func status(
+        sampledFrames: Int,
+        matchedFrames: Int,
+        medianConfidence: Double,
+        p10Confidence: Double
+    ) -> String {
+        guard sampledFrames >= minimumMatchedFrames,
+              matchedFrames >= minimumMatchedFrames else {
+            return "REJECT"
+        }
+        let matchRatio = Double(matchedFrames) / Double(sampledFrames)
+        guard matchRatio.isFinite,
+              matchRatio >= minimumMatchRatio,
+              medianConfidence.isFinite,
+              p10Confidence.isFinite else {
+            return "REJECT"
+        }
+        // A dense but lower-confidence sample remains usable for structural
+        // preparation and is reported as CONDITIONAL.  Sparse survivors are
+        // rejected above; the audit/main-calibration gate still requires the
+        // stronger ALIGNED p10/median thresholds in supportsMainCalibration.
+        return medianConfidence >= alignedMedianConfidence && p10Confidence >= minimumP10Confidence
+            ? "ALIGNED" : "CONDITIONAL"
+    }
+
+    public static func supportsMainCalibration(_ summary: V4AlignmentSummary) -> Bool {
+        summary.status == "ALIGNED" && status(
+            sampledFrames: summary.sampledFrames,
+            matchedFrames: summary.matchedFrames,
+            medianConfidence: summary.medianConfidence,
+            p10Confidence: summary.p10Confidence
+        ) == "ALIGNED"
     }
 }
 

@@ -27,13 +27,33 @@ public struct GeneratedFrame {
     public let height: Int
     public let rgbNits: [SIMD3<Float>]
     public let lumaNits: [Float]
+    /// Causal temporal value that was encoded into this frame's shader
+    /// parameters. The evaluator's current temporal state after `evaluate`
+    /// belongs to the next frame because GPU completion updates it.
+    public let temporalAdaptationUsed: Float
+    public let sceneShadowFloorUsed: Float
+    public let sceneShadowTopUsed: Float
+    public let sceneStatisticsValidUsed: Bool
 
-    public init(timestampSeconds: Double, width: Int, height: Int, rgbNits: [SIMD3<Float>]) {
+    public init(
+        timestampSeconds: Double,
+        width: Int,
+        height: Int,
+        rgbNits: [SIMD3<Float>],
+        temporalAdaptationUsed: Float = 1,
+        sceneShadowFloorUsed: Float = HDRSceneStatistics.neutral.shadowFloor,
+        sceneShadowTopUsed: Float = HDRSceneStatistics.neutral.shadowTop,
+        sceneStatisticsValidUsed: Bool = false
+    ) {
         self.timestampSeconds = timestampSeconds
         self.width = width
         self.height = height
         self.rgbNits = rgbNits
         self.lumaNits = rgbNits.map { simd_dot($0, HDRColorMath.bt2020Luminance) }
+        self.temporalAdaptationUsed = temporalAdaptationUsed
+        self.sceneShadowFloorUsed = sceneShadowFloorUsed
+        self.sceneShadowTopUsed = sceneShadowTopUsed
+        self.sceneStatisticsValidUsed = sceneStatisticsValidUsed
     }
 }
 
@@ -180,6 +200,11 @@ public final class HDRCoreOfflineEvaluator {
         self.readbackTexture = nil
     }
 
+    public var automaticTemporalEstimationEnabled: Bool {
+        get { processor.automaticTemporalEstimationEnabled }
+        set { processor.automaticTemporalEstimationEnabled = newValue }
+    }
+
     public func evaluate(
         pixelBuffer: CVPixelBuffer,
         timestampSeconds: Double,
@@ -191,6 +216,8 @@ public final class HDRCoreOfflineEvaluator {
         if let averageLuminance, !processor.automaticTemporalEstimationEnabled {
             processor.updateTemporalEstimate(averageLuminance: averageLuminance, sceneCut: sceneCut)
         }
+        let temporalAdaptationUsed = processor.temporalAdaptation
+        let sceneShadowUsed = processor.sceneShadowCoordinates
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
         try processor.prepare(width: width, height: height)
@@ -241,7 +268,39 @@ public final class HDRCoreOfflineEvaluator {
                 )
             }
         }
-        return GeneratedFrame(timestampSeconds: timestampSeconds, width: gridWidth, height: gridHeight, rgbNits: rgb)
+        return GeneratedFrame(
+            timestampSeconds: timestampSeconds,
+            width: gridWidth,
+            height: gridHeight,
+            rgbNits: rgb,
+            temporalAdaptationUsed: temporalAdaptationUsed,
+            sceneShadowFloorUsed: sceneShadowUsed.floor,
+            sceneShadowTopUsed: sceneShadowUsed.top,
+            sceneStatisticsValidUsed: sceneShadowUsed.valid
+        )
+    }
+
+    /// Evaluates a sparse spatial sample with neutral, non-evolving temporal
+    /// state. Sparse alignment samples are not consecutive video frames and
+    /// must never be fed through the production temporal controller as if they
+    /// formed a causal sequence.
+    public func evaluateSpatiallyIndependent(
+        pixelBuffer: CVPixelBuffer,
+        timestampSeconds: Double,
+        configuration: HDRConfiguration
+    ) throws -> GeneratedFrame {
+        let previousAutomatic = automaticTemporalEstimationEnabled
+        automaticTemporalEstimationEnabled = false
+        clearTemporalHistory()
+        defer {
+            clearTemporalHistory()
+            automaticTemporalEstimationEnabled = previousAutomatic
+        }
+        return try evaluate(
+            pixelBuffer: pixelBuffer,
+            timestampSeconds: timestampSeconds,
+            configuration: configuration
+        )
     }
 
     public func resetTemporalState(averageLuminance: Float = 0.5) {
@@ -262,7 +321,6 @@ public final class HDRCoreOfflineEvaluator {
     public func updateTemporalEstimate(averageLuminance: Float, sceneCut: Bool = false) {
         processor.updateTemporalEstimate(averageLuminance: averageLuminance, sceneCut: sceneCut)
     }
-
 
     public func clearTemporalHistory() {
         processor.clearTemporalHistory()
