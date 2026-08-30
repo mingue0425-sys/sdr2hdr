@@ -1,6 +1,6 @@
 # Correctness Review Fixes
 
-- Verdict: `NEW_HLG_VIRGIN_REQUIRED`
+- Verdict: `CORRECTNESS_READY_FOR_V5`
 - Virgin Frozen objective evaluated: `false`
 - Tune structural completeness: 5/5
 - Validation structural completeness: 3/3
@@ -13,10 +13,10 @@
 | realTemporalWindowPreparation | PASS |
 | preFrozenHoldoutPreservation | PASS |
 | holdoutProvenance | PASS |
-| transferCoverageSemantics | FAIL |
-| frozenPairCountSemantics | FAIL |
+| transferCoverageSemantics | PASS |
+| frozenPairCountSemantics | PASS |
 | familyCoverageSemantics | PASS |
-| newHLGVirginHoldout | FAIL |
+| newHLGVirginHoldout | PASS |
 | evidencePortability | PASS |
 | absolutePathLeakCheck | PASS |
 | structuralCompleteness | PASS |

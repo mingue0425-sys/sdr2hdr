@@ -680,6 +680,145 @@ final class CalibrationTests: XCTestCase {
         XCTAssertFalse(V4NewHLGHoldoutAuditor.isHLGReference(hlg))
     }
 
+    func testRegisteredVirginHLGAuditorValidatesHashBoundEvidenceFailClosed() throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sdr2hdr-registered-virgin-\(UUID().uuidString)")
+        let candidate = base.appendingPathComponent("candidate")
+        try FileManager.default.createDirectory(at: candidate, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let manifestURL = base.appendingPathComponent("manifest-v4.json")
+        let sdrURL = candidate.appendingPathComponent("sdr.mp4")
+        let hdrURL = candidate.appendingPathComponent("hdr.mp4")
+        try Data("synthetic-sdr".utf8).write(to: sdrURL)
+        try Data("synthetic-hdr".utf8).write(to: hdrURL)
+        let sdrDigest = try V4DatasetIntegrity.digest(url: sdrURL)
+        let hdrDigest = try V4DatasetIntegrity.digest(url: hdrURL)
+        let identities = (100..<114).map { "n:\($0)" }
+        let decodedFrames = 2_688
+        let evidence: [String: Any] = [
+            "verdict": "PAIR_VALID_VIRGIN",
+            "temporalReadiness": "CONTIGUOUS_TEMPORAL_READY",
+            "objectiveUse": ["consumed": false, "consumedAtUTC": NSNull(), "consumptionPurpose": NSNull()],
+            "pair": ["provider": "DVB Project", "family": "DVB Live-Linear"],
+            "assets": [
+                "sdr": ["path": sdrURL.path, "sha256": sdrDigest.sha256, "bytes": 13],
+                "hdr": ["path": hdrURL.path, "sha256": hdrDigest.sha256, "bytes": 13]
+            ],
+            "contiguousRun": [
+                "startSegment": 100, "endSegment": 113, "segmentCount": 14,
+                "durationSeconds": 53.76, "noGaps": true
+            ],
+            "directDashCaptureEvidence": [
+                "sdr": ["segment_identities": identities],
+                "hdr": ["segment_identities": identities]
+            ],
+            "fullDecodeEvidence": [
+                "sdr_decoded_frames": decodedFrames,
+                "hdr_decoded_frames": decodedFrames,
+                "expected_frames_from_contiguous_run": decodedFrames,
+                "decoded_frame_counts_exactly_equal": true,
+                "segment_identity_arrays_exactly_equal": true,
+                "errors": []
+            ],
+            "streamEvidence": [
+                "sdr_fps": 50,
+                "hdr_fps": 50,
+                "decoded_keyframe_vui": [
+                    "sdr": [
+                        "keyframe_count": 14,
+                        "values": [
+                            "color_primaries": ["bt709"],
+                            "color_transfer": ["bt709"],
+                            "color_space": ["bt709"]
+                        ]
+                    ],
+                    "hdr": [
+                        "keyframe_count": 14,
+                        "values": [
+                            "color_primaries": ["bt2020"],
+                            "color_transfer": ["arib-std-b67"],
+                            "color_space": ["bt2020nc"]
+                        ]
+                    ]
+                ]
+            ],
+            "alignmentEvidence": [
+                "best_offset_frames": 0,
+                "drift_frames": 0,
+                "aligned_overlap_frames": decodedFrames,
+                "temporal": ["mean_rho": 0.99, "edge_rho": 0.99, "std_rho": 0.99],
+                "spatial": ["median": 0.99, "p10": 0.98],
+                "thresholds": [
+                    "mean_spearman_min": 0.94,
+                    "edge_spearman_min": 0.88,
+                    "std_spearman_min": 0.78,
+                    "spatial_median_min": 0.72,
+                    "spatial_p10_min": 0.25,
+                    "max_drift_frames": 2,
+                    "min_aligned_frames": 2_500
+                ],
+                "errors": []
+            ]
+        ]
+        let evidenceURL = candidate.appendingPathComponent("VIRGIN_PAIR_VALID.json")
+        try JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]).write(to: evidenceURL)
+        let evidenceHash = try V4DatasetIntegrity.sha256(url: evidenceURL)
+
+        let pair = V4PairRecord(
+            id: "dvb-test", sdr: "candidate/sdr.mp4", hdr: "candidate/hdr.mp4",
+            source: "DVB Project", license: "test", expectedRelation: .sameMaster,
+            contentCategory: ["animation"], contentFamily: "DVB Live-Linear",
+            referenceTransfer: "arib-std-b67", referencePrimaries: "bt2020",
+            split: .frozen, virginFrozen: true, group: "dvb-test",
+            objectiveEvaluated: false, consumed: false,
+            virginEvidence: V4VirginEvidenceReference(
+                validationManifest: "candidate/VIRGIN_PAIR_VALID.json",
+                validationManifestSHA256: evidenceHash,
+                sdrSHA256: sdrDigest.sha256,
+                hdrSHA256: hdrDigest.sha256
+            )
+        )
+        try V4Manifest(pairs: [pair]).validate(relativeTo: manifestURL)
+        let smoke = V4DecodeSmoke(
+            attempted: true, firstFrame: true, middleFrame: true, lastFrame: true, decodedSampleCount: 3
+        )
+        let alignment = V4AlignmentSummary(
+            sampledFrames: 40, matchedFrames: 40, rejectedFrames: 0, matchRatio: 1,
+            meanConfidence: 0.99, medianConfidence: 0.99, p10Confidence: 0.98,
+            p50Confidence: 0.99, p90Confidence: 1, confidenceAtLeast60: 1,
+            confidenceAtLeast70: 1, confidenceAtLeast80: 1,
+            estimatedTimeOffsetSeconds: 0, offsetVariance: 0,
+            spatialChecks: ["synthetic"], status: "ALIGNED"
+        )
+        let audited = V4PairAudit(
+            id: pair.id, source: pair.source, split: .frozen, virginFrozen: true,
+            expectedRelation: .sameMaster, suitability: .mainCalibration, status: .accepted,
+            sdrPath: pair.sdr, hdrPath: pair.hdr, sdrDigest: sdrDigest, hdrDigest: hdrDigest,
+            sdrMetadata: makeV4Metadata(primaries: "bt709", transfer: "bt709", bitDepth: 8),
+            hdrMetadata: makeV4Metadata(primaries: "bt2020", transfer: "arib-std-b67", bitDepth: 10),
+            sdrTransferFamily: "SDR", hdrTransferFamily: "HLG",
+            sdrReferenceValid: true, hdrReferenceValid: true,
+            sdrDecode: smoke, hdrDecode: smoke, alignment: alignment
+        )
+
+        let accepted = V4NewHLGHoldoutAuditor.auditRegisteredManifestPair(
+            manifestPair: pair, datasetPair: audited, manifestURL: manifestURL, objectivelyConsumed: false
+        )
+        XCTAssertTrue(accepted.accepted)
+        XCTAssertEqual(accepted.objectiveHistory, "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE")
+        XCTAssertTrue(accepted.provenanceStatus.contains("ASSET_SHA_MATCH"))
+
+        var consumed = pair
+        consumed.consumed = true
+        XCTAssertThrowsError(try V4Manifest(pairs: [consumed]).validate(relativeTo: manifestURL))
+        let rejected = V4NewHLGHoldoutAuditor.auditRegisteredManifestPair(
+            manifestPair: consumed, datasetPair: audited, manifestURL: manifestURL, objectivelyConsumed: false
+        )
+        XCTAssertFalse(rejected.accepted)
+        XCTAssertFalse(rejected.rejectionReasons.isEmpty)
+    }
+
     func testFrozenCoverageEligibilityRejectsNonAcceptedAuditEvidence() {
         let smoke = V4DecodeSmoke(
             attempted: true, firstFrame: true, middleFrame: true, lastFrame: true, decodedSampleCount: 3

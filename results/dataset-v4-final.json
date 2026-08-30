@@ -1,10 +1,10 @@
 {
-  "auditConfigHash" : "18a10e54889115cef739af5f129fe0467ae9b298353187bfea5599ee2da61b23",
+  "auditConfigHash" : "d5cd18a25eadf3bfa8057f2d99dacb30a0668e3b3e926f8bd29202b4916a2b99",
   "diversity" : {
-    "acceptedPairs" : 12,
+    "acceptedPairs" : 13,
     "categories" : {
-      "animation" : 1,
-      "cinematic" : 1,
+      "animation" : 2,
+      "cinematic" : 2,
       "dance" : 5,
       "high-contrast" : 8,
       "high-key" : 5,
@@ -14,40 +14,42 @@
       "low-key" : 5,
       "low-saturation" : 1,
       "night" : 3,
-      "outdoor" : 1,
+      "outdoor" : 2,
       "saturated" : 5,
       "shadow-rich" : 3,
       "skin" : 7
     },
     "conditionalPairs" : 0,
     "contentFamilies" : {
+      "DVB Live-Linear" : 1,
       "K-Choreo" : 5,
       "LIVE" : 6,
       "SoleMates" : 1
     },
     "frameRates" : {
       "24.000" : 1,
+      "50.000" : 1,
       "59.940" : 6,
       "59.944" : 1,
       "59.945" : 3,
       "59.949" : 1
     },
-    "frozenPairs" : 4,
+    "frozenPairs" : 5,
     "hdrTransfers" : {
-      "HLG" : 5,
+      "HLG" : 6,
       "PQ" : 7
     },
-    "mainCalibrationPairs" : 12,
+    "mainCalibrationPairs" : 13,
     "rejectedPairs" : 0,
     "resolutions" : {
       "2048x1024" : 1,
       "3840x2026" : 5,
-      "3840x2160" : 6
+      "3840x2160" : 7
     },
-    "totalPairs" : 12,
+    "totalPairs" : 13,
     "tunePairs" : 5,
     "validationPairs" : 3,
-    "virginFrozenPairs" : 2
+    "virginFrozenPairs" : 3
   },
   "frozenObjectiveEvaluated" : [
 
@@ -55,9 +57,9 @@
   "gateReasons" : [
 
   ],
-  "generatedAt" : "2026-08-29T11:02:13Z",
+  "generatedAt" : "2026-08-30T10:28:16Z",
   "manifestPath" : "repo:data_video\/manifest-v4.json",
-  "manifestSHA256" : "28d055234d764e036ae45e2104e0885313593acd8c7e5bf2b406a611f79c7654",
+  "manifestSHA256" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
   "notes" : [
     "This command performs manifest, integrity, metadata, decode-smoke, spatial and temporal alignment checks only.",
     "No baseline, candidate, validation or frozen objective was evaluated.",
@@ -649,6 +651,105 @@
       "sdrReferenceValid" : true,
       "sdrTransferFamily" : "SDR",
       "source" : "ASWF Digital Production Example Library \/ Netflix Animation Studios",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 2.789435349370706e-15,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9937837893499222,
+        "medianConfidence" : 0.9957146198697358,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.9890194173812592,
+        "p50Confidence" : 0.9957146198697358,
+        "p90Confidence" : 0.9971947338979563,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+        "sha256" : "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
+        "sizeBytes" : 12237168
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 61.44,
+        "frameRate" : 50,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12800",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit",
+        "HDR colour identity verified from hash-bound decoded-keyframe Virgin evidence"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+        "sha256" : "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+        "sizeBytes" : 12384656
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 61.44,
+        "frameRate" : 50,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12800",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "DVB Project",
       "split" : "frozen",
       "status" : "ACCEPTED",
       "suitability" : "MAIN_CALIBRATION",

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="description" content="DASH test streams" />
+  <meta name="author" content="Sofia Digital (www.sofiadigital.com)" />
+  <meta name="generator" content="Sofia Digital" />  
+  <title>DVB Live-Linear</title>
+<style type="text/css">
+body { 
+  background:lightgray; 
+  font-family: Sans-Serif 
+}
+
+.itembox {
+  min-height:70px;
+  border:1px solid gray; padding: 4px 4px 4px 4px;
+  background:white; margin-bottom: 4px;
+  box-sizing: border-box; -webkit-box-sizing: border-box; -moz-box-sizing: border-box;          
+}
+.itembox > .details { XXmin-height:40px; }
+.itembox > .details > .preview {
+  height: 60px; float: left;
+  padding-right: 4px;
+}
+.itembox > .details > .title { font-weight: bold; }
+.itembox > .details > .mpd { font-size: 90%; }
+.itembox > .details > a { text-decoration: none; color: #e25819; }
+.itembox > .details > a:hover { text-decoration: underline; color: #e25819; }
+.itembox > .details > a:visited { color: #e25819; }
+.itembox > .details > a:active { color: #e25819; }
+.itembox > .desc { font-size: 90%; margin-top: 4px; float:none; }
+</style>
+<script type="text/javascript">
+// list of videos to be listed in a html table
+// path=folder name, key=DRM key identifier
+var items= [
+   { "path":"01_avc_hd_sdr_heaac",    "title":"01_avc_hd_sdr_heaac",    "desc":"AVC SDR (1080p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"02_hevc_hd_sdr_heaac",   "title":"02_hevc_hd_sdr_heaac",   "desc":"HEVC SDR (1080p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"03_hevc_uhd_sdr_ac4",    "title":"03_hevc_uhd_sdr_ac4",    "desc":"HEVC SDR (2160p), AC4 (eng), TTML (fin)" }
+  ,{ "path":"04_hevc_uhd_sdr_mpegh",  "title":"04_hevc_uhd_sdr_mpegh",  "desc":"HEVC SDR (2160p), MPEGH (eng), TTML (fin)" }
+  ,{ "path":"05_hevc_uhd_hlg_heaac",  "title":"05_hevc_uhd_hlg_heaac",  "desc":"HEVC HLG (2160p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"06_hevc_uhd_pq10_heaac", "title":"06_hevc_uhd_pq10_heaac", "desc":"HEVC PQ10 (2160p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"07_avc_hd_sdr_heaac",    "title":"07_avc_hd_sdr_heaac",    "desc":"AVC SDR (1080p), HEAAC (eng,fin,ger), TTML (fin,swe)" }
+  ,{ "path":"08_vvc_uhd_pq10_ac4",    "title":"08_vvc_uhd_pq10_ac4",    "desc":"VVC PQ10 (2160p), AC4 (eng), TTML (fin)" }
+  ,{ "path":"09_avs3_uhd_pq10_heaac", "title":"09_avs3_uhd_pq10_heaac", "desc":"AVS3 PQ10 (2160p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"10_avc_hd_sdr_heaac",    "title":"10_avc_hd_sdr_heaac",    "desc":"AVC SDR (1080p), HEAAC (eng), TTML (fin) with multiple text regions and styles" }
+
+  ,{ "path":"1001_vvc_hd_sdr_heaac",   "title":"1001_vvc_hd_sdr_heaac (optional)",   "desc":"VVC SDR (1080p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"1002_vvc_uhd_pq10_heaac", "title":"1002_vvc_uhd_pq10_heaac (optional)", "desc":"VVC PQ10 (2160), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"1003_avc_hd_sdr_mpegh",   "title":"1003_avc_hd_sdr_mpegh (optional)",   "desc":"AVC SDR (1080p), MPEGH (eng,ger), TTML (fin,swe,eng,ger)" }
+  ,{ "path":"1004_avs3_hd_sdr_heaac",  "title":"1004_avs3_hd_sdr_heaac (optional)",  "desc":"AVS3 SDR (1080p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"1005_av1_hd_sdr_heaac",   "title":"1005_av1_hd_sdr_heaac (optional)",   "desc":"AV1 SDR (1080p), HEAAC (eng), TTML (fin)" }
+  ,{ "path":"1006_avc_hd_sdr_ac4",     "title":"1006_avc_hd_sdr_ac4 (optional)",     "desc":"AVC SDR (1080p), AC4 (eng), TTML (fin,swe,eng,ger)" }  
+];
+
+//document.addEventListener('DOMContentLoaded', init);
+var checkLoad = function(counter) {
+  counter++;
+  if (document.readyState != "complete" && counter<1000) {
+	var fn = function() { checkLoad(counter); };
+	setTimeout(fn,10);
+  } else init(counter);
+};
+checkLoad(0);
+
+function init(counter) {
+	var elemItems   = document.getElementById("items");	
+	var elemTemplate= document.getElementById("itemTemplate");
+	var strTemplate = elemTemplate.innerHTML;
+	elemItems.removeChild(elemTemplate);
+	for(var idx=0; idx<items.length; idx++) {
+		var str = strTemplate;
+		//str = str.replace("id=\"itemTemplate\"", "id=\"item_"+idx+"\"");
+		str = str.replace(/\$\{path\}/g, XMLEscape(items[idx].path) );
+		str = str.replace(/\$\{title\}/g, XMLEscape(items[idx].title) );
+		str = str.replace(/\$\{desc\}/g, XMLEscape(items[idx].desc) );
+		
+		// <div class="itembox" id="itemTemplate">
+		var newElem = document.createElement("DIV");
+		newElem.setAttribute("id", "item_"+idx);
+		newElem.setAttribute("class", "itembox");
+		newElem.innerHTML = str;
+		elemItems.appendChild(newElem);
+	}
+}
+
+function XMLEscape(sValue, bUseApos, defIfEmptyVal) {
+  // escape reserved characters
+  var sval="";
+  if (sValue==null || sValue==undefined) sValue="";
+  for(var idx=0; idx < sValue.length; idx++) {
+    var c = sValue.charAt(idx);
+	if      (c == '<') sval += "&lt;";
+	else if (c == '>') sval += "&gt;";
+	else if (c == '&') sval += "&amp;";
+	else if (c == '"') sval += "&quot;";
+	else if (c == '\'') sval += (bUseApos ? "&apos;" : "&#39;");
+	else sval += c;
+  }
+  if (sval=="" && defIfEmptyVal!=undefined)
+	  return defIfEmptyVal;
+  return sval;
+}
+
+</script>
+</head>
+<body>
+
+<div>
+ <img src="https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png" />
+ <b style="font-size:120%">DVB Live Linear Test Streams</b><br/>
+ Live simulator dash streams, DVB-I servicelist, test assets.
+</div>
+<div style="margin-bottom:1em"></div>
+
+<div id="items">
+
+  <div class="itembox" id="itemTemplate" style="display:none">
+     <div class="details">
+	   <!-- <img class="preview" src="${path}/image_320x180.jpg" loading="lazy" /> -->
+	   <div class="title">${title}</div>
+	   <a href="/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/${path}/manifest_livesim.mpd">Livesim2</a> 
+	 | <a href="/jitsu=1/segdur=3.84/spd=8000/tsb=240/stl=1/profile=live/cmaf=cmf2/dmode=dynamic/utcs=inband/ttml_agg=true/+/${path}.pl/-/${path}.mpd">Jitsu(MultiPeriod)</a> 
+	 | <a href="/jitsu=2/segdur=3.84/spd=8000/tsb=240/stl=1/profile=live/cmaf=cmf2/dmode=dynamic/utcs=inband/ttml_agg=true/+/${path}.pl/-/${path}.mpd">Jitsu(SinglePeriod)</a> 
+	 </div>
+    <div class="desc">${desc}</div>
+  </div>
+  
+</div>
+<div style="margin-bottom:1em"></div>
+
+<div>
+ <b style="font-size:120%">DVB-I Service List</b><br/>
+ <div class="itembox">
+   Service list xml file contains all the test services.<br/>
+   <a href="/videos/DVB-live-linear/tagdvborg2025dvblivelinear.xml">tagdvborg2025dvblivelinear.xml</a>
+ </div>
+</div>
+<div style="margin-bottom:1em"></div>
+
+<div>
+ <b style="font-size:120%">Source files</b><br/>  
+ <div class="itembox">
+   Files were used by scripts to prepare the dash delivery.<br/><br/>
+   Main content, video and audio(eng):<br/>
+   <a href="/sofiadigital/videos/mp4/Caminandes_E1-1080p_25fps.mp4">Caminandes_E1-1080p_25fps.mp4 (25fps)</a> <br/>
+   <a href="/sofiadigital/videos/mp4/Caminandes_E1-1080p_50fps.mp4">Caminandes_E1-1080p_50fps.mp4 (50fps)</a><br/>
+   <br/>
+   Separate audio tracks:</br>
+   <a href="/assets/caminandes1_heaac_64k_eng.mp4">caminandes1_heaac_64k_eng.mp4 (AAC, main audio)</a><br/>
+   <a href="/assets/caminandes1_heaac_64k_deu.mp4">caminandes1_heaac_64k_deu.mp4 (with "german" overlay)</a><br/>
+   <a href="/assets/caminandes1_heaac_64k_fin.mp4">caminandes1_heaac_64k_fin.mp4 (with "finnish" overlay)</a><br/>
+   <a href="/assets/caminandes1_heaac_64k_swe.mp4">caminandes1_heaac_64k_swe.mp4 (with "swedish" overlay)</a><br/>
+   <a href="/assets/caminandes1_heaac_64k_spa.mp4">caminandes1_heaac_64k_spa.mp4 (with "spanish" overlay)</a><br/>
+   <br/>
+   <a href="/assets/caminandes1_mpegh_64k_eng.mp4">caminandes1_mpegh_64k_eng.mp4 (MPEGH, main audio)</a><br/>
+   <a href="/assets/caminandes1_mpegh_64k_deu.mp4">caminandes1_mpegh_64k_deu.mp4 (with "german" overlay)</a><br/>
+   <a href="/assets/caminandes1_mpegh_64k_fin.mp4">caminandes1_mpegh_64k_fin.mp4 (with "finnish" overlay)</a><br/>
+   <a href="/assets/caminandes1_mpegh_64k_swe.mp4">caminandes1_mpegh_64k_swe.mp4 (with "swedish" overlay)</a><br/>
+   <a href="/assets/caminandes1_mpegh_64k_spa.mp4">caminandes1_mpegh_64k_spa.mp4 (with "spanish" overlay)</a><br/>
+   <br/>
+   <a href="/assets/ac4_2ch_eng.mp4">ac4_2ch_eng.mp4 (AC4 ambient audio)</a><br/>   
+   <br/>   
+   TTML Subtitles:<br/>
+   <a href="/assets/sub_eng.mp4">sub_eng.mp4</a> | <a href="/assets/sub_eng_v3.xml">sub_eng_v3.xml</a><br/>
+   <a href="/assets/sub_fin.mp4">sub_fin.mp4</a> | <a href="/assets/sub_fin_v3.xml">sub_fin_v3.xml</a><br/>
+   <a href="/assets/sub_fin_v4.mp4">sub_fin_v4.mp4</a> | <a href="/assets/sub_fin_v4.xml">sub_fin_v4.xml</a> (multiple regions and styles)<br/>
+   <a href="/assets/sub_deu.mp4">sub_deu.mp4</a> | <a href="/assets/sub_deu_v3.xml">sub_deu_v3.xml</a><br/>
+   <a href="/assets/sub_swe.mp4">sub_swe.mp4</a> | <a href="/assets/sub_swe_v3.xml">sub_swe_v3.xml</a><br/>
+ </div>
+ 
+</div>
+<div style="margin-bottom:1em"></div>
+
+<div>
+ <b style="font-size:120%">About</b><br/>
+ <div class="itembox">
+   Dash streams were created with <a href="https://www.ffmpeg.org/">FFMPEG</a>, 
+   <a href="https://github.com/gpac/gpac/">MP4BOX(gpac)</a>, 
+   <a href="https://github.com/uavs3/uavs3e">UAVS3</a>,
+   <a href="https://mpegh.com/academy/mas/">MPEG-H Suite(Fraunhofer)</a>
+   tools.<br/>
+   Streams are delivered with <a href="https://github.com/Dash-Industry-Forum/livesim2">LIVESIM2</a> 
+   and <a href="https://github.com/gpac/jitsu-oss">JITSU(gpac)</a> vod-to-live simulators.
+ </div> 
+</div>
+<div style="margin-bottom:1em"></div>
+
+
+<div style="margin-bottom:3em"></div>
+</body>
+</html>

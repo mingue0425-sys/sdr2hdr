@@ -1,0 +1,29 @@
+{
+  "service_list_url": "https://live-linear.dvb.org/videos/DVB-live-linear/tagdvborg2025dvblivelinear.xml",
+  "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+  "services": {
+    "sdr": {
+      "id": "03_hevc_uhd_sdr_ac4",
+      "found": true,
+      "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+      "candidate_urls": [
+        {
+          "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+          "score": 215
+        }
+      ]
+    },
+    "hdr": {
+      "id": "05_hevc_uhd_hlg_heaac",
+      "found": true,
+      "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+      "candidate_urls": [
+        {
+          "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+          "score": 215
+        }
+      ]
+    }
+  },
+  "errors": []
+}

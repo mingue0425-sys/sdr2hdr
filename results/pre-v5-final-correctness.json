@@ -1,5 +1,4 @@
 {
-  "auditArtifactHash" : "7b31f600b6f3cc3df4b3ac538d7b8da5a4075b0d46915489092778b8bd0518ef",
   "checks" : [
     {
       "evidence" : {
@@ -497,11 +496,227 @@
       "status" : "PASS"
     }
   ],
-  "datasetLockHash" : "e9a815b610f765c12c92c5b447595b5922281506ed1f4d50617fc58f5be4675e",
+  "datasetReady" : true,
+  "evidencePortable" : true,
+  "freezeIntegrity" : {
+    "evidence" : {
+      "booleans" : {
+        "cleanTreeFreezeAllowed" : true,
+        "dirtyTreeFreezeRejected" : true,
+        "workingTreeDirty" : true
+      },
+      "counts" : {
+        "workingTreeStatusEntries" : 1
+      },
+      "numerical" : {
+
+      },
+      "summary" : "candidate freeze guard was exercised with both dirty and clean working-tree states"
+    },
+    "executed" : true,
+    "id" : "freeze-integrity",
+    "required" : true,
+    "status" : "PASS"
+  },
+  "frozenComposition" : [
+    {
+      "family" : "SoleMates",
+      "id" : "solemates_unh0400_0010",
+      "objectiveEvaluated" : false,
+      "provenanceEvidence" : [
+
+      ],
+      "transfer" : "PQ",
+      "virginStatus" : "VIRGIN_FROZEN"
+    },
+    {
+      "family" : "DVB Live-Linear",
+      "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "objectiveEvaluated" : false,
+      "provenanceEvidence" : [
+
+      ],
+      "transfer" : "HLG",
+      "virginStatus" : "VIRGIN_FROZEN"
+    },
+    {
+      "family" : "LIVE",
+      "id" : "live_8_drawing_3840x2160_15000k",
+      "objectiveEvaluated" : false,
+      "provenanceEvidence" : [
+
+      ],
+      "transfer" : "PQ",
+      "virginStatus" : "VIRGIN_FROZEN"
+    }
+  ],
+  "frozenCoveragePolicy" : {
+    "minimumDistinctVirginFrozenFamilies" : 2,
+    "minimumVirginFrozenPairs" : 3,
+    "rationale" : [
+      "HLG and PQ are both production input\/reference transfer families and must be represented in Virgin Frozen.",
+      "Family diversity tests distributional generalisation; a legacy family name is not itself a scientific requirement.",
+      "At least three virgin pairs and two distinct virgin families provide a preregistered minimum holdout breadth."
+    ],
+    "requiredFamilies" : [
+
+    ],
+    "requiredTransfers" : [
+      "HLG",
+      "PQ"
+    ],
+    "version" : "pre-v5-frozen-coverage-v1"
+  },
   "generatedAt" : "2026-08-30T10:31:37Z",
-  "manifestHash" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
-  "manifestPath" : "repo:data_video\/manifest-v4.json",
-  "tune" : {
+  "holdoutProvenance" : {
+    "consumedPairIDs" : [
+      "live_16_night_biking_3840x2160_15000k",
+      "video6_le_sserafim_hot"
+    ],
+    "evidenceByPairID" : {
+      "live_16_night_biking_3840x2160_15000k" : [
+        "repo:dataset\/holdout-provenance-v5.json#V4 Virgin Frozen objective result was previously exposed; never treat this pair as virgin again.",
+        "repo:results\/data-video-v4-final.json",
+        "repo:results\/data-video-v4-frozen.json"
+      ],
+      "video6_le_sserafim_hot" : [
+        "repo:results\/data-video-v2-frozen.json",
+        "repo:results\/data-video-v3-frozen.json"
+      ]
+    },
+    "scannedArtifacts" : [
+      "repo:dataset\/holdout-provenance-v5.json",
+      "repo:results\/data-video-v2-frozen.json",
+      "repo:results\/data-video-v3-frozen.json",
+      "repo:results\/data-video-v4-final.json",
+      "repo:results\/data-video-v4-frozen.json"
+    ],
+    "version" : "pre-v5-holdout-provenance-v1"
+  },
+  "newHLGHoldoutAudit" : {
+    "candidates" : [
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.9957;p10=0.9890;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=6;HDR=6;FULL=3072",
+        "hdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+        "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_ARIB_STD_B67",
+        "objectiveHistory" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+        "provenanceStatus" : "PASS_MANIFEST_SHA=66e2dc6bb74f6fce83ce80f70d46a9deda89b5082f110435ba5b83a20246038d;ASSET_SHA_MATCH;CONTIGUOUS=16;DURATION=61.44",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+        "source" : "manifest-v4-virgin-evidence"
+      }
+    ],
+    "consumedHLGPairIDs" : [
+      "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "video6_le_sserafim_hot"
+    ],
+    "found" : true,
+    "objectiveEvaluationCount" : 0,
+    "reason" : "a metadata-verified, decoded, strongly aligned, objective-unexposed local HLG\/BT.709 pair is available",
+    "required" : true,
+    "searchedRoots" : [
+      "repo:data_video",
+      "workspace-parent"
+    ],
+    "status" : "FOUND",
+    "version" : "pre-v5-new-hlg-holdout-audit-v3"
+  },
+  "objectiveEvaluationCount" : 0,
+  "priorCorrectnessVerdict" : "CORRECTNESS_CHECK_FAIL",
+  "structuralEvidence" : [
+    {
+      "pairID" : "video1_ive_blackhole",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "tune",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 64,
+      "temporalFramesMeasured" : 60,
+      "temporalWindowsRequested" : 4,
+      "temporalWindowsValid" : 4
+    },
+    {
+      "pairID" : "video2_newjeans_new_jeans",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "tune",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 32,
+      "temporalFramesMeasured" : 30,
+      "temporalWindowsRequested" : 2,
+      "temporalWindowsValid" : 2
+    },
+    {
+      "pairID" : "video3_newjeans_how_sweet",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "tune",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 32,
+      "temporalFramesMeasured" : 30,
+      "temporalWindowsRequested" : 2,
+      "temporalWindowsValid" : 2
+    },
+    {
+      "pairID" : "live_9_face_close_3840x2160_15000k",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "tune",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 16,
+      "temporalFramesMeasured" : 15,
+      "temporalWindowsRequested" : 1,
+      "temporalWindowsValid" : 1
+    },
+    {
+      "pairID" : "live_13_interview_3840x2160_15000k",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "tune",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 11,
+      "temporalFramesMeasured" : 10,
+      "temporalWindowsRequested" : 1,
+      "temporalWindowsValid" : 1
+    },
+    {
+      "pairID" : "video4_aespa_lemonade",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "validation",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 48,
+      "temporalFramesMeasured" : 45,
+      "temporalWindowsRequested" : 3,
+      "temporalWindowsValid" : 3
+    },
+    {
+      "pairID" : "live_22_programming_night_3840x2160_15000k",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "validation",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 16,
+      "temporalFramesMeasured" : 15,
+      "temporalWindowsRequested" : 1,
+      "temporalWindowsValid" : 1
+    },
+    {
+      "pairID" : "live_4_campfire_3840x2160_15000k",
+      "spatialRepresentativeFrames" : 40,
+      "split" : "validation",
+      "status" : "PASS",
+      "temporalFramesDecoded" : 15,
+      "temporalFramesMeasured" : 14,
+      "temporalWindowsRequested" : 1,
+      "temporalWindowsValid" : 1
+    }
+  ],
+  "temporalWindowPolicy" : {
+    "minimumRequiredFrameCount" : 8,
+    "targetFrameCount" : 16,
+    "warmupFrameCount" : 1,
+    "weightingPolicy" : "EQUAL_SCENE_WINDOW_WEIGHT;FRAMES_WITHIN_WINDOW_ONLY"
+  },
+  "tuneStructural" : {
     "complete" : true,
     "evaluatedPairIDs" : [
       "live_13_interview_3840x2160_15000k",
@@ -773,7 +988,7 @@
     "requestedVideoCount" : 5,
     "split" : "tune"
   },
-  "validation" : {
+  "validationStructural" : {
     "complete" : true,
     "evaluatedPairIDs" : [
       "live_22_programming_night_3840x2160_15000k",
@@ -926,6 +1141,6 @@
     "split" : "validation"
   },
   "verdict" : "CORRECTNESS_READY_FOR_V5",
-  "version" : "correctness-review-v3",
-  "virginFrozenObjectiveEvaluated" : false
+  "version" : "pre-v5-final-correctness-v1",
+  "virginFrozenObjectiveEvaluationCount" : 0
 }

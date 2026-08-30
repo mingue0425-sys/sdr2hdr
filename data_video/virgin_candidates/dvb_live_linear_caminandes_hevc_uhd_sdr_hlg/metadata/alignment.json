@@ -1,0 +1,51 @@
+{
+  "method": "full-timeline 32x18 luma temporal Spearman + spatial NCC",
+  "fps": 50,
+  "sdr_frames": 3072,
+  "hdr_frames": 3072,
+  "best_offset_frames": 0,
+  "best_offset_seconds": 0.0,
+  "aligned_overlap_frames": 3072,
+  "aligned_overlap_seconds": 61.44,
+  "temporal": {
+    "offset": 0,
+    "mean_rho": 0.9992766416977431,
+    "std_rho": 0.9962646001577414,
+    "edge_rho": 0.9986848938169108,
+    "temporal": 0.9980753785574651,
+    "pair_count": 1536
+  },
+  "spatial": {
+    "valid_pairs": 1024,
+    "median": 0.9988557370846167,
+    "p10": 0.9949631973588282
+  },
+  "first_window": {
+    "offset": 0,
+    "mean_rho": 0.9952519514731153,
+    "std_rho": 0.9943289972639562,
+    "edge_rho": 0.9987863474164705,
+    "temporal": 0.9961224320511807,
+    "pair_count": 250
+  },
+  "last_window": {
+    "offset": 0,
+    "mean_rho": 0.9983756462200846,
+    "std_rho": 0.99834339749436,
+    "edge_rho": 0.9984434242209673,
+    "temporal": 0.998387489311804,
+    "pair_count": 250
+  },
+  "drift_frames": 0,
+  "thresholds": {
+    "mean_spearman_min": 0.94,
+    "edge_spearman_min": 0.88,
+    "std_spearman_min": 0.78,
+    "spatial_median_min": 0.72,
+    "spatial_p10_min": 0.25,
+    "max_drift_frames": 2,
+    "min_aligned_frames": 2500,
+    "max_offset_frames": 400
+  },
+  "errors": []
+}

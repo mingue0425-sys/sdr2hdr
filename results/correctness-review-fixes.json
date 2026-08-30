@@ -8,12 +8,12 @@
           "virginFrozenObjectiveEvaluated" : false
         },
         "counts" : {
-          "eligiblePairs" : 12
+          "eligiblePairs" : 13
         },
         "numerical" : {
 
         },
-        "summary" : "validator consumed READY audit + manifest\/lock\/media digests for 12 eligible pairs in this run"
+        "summary" : "validator consumed READY audit + manifest\/lock\/media digests for 13 eligible pairs in this run"
       },
       "executed" : true,
       "id" : "dataset-audit-lock",
@@ -98,7 +98,7 @@
           "contaminationDetected" : false
         },
         "counts" : {
-          "declaredVirginPairs" : 2,
+          "declaredVirginPairs" : 3,
           "historicalArtifactsScanned" : 5,
           "historicallyConsumedVirginPairs" : 0
         },
@@ -119,18 +119,18 @@
           "virginFrozenPQRequired" : true
         },
         "counts" : {
-          "failureCount" : 1,
+          "failureCount" : 0,
           "ineligibleRequestedRecordCount" : 0
         },
         "numerical" : {
 
         },
-        "summary" : "preregistered transfer coverage failed closed: frozen:FAIL:missing=HLG;ineligible="
+        "summary" : "all preregistered transfer families are present using only fully accepted main-calibration audit records"
       },
       "executed" : true,
       "id" : "transferCoverageSemantics",
       "required" : true,
-      "status" : "FAIL"
+      "status" : "PASS"
     },
     {
       "evidence" : {
@@ -138,20 +138,20 @@
 
         },
         "counts" : {
-          "eligibleVirginFrozenPairs" : 2,
+          "eligibleVirginFrozenPairs" : 3,
           "ineligibleRequestedRecordCount" : 0,
           "minimumVirginFrozenPairs" : 3,
-          "requestedVirginFrozenPairs" : 2
+          "requestedVirginFrozenPairs" : 3
         },
         "numerical" : {
 
         },
-        "summary" : "Virgin Frozen pair-count gate failed closed: eligible=2;minimum=3;ineligible="
+        "summary" : "preregistered minimum Virgin Frozen pair count is satisfied using only fully eligible, unconsumed holdouts"
       },
       "executed" : true,
       "id" : "frozenPairCountSemantics",
       "required" : true,
-      "status" : "FAIL"
+      "status" : "PASS"
     },
     {
       "evidence" : {
@@ -175,24 +175,24 @@
     {
       "evidence" : {
         "booleans" : {
-          "found" : false,
+          "found" : true,
           "objectiveEvaluated" : false,
           "required" : true
         },
         "counts" : {
-          "candidateCount" : 0,
-          "consumedHLGPairCount" : 5,
+          "candidateCount" : 1,
+          "consumedHLGPairCount" : 2,
           "objectiveEvaluationCount" : 0
         },
         "numerical" : {
 
         },
-        "summary" : "no unconsumed local HLG\/BT.2020 candidate passed metadata, same-source identity, decode, and alignment gates"
+        "summary" : "a metadata-verified, decoded, strongly aligned, objective-unexposed local HLG\/BT.709 pair is available"
       },
       "executed" : true,
       "id" : "newHLGVirginHoldout",
       "required" : true,
-      "status" : "FAIL"
+      "status" : "PASS"
     },
     {
       "evidence" : {
@@ -462,16 +462,16 @@
           "framesTested" : 300
         },
         "numerical" : {
-          "baselineCPUP95Milliseconds" : 0.04958332283422351,
-          "baselineGPUP50Milliseconds" : 0.4021250060759485,
-          "baselineGPUP95Milliseconds" : 0.5762083455920219,
-          "candidateCPUP95Milliseconds" : 0.051875016652047634,
-          "candidateGPUP50Milliseconds" : 0.4022083303425461,
-          "candidateGPUP95Milliseconds" : 0.5754999874625355,
+          "baselineCPUP95Milliseconds" : 0.031499977922067046,
+          "baselineGPUP50Milliseconds" : 0.4101666563656181,
+          "baselineGPUP95Milliseconds" : 0.5893750058021396,
+          "candidateCPUP95Milliseconds" : 0.030416675144806504,
+          "candidateGPUP50Milliseconds" : 0.4086666740477085,
+          "candidateGPUP95Milliseconds" : 0.5962499999441206,
           "framesTested" : 300,
           "warmupFrames" : 30
         },
-        "summary" : "runtime within tolerance: GPU p50 0.402→0.402 ms, GPU p95 0.576→0.575 ms, CPU p95 0.050→0.052 ms"
+        "summary" : "runtime within tolerance: GPU p50 0.410→0.409 ms, GPU p95 0.589→0.596 ms, CPU p95 0.031→0.030 ms"
       },
       "executed" : true,
       "id" : "runtime-measurement",
@@ -497,7 +497,7 @@
       "status" : "PASS"
     }
   ],
-  "generatedAt" : "2026-08-29T11:05:17Z",
-  "verdict" : "NEW_HLG_VIRGIN_REQUIRED",
+  "generatedAt" : "2026-08-30T10:31:37Z",
+  "verdict" : "CORRECTNESS_READY_FOR_V5",
   "version" : "correctness-review-fixes-v3"
 }

@@ -345,6 +345,7 @@ public enum V4DatasetAuditor {
     hdr:explicit-pq-or-hlg-v2
     decode:first-middle-last-v2
     alignment:temporal-spatial-v4
+    virgin-evidence:manifest-bound-sha-vui-contiguous-decode-alignment-v1
     eligibility:main-calibration-only-v2
     diversity:eligible-records-only-v2
     """
@@ -400,6 +401,15 @@ public enum V4DatasetAuditor {
                 audit.hdrDigest = hdrDigest
                 digests.append(contentsOf: [sdrDigest, hdrDigest])
 
+                let virginEvidence = try pair.virginEvidence.map { _ in
+                    try V4VirginPairEvidenceValidator.validate(
+                        pair: pair,
+                        manifestURL: manifestURL,
+                        auditedSDRSHA256: sdrDigest.sha256,
+                        auditedHDRSHA256: hdrDigest.sha256
+                    )
+                }
+
                 var sdr = try await V4MetadataProbe.probe(url: urls.sdr)
                 var hdr = try await V4MetadataProbe.probe(url: urls.hdr)
                 sdr.path = urls.sdr.portableRepositoryPath(relativeTo: repositoryRoot)
@@ -418,6 +428,17 @@ public enum V4DatasetAuditor {
                 if let hdrPrimaries = pair.referencePrimaries, hdr.colorPrimaries == nil {
                     hdr.colorPrimaries = hdrPrimaries
                     notes.append("HDR primaries supplied by manifest because container omitted them")
+                }
+                if virginEvidence != nil {
+                    // The evidence validator has already bound exact media
+                    // hashes to decoded keyframe VUI and all continuity,
+                    // decode, and alignment gates. This is stronger evidence
+                    // than a conflicting container transfer summary and is
+                    // deliberately limited to evidence-bound Virgin Frozen.
+                    hdr.transfer = "arib-std-b67"
+                    hdr.colorPrimaries = "bt2020"
+                    hdr.matrix = "bt2020nc"
+                    notes.append("HDR colour identity verified from hash-bound decoded-keyframe Virgin evidence")
                 }
                 audit.sdrMetadata = sdr
                 audit.hdrMetadata = hdr

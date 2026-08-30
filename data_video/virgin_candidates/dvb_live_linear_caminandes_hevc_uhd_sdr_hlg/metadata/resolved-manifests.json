@@ -1,0 +1,9 @@
+{
+  "resolver": "official DVB-I service-list delivery URI",
+  "sdr_mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+  "hdr_mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+  "sdr_mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+  "hdr_mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+  "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+  "errors": []
+}

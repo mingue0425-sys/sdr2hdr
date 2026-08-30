@@ -24,6 +24,29 @@ public enum V4ExpectedRelation: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Portable, immutable evidence binding for a manifest-declared Virgin Frozen
+/// pair. The validation manifest remains the source of detailed colour,
+/// decode, continuity, and alignment evidence; these hashes bind that evidence
+/// to the exact media registered in the V4 manifest.
+public struct V4VirginEvidenceReference: Codable, Hashable, Sendable {
+    public var validationManifest: String
+    public var validationManifestSHA256: String
+    public var sdrSHA256: String
+    public var hdrSHA256: String
+
+    public init(
+        validationManifest: String,
+        validationManifestSHA256: String,
+        sdrSHA256: String,
+        hdrSHA256: String
+    ) {
+        self.validationManifest = validationManifest
+        self.validationManifestSHA256 = validationManifestSHA256
+        self.sdrSHA256 = sdrSHA256
+        self.hdrSHA256 = hdrSHA256
+    }
+}
+
 public struct V4PairRecord: Codable, Hashable, Sendable {
     public var id: String
     public var sdr: String
@@ -44,6 +67,12 @@ public struct V4PairRecord: Codable, Hashable, Sendable {
     public var group: String?
     public var notes: String?
     public var metadataSummary: V4ManifestMetadataSummary?
+    /// Explicit objective-consumption state for evidence-bound Virgin Frozen
+    /// additions. Legacy entries decode as nil and retain their historical
+    /// semantics.
+    public var objectiveEvaluated: Bool?
+    public var consumed: Bool?
+    public var virginEvidence: V4VirginEvidenceReference?
 
     public init(
         id: String,
@@ -62,7 +91,10 @@ public struct V4PairRecord: Codable, Hashable, Sendable {
         virginFrozen: Bool = false,
         group: String? = nil,
         notes: String? = nil,
-        metadataSummary: V4ManifestMetadataSummary? = nil
+        metadataSummary: V4ManifestMetadataSummary? = nil,
+        objectiveEvaluated: Bool? = nil,
+        consumed: Bool? = nil,
+        virginEvidence: V4VirginEvidenceReference? = nil
     ) {
         self.id = id
         self.sdr = sdr
@@ -81,6 +113,9 @@ public struct V4PairRecord: Codable, Hashable, Sendable {
         self.group = group
         self.notes = notes
         self.metadataSummary = metadataSummary
+        self.objectiveEvaluated = objectiveEvaluated
+        self.consumed = consumed
+        self.virginEvidence = virginEvidence
     }
 
     public func resolvedURLs(
@@ -182,6 +217,32 @@ public struct V4Manifest: Codable, Sendable {
             }
             if pair.virginFrozen && pair.split != .frozen {
                 throw CalibrationError.invalidManifest("virginFrozen pair \(pair.id) must be in frozen split")
+            }
+            if let evidence = pair.virginEvidence {
+                guard pair.virginFrozen && pair.split == .frozen else {
+                    throw CalibrationError.invalidManifest("evidence-bound pair \(pair.id) must be Virgin Frozen")
+                }
+                guard pair.objectiveEvaluated == false, pair.consumed == false else {
+                    throw CalibrationError.invalidManifest(
+                        "evidence-bound Virgin Frozen pair \(pair.id) must explicitly set objectiveEvaluated=false and consumed=false"
+                    )
+                }
+                guard !evidence.validationManifest.hasPrefix("/"),
+                      !evidence.validationManifest.split(separator: "/").contains("..") else {
+                    throw CalibrationError.invalidManifest(
+                        "Virgin evidence path for \(pair.id) must be repository-relative and may not escape its manifest directory"
+                    )
+                }
+                for (label, hash) in [
+                    ("validation manifest", evidence.validationManifestSHA256),
+                    ("SDR", evidence.sdrSHA256),
+                    ("HDR", evidence.hdrSHA256)
+                ] {
+                    let isSHA256 = hash.count == 64 && hash.allSatisfy { $0.isHexDigit }
+                    guard isSHA256 else {
+                        throw CalibrationError.invalidManifest("\(pair.id) has an invalid \(label) SHA-256")
+                    }
+                }
             }
             if let group = pair.group, !group.isEmpty {
                 if let previous = groupSplits[group], previous != pair.split {

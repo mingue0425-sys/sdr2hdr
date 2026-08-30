@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ServiceList xmlns="urn:dvb:metadata:servicediscovery:2024" xmlns:dvbi-types="urn:dvb:metadata:servicediscovery-types:2023" xmlns:mpeg7="urn:tva:mpeg7:2008" xmlns:tva="urn:tva:metadata:2024" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="tag:dvb.org,2025:dvb-live-linear" version="20251124141928" xml:lang="en" xsi:schemaLocation="urn:dvb:metadata:servicediscovery:2024">
+    <Name>DVB Live Linear SLM</Name>
+    <ProviderName xml:lang="en">DVB</ProviderName>
+    <RelatedMaterial>
+        <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.1"/>
+        <tva:MediaLocator>
+            <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+        </tva:MediaLocator>
+    </RelatedMaterial>
+    <RegionList version="1">
+        <Region countryCodes="DEU" regionID="DVB-live-linear" xml:lang="en">
+            <RegionName xml:lang="en">DVB DASH Live Linear</RegionName>
+            <Region regionID="official-tests" xml:lang="en">
+                <RegionName xml:lang="en">Official Tests</RegionName>
+            </Region>
+            <Region regionID="unofficial-tests" xml:lang="en">
+                <RegionName xml:lang="en">Unofficial Tests</RegionName>
+            </Region>
+        </Region>
+    </RegionList>
+    <LCNTableList>
+        <LCNTable>
+            <TargetRegion>DVB-live-linear</TargetRegion>
+            <LCN channelNumber="1" serviceRef="tag:dvb.org,2025:avchdheaac"/>
+            <LCN channelNumber="2" serviceRef="tag:dvb.org,2025:hevchdheaac"/>
+            <LCN channelNumber="5" serviceRef="tag:dvb.org,2025:hevcuhdhlgheaac"/>
+            <LCN channelNumber="7" serviceRef="tag:dvb.org,2025:avchdheaacsubs"/>
+            <LCN channelNumber="4" serviceRef="tag:dvb.org,2025:hevcuhdmpegh"/>
+            <LCN channelNumber="6" serviceRef="tag:dvb.org,2025:hevcuhdpq10heaac"/>
+            <LCN channelNumber="1001" serviceRef="tag:dvb.org,2025:vvchdheaac"/>
+            <LCN channelNumber="1002" serviceRef="tag:dvb.org,2025:vvcuhdpq10heaac"/>
+            <LCN channelNumber="1003" serviceRef="tag:dvb.org,2025:avchdmpegh"/>
+            <LCN channelNumber="1004" serviceRef="tag:dvb.org,2025:avs3hdheaac"/>
+            <LCN channelNumber="3" serviceRef="tag:dvb.org,2025:hevcuhdac4"/>
+            <LCN channelNumber="8" serviceRef="tag:dvb.org,2025:vvcuhdpq10ac4"/>
+            <LCN channelNumber="1005" serviceRef="tag:dvb.org,2025:av1hdheaac"/>
+            <LCN channelNumber="9" serviceRef="tag:dvb.org,2025:avs3uhdpq10heaac"/>
+        </LCNTable>
+        <LCNTable>
+            <TargetRegion>official-tests</TargetRegion>
+            <LCN channelNumber="1" serviceRef="tag:dvb.org,2025:avchdheaac"/>
+            <LCN channelNumber="2" serviceRef="tag:dvb.org,2025:hevchdheaac"/>
+            <LCN channelNumber="5" serviceRef="tag:dvb.org,2025:hevcuhdhlgheaac"/>
+            <LCN channelNumber="7" serviceRef="tag:dvb.org,2025:avchdheaacsubs"/>
+            <LCN channelNumber="4" serviceRef="tag:dvb.org,2025:hevcuhdmpegh"/>
+            <LCN channelNumber="6" serviceRef="tag:dvb.org,2025:hevcuhdpq10heaac"/>
+            <LCN channelNumber="1001" selectable="false" serviceRef="tag:dvb.org,2025:vvchdheaac" visible="false"/>
+            <LCN channelNumber="1002" selectable="false" serviceRef="tag:dvb.org,2025:vvcuhdpq10heaac" visible="false"/>
+            <LCN channelNumber="1003" selectable="false" serviceRef="tag:dvb.org,2025:avchdmpegh" visible="false"/>
+            <LCN channelNumber="1004" selectable="false" serviceRef="tag:dvb.org,2025:avs3hdheaac" visible="false"/>
+            <LCN channelNumber="3" serviceRef="tag:dvb.org,2025:hevcuhdac4"/>
+            <LCN channelNumber="8" serviceRef="tag:dvb.org,2025:vvcuhdpq10ac4"/>
+            <LCN channelNumber="1005" selectable="false" serviceRef="tag:dvb.org,2025:av1hdheaac" visible="false"/>
+            <LCN channelNumber="9" serviceRef="tag:dvb.org,2025:avs3uhdpq10heaac"/>
+        </LCNTable>
+        <LCNTable>
+            <TargetRegion>unofficial-tests</TargetRegion>
+            <LCN channelNumber="1" selectable="false" serviceRef="tag:dvb.org,2025:avchdheaac" visible="false"/>
+            <LCN channelNumber="2" selectable="false" serviceRef="tag:dvb.org,2025:hevchdheaac" visible="false"/>
+            <LCN channelNumber="5" selectable="false" serviceRef="tag:dvb.org,2025:hevcuhdhlgheaac" visible="false"/>
+            <LCN channelNumber="7" selectable="false" serviceRef="tag:dvb.org,2025:avchdheaacsubs" visible="false"/>
+            <LCN channelNumber="4" selectable="false" serviceRef="tag:dvb.org,2025:hevcuhdmpegh" visible="false"/>
+            <LCN channelNumber="6" selectable="false" serviceRef="tag:dvb.org,2025:hevcuhdpq10heaac" visible="false"/>
+            <LCN channelNumber="1001" serviceRef="tag:dvb.org,2025:vvchdheaac"/>
+            <LCN channelNumber="1002" serviceRef="tag:dvb.org,2025:vvcuhdpq10heaac"/>
+            <LCN channelNumber="1003" serviceRef="tag:dvb.org,2025:avchdmpegh"/>
+            <LCN channelNumber="1004" serviceRef="tag:dvb.org,2025:avs3hdheaac"/>
+            <LCN channelNumber="3" selectable="false" serviceRef="tag:dvb.org,2025:hevcuhdac4" visible="false"/>
+            <LCN channelNumber="8" selectable="false" serviceRef="tag:dvb.org,2025:vvcuhdpq10ac4" visible="false"/>
+            <LCN channelNumber="1005" serviceRef="tag:dvb.org,2025:av1hdheaac"/>
+            <LCN channelNumber="9" selectable="false" serviceRef="tag:dvb.org,2025:avs3uhdpq10heaac" visible="false"/>
+        </LCNTable>
+    </LCNTableList>
+    <Service version="5">
+        <UniqueIdentifier>tag:dvb.org,2025:avchdheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/01_avc_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>01 AVC HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="5">
+        <UniqueIdentifier>tag:dvb.org,2025:hevchdheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/02_hevc_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>02 HEVC HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+    </Service>
+    <Service version="1">
+        <UniqueIdentifier>tag:dvb.org,2025:hevcuhdac4</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>03 HEVC UHD AC4</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="3">
+        <UniqueIdentifier>tag:dvb.org,2025:hevcuhdmpegh</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/04_hevc_uhd_sdr_mpegh/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>04 HEVC UHD MPEGH</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="5">
+        <UniqueIdentifier>tag:dvb.org,2025:hevcuhdhlgheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>05 HEVC UHD HLG HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="4">
+        <UniqueIdentifier>tag:dvb.org,2025:hevcuhdpq10heaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/06_hevc_uhd_pq10_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>06 HEVC UHD PQ10 HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="9">
+        <UniqueIdentifier>tag:dvb.org,2025:avchdheaacsubs</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <ContentAttributes>
+                <AccessibilityAttributes>
+                    <tva:SubtitleAttributes>
+                        <tva:Carriage href="urn:tva:metadata:cs:SubtitleCarriageCS:2023:3"/>
+                        <tva:Coding href="urn:tva:metadata:cs:SubtitleCodingFormatCS:2023:3.2"/>
+                        <tva:SubtitleLanguage>fi</tva:SubtitleLanguage>
+                        <tva:Purpose href="urn:tva:metadata:cs:SubtitlePurposeCS:2023:1"/>
+                        <tva:SuitableForTTS>false</tva:SuitableForTTS>
+                    </tva:SubtitleAttributes>
+                    <tva:SubtitleAttributes>
+                        <tva:Carriage href="urn:tva:metadata:cs:SubtitleCarriageCS:2023:3"/>
+                        <tva:Coding href="urn:tva:metadata:cs:SubtitleCodingFormatCS:2023:3.2"/>
+                        <tva:SubtitleLanguage>sv</tva:SubtitleLanguage>
+                        <tva:Purpose href="urn:tva:metadata:cs:SubtitlePurposeCS:2023:1"/>
+                        <tva:SuitableForTTS>false</tva:SuitableForTTS>
+                    </tva:SubtitleAttributes>
+                </AccessibilityAttributes>
+            </ContentAttributes>
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/07_avc_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>07 AVC HEAAC Multi Subs</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="1">
+        <UniqueIdentifier>tag:dvb.org,2025:vvcuhdpq10ac4</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/08_vvc_uhd_pq10_ac4/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>08 VVC UHD PQ10 AC4</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="1">
+        <UniqueIdentifier>tag:dvb.org,2025:avs3uhdpq10heaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/09_avs3_uhd_pq10_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>09 AVS3 UHD PQ10 HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/dvb-logo.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="5">
+        <UniqueIdentifier>tag:dvb.org,2025:vvchdheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/1001_vvc_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>1001 VVC HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/sofiadigital_logo_rgb-1%209.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="5">
+        <UniqueIdentifier>tag:dvb.org,2025:vvcuhdpq10heaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/1002_vvc_uhd_pq10_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>1002 VVC UHD PQ10 HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/sofiadigital_logo_rgb-1%209.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="6">
+        <UniqueIdentifier>tag:dvb.org,2025:avchdmpegh</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/1003_avc_hd_sdr_mpegh/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>1003 AVC MPEGH</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/sofiadigital_logo_rgb-1%209.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="2">
+        <UniqueIdentifier>tag:dvb.org,2025:avs3hdheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/1004_avs3_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>1004 AVS3 HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/sofiadigital_logo_rgb-1%209.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+    <Service version="1">
+        <UniqueIdentifier>tag:dvb.org,2025:av1hdheaac</UniqueIdentifier>
+        <ServiceInstance priority="0">
+            <DASHDeliveryParameters>
+                <UriBasedLocation contentType="application/dash+xml">
+                    <dvbi-types:URI>https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/1005_av1_hd_sdr_heaac/manifest_livesim.mpd</dvbi-types:URI>
+                </UriBasedLocation>
+            </DASHDeliveryParameters>
+        </ServiceInstance>
+        <ServiceName>1005 AV1 HEAAC</ServiceName>
+        <ProviderName xml:lang="en">DVB</ProviderName>
+        <RelatedMaterial>
+            <tva:HowRelated href="urn:dvb:metadata:cs:HowRelatedCS:2021:1001.2"/>
+            <tva:MediaLocator>
+                <tva:MediaUri contentType="image/png">https://live-linear.dvb.org/videos/DVB-live-linear/images/sofiadigital_logo_rgb-1%209.png</tva:MediaUri>
+            </tva:MediaLocator>
+        </RelatedMaterial>
+        <ServiceType href="urn:dvb:metadata:cs:ServiceTypeCS:2019:linear"/>
+    </Service>
+</ServiceList>

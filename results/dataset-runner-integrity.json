@@ -1,7 +1,8 @@
 {
-  "auditConfigHash" : "18a10e54889115cef739af5f129fe0467ae9b298353187bfea5599ee2da61b23",
-  "auditHash" : "6a08d14af22605f372d6eb7b5af1060b7c6ca93c0a44f803415b8c34121312b1",
+  "auditConfigHash" : "d5cd18a25eadf3bfa8057f2d99dacb30a0668e3b3e926f8bd29202b4916a2b99",
+  "auditHash" : "7b31f600b6f3cc3df4b3ac538d7b8da5a4075b0d46915489092778b8bd0518ef",
   "eligiblePairIDs" : [
+    "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
     "live_13_interview_3840x2160_15000k",
     "live_16_night_biking_3840x2160_15000k",
     "live_22_programming_night_3840x2160_15000k",
@@ -15,10 +16,11 @@
     "video4_aespa_lemonade",
     "video6_le_sserafim_hot"
   ],
-  "lockHash" : "3e44ace27334cb1ca0a2a7296811f127856c0683b5d453212f88b0285c29319b",
-  "manifestHash" : "28d055234d764e036ae45e2104e0885313593acd8c7e5bf2b406a611f79c7654",
+  "lockHash" : "e9a815b610f765c12c92c5b447595b5922281506ed1f4d50617fc58f5be4675e",
+  "manifestHash" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
   "objectiveEvaluated" : false,
   "relationByPairID" : {
+    "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg" : "same-master",
     "live_13_interview_3840x2160_15000k" : "same-source",
     "live_16_night_biking_3840x2160_15000k" : "same-source",
     "live_22_programming_night_3840x2160_15000k" : "same-source",

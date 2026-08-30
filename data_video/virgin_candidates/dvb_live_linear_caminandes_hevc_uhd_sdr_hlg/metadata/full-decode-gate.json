@@ -1,0 +1,38 @@
+{
+  "sdr_decoded_frames": 3072,
+  "hdr_decoded_frames": 3072,
+  "minimum_required_frames_each": 3000,
+  "expected_frames_from_contiguous_run": 3072,
+  "decoded_frame_counts_exactly_equal": true,
+  "sdr_fps": 50.0,
+  "hdr_fps": 50.0,
+  "segment_identity_arrays_exactly_equal": true,
+  "contiguous_run": {
+    "start_segment": 13640794,
+    "end_segment": 13640809,
+    "segment_count": 16,
+    "duration_seconds": 61.44,
+    "segment_duration_seconds": 3.84,
+    "no_gaps": true,
+    "segment_identities": [
+      "n:13640794",
+      "n:13640795",
+      "n:13640796",
+      "n:13640797",
+      "n:13640798",
+      "n:13640799",
+      "n:13640800",
+      "n:13640801",
+      "n:13640802",
+      "n:13640803",
+      "n:13640804",
+      "n:13640805",
+      "n:13640806",
+      "n:13640807",
+      "n:13640808",
+      "n:13640809"
+    ]
+  },
+  "capture_seconds_requested": 70.0,
+  "errors": []
+}

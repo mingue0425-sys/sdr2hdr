@@ -296,6 +296,194 @@ public enum V4HistoricalObjectiveProvenance {
     }
 }
 
+public struct V4VirginPairEvidenceValidation: Sendable, Equatable {
+    public let validationManifestSHA256: String
+    public let sdrSHA256: String
+    public let hdrSHA256: String
+    public let segmentIdentities: [String]
+    public let segmentCount: Int
+    public let durationSeconds: Double
+    public let decodedFrameCount: Int
+}
+
+/// Validates an evidence-bound Virgin Frozen addition without invoking an
+/// objective evaluator. Every admission condition is fail-closed and the
+/// media digests come from the current dataset audit, not from filenames.
+public enum V4VirginPairEvidenceValidator {
+    private struct JSONView {
+        let root: [String: Any]
+
+        func value(_ path: [String]) -> Any? {
+            var current: Any = root
+            for key in path {
+                guard let object = current as? [String: Any], let next = object[key] else { return nil }
+                current = next
+            }
+            return current
+        }
+
+        func string(_ path: [String]) -> String? { value(path) as? String }
+        func bool(_ path: [String]) -> Bool? { value(path) as? Bool }
+        func int(_ path: [String]) -> Int? { (value(path) as? NSNumber)?.intValue }
+        func double(_ path: [String]) -> Double? { (value(path) as? NSNumber)?.doubleValue }
+        func strings(_ path: [String]) -> [String]? { value(path) as? [String] }
+        func array(_ path: [String]) -> [Any]? { value(path) as? [Any] }
+    }
+
+    public static func validate(
+        pair: V4PairRecord,
+        manifestURL: URL,
+        auditedSDRSHA256: String,
+        auditedHDRSHA256: String
+    ) throws -> V4VirginPairEvidenceValidation {
+        func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            guard condition() else {
+                throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): \(message)")
+            }
+        }
+
+        guard let reference = pair.virginEvidence else {
+            throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): missing virginEvidence reference")
+        }
+        try require(pair.split == .frozen && pair.virginFrozen, "pair is not declared Virgin Frozen")
+        try require(pair.objectiveEvaluated == false, "objectiveEvaluated must be explicitly false")
+        try require(pair.consumed == false, "consumed must be explicitly false")
+        try require(!pair.sdr.hasPrefix("/") && !pair.hdr.hasPrefix("/"), "media paths must be portable relative paths")
+        try require(
+            !pair.sdr.split(separator: "/").contains("..") && !pair.hdr.split(separator: "/").contains(".."),
+            "media paths may not escape the manifest directory"
+        )
+        try require(pair.contentFamily == "DVB Live-Linear", "content family is not DVB Live-Linear")
+        try require(pair.source == "DVB Project", "provider is not DVB Project")
+        let declaredTransfer = (pair.referenceTransfer ?? "").lowercased()
+        try require(
+            declaredTransfer == "arib-std-b67" || declaredTransfer == "hlg",
+            "declared HDR transfer is not HLG/ARIB STD-B67"
+        )
+        try require((pair.referencePrimaries ?? "").lowercased() == "bt2020", "declared HDR primaries are not BT.2020")
+
+        let manifestBase = manifestURL.deletingLastPathComponent().standardizedFileURL
+        let evidenceURL = manifestBase.appendingPathComponent(reference.validationManifest).standardizedFileURL
+        try require(
+            evidenceURL.path.hasPrefix(manifestBase.path + "/"),
+            "validation manifest resolves outside the manifest directory"
+        )
+        try require(FileManager.default.isReadableFile(atPath: evidenceURL.path), "validation manifest is missing or unreadable")
+        let evidenceHash = try V4DatasetIntegrity.sha256(url: evidenceURL)
+        try require(evidenceHash == reference.validationManifestSHA256.lowercased(), "validation manifest SHA-256 mismatch")
+        try require(auditedSDRSHA256 == reference.sdrSHA256.lowercased(), "audited SDR SHA-256 mismatch")
+        try require(auditedHDRSHA256 == reference.hdrSHA256.lowercased(), "audited HDR SHA-256 mismatch")
+
+        let data = try Data(contentsOf: evidenceURL)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): validation manifest root is not an object")
+        }
+        let json = JSONView(root: root)
+        try require(json.string(["verdict"]) == "PAIR_VALID_VIRGIN", "verdict is not PAIR_VALID_VIRGIN")
+        try require(
+            json.string(["temporalReadiness"]) == "CONTIGUOUS_TEMPORAL_READY",
+            "temporal readiness is not CONTIGUOUS_TEMPORAL_READY"
+        )
+        try require(json.bool(["objectiveUse", "consumed"]) == false, "objectiveUse.consumed is not false")
+        try require(json.string(["pair", "provider"]) == "DVB Project", "evidence provider mismatch")
+        try require(json.string(["pair", "family"]) == "DVB Live-Linear", "evidence family mismatch")
+
+        let urls = pair.resolvedURLs(relativeTo: manifestURL)
+        let evidenceSDRHash = json.string(["assets", "sdr", "sha256"])?.lowercased()
+        let evidenceHDRHash = json.string(["assets", "hdr", "sha256"])?.lowercased()
+        try require(evidenceSDRHash == reference.sdrSHA256.lowercased(), "evidence SDR SHA-256 mismatch")
+        try require(evidenceHDRHash == reference.hdrSHA256.lowercased(), "evidence HDR SHA-256 mismatch")
+        if let evidenceSDRPath = json.string(["assets", "sdr", "path"]) {
+            try require(URL(fileURLWithPath: evidenceSDRPath).lastPathComponent == urls.sdr.lastPathComponent, "evidence SDR asset path mismatch")
+        } else {
+            try require(false, "evidence SDR asset path missing")
+        }
+        if let evidenceHDRPath = json.string(["assets", "hdr", "path"]) {
+            try require(URL(fileURLWithPath: evidenceHDRPath).lastPathComponent == urls.hdr.lastPathComponent, "evidence HDR asset path mismatch")
+        } else {
+            try require(false, "evidence HDR asset path missing")
+        }
+
+        let segmentCount = json.int(["contiguousRun", "segmentCount"]) ?? -1
+        let duration = json.double(["contiguousRun", "durationSeconds"]) ?? -.infinity
+        let startSegment = json.int(["contiguousRun", "startSegment"]) ?? -1
+        let endSegment = json.int(["contiguousRun", "endSegment"]) ?? -1
+        try require(segmentCount >= 14, "contiguous segment count is below 14")
+        try require(duration.isFinite && duration >= 50, "contiguous duration is below 50 seconds")
+        try require(json.bool(["contiguousRun", "noGaps"]) == true, "contiguousRun.noGaps is not true")
+        try require(endSegment >= startSegment && endSegment - startSegment + 1 == segmentCount, "contiguous segment bounds/count mismatch")
+
+        let sdrSegments = json.strings(["directDashCaptureEvidence", "sdr", "segment_identities"]) ?? []
+        let hdrSegments = json.strings(["directDashCaptureEvidence", "hdr", "segment_identities"]) ?? []
+        try require(!sdrSegments.isEmpty && sdrSegments == hdrSegments, "SDR/HDR segment identity arrays differ")
+        try require(sdrSegments.count == segmentCount, "segment identity count does not match contiguous run")
+        let segmentNumbers = sdrSegments.compactMap { identity -> Int? in
+            guard identity.hasPrefix("n:") else { return nil }
+            return Int(identity.dropFirst(2))
+        }
+        try require(segmentNumbers.count == segmentCount, "segment identity is not SegmentTemplate number format")
+        try require(segmentNumbers.first == startSegment && segmentNumbers.last == endSegment, "segment identities do not match run bounds")
+        try require(zip(segmentNumbers, segmentNumbers.dropFirst()).allSatisfy { $1 == $0 + 1 }, "segment identity array contains a gap")
+        try require(
+            json.bool(["fullDecodeEvidence", "segment_identity_arrays_exactly_equal"]) == true,
+            "full-decode identity equality evidence is not true"
+        )
+
+        let decodeErrors = json.array(["fullDecodeEvidence", "errors"]) ?? ["missing"]
+        let sdrFrames = json.int(["fullDecodeEvidence", "sdr_decoded_frames"]) ?? -1
+        let hdrFrames = json.int(["fullDecodeEvidence", "hdr_decoded_frames"]) ?? -1
+        let expectedFrames = json.int(["fullDecodeEvidence", "expected_frames_from_contiguous_run"]) ?? -1
+        try require(decodeErrors.isEmpty, "full decode recorded errors")
+        try require(json.bool(["fullDecodeEvidence", "decoded_frame_counts_exactly_equal"]) == true, "decoded frame equality evidence is not true")
+        try require(sdrFrames > 0 && sdrFrames == hdrFrames && sdrFrames == expectedFrames, "decoded frame counts are missing or unequal")
+
+        let sdrPrimaries = json.strings(["streamEvidence", "decoded_keyframe_vui", "sdr", "values", "color_primaries"]) ?? []
+        let sdrTransfer = json.strings(["streamEvidence", "decoded_keyframe_vui", "sdr", "values", "color_transfer"]) ?? []
+        let sdrMatrix = json.strings(["streamEvidence", "decoded_keyframe_vui", "sdr", "values", "color_space"]) ?? []
+        let hdrPrimaries = json.strings(["streamEvidence", "decoded_keyframe_vui", "hdr", "values", "color_primaries"]) ?? []
+        let hdrTransfer = json.strings(["streamEvidence", "decoded_keyframe_vui", "hdr", "values", "color_transfer"]) ?? []
+        let hdrMatrix = json.strings(["streamEvidence", "decoded_keyframe_vui", "hdr", "values", "color_space"]) ?? []
+        try require(Set(sdrPrimaries) == ["bt709"] && Set(sdrTransfer) == ["bt709"] && Set(sdrMatrix) == ["bt709"], "decoded SDR keyframe VUI is not BT.709")
+        try require(Set(hdrPrimaries) == ["bt2020"] && Set(hdrTransfer) == ["arib-std-b67"] && Set(hdrMatrix) == ["bt2020nc"], "decoded HDR keyframe VUI is not BT.2020/ARIB STD-B67/BT.2020nc")
+        try require((json.int(["streamEvidence", "decoded_keyframe_vui", "sdr", "keyframe_count"]) ?? 0) > 0, "SDR keyframe VUI evidence is empty")
+        try require((json.int(["streamEvidence", "decoded_keyframe_vui", "hdr", "keyframe_count"]) ?? 0) > 0, "HDR keyframe VUI evidence is empty")
+        try require(abs((json.double(["streamEvidence", "sdr_fps"]) ?? 0) - 50) < 1e-9, "SDR frame rate is not 50 fps")
+        try require(abs((json.double(["streamEvidence", "hdr_fps"]) ?? 0) - 50) < 1e-9, "HDR frame rate is not 50 fps")
+
+        let alignmentErrors = json.array(["alignmentEvidence", "errors"]) ?? ["missing"]
+        let mean = json.double(["alignmentEvidence", "temporal", "mean_rho"]) ?? -.infinity
+        let edge = json.double(["alignmentEvidence", "temporal", "edge_rho"]) ?? -.infinity
+        let standardDeviation = json.double(["alignmentEvidence", "temporal", "std_rho"]) ?? -.infinity
+        let spatialMedian = json.double(["alignmentEvidence", "spatial", "median"]) ?? -.infinity
+        let spatialP10 = json.double(["alignmentEvidence", "spatial", "p10"]) ?? -.infinity
+        let meanMinimum = json.double(["alignmentEvidence", "thresholds", "mean_spearman_min"]) ?? .infinity
+        let edgeMinimum = json.double(["alignmentEvidence", "thresholds", "edge_spearman_min"]) ?? .infinity
+        let standardDeviationMinimum = json.double(["alignmentEvidence", "thresholds", "std_spearman_min"]) ?? .infinity
+        let spatialMedianMinimum = json.double(["alignmentEvidence", "thresholds", "spatial_median_min"]) ?? .infinity
+        let spatialP10Minimum = json.double(["alignmentEvidence", "thresholds", "spatial_p10_min"]) ?? .infinity
+        let drift = abs(json.int(["alignmentEvidence", "drift_frames"]) ?? .max)
+        let maximumDrift = json.int(["alignmentEvidence", "thresholds", "max_drift_frames"]) ?? -1
+        let alignedFrames = json.int(["alignmentEvidence", "aligned_overlap_frames"]) ?? -1
+        let minimumAlignedFrames = json.int(["alignmentEvidence", "thresholds", "min_aligned_frames"]) ?? .max
+        try require(alignmentErrors.isEmpty, "alignment recorded errors")
+        try require(json.int(["alignmentEvidence", "best_offset_frames"]) == 0, "best alignment offset is not zero")
+        try require(drift <= maximumDrift, "alignment drift exceeds its frozen threshold")
+        try require(alignedFrames >= minimumAlignedFrames, "aligned frame count is below its frozen threshold")
+        try require(mean >= meanMinimum && edge >= edgeMinimum && standardDeviation >= standardDeviationMinimum, "temporal alignment is below its frozen thresholds")
+        try require(spatialMedian >= spatialMedianMinimum && spatialP10 >= spatialP10Minimum, "spatial alignment is below its frozen thresholds")
+
+        return V4VirginPairEvidenceValidation(
+            validationManifestSHA256: evidenceHash,
+            sdrSHA256: auditedSDRSHA256,
+            hdrSHA256: auditedHDRSHA256,
+            segmentIdentities: sdrSegments,
+            segmentCount: segmentCount,
+            durationSeconds: duration,
+            decodedFrameCount: sdrFrames
+        )
+    }
+}
+
 public struct V4NewHLGCandidateAudit: Codable, Sendable, Equatable {
     public let id: String
     public let source: String
@@ -417,22 +605,17 @@ public enum V4NewHLGHoldoutAuditor {
             }
         }
         let currentManifest = try V4Manifest.load(from: manifestURL)
-        let currentManifestByID = Dictionary(uniqueKeysWithValues: currentManifest.pairs.map { ($0.id, $0) })
+        let datasetAuditByID = Dictionary(uniqueKeysWithValues: datasetAudit.pairs.map { ($0.id, $0) })
         var existingVirginCandidates: [V4NewHLGCandidateAudit] = []
-        for pair in datasetAudit.pairs where pair.hdrTransferFamily?.uppercased() == "HLG" {
-            consumedHLGIDs.insert(pair.id)
-            guard let manifestPair = currentManifestByID[pair.id], manifestPair.virginFrozen,
-                  V4CoverageAuditEligibility.isEligible(pair),
-                  !objectivelyConsumed.contains(pair.id) else { continue }
-            existingVirginCandidates.append(V4NewHLGCandidateAudit(
-                id: pair.id, source: "manifest-v4-virgin",
-                sdrPath: pair.sdrPath, hdrPath: pair.hdrPath,
-                objectiveHistory: "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
-                metadataStatus: "PASS_FROM_DATASET_AUDIT",
-                alignmentStatus: String(format: "PASS;median=%.4f;matchRatio=%.4f", pair.alignment.medianConfidence, pair.alignment.matchRatio),
-                decodeStatus: "PASS_FROM_DATASET_AUDIT",
-                provenanceStatus: manifestPair.expectedRelation.rawValue,
-                accepted: true
+        for manifestPair in currentManifest.pairs where manifestPair.virginFrozen && manifestPair.virginEvidence != nil {
+            let declaredTransfer = (manifestPair.referenceTransfer ?? "").lowercased()
+            guard declaredTransfer == "hlg" || declaredTransfer == "arib-std-b67" else { continue }
+            consumedHLGIDs.insert(manifestPair.id)
+            existingVirginCandidates.append(auditRegisteredManifestPair(
+                manifestPair: manifestPair,
+                datasetPair: datasetAuditByID[manifestPair.id],
+                manifestURL: manifestURL,
+                objectivelyConsumed: objectivelyConsumed.contains(manifestPair.id)
             ))
         }
 
@@ -511,6 +694,95 @@ public enum V4NewHLGHoldoutAuditor {
             status: status, found: found,
             searchedRoots: searchRoots.map { portableSearchRoot($0, repositoryRoot: root) },
             consumedHLGPairIDs: consumedHLGIDs.sorted(), candidates: candidates, reason: reason
+        )
+    }
+
+    static func auditRegisteredManifestPair(
+        manifestPair: V4PairRecord,
+        datasetPair: V4PairAudit?,
+        manifestURL: URL,
+        objectivelyConsumed: Bool
+    ) -> V4NewHLGCandidateAudit {
+        let sdrPath = datasetPair?.sdrPath ?? manifestPair.sdr
+        let hdrPath = datasetPair?.hdrPath ?? manifestPair.hdr
+        var reasons: [String] = []
+
+        if objectivelyConsumed { reasons.append("historical frozen objective evidence already consumed this pair") }
+        guard let datasetPair else {
+            reasons.append("registered pair is missing from the current dataset audit")
+            return V4NewHLGCandidateAudit(
+                id: manifestPair.id, source: "manifest-v4-virgin-evidence",
+                sdrPath: sdrPath, hdrPath: hdrPath,
+                objectiveHistory: objectivelyConsumed ? "PRIOR_OBJECTIVE_EVIDENCE_FOUND" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+                metadataStatus: "NOT_AUDITED", alignmentStatus: "NOT_AUDITED", decodeStatus: "NOT_AUDITED",
+                provenanceStatus: "EVIDENCE_REJECTED", accepted: false, rejectionReasons: reasons
+            )
+        }
+        guard let sdrDigest = datasetPair.sdrDigest, let hdrDigest = datasetPair.hdrDigest else {
+            reasons.append("dataset audit did not produce both media SHA-256 digests")
+            return V4NewHLGCandidateAudit(
+                id: manifestPair.id, source: "manifest-v4-virgin-evidence",
+                sdrPath: sdrPath, hdrPath: hdrPath,
+                objectiveHistory: objectivelyConsumed ? "PRIOR_OBJECTIVE_EVIDENCE_FOUND" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+                metadataStatus: "DIGEST_MISSING", alignmentStatus: datasetPair.alignment.status,
+                decodeStatus: "SDR=\(datasetPair.sdrDecode.passed);HDR=\(datasetPair.hdrDecode.passed)",
+                provenanceStatus: "EVIDENCE_REJECTED", accepted: false, rejectionReasons: reasons
+            )
+        }
+
+        let validation: V4VirginPairEvidenceValidation
+        do {
+            validation = try V4VirginPairEvidenceValidator.validate(
+                pair: manifestPair,
+                manifestURL: manifestURL,
+                auditedSDRSHA256: sdrDigest.sha256,
+                auditedHDRSHA256: hdrDigest.sha256
+            )
+        } catch {
+            reasons.append(error.localizedDescription)
+            return V4NewHLGCandidateAudit(
+                id: manifestPair.id, source: "manifest-v4-virgin-evidence",
+                sdrPath: sdrPath, hdrPath: hdrPath,
+                objectiveHistory: objectivelyConsumed ? "PRIOR_OBJECTIVE_EVIDENCE_FOUND" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+                metadataStatus: "EVIDENCE_REJECTED", alignmentStatus: datasetPair.alignment.status,
+                decodeStatus: "SDR=\(datasetPair.sdrDecode.passed);HDR=\(datasetPair.hdrDecode.passed)",
+                provenanceStatus: "EVIDENCE_REJECTED", accepted: false, rejectionReasons: reasons
+            )
+        }
+
+        if !V4CoverageAuditEligibility.isEligible(datasetPair) {
+            reasons.append(
+                "dataset audit eligibility failed: status=\(datasetPair.status.rawValue);" +
+                "suitability=\(datasetPair.suitability.rawValue);alignment=\(datasetPair.alignment.status);" +
+                "sdrDecode=\(datasetPair.sdrDecode.passed);hdrDecode=\(datasetPair.hdrDecode.passed)"
+            )
+        }
+        if datasetPair.hdrTransferFamily?.uppercased() != "HLG" { reasons.append("dataset audit HDR transfer is not HLG") }
+        if datasetPair.sdrReferenceValid != true { reasons.append("dataset audit SDR reference is not explicit BT.709") }
+        if datasetPair.hdrReferenceValid != true { reasons.append("dataset audit HDR reference is not BT.2020 HLG") }
+        if objectivelyConsumed { reasons.append("objectiveUse is not virgin") }
+
+        let accepted = reasons.isEmpty
+        return V4NewHLGCandidateAudit(
+            id: manifestPair.id, source: "manifest-v4-virgin-evidence",
+            sdrPath: sdrPath, hdrPath: hdrPath,
+            objectiveHistory: objectivelyConsumed ? "PRIOR_OBJECTIVE_EVIDENCE_FOUND" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+            metadataStatus: accepted ? "PASS_SDR_BT709_AND_HDR_BT2020_ARIB_STD_B67" : "REJECTED",
+            alignmentStatus: String(
+                format: "%@;median=%.4f;p10=%.4f;matchRatio=%.4f",
+                datasetPair.alignment.status,
+                datasetPair.alignment.medianConfidence,
+                datasetPair.alignment.p10Confidence,
+                datasetPair.alignment.matchRatio
+            ),
+            decodeStatus: accepted
+                ? "PASS_SDR=\(datasetPair.sdrDecode.decodedSampleCount);HDR=\(datasetPair.hdrDecode.decodedSampleCount);FULL=\(validation.decodedFrameCount)"
+                : "SDR=\(datasetPair.sdrDecode.passed);HDR=\(datasetPair.hdrDecode.passed)",
+            provenanceStatus: accepted
+                ? "PASS_MANIFEST_SHA=\(validation.validationManifestSHA256);ASSET_SHA_MATCH;CONTIGUOUS=\(validation.segmentCount);DURATION=\(String(format: "%.2f", validation.durationSeconds))"
+                : "EVIDENCE_REJECTED",
+            accepted: accepted,
+            rejectionReasons: reasons
         )
     }
 

@@ -1,0 +1,30 @@
+{
+  "actualVirginFamilies" : [
+    "SoleMates",
+    "LIVE",
+    "DVB Live-Linear"
+  ],
+  "actualVirginFrozenPairs" : 3,
+  "actualVirginTransfers" : [
+    "PQ",
+    "HLG"
+  ],
+  "currentRequiredFamilies" : [
+
+  ],
+  "currentRequiredTransfers" : [
+    "HLG",
+    "PQ"
+  ],
+  "familyStatus" : "PASS",
+  "minimumDistinctVirginFrozenFamilies" : 2,
+  "minimumVirginFrozenPairs" : 3,
+  "pairCountStatus" : "PASS",
+  "transferStatus" : "PASS",
+  "version" : "pre-v5-frozen-coverage-policy-v1",
+  "whyEachRequirementExists" : [
+    "HLG and PQ are both production input\/reference transfer families and must be represented in Virgin Frozen.",
+    "Family diversity tests distributional generalisation; a legacy family name is not itself a scientific requirement.",
+    "At least three virgin pairs and two distinct virgin families provide a preregistered minimum holdout breadth."
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "authoritative": true,
+  "metadata_source": "ffprobe HEVC decoded keyframe VUI across every captured fragment; stream/init summary retained separately",
+  "sdr": {
+    "codec_name": "hevc",
+    "profile": "Main",
+    "width": 3840,
+    "height": 2160,
+    "pix_fmt": "yuv420p",
+    "color_range": "tv",
+    "color_space": "bt709",
+    "color_transfer": "bt709",
+    "color_primaries": "bt709",
+    "r_frame_rate": "50/1",
+    "avg_frame_rate": "50/1",
+    "start_time": "0.000000",
+    "duration": "61.440000"
+  },
+  "hdr": {
+    "codec_name": "hevc",
+    "profile": "Main 10",
+    "width": 3840,
+    "height": 2160,
+    "pix_fmt": "yuv420p10le",
+    "color_range": "tv",
+    "color_space": "bt2020nc",
+    "color_transfer": "bt2020-10",
+    "color_primaries": "bt2020",
+    "r_frame_rate": "50/1",
+    "avg_frame_rate": "50/1",
+    "start_time": "0.000000",
+    "duration": "61.440000"
+  },
+  "decoded_keyframe_vui": {
+    "sdr": {
+      "keyframe_count": 32,
+      "values": {
+        "color_primaries": [
+          "bt709"
+        ],
+        "color_transfer": [
+          "bt709"
+        ],
+        "color_space": [
+          "bt709"
+        ]
+      }
+    },
+    "hdr": {
+      "keyframe_count": 32,
+      "values": {
+        "color_primaries": [
+          "bt2020"
+        ],
+        "color_transfer": [
+          "arib-std-b67"
+        ],
+        "color_space": [
+          "bt2020nc"
+        ]
+      }
+    }
+  },
+  "sdr_fps": 50.0,
+  "hdr_fps": 50.0,
+  "provider_page_sha256": "0a17de7959ee0db58286cf730e177d87df09d3c1daa0bd490e0ad5fe8abb5f7c",
+  "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+  "errors": [],
+  "warnings": [
+    "HLG stream-summary color_transfer='bt2020-10' differs from decoded keyframe VUI=['arib-std-b67']"
+  ]
+}

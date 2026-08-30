@@ -125,6 +125,61 @@
       "virginFrozen": true
     },
     {
+      "consumed": false,
+      "contentCategory": [
+        "animation",
+        "cinematic",
+        "outdoor"
+      ],
+      "contentFamily": "DVB Live-Linear",
+      "expectedRelation": "same-master",
+      "group": "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "hdr": "virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+      "id": "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "metadataSummary": {
+        "hdr": {
+          "bitDepth": 10,
+          "codec": "hevc",
+          "colorPrimaries": "bt2020",
+          "colorRange": "tv",
+          "frameRate": 50,
+          "height": 2160,
+          "matrix": "bt2020nc",
+          "pixelFormat": "yuv420p10le",
+          "transfer": "arib-std-b67",
+          "width": 3840
+        },
+        "sdr": {
+          "bitDepth": 8,
+          "codec": "hevc",
+          "colorPrimaries": "bt709",
+          "colorRange": "tv",
+          "frameRate": 50,
+          "height": 2160,
+          "matrix": "bt709",
+          "pixelFormat": "yuv420p",
+          "transfer": "bt709",
+          "width": 3840
+        }
+      },
+      "notes": "Official DVB Live-Linear SDR/HLG services share the Caminandes E1 source. Hash-bound VIRGIN_PAIR_VALID evidence proves decoded colour VUI, full decode, zero-offset alignment, and a 61.44-second gap-free common DASH run. No objective evaluation has been performed.",
+      "objectiveEvaluated": false,
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "arib-std-b67",
+      "sdr": "virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "source": "DVB Project",
+      "sourceURL": "https://live-linear.dvb.org/",
+      "split": "frozen",
+      "virginEvidence": {
+        "hdrSHA256": "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
+        "sdrSHA256": "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+        "validationManifest": "virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/VIRGIN_PAIR_VALID.json",
+        "validationManifestSHA256": "66e2dc6bb74f6fce83ce80f70d46a9deda89b5082f110435ba5b83a20246038d"
+      },
+      "virginFrozen": true
+    },
+    {
       "contentCategory": [
         "indoor",
         "low-contrast",

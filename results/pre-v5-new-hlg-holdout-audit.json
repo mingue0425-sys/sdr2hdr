@@ -1,0 +1,33 @@
+{
+  "candidates" : [
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.9957;p10=0.9890;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=6;HDR=6;FULL=3072",
+      "hdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+      "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_ARIB_STD_B67",
+      "objectiveHistory" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
+      "provenanceStatus" : "PASS_MANIFEST_SHA=66e2dc6bb74f6fce83ce80f70d46a9deda89b5082f110435ba5b83a20246038d;ASSET_SHA_MATCH;CONTIGUOUS=16;DURATION=61.44",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "source" : "manifest-v4-virgin-evidence"
+    }
+  ],
+  "consumedHLGPairIDs" : [
+    "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+    "video6_le_sserafim_hot"
+  ],
+  "found" : true,
+  "objectiveEvaluationCount" : 0,
+  "reason" : "a metadata-verified, decoded, strongly aligned, objective-unexposed local HLG\/BT.709 pair is available",
+  "required" : true,
+  "searchedRoots" : [
+    "repo:data_video",
+    "workspace-parent"
+  ],
+  "status" : "FOUND",
+  "version" : "pre-v5-new-hlg-holdout-audit-v3"
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" profiles="urn:dvb:dash:profile:dvb-dash:2014,urn:dvb:dash:profile:dvb-dash:isoff-ext-live:2014" type="dynamic" availabilityStartTime="2025-01-01T00:00:00Z" publishTime="2025-01-01T00:00:00Z" minimumUpdatePeriod="PT3.84S" minBufferTime="PT1.5S" timeShiftBufferDepth="PT30S" suggestedPresentationDelay="PT4S" maxSegmentDuration="PT3.84S">
+  <Period id="P0" start="PT0S">
+    <AdaptationSet id="1" contentType="video" par="16:9" maxWidth="3840" maxHeight="2160" maxFrameRate="50" segmentAlignment="true" mimeType="video/mp4" startWithSAP="1">
+      <EssentialProperty schemeIdUri="urn:mpeg:mpegB:cicp:ColourPrimaries" value="9"></EssentialProperty>
+      <EssentialProperty schemeIdUri="urn:mpeg:mpegB:cicp:TransferCharacteristics" value="14"></EssentialProperty>
+      <EssentialProperty schemeIdUri="urn:mpeg:mpegB:cicp:MatrixCoefficients" value="9"></EssentialProperty>
+      <Role schemeIdUri="urn:mpeg:dash:role:2011" value="main"></Role>
+      <SegmentTemplate media="$RepresentationID$/$Number$.m4s" initialization="$RepresentationID$/i_livesim.mp4" duration="49152" startNumber="0" timescale="12800"></SegmentTemplate>
+      <Representation id="hevc_2160p_hlg" bandwidth="1590213" width="3840" height="2160" sar="1:1" frameRate="50" codecs="hvc1.2.4.L153.90" scanType="progressive"></Representation>
+    </AdaptationSet>
+    <AdaptationSet id="21" lang="en" contentType="audio" segmentAlignment="true" mimeType="audio/mp4" startWithSAP="1">
+      <Role schemeIdUri="urn:mpeg:dash:role:2011" value="main"></Role>
+      <SegmentTemplate media="$RepresentationID$/$Number$.m4s" initialization="$RepresentationID$/i_livesim.mp4" duration="184320" startNumber="0" timescale="48000"></SegmentTemplate>
+      <Representation id="heaac_64k_eng" bandwidth="64000" audioSamplingRate="48000" codecs="mp4a.40.5">
+        <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="2"></AudioChannelConfiguration>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet id="31" lang="fi" contentType="text" segmentAlignment="true" mimeType="application/mp4" startWithSAP="1">
+      <Role schemeIdUri="urn:mpeg:dash:role:2011" value="subtitle"></Role>
+      <SegmentTemplate media="$RepresentationID$/$Number$.m4s" initialization="$RepresentationID$/i_livesim.mp4" duration="3840" startNumber="0" timescale="1000"></SegmentTemplate>
+      <Representation id="sub_fin" bandwidth="288" codecs="stpp"></Representation>
+    </AdaptationSet>
+  </Period>
+  <UTCTiming schemeIdUri="urn:mpeg:dash:utc:http-iso:2014" value="https://time.akamai.com/?iso&amp;ms"></UTCTiming>
+</MPD>

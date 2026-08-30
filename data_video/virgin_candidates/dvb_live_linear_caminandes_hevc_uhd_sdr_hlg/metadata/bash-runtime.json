@@ -1,0 +1,5 @@
+{
+  "bash_version": "3.2.57(1)-release",
+  "compatibility_target": "macOS system Bash 3.2+",
+  "nested_heredoc_inside_command_substitution": false
+}

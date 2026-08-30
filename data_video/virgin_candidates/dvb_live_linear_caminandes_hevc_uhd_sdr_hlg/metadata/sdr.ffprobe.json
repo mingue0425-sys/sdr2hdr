@@ -1,0 +1,25 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "codec_name": "hevc",
+            "profile": "Main",
+            "width": 3840,
+            "height": 2160,
+            "pix_fmt": "yuv420p",
+            "color_range": "tv",
+            "color_space": "bt709",
+            "color_transfer": "bt709",
+            "color_primaries": "bt709",
+            "r_frame_rate": "50/1",
+            "avg_frame_rate": "50/1",
+            "start_time": "0.000000",
+            "duration": "61.440000"
+        }
+    ]
+}

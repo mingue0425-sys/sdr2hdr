@@ -1,0 +1,1250 @@
+{
+  "schemaVersion": 1,
+  "verdict": "PAIR_VALID_VIRGIN",
+  "temporalReadiness": "CONTIGUOUS_TEMPORAL_READY",
+  "validatedAtUTC": "2026-08-30T06:14:40.230422+00:00",
+  "pair": {
+    "provider": "DVB Project",
+    "family": "DVB Live-Linear",
+    "sharedSource": "Caminandes_E1-1080p_50fps.mp4",
+    "sdrService": "03_hevc_uhd_sdr_ac4",
+    "hdrService": "05_hevc_uhd_hlg_heaac"
+  },
+  "assets": {
+    "sdr": {
+      "path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "sha256": "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+      "bytes": 12384656
+    },
+    "hdr": {
+      "path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+      "sha256": "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
+      "bytes": 12237168
+    }
+  },
+  "contiguousRun": {
+    "startSegment": 13640794,
+    "endSegment": 13640809,
+    "segmentCount": 16,
+    "durationSeconds": 61.44,
+    "noGaps": true
+  },
+  "providerEvidence": {
+    "authoritative": true,
+    "page": {
+      "url": "https://live-linear.dvb.org/",
+      "sha256": "0a17de7959ee0db58286cf730e177d87df09d3c1daa0bd490e0ad5fe8abb5f7c"
+    },
+    "service_list": {
+      "url": "https://live-linear.dvb.org/videos/DVB-live-linear/tagdvborg2025dvblivelinear.xml",
+      "sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128"
+    },
+    "shared_source_evidence": {
+      "file": "Caminandes_E1-1080p_50fps.mp4",
+      "verified_from_provider_initial_html": true
+    },
+    "service_registry_policy": "Initial provider HTML proves shared-source provenance; the official DVB-I XML is the authoritative runtime service registry because service cards are client-side rendered.",
+    "services": {
+      "sdr": {
+        "id": "03_hevc_uhd_sdr_ac4",
+        "found": true,
+        "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+        "candidate_urls": [
+          {
+            "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+            "score": 215
+          }
+        ]
+      },
+      "hdr": {
+        "id": "05_hevc_uhd_hlg_heaac",
+        "found": true,
+        "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+        "candidate_urls": [
+          {
+            "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+            "score": 215
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "serviceListEvidence": {
+    "service_list_url": "https://live-linear.dvb.org/videos/DVB-live-linear/tagdvborg2025dvblivelinear.xml",
+    "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+    "services": {
+      "sdr": {
+        "id": "03_hevc_uhd_sdr_ac4",
+        "found": true,
+        "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+        "candidate_urls": [
+          {
+            "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+            "score": 215
+          }
+        ]
+      },
+      "hdr": {
+        "id": "05_hevc_uhd_hlg_heaac",
+        "found": true,
+        "context_excerpt": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+        "candidate_urls": [
+          {
+            "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+            "score": 215
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "manifestEvidence": {
+    "resolver": "official DVB-I service-list delivery URI",
+    "sdr_mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+    "hdr_mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+    "sdr_mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+    "hdr_mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+    "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+    "errors": []
+  },
+  "directDashCaptureEvidence": {
+    "capture_method": "direct Python DASH SegmentTemplate $Number$ downloader; paired longest-contiguous-common-run selection; FFmpeg DASH demuxer not required",
+    "capture_seconds_requested": 70.0,
+    "bootstrap_seconds_excluded_from_capture_window": 6.913504041003762,
+    "minimum_contiguous_segments": 14,
+    "contiguous_run": {
+      "start_segment": 13640794,
+      "end_segment": 13640809,
+      "segment_count": 16,
+      "duration_seconds": 61.44,
+      "segment_duration_seconds": 3.84,
+      "no_gaps": true,
+      "segment_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ]
+    },
+    "pair_intersection": {
+      "identity": "SegmentTemplate number",
+      "common_segment_count": 16,
+      "common_segment_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ],
+      "contiguous_runs": [
+        {
+          "start_segment": 13640794,
+          "end_segment": 13640809,
+          "segment_count": 16
+        }
+      ],
+      "selected_run_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ],
+      "sdr_segments_before_intersection": 16,
+      "hdr_segments_before_intersection": 16,
+      "sdr_segments_dropped": 0,
+      "hdr_segments_dropped": 0
+    },
+    "sdr": {
+      "role": "sdr",
+      "mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/manifest_livesim.mpd",
+      "mpd_snapshots": 16,
+      "representation": {
+        "representation_id": "hevc_2160p_sdr",
+        "bandwidth": 1609218,
+        "width": 3840,
+        "height": 2160,
+        "codecs": "hvc1.1.6.L153.90",
+        "mimeType": "video/mp4",
+        "period_index": 0,
+        "timescale": 12800,
+        "start_number": 0,
+        "addressing": "SegmentTemplateDuration",
+        "base_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/",
+        "initialization_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/hevc_2160p_sdr/i_livesim.mp4",
+        "live_number_evidence": {
+          "availability_start_time": "2025-01-01T00:00:00Z",
+          "publish_time": "2025-01-01T00:00:00Z",
+          "mpd_publish_elapsed_seconds": 0.0,
+          "live_clock_utc": "2026-08-30T06:10:53+00:00",
+          "live_clock_source": "HTTP Date",
+          "period_start_seconds": 0.0,
+          "global_elapsed_seconds": 52380653.0,
+          "period_relative_elapsed_seconds": 52380653.0,
+          "segment_duration_seconds": 3.84,
+          "start_number": 0,
+          "preferred_strategy": "ast_http_date_global",
+          "preferred_last_complete_number": 13640794,
+          "fallback_strategy": "mpd_start_number_window",
+          "fallback_first_number": 0,
+          "fallback_last_number": 12,
+          "time_shift_buffer_depth_seconds": 30.0,
+          "window_segments": 12,
+          "probe_back_segments": 7,
+          "probe_forward_segments": 0,
+          "mpd_publish_time_is_static_at_ast": true,
+          "period_start_cancels_global_elapsed": false
+        },
+        "segment_template_raw": {
+          "media": "$RepresentationID$/$Number$.m4s",
+          "initialization": "$RepresentationID$/i_livesim.mp4",
+          "duration": "49152",
+          "startNumber": "0",
+          "timescale": "12800"
+        },
+        "period_raw": {
+          "id": "P0",
+          "start": "PT0S"
+        },
+        "mpd_raw": {
+          "type": "dynamic",
+          "availabilityStartTime": "2025-01-01T00:00:00Z",
+          "publishTime": "2025-01-01T00:00:00Z",
+          "minimumUpdatePeriod": "PT3.84S",
+          "timeShiftBufferDepth": "PT30S",
+          "suggestedPresentationDelay": "PT4S"
+        }
+      },
+      "initialization_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/hevc_2160p_sdr/i_livesim.mp4",
+      "initialization_sha256": "c8f5ad8bcb3d45384ac354abf3ff08abca1e63a6be9234a4787eb3945bf9a59c",
+      "captured_media_segment_count_before_pair_intersection": 16,
+      "media_segment_count": 16,
+      "media_total_bytes": 12395143,
+      "segment_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ],
+      "first_segment": {
+        "key": "ast_http_date_global|n:13640794",
+        "number": 13640794,
+        "time": null,
+        "duration": 49152,
+        "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/hevc_2160p_sdr/13640794.m4s"
+      },
+      "last_segment": {
+        "key": "ast_http_date_global|n:13640809",
+        "number": 13640809,
+        "time": null,
+        "duration": 49152,
+        "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/03_hevc_uhd_sdr_ac4/hevc_2160p_sdr/13640809.m4s"
+      },
+      "active_number_strategy": "ast_http_date_global",
+      "strategy_successes": {
+        "ast_http_date_global": 16
+      },
+      "failed_live_edge_attempts": {},
+      "output_path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/.work/pending/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "output_bytes": 12384656,
+      "output_sha256": "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+      "timestamp_normalization": {
+        "method": "FFmpeg stream copy with -copyts -start_at_zero; encoded media packets are not re-encoded",
+        "start_time_seconds": 0.0,
+        "r_frame_rate": "50/1",
+        "avg_frame_rate": "50/1"
+      }
+    },
+    "hdr": {
+      "role": "hdr",
+      "mpd_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/manifest_livesim.mpd",
+      "mpd_snapshots": 16,
+      "representation": {
+        "representation_id": "hevc_2160p_hlg",
+        "bandwidth": 1590213,
+        "width": 3840,
+        "height": 2160,
+        "codecs": "hvc1.2.4.L153.90",
+        "mimeType": "video/mp4",
+        "period_index": 0,
+        "timescale": 12800,
+        "start_number": 0,
+        "addressing": "SegmentTemplateDuration",
+        "base_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/",
+        "initialization_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/hevc_2160p_hlg/i_livesim.mp4",
+        "live_number_evidence": {
+          "availability_start_time": "2025-01-01T00:00:00Z",
+          "publish_time": "2025-01-01T00:00:00Z",
+          "mpd_publish_elapsed_seconds": 0.0,
+          "live_clock_utc": "2026-08-30T06:10:53+00:00",
+          "live_clock_source": "HTTP Date",
+          "period_start_seconds": 0.0,
+          "global_elapsed_seconds": 52380653.0,
+          "period_relative_elapsed_seconds": 52380653.0,
+          "segment_duration_seconds": 3.84,
+          "start_number": 0,
+          "preferred_strategy": "ast_http_date_global",
+          "preferred_last_complete_number": 13640794,
+          "fallback_strategy": "mpd_start_number_window",
+          "fallback_first_number": 0,
+          "fallback_last_number": 12,
+          "time_shift_buffer_depth_seconds": 30.0,
+          "window_segments": 12,
+          "probe_back_segments": 7,
+          "probe_forward_segments": 0,
+          "mpd_publish_time_is_static_at_ast": true,
+          "period_start_cancels_global_elapsed": false
+        },
+        "segment_template_raw": {
+          "media": "$RepresentationID$/$Number$.m4s",
+          "initialization": "$RepresentationID$/i_livesim.mp4",
+          "duration": "49152",
+          "startNumber": "0",
+          "timescale": "12800"
+        },
+        "period_raw": {
+          "id": "P0",
+          "start": "PT0S"
+        },
+        "mpd_raw": {
+          "type": "dynamic",
+          "availabilityStartTime": "2025-01-01T00:00:00Z",
+          "publishTime": "2025-01-01T00:00:00Z",
+          "minimumUpdatePeriod": "PT3.84S",
+          "timeShiftBufferDepth": "PT30S",
+          "suggestedPresentationDelay": "PT4S"
+        }
+      },
+      "initialization_url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/hevc_2160p_hlg/i_livesim.mp4",
+      "initialization_sha256": "3d1bde80e7d8affe8eaf0407eedc89ca4b4c66cc431faebf5190fd9a788e2529",
+      "captured_media_segment_count_before_pair_intersection": 16,
+      "media_segment_count": 16,
+      "media_total_bytes": 12246666,
+      "segment_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ],
+      "first_segment": {
+        "key": "ast_http_date_global|n:13640794",
+        "number": 13640794,
+        "time": null,
+        "duration": 49152,
+        "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/hevc_2160p_hlg/13640794.m4s"
+      },
+      "last_segment": {
+        "key": "ast_http_date_global|n:13640809",
+        "number": 13640809,
+        "time": null,
+        "duration": 49152,
+        "url": "https://live-linear.dvb.org/livesim2/tsbd_30/spd_4/utc_httpisoms/start_1735689600/05_hevc_uhd_hlg_heaac/hevc_2160p_hlg/13640809.m4s"
+      },
+      "active_number_strategy": "ast_http_date_global",
+      "strategy_successes": {
+        "ast_http_date_global": 16
+      },
+      "failed_live_edge_attempts": {},
+      "output_path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/.work/pending/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+      "output_bytes": 12237168,
+      "output_sha256": "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
+      "timestamp_normalization": {
+        "method": "FFmpeg stream copy with -copyts -start_at_zero; encoded media packets are not re-encoded",
+        "start_time_seconds": 0.0,
+        "r_frame_rate": "50/1",
+        "avg_frame_rate": "50/1"
+      }
+    },
+    "polls": [
+      {
+        "role": "sdr",
+        "elapsed": 0.0027588329976424575,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:10:53 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640794"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 6.913496499997564,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:10:53 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640794"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 6.913554333004868,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:00 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640795"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 11.258838082983857,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:00 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640795"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 11.54681166599039,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:05 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640796"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 15.115720332978526,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:05 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640796"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 15.12124604100245,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:08 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640797"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 18.652962708001724,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:08 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640797"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 18.653023291000864,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:12 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640798"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 23.978878082998563,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:12 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640798"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 24.319295708002755,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:17 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640799"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 30.013541291002184,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:17 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640799"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 30.01359099999536,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:23 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640800"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 34.83195599997998,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:23 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640800"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 36.27329795798869,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:29 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640801"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 41.274768415984,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:29 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640801"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 42.162821040983545,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:35 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640802"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 46.64214279098087,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:35 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640802"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 47.461256124981446,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:41 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640803"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 51.221534165990306,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:41 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640803"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 51.221583165985066,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:44 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640804"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 55.486122332978994,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:44 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640804"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 56.29981029097689,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:49 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640805"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 62.91109879099531,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:49 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640805"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 62.911285915994085,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:56 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640806"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 67.44740066598752,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:11:56 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640806"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 67.45108716600225,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:01 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640807"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 72.17490270797862,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:01 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640807"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 72.70121041598031,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:06 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640808"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 77.97895791599876,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:06 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640808"
+      },
+      {
+        "role": "sdr",
+        "elapsed": 79.4171534999914,
+        "mpd_sha256": "ee8ed701c0129c4bdfa177d76605310e712a147d502b7eabcff5d25c5f62eba9",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2376",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:13 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640809"
+      },
+      {
+        "role": "hdr",
+        "elapsed": 83.9181203749904,
+        "mpd_sha256": "dd66f9f787f19763ac5244c4835723b25ebef532169de433c259b8510379c19c",
+        "mpd_headers": {
+          "status": 200,
+          "content_type": "application/dash+xml",
+          "content_length": "2695",
+          "etag": null,
+          "last_modified": null,
+          "date": "Sun, 30 Aug 2026 06:12:13 GMT"
+        },
+        "available_segments": 20,
+        "new_segments": 1,
+        "attempted_number_strategies": [
+          "ast_http_date_global"
+        ],
+        "active_number_strategy": "ast_http_date_global",
+        "target_segment_identity": "n:13640809"
+      }
+    ],
+    "errors": []
+  },
+  "streamEvidence": {
+    "authoritative": true,
+    "metadata_source": "ffprobe HEVC decoded keyframe VUI across every captured fragment; stream/init summary retained separately",
+    "sdr": {
+      "codec_name": "hevc",
+      "profile": "Main",
+      "width": 3840,
+      "height": 2160,
+      "pix_fmt": "yuv420p",
+      "color_range": "tv",
+      "color_space": "bt709",
+      "color_transfer": "bt709",
+      "color_primaries": "bt709",
+      "r_frame_rate": "50/1",
+      "avg_frame_rate": "50/1",
+      "start_time": "0.000000",
+      "duration": "61.440000"
+    },
+    "hdr": {
+      "codec_name": "hevc",
+      "profile": "Main 10",
+      "width": 3840,
+      "height": 2160,
+      "pix_fmt": "yuv420p10le",
+      "color_range": "tv",
+      "color_space": "bt2020nc",
+      "color_transfer": "bt2020-10",
+      "color_primaries": "bt2020",
+      "r_frame_rate": "50/1",
+      "avg_frame_rate": "50/1",
+      "start_time": "0.000000",
+      "duration": "61.440000"
+    },
+    "decoded_keyframe_vui": {
+      "sdr": {
+        "keyframe_count": 32,
+        "values": {
+          "color_primaries": [
+            "bt709"
+          ],
+          "color_transfer": [
+            "bt709"
+          ],
+          "color_space": [
+            "bt709"
+          ]
+        }
+      },
+      "hdr": {
+        "keyframe_count": 32,
+        "values": {
+          "color_primaries": [
+            "bt2020"
+          ],
+          "color_transfer": [
+            "arib-std-b67"
+          ],
+          "color_space": [
+            "bt2020nc"
+          ]
+        }
+      }
+    },
+    "sdr_fps": 50.0,
+    "hdr_fps": 50.0,
+    "provider_page_sha256": "0a17de7959ee0db58286cf730e177d87df09d3c1daa0bd490e0ad5fe8abb5f7c",
+    "service_list_sha256": "e519771f25b0b4f50546ea3a5dee6c4d7b8670358f0d2d50ac4ec80de94c1128",
+    "errors": [],
+    "warnings": [
+      "HLG stream-summary color_transfer='bt2020-10' differs from decoded keyframe VUI=['arib-std-b67']"
+    ]
+  },
+  "fullDecodeEvidence": {
+    "sdr_decoded_frames": 3072,
+    "hdr_decoded_frames": 3072,
+    "minimum_required_frames_each": 3000,
+    "expected_frames_from_contiguous_run": 3072,
+    "decoded_frame_counts_exactly_equal": true,
+    "sdr_fps": 50.0,
+    "hdr_fps": 50.0,
+    "segment_identity_arrays_exactly_equal": true,
+    "contiguous_run": {
+      "start_segment": 13640794,
+      "end_segment": 13640809,
+      "segment_count": 16,
+      "duration_seconds": 61.44,
+      "segment_duration_seconds": 3.84,
+      "no_gaps": true,
+      "segment_identities": [
+        "n:13640794",
+        "n:13640795",
+        "n:13640796",
+        "n:13640797",
+        "n:13640798",
+        "n:13640799",
+        "n:13640800",
+        "n:13640801",
+        "n:13640802",
+        "n:13640803",
+        "n:13640804",
+        "n:13640805",
+        "n:13640806",
+        "n:13640807",
+        "n:13640808",
+        "n:13640809"
+      ]
+    },
+    "capture_seconds_requested": 70.0,
+    "errors": []
+  },
+  "alignmentEvidence": {
+    "method": "full-timeline 32x18 luma temporal Spearman + spatial NCC",
+    "fps": 50,
+    "sdr_frames": 3072,
+    "hdr_frames": 3072,
+    "best_offset_frames": 0,
+    "best_offset_seconds": 0.0,
+    "aligned_overlap_frames": 3072,
+    "aligned_overlap_seconds": 61.44,
+    "temporal": {
+      "offset": 0,
+      "mean_rho": 0.9992766416977431,
+      "std_rho": 0.9962646001577414,
+      "edge_rho": 0.9986848938169108,
+      "temporal": 0.9980753785574651,
+      "pair_count": 1536
+    },
+    "spatial": {
+      "valid_pairs": 1024,
+      "median": 0.9988557370846167,
+      "p10": 0.9949631973588282
+    },
+    "first_window": {
+      "offset": 0,
+      "mean_rho": 0.9952519514731153,
+      "std_rho": 0.9943289972639562,
+      "edge_rho": 0.9987863474164705,
+      "temporal": 0.9961224320511807,
+      "pair_count": 250
+    },
+    "last_window": {
+      "offset": 0,
+      "mean_rho": 0.9983756462200846,
+      "std_rho": 0.99834339749436,
+      "edge_rho": 0.9984434242209673,
+      "temporal": 0.998387489311804,
+      "pair_count": 250
+    },
+    "drift_frames": 0,
+    "thresholds": {
+      "mean_spearman_min": 0.94,
+      "edge_spearman_min": 0.88,
+      "std_spearman_min": 0.78,
+      "spatial_median_min": 0.72,
+      "spatial_p10_min": 0.25,
+      "max_drift_frames": 2,
+      "min_aligned_frames": 2500,
+      "max_offset_frames": 400
+    },
+    "errors": []
+  },
+  "exactDuplicateEvidence": {
+    "candidate": {
+      "sdr": {
+        "path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/.work/pending/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+        "size": 12384656,
+        "sha256": "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90"
+      },
+      "hdr": {
+        "path": "/Volumes/game/sdr2hdr/data_video/virgin_candidates/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg/.work/pending/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
+        "size": 12237168,
+        "sha256": "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01"
+      }
+    },
+    "hits": [],
+    "errors": []
+  },
+  "objectiveUse": {
+    "consumed": false,
+    "consumedAtUTC": null,
+    "consumptionPurpose": null
+  },
+  "holdoutSafety": {
+    "datasetLockModified": false,
+    "frozenSplitModified": false,
+    "calibrationResultsModified": false,
+    "approvedForFutureGateConsumption": true,
+    "note": "Validation only. Do not mark consumed until the existing pre-frozen/holdout gate explicitly admits this pair."
+  }
+}
