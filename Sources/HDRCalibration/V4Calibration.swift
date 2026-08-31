@@ -526,12 +526,23 @@ public struct V4DatasetEvidence: Codable, Sendable {
 /// Validates the immutable dataset evidence required before a calibration
 /// runner may decode any candidate frames. A READY string alone is not proof
 /// of pair eligibility or media identity.
+public enum V4EvidenceMediaScope: Sendable, Equatable {
+    /// Verify the current media bytes for every manifest record.  This is the
+    /// historical dataset-audit mode.
+    case all
+    /// Verify manifest/audit/lock evidence for Frozen records without opening
+    /// their media.  Correctness review uses this mode so Frozen inputs remain
+    /// sealed until the explicit objective guard.
+    case tuneValidationOnly
+}
+
 public enum V4DatasetEvidenceValidator {
     public static func validate(
         manifestURL: URL,
         auditURL: URL,
         lockURL: URL,
-        requiredPairIDs: Set<String>? = nil
+        requiredPairIDs: Set<String>? = nil,
+        mediaScope: V4EvidenceMediaScope = .all
     ) throws -> V4DatasetEvidence {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(V4Manifest.self, from: manifestData)
@@ -596,6 +607,21 @@ public enum V4DatasetEvidenceValidator {
                   record.hdrDecode.passed,
                   V4AlignmentPolicy.supportsMainCalibration(record.alignment) else {
                 throw CalibrationError.invalidManifest("pair \(pair.id) is not an eligible, fully audited main-calibration record")
+            }
+
+            if mediaScope == .tuneValidationOnly && pair.split == .frozen {
+                // Keep the hash-bound audit and lock checks, but do not resolve
+                // or open a Frozen asset during preflight.  A later explicit
+                // Virgin Frozen evaluator owns the only media access.
+                for digest in [record.sdrDigest, record.hdrDigest] {
+                    guard let digest,
+                          let locked = lockByPath[digest.path] ?? lockByPath[digest.portablePath(repositoryRoot: repositoryRoot)],
+                          locked.sha256 == digest.sha256,
+                          locked.sizeBytes == digest.sizeBytes else {
+                        throw CalibrationError.invalidManifest("dataset lock does not contain matching Frozen digest for pair \(pair.id)")
+                    }
+                }
+                continue
             }
             let resolved = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
             let mediaByPortablePath = [
@@ -673,7 +699,8 @@ public enum V4SourceHasher {
             "Sources/HDRCalibration/Evaluation.swift",
             "Sources/HDRCalibration/CorrectnessReview.swift",
             "Sources/HDRCalibration/V2Runner.swift",
-            "Sources/HDRCalibration/V5Preflight.swift"
+            "Sources/HDRCalibration/V5Preflight.swift",
+            "Sources/HDRCalibration/PreparedEvaluationPlan.swift"
         ]
         for relative in requiredFiles {
             guard FileManager.default.fileExists(atPath: repositoryRoot.appendingPathComponent(relative).path) else {
@@ -861,6 +888,8 @@ public final class CalibrationV4Runner {
     public let manifestURL: URL
     public let outputDirectory: URL
     public let configuration: V4CalibrationConfiguration
+    public let preparedEvaluationPlanURL: URL?
+    public let preparedFrozenPlanURL: URL?
 
     private let device: MTLDevice
     private let frozenGuard = V4FrozenExperimentGuard()
@@ -870,41 +899,113 @@ public final class CalibrationV4Runner {
         manifestURL: URL,
         outputDirectory: URL,
         configuration: V4CalibrationConfiguration = V4CalibrationConfiguration(),
+        preparedEvaluationPlanURL: URL? = nil,
+        preparedFrozenPlanURL: URL? = nil,
         device: MTLDevice? = MTLCreateSystemDefaultDevice()
     ) throws {
         guard let device else { throw CalibrationError.decodeFailed("Metal device unavailable") }
         self.manifestURL = manifestURL
         self.outputDirectory = outputDirectory
         self.configuration = configuration
+        self.preparedEvaluationPlanURL = preparedEvaluationPlanURL
+        self.preparedFrozenPlanURL = preparedFrozenPlanURL
         self.device = device
     }
 
     public func run() async throws -> V4FinalReport {
+        guard let preparedEvaluationPlanURL else {
+            throw CalibrationError.incompleteEvaluation(
+                "v4-run requires an explicit preflight --prepared-plan artifact"
+            )
+        }
         let manifest = try V4Manifest.load(from: manifestURL)
         try validateV4Split(manifest)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         let evidence = try V4DatasetEvidenceValidator.validate(
             manifestURL: manifestURL,
             auditURL: outputDirectory.appendingPathComponent("dataset-v4-final.json"),
-            lockURL: manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json")
+            lockURL: manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json"),
+            mediaScope: .tuneValidationOnly
         )
 
-        let transferByPair = try await probeTransfers(manifest)
+        let transferByPair = try await probeTransfers(manifest, includeVirginFrozen: false)
         let records = makeLegacyRecords(manifest)
         let tuneV4 = records.filter { $0.split == .tune }
         let validationV4 = records.filter { $0.split == .validation }
-        let virginIDs = Set(manifest.pairs.filter(\.virginFrozen).map(\.id))
+        let virginIDs = Set(manifest.pairs
+            .filter { $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id) }
+            .map(\.id))
         let virginV4 = records.filter { $0.split == .frozen && virginIDs.contains($0.id) }
+        let virginManifestRecords = manifest.pairs.filter {
+            $0.split == .frozen && virginIDs.contains($0.id)
+        }
 
         let repository = V2PreparedRepository(
             manifestURL: manifestURL,
             device: device,
-            configuration: preparationConfiguration()
+            configuration: preparationConfiguration(),
+            acceptedConfidenceThreshold: configuration.confidenceThreshold
         )
-        log(String(format: "prepare Tune %d + Validation %d; Virgin Frozen remains sealed", tuneV4.count, validationV4.count))
-        let tunePrepared = try await repository.prepare(records: tuneV4)
-        let validationPrepared = try await repository.prepare(records: validationV4)
+        log(String(format: "materialize sealed Tune %d + Validation %d plan; Virgin Frozen remains sealed", tuneV4.count, validationV4.count))
+        let auditForPlan = try JSONDecoder().decode(
+            V4DatasetAuditReport.self,
+            from: Data(contentsOf: outputDirectory.appendingPathComponent("dataset-v4-final.json"))
+        )
+        let consumedByteIDs = Set(auditForPlan.pairs.compactMap { pair -> String? in
+            V6VirginHoldoutPolicy.isExcluded(
+                pairID: pair.id,
+                sdrSHA256: pair.sdrDigest?.sha256,
+                hdrSHA256: pair.hdrDigest?.sha256
+            ) ? pair.id : nil
+        })
+        guard consumedByteIDs.isDisjoint(with: Set(virginV4.map(\.id))) else {
+            throw CalibrationError.invalidManifest(
+                "V6 Virgin Frozen composition reuses V5 attempt-1 IDs or asset hashes: " +
+                    consumedByteIDs.sorted().joined(separator: ",")
+            )
+        }
+        let inputHashesForPlan = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: auditForPlan)
+        let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
+            from: preparedEvaluationPlanURL
+        )
+        let allPrepared = try await repository.materialize(
+            records: tuneV4 + validationV4,
+            using: artifact.plan,
+            inputHashes: inputHashesForPlan
+        )
+        let tuneIDs = Set(tuneV4.map(\.id))
+        let validationIDs = Set(validationV4.map(\.id))
+        let tunePrepared = allPrepared.filter { tuneIDs.contains($0.record.id) }
+        let validationPrepared = allPrepared.filter { validationIDs.contains($0.record.id) }
+        let tuneValidationPlan = artifact.plan
+        log("installed immutable Tune/Validation PreparedEvaluationPlan \(artifact.planSHA256)")
+
+        // A future V6 holdout is admitted with an objective-free preparation
+        // artifact.  Preflight validates only this serialized contract; media
+        // remains sealed until the Frozen guard opens.
+        let frozenArtifact: V6PreparedEvaluationPlanArtifact?
+        if virginV4.isEmpty {
+            frozenArtifact = nil
+        } else {
+            guard let preparedFrozenPlanURL else {
+                throw CalibrationError.incompleteEvaluation(
+                    "v4-run requires an explicit admitted --prepared-frozen-plan artifact"
+                )
+            }
+            let loaded = try V6PreparedEvaluationPlanLoader.loadSealed(
+                from: preparedFrozenPlanURL
+            )
+            try V6PreparedEvaluationPlanBuilder.validateSealedContract(
+                plan: loaded.plan,
+                scope: "VIRGIN_FROZEN",
+                records: virginManifestRecords,
+                inputHashes: inputHashesForPlan,
+                preparation: artifact.plan.preparation
+            )
+            frozenArtifact = loaded
+        }
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
+        try engine.installPreparedEvaluationPlan(tuneValidationPlan)
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1130,14 +1231,37 @@ public final class CalibrationV4Runner {
             virginV4.contains(where: { $0.id == record.id })
         }
         guard frozenRecords.count >= configuration.minimumVirginFrozenPairs else {
-            throw CalibrationError.invalidManifest("V4 requires at least (configuration.minimumVirginFrozenPairs) Virgin Frozen records, found " + String(frozenRecords.count))
+            throw CalibrationError.invalidManifest(
+                "V4 requires at least " + String(configuration.minimumVirginFrozenPairs) +
+                    " Virgin Frozen records, found " + String(frozenRecords.count)
+            )
         }
-        let frozenPrepared = try await repository.prepare(records: frozenRecords)
+        let frozenRepository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            configuration: preparationConfiguration(),
+            acceptedConfidenceThreshold: configuration.confidenceThreshold
+        )
+        guard let frozenArtifact else {
+            throw CalibrationError.incompleteEvaluation(
+                "no admitted V6 Virgin Frozen PreparedEvaluationPlan is available"
+            )
+        }
+        let frozenPrepared = try await frozenRepository.materialize(
+            records: frozenRecords,
+            using: frozenArtifact.plan,
+            inputHashes: inputHashesForPlan
+        )
+        let frozenPlan = frozenArtifact.plan
+        let frozenEngine = V2EvaluationEngine(device: device, weights: configuration.weights)
+        try frozenEngine.installPreparedEvaluationPlan(
+            frozenPlan, expectedSHA256: frozenArtifact.planSHA256
+        )
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
-        let frozenDefault = try evaluate(engine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
-        let frozenV1 = try evaluate(engine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
-        let frozenV2 = try evaluate(engine, frozenPrepared, v2, "v2-virgin-frozen", .frozen, manifest)
-        let frozenV4 = try evaluate(engine, frozenPrepared, candidate, "v4-virgin-frozen", .frozen, manifest)
+        let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
+        let frozenV1 = try evaluate(frozenEngine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
+        let frozenV2 = try evaluate(frozenEngine, frozenPrepared, v2, "v2-virgin-frozen", .frozen, manifest)
+        let frozenV4 = try evaluate(frozenEngine, frozenPrepared, candidate, "v4-virgin-frozen", .frozen, manifest)
         let frozen = [
             "default": frozenDefault, "calibratedV1": frozenV1,
             "calibratedV2": frozenV2, "calibratedV4": frozenV4
@@ -1209,10 +1333,12 @@ public final class CalibrationV4Runner {
     private func validateV4Split(_ manifest: V4Manifest) throws {
         let tune = manifest.pairs.filter { $0.split == .tune }
         let validation = manifest.pairs.filter { $0.split == .validation }
-        let virgin = manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }
+        let virgin = manifest.pairs.filter {
+            $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+        }
         guard tune.count == 5, validation.count == 3, virgin.count >= configuration.minimumVirginFrozenPairs else {
             throw CalibrationError.invalidManifest(
-                String(format: "V4 expected Tune=5, Validation=3, Virgin Frozen>=%d; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
+                String(format: "V6 expected Tune=5, Validation=3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
             )
         }
     }
@@ -1223,8 +1349,10 @@ public final class CalibrationV4Runner {
             algorithm: "manifest-video-group-fixed-v4-family-balanced",
             tune: manifest.pairs.filter { $0.split == .tune }.map(\.id),
             validation: manifest.pairs.filter { $0.split == .validation }.map(\.id),
-            frozen: manifest.pairs.filter { $0.split == .frozen }.map(\.id),
-            frozenAccessPolicy: "Virgin Frozen objective is opened once after final candidate freeze"
+            frozen: manifest.pairs.filter {
+                $0.split == .frozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+            }.map(\.id),
+            frozenAccessPolicy: "V6 excludes every V5 attempt-1 pair/asset; a new plan-sealed Virgin Frozen set is required"
         )
     }
 
@@ -1258,9 +1386,21 @@ public final class CalibrationV4Runner {
         relation.legacyRelation()
     }
 
-    private func probeTransfers(_ manifest: V4Manifest) async throws -> [String: String] {
+    private func probeTransfers(
+        _ manifest: V4Manifest,
+        includeVirginFrozen: Bool
+    ) async throws -> [String: String] {
         var result: [String: String] = [:]
         for pair in manifest.pairs {
+            if pair.split == .frozen && pair.virginFrozen && !includeVirginFrozen {
+                // Preflight uses only manifest-declared source evidence for
+                // Frozen coverage. No Frozen URL is resolved or opened until
+                // the explicit guard has opened the holdout.
+                let declared = (pair.referenceTransfer ?? "").lowercased()
+                result[pair.id] = declared.contains("hlg") || declared.contains("b67") ? "HLG" :
+                    declared.contains("pq") || declared.contains("st2084") ? "PQ" : "UNKNOWN"
+                continue
+            }
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
             let metadata = try await MetadataProbe.probe(url: urls.hdr)
             result[pair.id] = metadata.color.referenceTransfer == .pq ? "PQ" :
@@ -1451,7 +1591,9 @@ public final class CalibrationV4Runner {
         let frozenImprovement = improvement(frozenV2.metrics.objective, frozenV4.metrics.objective)
         let expectedTune = Set(manifest.pairs.filter { $0.split == .tune }.map(\.id))
         let expectedValidation = Set(manifest.pairs.filter { $0.split == .validation }.map(\.id))
-        let expectedFrozen = Set(manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }.map(\.id))
+        let expectedFrozen = Set(manifest.pairs.filter {
+            $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+        }.map(\.id))
         let completeness = expectedTune == Set(tuneV2.videos.map(\.pairID)) &&
             expectedTune == Set(tuneV4.videos.map(\.pairID)) &&
             expectedValidation == Set(validationV2.videos.map(\.pairID)) &&
@@ -1804,7 +1946,10 @@ public final class CalibrationV4Runner {
 
         func check(_ split: DatasetSplit) {
             let pairs = manifest.pairs.filter {
-                $0.split == split && (split == .frozen ? $0.virginFrozen : !$0.virginFrozen)
+                $0.split == split &&
+                    (split == .frozen
+                        ? ($0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id))
+                        : !$0.virginFrozen)
             }
             let observedTransfers = Set(pairs.compactMap { transferByPair[$0.id] })
             let observedFamilies = Set(pairs.compactMap { $0.contentFamily })

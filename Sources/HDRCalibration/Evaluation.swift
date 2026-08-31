@@ -252,27 +252,59 @@ struct PreparedTemporalFrame {
     let reference: ReferenceFrame
     let sourceLuma: [Float]
     let confidence: Double
+    /// The HDR sample identity is retained so a V6 prepared plan can bind
+    /// temporal frames to the exact decode result.  Older callers do not need
+    /// to provide these fields, therefore they remain optional.
+    let hdrIndex: Int?
+    let hdrSequencePosition: Int?
+    let hdrTimestampSeconds: Double?
+
+    init(
+        sdr: FrameSample,
+        reference: ReferenceFrame,
+        sourceLuma: [Float],
+        confidence: Double,
+        hdrIndex: Int? = nil,
+        hdrSequencePosition: Int? = nil,
+        hdrTimestampSeconds: Double? = nil
+    ) {
+        self.sdr = sdr
+        self.reference = reference
+        self.sourceLuma = sourceLuma
+        self.confidence = confidence
+        self.hdrIndex = hdrIndex
+        self.hdrSequencePosition = hdrSequencePosition
+        self.hdrTimestampSeconds = hdrTimestampSeconds
+    }
 }
 
 struct PreparedTemporalWindow {
     let sceneID: String
     let frames: [PreparedTemporalFrame]
     let decision: V4TemporalWindowDecision
+    let startSeconds: Double
+    let offsetSeconds: Double
 
     init(
         sceneID: String,
         frames: [PreparedTemporalFrame],
-        decision: V4TemporalWindowDecision? = nil
+        decision: V4TemporalWindowDecision? = nil,
+        startSeconds: Double = 0,
+        offsetSeconds: Double = 0
     ) {
         self.sceneID = sceneID
         self.frames = frames
         self.decision = decision ?? V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: frames.count)
+        self.startSeconds = startSeconds
+        self.offsetSeconds = offsetSeconds
     }
 }
 
 struct PreparedPair {
     let record: PairRecord
     let sdrSequence: FrameSequence
+    let hdrSequence: FrameSequence
+    let referenceTransfer: ReferenceTransfer
     let alignment: AlignmentResult
     let scenes: [SceneRange]
     let matches: [PreparedMatch]
@@ -388,11 +420,307 @@ public final class PairEvaluator {
         return PreparedPair(
             record: record,
             sdrSequence: sdrSequence,
+            hdrSequence: hdrSequence,
+            referenceTransfer: hdrMetadata.color.referenceTransfer,
             alignment: alignment,
             scenes: scenes,
             matches: preparedMatches,
             temporalWindows: temporalWindows
         )
+    }
+
+    /// Decode only the media identities already sealed by preflight.  This is
+    /// intentionally not a second preparation path: it never invokes the
+    /// aligner, scene detector, representative selector, or confidence filter.
+    /// Any path, byte, decode, timestamp, or identity drift fails closed before
+    /// objective pixels are evaluated.
+    func materialize(
+        record: PairRecord,
+        manifestURL: URL,
+        manifest: V4Manifest,
+        pairPlan: V6PreparedPairPlan,
+        preparation: V6PreparationConfiguration
+    ) async throws -> PreparedPair {
+        guard record.id == pairPlan.pairID,
+              record.split == pairPlan.split,
+              let manifestPair = manifest.pairs.first(where: { $0.id == record.id }) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan record identity/split mismatch for \(record.id)"
+            )
+        }
+        guard manifestPair.sdr == pairPlan.sdrPath,
+              manifestPair.hdr == pairPlan.hdrPath else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan manifest path mismatch for \(record.id)"
+            )
+        }
+        let manifestURLs = manifestPair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+        let recordURLs = record.resolvedURLs(relativeTo: manifestURL)
+        guard manifestURLs.sdr.standardizedFileURL == recordURLs.sdr.standardizedFileURL,
+              manifestURLs.hdr.standardizedFileURL == recordURLs.hdr.standardizedFileURL else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan resolved path mismatch for \(record.id)"
+            )
+        }
+
+        // Hash before decode so path aliases cannot silently point the sealed
+        // plan at different bytes.
+        let actualHashes = V6InputHashes(
+            sdrSHA256: try V4DatasetIntegrity.sha256(url: manifestURLs.sdr),
+            hdrSHA256: try V4DatasetIntegrity.sha256(url: manifestURLs.hdr)
+        )
+        guard actualHashes == pairPlan.inputHashes else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan media hash mismatch for \(record.id)"
+            )
+        }
+
+        let hdrMetadata = try await MetadataProbe.probe(url: manifestURLs.hdr)
+        let transfer = hdrMetadata.color.referenceTransfer
+        if transfer == .hlg && !preparation.allowHLGModel {
+            throw CalibrationError.unsupportedReference("HLG model disabled for \(record.id)")
+        }
+        guard transfer == pairPlan.decode.referenceTransfer else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan HDR transfer mismatch for \(record.id)"
+            )
+        }
+        let sdrSequence = try await FrameReader.read(
+            url: manifestURLs.sdr,
+            pixelFormat: preparation.sdrPixelFormat,
+            maxFrames: preparation.maxDecodedFrames,
+            proxyWidth: preparation.proxyWidth
+        )
+        let hdrSequence = try await FrameReader.read(
+            url: manifestURLs.hdr,
+            pixelFormat: preparation.hdrPixelFormat,
+            maxFrames: preparation.maxDecodedFrames,
+            proxyWidth: preparation.proxyWidth
+        )
+        let actualDecode = V6DecodeMetadata(
+            sdrWidth: sdrSequence.width,
+            sdrHeight: sdrSequence.height,
+            sdrNominalFrameRate: sdrSequence.nominalFrameRate,
+            sdrDurationSeconds: sdrSequence.durationSeconds,
+            hdrWidth: hdrSequence.width,
+            hdrHeight: hdrSequence.height,
+            hdrDurationSeconds: hdrSequence.durationSeconds,
+            decodedSDRFrameCount: sdrSequence.samples.count,
+            decodedHDRFrameCount: hdrSequence.samples.count,
+            referenceTransfer: transfer,
+            sdrPixelFormat: sdrSequence.pixelFormat,
+            hdrPixelFormat: hdrSequence.pixelFormat
+        )
+        guard actualDecode == pairPlan.decode else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan decode metadata mismatch for \(record.id)"
+            )
+        }
+
+        let rawMatches = try pairPlan.alignment.matchedFrames.map { identity in
+            try matchedFrame(identity, sdr: sdrSequence, hdr: hdrSequence, pairID: record.id)
+        }
+        let alignment = AlignmentResult(
+            status: pairPlan.alignment.status,
+            coarseOffsetSeconds: pairPlan.alignment.coarseOffsetSeconds,
+            matches: rawMatches,
+            rejectedFrames: pairPlan.alignment.rejectedFrameCount,
+            medianConfidence: pairPlan.alignment.medianConfidence,
+            notes: ["materialized read-only from PreparedEvaluationPlan"]
+        )
+        guard rawMatches.count == pairPlan.alignment.matchedFrameCount else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan raw match count mismatch for \(record.id)"
+            )
+        }
+
+        var preparedMatches: [PreparedMatch] = []
+        preparedMatches.reserveCapacity(pairPlan.alignment.acceptedFrames.count)
+        for identity in pairPlan.alignment.acceptedFrames {
+            let match = try matchedFrame(
+                identity, sdr: sdrSequence, hdr: hdrSequence, pairID: record.id
+            )
+            guard let sdr = exactSample(identity, role: .sdr, in: sdrSequence),
+                  let hdr = exactSample(identity, role: .hdr, in: hdrSequence) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan accepted sample is absent for \(record.id)"
+                )
+            }
+            let reference = try HDRReferenceDecoder.decode(
+                pixelBuffer: hdr.pixelBuffer,
+                timestampSeconds: identity.hdrTimestampSeconds,
+                transfer: transfer,
+                referencePeakNits: preparation.referenceTargetPeakNits
+            )
+            let sourceLuma = FrameDescriptorBuilder.downsample(
+                sdr.lumaGrid, sourceWidth: 64, sourceHeight: 36,
+                width: reference.width, height: reference.height
+            )
+            preparedMatches.append(PreparedMatch(
+                match: match, sdr: sdr, hdr: hdr,
+                reference: reference, sourceLuma: sourceLuma
+            ))
+        }
+
+        let scenes = pairPlan.scenes.map {
+            SceneRange(
+                id: $0.id,
+                startSequencePosition: $0.startSequencePosition,
+                endSequencePosition: $0.endSequencePosition,
+                tags: $0.tags
+            )
+        }
+        let temporalWindows = try await materializeTemporalWindows(
+            pairID: record.id,
+            plans: pairPlan.temporalWindows,
+            sdrURL: manifestURLs.sdr,
+            hdrURL: manifestURLs.hdr,
+            hdrTransfer: transfer,
+            preparation: preparation
+        )
+        let prepared = PreparedPair(
+            record: record,
+            sdrSequence: sdrSequence,
+            hdrSequence: hdrSequence,
+            referenceTransfer: transfer,
+            alignment: alignment,
+            scenes: scenes,
+            matches: preparedMatches,
+            temporalWindows: temporalWindows
+        )
+        try V6PreparedEvaluationPlanBuilder.validatePairMaterial(
+            pairPlan: pairPlan,
+            prepared: prepared,
+            acceptedIdentities: pairPlan.alignment.acceptedFrames
+        )
+        return prepared
+    }
+
+    private enum PlannedSampleRole { case sdr, hdr }
+
+    private func exactSample(
+        _ identity: V6PreparedFrameIdentity,
+        role: PlannedSampleRole,
+        in sequence: FrameSequence
+    ) -> FrameSample? {
+        let sourceIndex = role == .sdr
+            ? identity.sdrSourceFrameIndex : identity.hdrSourceFrameIndex
+        let sequencePosition = role == .sdr
+            ? identity.sdrSequencePosition : identity.hdrSequencePosition
+        let timestamp = role == .sdr
+            ? identity.sdrTimestampSeconds : identity.hdrTimestampSeconds
+        return sequence.samples.first {
+            $0.index == sourceIndex &&
+                $0.sequencePosition == sequencePosition &&
+                $0.descriptor.timestampSeconds == timestamp
+        }
+    }
+
+    private func matchedFrame(
+        _ identity: V6PreparedFrameIdentity,
+        sdr: FrameSequence,
+        hdr: FrameSequence,
+        pairID: String
+    ) throws -> MatchedFrame {
+        guard exactSample(identity, role: .sdr, in: sdr) != nil,
+              exactSample(identity, role: .hdr, in: hdr) != nil else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan matched identity is absent after decode for \(pairID)"
+            )
+        }
+        return MatchedFrame(
+            sdrIndex: identity.sdrSourceFrameIndex,
+            hdrIndex: identity.hdrSourceFrameIndex,
+            sdrSequencePosition: identity.sdrSequencePosition,
+            hdrSequencePosition: identity.hdrSequencePosition,
+            sdrTimeSeconds: identity.sdrTimestampSeconds,
+            hdrTimeSeconds: identity.hdrTimestampSeconds,
+            confidence: identity.confidence
+        )
+    }
+
+    private func materializeTemporalWindows(
+        pairID: String,
+        plans: [V6TemporalWindowPlan],
+        sdrURL: URL,
+        hdrURL: URL,
+        hdrTransfer: ReferenceTransfer,
+        preparation: V6PreparationConfiguration
+    ) async throws -> [PreparedTemporalWindow] {
+        var windows: [PreparedTemporalWindow] = []
+        windows.reserveCapacity(plans.count)
+        for plan in plans {
+            let sdr = try await FrameReader.readWindow(
+                url: sdrURL, pixelFormat: preparation.sdrPixelFormat,
+                startSeconds: plan.startSeconds,
+                frameCount: preparation.temporalTargetFrameCount,
+                framesPerSecond: preparation.temporalFramesPerSecond,
+                proxyWidth: preparation.proxyWidth
+            )
+            let hdr = try await FrameReader.readWindow(
+                url: hdrURL, pixelFormat: preparation.hdrPixelFormat,
+                startSeconds: max(plan.startSeconds + plan.offsetSeconds, 0),
+                frameCount: preparation.temporalTargetFrameCount,
+                framesPerSecond: preparation.temporalFramesPerSecond,
+                proxyWidth: preparation.proxyWidth
+            )
+            let count = min(sdr.samples.count, hdr.samples.count)
+            let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
+            guard decision == plan.decision, count == plan.frames.count else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan temporal decode mismatch for \(pairID)"
+                )
+            }
+            var frames: [PreparedTemporalFrame] = []
+            frames.reserveCapacity(count)
+            for index in 0..<count {
+                let identity = plan.frames[index]
+                let sdrFrame = sdr.samples[index]
+                let hdrFrame = hdr.samples[index]
+                guard sdrFrame.index == identity.sdrSourceFrameIndex,
+                      sdrFrame.sequencePosition == identity.sdrSequencePosition,
+                      sdrFrame.descriptor.timestampSeconds == identity.sdrTimestampSeconds,
+                      hdrFrame.index == identity.hdrSourceFrameIndex,
+                      hdrFrame.sequencePosition == identity.hdrSequencePosition,
+                      hdrFrame.descriptor.timestampSeconds == identity.hdrTimestampSeconds else {
+                    throw CalibrationError.incompleteEvaluation(
+                        "PreparedEvaluationPlan temporal identity mismatch for \(pairID)"
+                    )
+                }
+                let reference = try HDRReferenceDecoder.decode(
+                    pixelBuffer: hdrFrame.pixelBuffer,
+                    timestampSeconds: identity.hdrTimestampSeconds,
+                    transfer: hdrTransfer,
+                    referencePeakNits: preparation.referenceTargetPeakNits
+                )
+                let sourceLuma = FrameDescriptorBuilder.downsample(
+                    sdrFrame.lumaGrid, sourceWidth: 64, sourceHeight: 36,
+                    width: reference.width, height: reference.height
+                )
+                frames.append(PreparedTemporalFrame(
+                    sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,
+                    confidence: identity.confidence,
+                    hdrIndex: hdrFrame.index,
+                    hdrSequencePosition: hdrFrame.sequencePosition,
+                    hdrTimestampSeconds: identity.hdrTimestampSeconds
+                ))
+            }
+            let accepted = decision.accepted &&
+                (frames.first.map { $0.confidence >= preparation.acceptedConfidenceThreshold } ?? false)
+            guard accepted == plan.evaluationAccepted else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan temporal confidence decision mismatch for \(pairID)"
+                )
+            }
+            windows.append(PreparedTemporalWindow(
+                sceneID: plan.sceneID,
+                frames: frames,
+                decision: decision,
+                startSeconds: plan.startSeconds,
+                offsetSeconds: plan.offsetSeconds
+            ))
+        }
+        return windows
     }
 
     private func prepareTemporalWindows(
@@ -444,10 +772,19 @@ public final class PairEvaluator {
                 )
                 frames.append(PreparedTemporalFrame(
                     sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,
-                    confidence: anchor.confidence
+                    confidence: anchor.confidence,
+                    hdrIndex: hdr.samples[index].index,
+                    hdrSequencePosition: hdr.samples[index].sequencePosition,
+                    hdrTimestampSeconds: hdr.samples[index].descriptor.timestampSeconds
                 ))
             }
-            windows.append(PreparedTemporalWindow(sceneID: scene.id, frames: frames, decision: decision))
+            windows.append(PreparedTemporalWindow(
+                sceneID: scene.id,
+                frames: frames,
+                decision: decision,
+                startSeconds: start,
+                offsetSeconds: offset
+            ))
         }
         return windows
     }

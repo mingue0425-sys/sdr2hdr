@@ -11,7 +11,7 @@ public enum V4TemporalWindowAcceptanceReason: String, Codable, Sendable {
     case noAlignedAnchor = "NO_ALIGNED_ANCHOR"
 }
 
-public struct V4TemporalWindowDecision: Codable, Sendable, Equatable {
+public struct V4TemporalWindowDecision: Codable, Sendable, Equatable, Hashable {
     public let targetFrameCount: Int
     public let minimumRequiredFrameCount: Int
     public let actualDecodedFrameCount: Int
@@ -129,7 +129,7 @@ public struct V4FrozenCoveragePolicy: Codable, Sendable, Equatable {
     public let rationale: [String]
 
     public init(
-        version: String = "pre-v5-frozen-coverage-v1",
+        version: String = "pre-v6-frozen-coverage-v1",
         requiredTransfers: Set<String> = ["HLG", "PQ"],
         requiredFamilies: Set<String> = [],
         minimumVirginFrozenPairs: Int = 3,
@@ -174,7 +174,7 @@ public struct V4HoldoutProvenanceAudit: Codable, Sendable, Equatable {
     public let scannedArtifacts: [String]
 
     public init(
-        version: String = "pre-v5-holdout-provenance-v1",
+        version: String = "pre-v6-holdout-provenance-v1",
         consumedPairIDs: [String],
         evidenceByPairID: [String: [String]],
         scannedArtifacts: [String]
@@ -187,6 +187,58 @@ public struct V4HoldoutProvenanceAudit: Codable, Sendable, Equatable {
 
     public var consumedSet: Set<String> { Set(consumedPairIDs) }
     public func evidence(for pairID: String) -> [String] { evidenceByPairID[pairID] ?? [] }
+}
+
+/// V6 starts a new virgin boundary after the consumed V5 attempt.  These IDs
+/// are recorded from the immutable attempt-1 ledger/result evidence and are
+/// never eligible for a future Virgin Frozen set, even though their sealed
+/// input manifests remain untouched.
+public enum V6VirginHoldoutPolicy {
+    public static let version = "v6-virgin-holdout-exclusion-v2"
+    public static let attempt1State = "INCOMPLETE"
+    public static let objectivePixelsRead = false
+    public static let objectiveMetricsObserved = false
+    public static let procedurallyConsumed = true
+    public static let retryPermitted = false
+    public static let consumedPairIDs: Set<String> = [
+        "solemates_unh0400_0010",
+        "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+        "live_8_drawing_3840x2160_15000k"
+    ]
+    /// Attempt-1 exclusion is byte-bound as well as ID-bound.  Renaming or
+    /// re-registering either consumed asset cannot make it virgin again.
+    public static let consumedAssetPairs: [String: V6InputHashes] = [
+        "solemates_unh0400_0010": V6InputHashes(
+            sdrSHA256: "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
+            hdrSHA256: "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136"
+        ),
+        "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg": V6InputHashes(
+            sdrSHA256: "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+            hdrSHA256: "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01"
+        ),
+        "live_8_drawing_3840x2160_15000k": V6InputHashes(
+            sdrSHA256: "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
+            hdrSHA256: "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c"
+        )
+    ]
+
+    public static func isExcluded(_ pairID: String) -> Bool {
+        consumedPairIDs.contains(pairID)
+    }
+
+    public static func isExcluded(
+        pairID: String,
+        sdrSHA256: String?,
+        hdrSHA256: String?
+    ) -> Bool {
+        if isExcluded(pairID) { return true }
+        let sdr = sdrSHA256?.lowercased()
+        let hdr = hdrSHA256?.lowercased()
+        return consumedAssetPairs.values.contains { consumed in
+            (sdr != nil && sdr == consumed.sdrSHA256) ||
+                (hdr != nil && hdr == consumed.hdrSHA256)
+        }
+    }
 }
 
 /// Reconstructs objective-consumption history from prior frozen objective artifacts.
@@ -268,6 +320,15 @@ public enum V4HistoricalObjectiveProvenance {
             }
         }
 
+        // The V5 attempt-1 ledger is immutable and lives outside the source
+        // tree.  Carry its procedural-consumption boundary into every new V6
+        // provenance result so a future holdout cannot silently reuse one of
+        // the three attempted pairs.
+        for pairID in V6VirginHoldoutPolicy.consumedPairIDs {
+            evidence[pairID, default: []].insert(
+                "external:v5-attempt-1:" + V6VirginHoldoutPolicy.attempt1State
+            )
+        }
         let normalized = evidence.mapValues { Array($0).sorted() }
         return V4HoldoutProvenanceAudit(
             consumedPairIDs: normalized.keys.sorted(),
@@ -536,7 +597,7 @@ public struct V4NewHLGHoldoutAudit: Codable, Sendable, Equatable {
     public let reason: String
 
     public init(
-        version: String = "pre-v5-new-hlg-holdout-audit-v1",
+        version: String = "pre-v6-new-hlg-holdout-audit-v1",
         required: Bool = true,
         status: String,
         found: Bool,
@@ -577,6 +638,7 @@ public enum V4NewHLGHoldoutAuditor {
             repositoryRoot: root, outputDirectory: outputDirectory
         )
         let objectivelyConsumed = objectiveProvenance.consumedSet
+            .union(V6VirginHoldoutPolicy.consumedPairIDs)
         let historicalManifests = [
             root.appendingPathComponent("data_video/manifest.json"),
             root.appendingPathComponent("data_video/manifest-v2.json"),
@@ -605,17 +667,34 @@ public enum V4NewHLGHoldoutAuditor {
             }
         }
         let currentManifest = try V4Manifest.load(from: manifestURL)
+        // Never rediscover currently registered Virgin Frozen media while
+        // searching for a replacement V6 HLG holdout.  Path resolution reads
+        // only manifest strings; no Frozen media is opened here.
+        for pair in currentManifest.pairs where pair.split == .frozen && pair.virginFrozen {
+            let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: currentManifest.roots)
+            consumedPaths.insert(urls.sdr.standardizedFileURL.path)
+            consumedPaths.insert(urls.hdr.standardizedFileURL.path)
+            if pair.referenceTransfer?.lowercased() == "hlg" || pair.referenceTransfer?.lowercased() == "arib-std-b67" {
+                consumedHLGIDs.insert(pair.id)
+            }
+        }
         let datasetAuditByID = Dictionary(uniqueKeysWithValues: datasetAudit.pairs.map { ($0.id, $0) })
         var existingVirginCandidates: [V4NewHLGCandidateAudit] = []
         for manifestPair in currentManifest.pairs where manifestPair.virginFrozen && manifestPair.virginEvidence != nil {
             let declaredTransfer = (manifestPair.referenceTransfer ?? "").lowercased()
             guard declaredTransfer == "hlg" || declaredTransfer == "arib-std-b67" else { continue }
             consumedHLGIDs.insert(manifestPair.id)
+            let auditedPair = datasetAuditByID[manifestPair.id]
+            let consumedByIdentity = V6VirginHoldoutPolicy.isExcluded(
+                pairID: manifestPair.id,
+                sdrSHA256: auditedPair?.sdrDigest?.sha256,
+                hdrSHA256: auditedPair?.hdrDigest?.sha256
+            )
             existingVirginCandidates.append(auditRegisteredManifestPair(
                 manifestPair: manifestPair,
-                datasetPair: datasetAuditByID[manifestPair.id],
+                datasetPair: auditedPair,
                 manifestURL: manifestURL,
-                objectivelyConsumed: objectivelyConsumed.contains(manifestPair.id)
+                objectivelyConsumed: objectivelyConsumed.contains(manifestPair.id) || consumedByIdentity
             ))
         }
 
@@ -690,7 +769,7 @@ public enum V4NewHLGHoldoutAuditor {
             ? "a metadata-verified, decoded, strongly aligned, objective-unexposed local HLG/BT.709 pair is available"
             : "no unconsumed local HLG/BT.2020 candidate passed metadata, same-source identity, decode, and alignment gates"
         return V4NewHLGHoldoutAudit(
-            version: "pre-v5-new-hlg-holdout-audit-v3",
+            version: "pre-v6-new-hlg-holdout-audit-v1",
             status: status, found: found,
             searchedRoots: searchRoots.map { portableSearchRoot($0, repositoryRoot: root) },
             consumedHLGPairIDs: consumedHLGIDs.sorted(), candidates: candidates, reason: reason
@@ -880,6 +959,20 @@ public enum V4NewHLGHoldoutAuditor {
         guard sdr.metadata.isExplicitBT709SDR else { reasons.append("SDR metadata is not explicit supported BT.709"); return rejected(id, sdrPath, hdrPath, reasons) }
         guard isHLGReference(hdr.metadata) else { reasons.append("HDR metadata is not BT.2020 HLG 10-bit+"); return rejected(id, sdrPath, hdrPath, reasons) }
         guard sourceIdentityScore >= 0.60 else { reasons.append("source identity score below 0.60"); return rejected(id, sdrPath, hdrPath, reasons) }
+
+        do {
+            let sdrSHA256 = try V4DatasetIntegrity.sha256(url: sdr.url)
+            let hdrSHA256 = try V4DatasetIntegrity.sha256(url: hdr.url)
+            if V6VirginHoldoutPolicy.isExcluded(
+                pairID: id, sdrSHA256: sdrSHA256, hdrSHA256: hdrSHA256
+            ) {
+                reasons.append("asset SHA-256 was procedurally consumed by V5 Frozen attempt 1")
+                return rejected(id, sdrPath, hdrPath, reasons)
+            }
+        } catch {
+            reasons.append("asset SHA-256 verification failed: \(error.localizedDescription)")
+            return rejected(id, sdrPath, hdrPath, reasons)
+        }
 
         do {
             let sdrSequence = try await FrameReader.read(

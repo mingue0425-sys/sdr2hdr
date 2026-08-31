@@ -857,7 +857,7 @@ public enum V4ReportWriter {
         lines.append("- Objective evaluation: `\(report.objectiveEvaluated ? "YES" : "NO")`")
         lines.append("- Frozen objective IDs: `\(report.frozenObjectiveEvaluated.isEmpty ? "NONE" : report.frozenObjectiveEvaluated.joined(separator: ", "))`")
         lines.append("- Structural dataset verdict: `\(report.verdict.rawValue)`")
-        lines.append("- Readiness scope: `DATASET_INTEGRITY_ONLY`; Pre-V5 holdout readiness is evaluated separately by `correctness-review`.")
+        lines.append("- Readiness scope: `DATASET_INTEGRITY_ONLY`; Pre-V6 holdout readiness is evaluated separately by `correctness-review`.")
         for reason in report.gateReasons { lines.append("- Gate: \(reason)") }
         lines.append("")
         lines.append("## Pair summary")

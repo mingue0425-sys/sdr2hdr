@@ -20,9 +20,31 @@ final class V2PreparedRepository {
     private let manifestURL: URL
     private let evaluator: PairEvaluator
     private var cache: [String: PreparedPair] = [:]
+    private let preparationConfiguration: V6PreparationConfiguration
+    private(set) var preparedEvaluationPlan: PreparedEvaluationPlan?
 
-    init(manifestURL: URL, device: MTLDevice, configuration: V2SearchConfiguration) {
+    init(
+        manifestURL: URL,
+        device: MTLDevice,
+        configuration: V2SearchConfiguration,
+        acceptedConfidenceThreshold: Double = 0.60
+    ) {
         self.manifestURL = manifestURL
+        self.preparationConfiguration = V6PreparationConfiguration(
+            maxFramesPerScene: configuration.maxFramesPerScene,
+            maxDecodedFrames: max(64, configuration.maxFramesPerScene * 16),
+            alignmentConfidenceThreshold: 0,
+            acceptedConfidenceThreshold: acceptedConfidenceThreshold,
+            temporalFramesPerSecond: 30,
+            temporalTargetFrameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
+            temporalMinimumFrameCount: V4TemporalWindowPolicy.v5.minimumRequiredFrameCount,
+            temporalWarmupFrameCount: V4TemporalWindowPolicy.v5.warmupFrameCount,
+            referenceTargetPeakNits: configuration.referenceTargetPeakNits,
+            allowHLGModel: true,
+            sdrPixelFormat: CalibrationPixelFormat.sdrNV12,
+            hdrPixelFormat: CalibrationPixelFormat.hdrP010
+        )
+        self.preparedEvaluationPlan = nil
         self.evaluator = PairEvaluator(
             device: device,
             experiment: ExperimentConfig(
@@ -43,11 +65,135 @@ final class V2PreparedRepository {
                 result.append(cached)
                 continue
             }
+            guard preparedEvaluationPlan == nil else {
+                throw CalibrationError.incompleteEvaluation(
+                    "cannot prepare a new pair after PreparedEvaluationPlan was sealed"
+                )
+            }
             v2Log("decode/align \(record.id)")
             let prepared = try await evaluator.prepare(record: record, manifestURL: manifestURL)
             cache[record.id] = prepared
             result.append(prepared)
         }
+        return result
+    }
+
+    /// Seal one immutable preparation plan after all requested records have
+    /// been decoded.  The plan contains decisions only; the cached PreparedPair
+    /// values retain the decoded buffers used by the evaluator.
+    func sealPreparedEvaluationPlan(
+        records: [PairRecord],
+        inputHashes: [String: V6InputHashes],
+        scope: String = "TUNE_VALIDATION"
+    ) throws -> PreparedEvaluationPlan {
+        let prepared = records.compactMap { cache[$0.id] }
+        guard prepared.count == records.count else {
+            throw CalibrationError.incompleteEvaluation(
+                "cannot seal PreparedEvaluationPlan before every pair is prepared"
+            )
+        }
+        let manifest = try? V4Manifest.load(from: manifestURL)
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: prepared,
+            manifest: manifest,
+            repositoryRoot: repositoryRoot,
+            configuration: preparationConfiguration,
+            inputHashes: inputHashes,
+            scope: scope
+        )
+        try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: prepared)
+        if let installed = preparedEvaluationPlan {
+            let installedHash = try V6PreparedEvaluationPlanHasher.sha256(installed)
+            let nextHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+            guard installedHash == nextHash else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan is immutable for this preparation repository"
+                )
+            }
+            return installed
+        }
+        preparedEvaluationPlan = plan
+        return plan
+    }
+
+    /// Install a plan produced by the preflight process.  This is deliberately
+    /// a read-only hand-off: the repository may validate the already decoded
+    /// material and the sealed input hashes, but it never selects frames or
+    /// rebuilds the plan from the media a second time.
+    func installPreparedEvaluationPlan(
+        _ plan: PreparedEvaluationPlan,
+        records: [PairRecord],
+        inputHashes: [String: V6InputHashes]
+    ) throws -> PreparedEvaluationPlan {
+        guard plan.scope == "TUNE_VALIDATION",
+              plan.pairOrder == records.map(\.id) else {
+            throw CalibrationError.incompleteEvaluation(
+                "preflight PreparedEvaluationPlan scope/order does not match evaluator records"
+            )
+        }
+        guard plan.preparation == preparationConfiguration else {
+            throw CalibrationError.incompleteEvaluation(
+                "preflight PreparedEvaluationPlan configuration differs at evaluator entry"
+            )
+        }
+        for record in records {
+            guard let planned = plan.pairPlan(for: record.id),
+                  planned.split == record.split,
+                  planned.inputHashes == inputHashes[record.id] else {
+                throw CalibrationError.incompleteEvaluation(
+                    "preflight PreparedEvaluationPlan input hash differs for \(record.id)"
+                )
+            }
+        }
+        if let installed = preparedEvaluationPlan {
+            let installedHash = try V6PreparedEvaluationPlanHasher.sha256(installed)
+            let incomingHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+            guard installedHash == incomingHash else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan is immutable for this preparation repository"
+                )
+            }
+            return installed
+        }
+        preparedEvaluationPlan = plan
+        return plan
+    }
+
+    /// Install the preflight artifact first, then decode only its sealed
+    /// identities.  No alignment, scene detection, representative selection,
+    /// or confidence filtering is performed at evaluator entry.
+    func materialize(
+        records: [PairRecord],
+        using plan: PreparedEvaluationPlan,
+        inputHashes: [String: V6InputHashes]
+    ) async throws -> [PreparedPair] {
+        let installed = try installPreparedEvaluationPlan(
+            plan, records: records, inputHashes: inputHashes
+        )
+        let manifest = try V4Manifest.load(from: manifestURL)
+        var result: [PreparedPair] = []
+        result.reserveCapacity(records.count)
+        for record in records {
+            guard let pairPlan = installed.pairPlan(for: record.id) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan is missing \(record.id)"
+                )
+            }
+            v2Log("materialize sealed plan \(record.id)")
+            let prepared = try await evaluator.materialize(
+                record: record,
+                manifestURL: manifestURL,
+                manifest: manifest,
+                pairPlan: pairPlan,
+                preparation: installed.preparation
+            )
+            cache[record.id] = prepared
+            result.append(prepared)
+        }
+        try V6PreparedEvaluationPlanBuilder.validate(
+            plan: installed, preparedPairs: result
+        )
         return result
     }
 }
@@ -60,10 +206,45 @@ final class V2EvaluationEngine {
     /// cached evaluator may be reused for speed, but changing parameters must
     /// reset its causal state before the first frame of the new configuration.
     private var evaluatorConfigurationKeys: [String: String] = [:]
+    private var preparedEvaluationPlan: PreparedEvaluationPlan?
 
     init(device: MTLDevice, weights: V2ObjectiveWeights) {
         self.device = device
         self.weights = weights
+        self.preparedEvaluationPlan = nil
+    }
+
+    func installPreparedEvaluationPlan(
+        _ plan: PreparedEvaluationPlan,
+        expectedSHA256: String? = nil
+    ) throws {
+        let actualHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        if let expectedSHA256, actualHash != expectedSHA256 {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan hash mismatch before evaluator entry"
+            )
+        }
+        if let installed = preparedEvaluationPlan {
+            let installedHash = try V6PreparedEvaluationPlanHasher.sha256(installed)
+            guard installedHash == actualHash else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan is immutable for this evaluator session"
+                )
+            }
+            return
+        }
+        self.preparedEvaluationPlan = plan
+    }
+
+    func installPreparedEvaluationPlan(
+        _ artifact: V6PreparedEvaluationPlanArtifact
+    ) throws {
+        guard try artifact.verified() else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan artifact hash mismatch before evaluator entry"
+            )
+        }
+        try installPreparedEvaluationPlan(artifact.plan, expectedSHA256: artifact.planSHA256)
     }
 
     func evaluate(
@@ -73,6 +254,12 @@ final class V2EvaluationEngine {
         split: DatasetSplit,
         confidenceThreshold: Double
     ) throws -> V2DatasetEvaluation {
+        if let preparedEvaluationPlan {
+            try V6PreparedEvaluationEntry.validatePairOrder(
+                preparedPairs: preparedPairs,
+                plan: preparedEvaluationPlan
+            )
+        }
         var videos: [V2VideoEvaluation] = []
         for prepared in preparedPairs {
             let configuration = try parameters.configuration()
@@ -93,8 +280,20 @@ final class V2EvaluationEngine {
                 evaluatorConfigurationKeys[prepared.record.id] = configurationKey
                 evaluator = created
             }
-            let accepted = prepared.matches.filter { $0.match.confidence >= confidenceThreshold }
-                .sorted { ($0.match.sdrSequencePosition ?? .max) < ($1.match.sdrSequencePosition ?? .max) }
+            let accepted: [PreparedMatch]
+            if let preparedEvaluationPlan {
+                // V6 evaluator entry is read-only with respect to frame
+                // selection.  It can only consume the identities sealed by
+                // preflight; no confidence filtering or representative
+                // selection is recalculated here.
+                accepted = try V6PreparedEvaluationEntry.acceptedMatches(
+                    prepared: prepared,
+                    plan: preparedEvaluationPlan
+                )
+            } else {
+                accepted = prepared.matches.filter { $0.match.confidence >= confidenceThreshold }
+                    .sorted { ($0.match.sdrSequencePosition ?? .max) < ($1.match.sdrSequencePosition ?? .max) }
+            }
             guard !accepted.isEmpty else {
                 throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no accepted matched frames")
             }
@@ -132,11 +331,20 @@ final class V2EvaluationEngine {
                 throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no scene received an accepted frame")
             }
             var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
-            let temporal = try evaluateTemporalWindows(
-                prepared.temporalWindows.filter { window in
+            let temporalWindows: [PreparedTemporalWindow]
+            if let preparedEvaluationPlan {
+                temporalWindows = try V6PreparedEvaluationEntry.temporalWindows(
+                    prepared: prepared,
+                    plan: preparedEvaluationPlan
+                )
+            } else {
+                temporalWindows = prepared.temporalWindows.filter { window in
                     window.decision.accepted &&
                         (window.frames.first.map { $0.confidence >= confidenceThreshold } ?? false)
-                },
+                }
+            }
+            let temporal = try evaluateTemporalWindows(
+                temporalWindows,
                 evaluator: evaluator,
                 configuration: configuration
             )

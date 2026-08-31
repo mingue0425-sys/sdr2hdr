@@ -13,9 +13,9 @@ case "$MODE" in
 esac
 
 cd "$ROOT"
-mkdir -p results .build/pre-v5-verify-cache
-CACHE_DIR="$ROOT/.build/pre-v5-verify-cache"
-CACHE_VERSION="pre-v5-fast-cache-v2-fail-closed"
+mkdir -p results .build/pre-v6-verify-cache
+CACHE_DIR="$ROOT/.build/pre-v6-verify-cache"
+CACHE_VERSION="pre-v6-fast-cache-v1-plan-sealed"
 
 stage() {
   local label="$1"
@@ -35,7 +35,8 @@ calibrator_for() {
 
 # The fast cache is intentionally metadata-based for media: it fingerprints
 # media path + size + mtime instead of re-hashing multi-GB video payloads.
-# `full` never trusts this cache and always performs the content-validating audit.
+# `full` never trusts this cache and always performs the Tune/Validation
+# content-validating preflight. Virgin Frozen bytes remain sealed.
 fingerprint() {
   local scope="$1"
   python3 - "$ROOT" "$scope" "$CACHE_VERSION" <<'PY'
@@ -50,7 +51,13 @@ def add_text(label, value):
 
 def add_file(path):
     p = pathlib.Path(path)
-    rel = str(p.relative_to(root)) if p.is_absolute() else str(p)
+    if p.is_absolute():
+        try:
+            rel = str(p.relative_to(root))
+        except ValueError:
+            rel = str(p)
+    else:
+        rel = str(p)
     add_text('path', rel)
     if not p.exists():
         add_text('missing', rel)
@@ -70,6 +77,10 @@ else:
     # The CLI owns semantic exit-code behavior for correctness-review, so it is
     # part of the correctness cache identity as well.
     add_file(root/'Sources/HDRCalibrate/main.swift')
+    frozen_plan = os.environ.get('V6_FROZEN_PLAN')
+    if frozen_plan:
+        add_file(pathlib.Path(frozen_plan))
+        add_file(pathlib.Path(frozen_plan).with_suffix('.sha256'))
 
 for base in source_roots:
     if base.exists():
@@ -157,7 +168,7 @@ prime_cache_from_current_artifacts() {
   audit_input_mtime="$(inputs_newest_mtime_ns audit)"
   audit_artifact_mtime="$(artifacts_oldest_mtime_ns results/dataset-v4-final.json data_video/dataset-v4-lock.json)"
   correctness_input_mtime="$(inputs_newest_mtime_ns correctness)"
-  correctness_artifact_mtime="$(artifacts_oldest_mtime_ns results/pre-v5-final-correctness.json results/pre-v5-frozen-coverage-policy.json results/temporal-burst-parity.json)"
+  correctness_artifact_mtime="$(artifacts_oldest_mtime_ns results/pre-v5-final-correctness.json results/pre-v5-frozen-coverage-policy.json results/temporal-burst-parity.json results/v6-prepared-evaluation-plan.json results/v6-prepared-evaluation-plan.sha256)"
 
   if [ "$audit_artifact_mtime" -lt "$audit_input_mtime" ]; then
     echo 'REFUSED: dataset audit artifacts are older than current audit inputs.' >&2
@@ -180,7 +191,11 @@ prime_cache_from_current_artifacts() {
 
 run_audit() {
   local calibrator="$1"
-  "$calibrator" dataset-audit \
+  # V6 preflight must not open Virgin Frozen media.  Validate the existing
+  # hash-bound audit/lock evidence while hashing only Tune/Validation bytes;
+  # the explicit dataset-audit command remains available for a new holdout
+  # acquisition outside this verification flow.
+  "$calibrator" dataset-audit-preflight \
     --manifest data_video/manifest-v4.json \
     --output results/dataset-v4-final.json
 }
@@ -193,12 +208,22 @@ run_correctness() {
     results/pre-v5-holdout-provenance.json \
     results/pre-v5-temporal-burst-parity.json \
     results/temporal-burst-parity.json \
-    results/pre-v5-new-hlg-holdout-audit.json
+    results/pre-v5-new-hlg-holdout-audit.json \
+    results/v6-prepared-evaluation-plan.json \
+    results/v6-prepared-evaluation-plan.sha256
 
-  "$calibrator" correctness-review \
-    --manifest data_video/manifest-v4.json \
-    --output results/correctness-review-fixes.json \
-    | tee results/pre-v5-macos-correctness.log
+  if [ -n "${V6_FROZEN_PLAN:-}" ]; then
+    "$calibrator" correctness-review \
+      --manifest data_video/manifest-v4.json \
+      --prepared-frozen-plan "$V6_FROZEN_PLAN" \
+      --output results/correctness-review-fixes.json \
+      | tee results/pre-v5-macos-correctness.log
+  else
+    "$calibrator" correctness-review \
+      --manifest data_video/manifest-v4.json \
+      --output results/correctness-review-fixes.json \
+      | tee results/pre-v5-macos-correctness.log
+  fi
 }
 
 
@@ -234,6 +259,8 @@ def load_required(path):
 
 final_path = results / "pre-v5-final-correctness.json"
 coverage_path = results / "pre-v5-frozen-coverage-policy.json"
+plan_path = results / "v6-prepared-evaluation-plan.json"
+plan_hash_path = results / "v6-prepared-evaluation-plan.sha256"
 burst_candidates = [
     results / "temporal-burst-parity.json",
     results / "pre-v5-temporal-burst-parity.json",
@@ -241,6 +268,7 @@ burst_candidates = [
 
 final = load_required(final_path)
 coverage = load_required(coverage_path)
+plan = load_required(plan_path)
 
 burst_path = next(
     (path for path in burst_candidates if path.exists() and path.stat().st_size > 0),
@@ -254,9 +282,9 @@ else:
 
 if isinstance(final, dict):
     verdict = final.get("verdict")
-    if verdict != "CORRECTNESS_READY_FOR_V5":
+    if verdict != "CORRECTNESS_READY_FOR_V6":
         errors.append(
-            f"correctness verdict is {verdict!r}, expected 'CORRECTNESS_READY_FOR_V5'"
+            f"correctness verdict is {verdict!r}, expected 'CORRECTNESS_READY_FOR_V6'"
         )
 
     for key in ("virginFrozenObjectiveEvaluationCount", "objectiveEvaluationCount"):
@@ -302,12 +330,34 @@ if isinstance(final, dict):
             "temporalBurstParity",
             "runtime-measurement",
             "freeze-integrity",
+            "v6FrozenPreparedEvaluationPlan",
         }
         missing = sorted(critical - seen)
         if missing:
             errors.append(
                 "missing critical correctness checks: " + ", ".join(missing)
             )
+
+        v6_check = next(
+            (check for check in checks if isinstance(check, dict) and check.get("id") == "v6PreparedEvaluationPlan"),
+            None,
+        )
+        if not isinstance(v6_check, dict) or v6_check.get("status") != "PASS":
+            errors.append("v6PreparedEvaluationPlan check is not PASS")
+
+if isinstance(plan, dict):
+    plan_hash = plan.get("planSHA256")
+    if not isinstance(plan_hash, str) or len(plan_hash) != 64:
+        errors.append("v6-prepared-evaluation-plan.json has no canonical planSHA256")
+    plan_body = plan.get("plan")
+    if not isinstance(plan_body, dict) or not plan_body.get("pairOrder"):
+        errors.append("v6-prepared-evaluation-plan.json has no pairOrder")
+    if not plan_hash_path.exists() or plan_hash_path.stat().st_size == 0:
+        errors.append("missing required artifact: results/v6-prepared-evaluation-plan.sha256")
+    else:
+        sealed_hash = plan_hash_path.read_text(encoding="utf-8").strip()
+        if sealed_hash != plan_hash:
+            errors.append("v6 PreparedEvaluationPlan hash sidecar does not match artifact")
 
 if isinstance(coverage, dict):
     for key in ("transferStatus", "pairCountStatus", "familyStatus"):
@@ -390,7 +440,9 @@ run_correctness_cached() {
   if cache_hit correctness "$key" \
       results/pre-v5-final-correctness.json \
       results/pre-v5-frozen-coverage-policy.json \
-      results/temporal-burst-parity.json; then
+      results/temporal-burst-parity.json \
+      results/v6-prepared-evaluation-plan.json \
+      results/v6-prepared-evaluation-plan.sha256; then
     printf '\n== correctness review ==\n'
     echo 'CACHE HIT: correctness inputs unchanged; reusing pre-V5 correctness artifacts'
   else

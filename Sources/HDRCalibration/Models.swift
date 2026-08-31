@@ -81,7 +81,7 @@ public struct PairRecord: Codable, Hashable, Sendable {
     }
 }
 
-public enum ReferenceTransfer: String, Codable, Sendable {
+public enum ReferenceTransfer: String, Codable, Hashable, Sendable {
     case pq
     case hlg
     case unknown

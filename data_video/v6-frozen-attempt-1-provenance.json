@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "v6-frozen-attempt-provenance-v1",
+  "versionBoundary": "V6",
+  "attempt": 1,
+  "state": "INCOMPLETE",
+  "V5_FROZEN_ATTEMPT_1": "INCOMPLETE",
+  "objectivePixelsRead": false,
+  "objectiveMetricsObserved": false,
+  "procedurallyConsumed": true,
+  "retryPermitted": false,
+  "evaluatorFrozenGuardReached": false,
+  "failurePhase": "PRE_FROZEN_VALIDATION_PREPARATION",
+  "failure": {
+    "pairID": "live_9_face_close_3840x2160_15000k",
+    "message": "no accepted matched frames",
+    "classification": "Tune/main-calibration preparation semantic divergence; not a Virgin Frozen pair"
+  },
+  "sourceArtifactsImmutable": true,
+  "excludedVirginFrozenPairIDs": [
+    "solemates_unh0400_0010",
+    "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+    "live_8_drawing_3840x2160_15000k"
+  ],
+  "excludedVirginFrozenAssets": {
+    "solemates_unh0400_0010": {
+      "sdrSHA256": "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
+      "hdrSHA256": "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136"
+    },
+    "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg": {
+      "sdrSHA256": "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+      "hdrSHA256": "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01"
+    },
+    "live_8_drawing_3840x2160_15000k": {
+      "sdrSHA256": "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
+      "hdrSHA256": "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c"
+    }
+  },
+  "provenance": {
+    "consumptionLedger": "external:v5-virgin-frozen-consumption.json",
+    "consumptionLedgerSHA256": "b3b741db80a9be561b80eef27673424925c3a6d2a1f52686f530d5a6d26afe58",
+    "resultArtifact": "external:v5-virgin-frozen-results/virgin-frozen-result-attempt-1.json",
+    "resultArtifactSHA256": "992a5b8456f6c28bf26afa0da230b9d993680cd5d7e3092d0b7bbadc775e9070",
+    "derivedConsumptionStateSHA256": "2d43bcbb565095663c698a933af161919afcc300e855b6d7dfa6eda1568ba116",
+    "attemptArtifactsMustNotBeModified": true
+  },
+  "policy": {
+    "futureVirginSet": "new V6 holdout only; listed attempt-1 IDs and either consumed asset identity are permanently excluded",
+    "objectiveEvaluationCountIncrease": false
+  }
+}

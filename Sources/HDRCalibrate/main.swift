@@ -7,6 +7,8 @@ private struct CLI {
     let manifest: URL?
     let output: URL
     let candidate: URL?
+    let preparedPlan: URL?
+    let preparedFrozenPlan: URL?
     let seed: UInt64
     let root: URL?
     let dryRun: Bool
@@ -19,6 +21,8 @@ private struct CLI {
         var manifest: URL?
         var output = URL(fileURLWithPath: "results/calibration-report.json", relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
         var candidate: URL?
+        var preparedPlan: URL?
+        var preparedFrozenPlan: URL?
         var seed: UInt64 = 42
         var root: URL?
         var dryRun = false
@@ -43,6 +47,20 @@ private struct CLI {
             case "--candidate":
                 guard index + 1 < arguments.count else { throw CLIError.usage }
                 candidate = URL(
+                    fileURLWithPath: arguments[index + 1],
+                    relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                ).standardizedFileURL
+                index += 2
+            case "--prepared-plan":
+                guard index + 1 < arguments.count else { throw CLIError.usage }
+                preparedPlan = URL(
+                    fileURLWithPath: arguments[index + 1],
+                    relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                ).standardizedFileURL
+                index += 2
+            case "--prepared-frozen-plan":
+                guard index + 1 < arguments.count else { throw CLIError.usage }
+                preparedFrozenPlan = URL(
                     fileURLWithPath: arguments[index + 1],
                     relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 ).standardizedFileURL
@@ -74,6 +92,8 @@ private struct CLI {
         self.manifest = manifest
         self.output = output
         self.candidate = candidate
+        self.preparedPlan = preparedPlan
+        self.preparedFrozenPlan = preparedFrozenPlan
         self.seed = seed
         self.root = root
         self.dryRun = dryRun
@@ -89,6 +109,11 @@ private struct CLI {
         guard let root else { throw CLIError.missingRoot }
         return root
     }
+
+    func requiredPreparedPlan() throws -> URL {
+        guard let preparedPlan else { throw CLIError.missingPreparedPlan }
+        return preparedPlan
+    }
 }
 
 private enum CLIError: Error, LocalizedError {
@@ -96,6 +121,7 @@ private enum CLIError: Error, LocalizedError {
     case missingManifest
     case missingRoot
     case missingCandidate
+    case missingPreparedPlan
     case unknownOption(String)
 
     var errorDescription: String? {
@@ -104,6 +130,7 @@ private enum CLIError: Error, LocalizedError {
         case .missingManifest: return "--manifest is required"
         case .missingRoot: return "--root is required"
         case .missingCandidate: return "--candidate is required"
+        case .missingPreparedPlan: return "--prepared-plan is required for v4-run"
         case .unknownOption(let option): return "unknown option: \(option)\n\n\(Self.usageText)"
         }
     }
@@ -120,9 +147,10 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v2-audit        --manifest data_video/manifest-v2.json --output results/data-video-v2-dataset-audit.json
       HDRCalibrate v2-run          --manifest data_video/manifest-v2.json --seed 20260823 --output results/data-video-v2-final.json
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
-      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --seed 20260824 --output results/data-video-v4-final.json
-      HDRCalibrate correctness-review --manifest data_video/manifest-v4.json --output results/correctness-review-fixes.json
+      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 --output results/data-video-v4-final.json
+      HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
+      HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-import-live --root "/path/to/LIVE" --manifest data_video/manifest-v4.json --select 6 [--dry-run]
 
     The calibration tool never treats a missing or non-PQ HDR reference as ground truth.
@@ -157,16 +185,17 @@ private func run(arguments: [String]) async throws {
         let manifestURL = try cli.requiredManifest()
         let report = try await V4CorrectnessReview.run(
             manifestURL: manifestURL,
-            outputDirectory: cli.output.deletingLastPathComponent()
+            outputDirectory: cli.output.deletingLastPathComponent(),
+            preparedFrozenPlanURL: cli.preparedFrozenPlan
         )
         print("correctness verdict: \(report.verdict)")
         print("Tune structural completeness: \(report.tune.evaluatedVideoCount)/\(report.tune.requestedVideoCount)")
         print("Validation structural completeness: \(report.validation.evaluatedVideoCount)/\(report.validation.requestedVideoCount)")
         print("Virgin Frozen objective: NOT MEASURED")
         print("correctness report: \(cli.output.deletingLastPathComponent().appendingPathComponent("correctness-review-fixes.json").path)")
-        guard report.verdict == "CORRECTNESS_READY_FOR_V5" else {
+        guard report.verdict == "CORRECTNESS_READY_FOR_V6" else {
             throw CalibrationError.incompleteEvaluation(
-                "correctness-review did not reach CORRECTNESS_READY_FOR_V5: \(report.verdict)"
+                "correctness-review did not reach CORRECTNESS_READY_FOR_V6: \(report.verdict)"
             )
         }
         return
@@ -222,7 +251,9 @@ private func run(arguments: [String]) async throws {
         let runner = try CalibrationV4Runner(
             manifestURL: manifestURL,
             outputDirectory: cli.output.deletingLastPathComponent(),
-            configuration: configuration
+            configuration: configuration,
+            preparedEvaluationPlanURL: try cli.requiredPreparedPlan(),
+            preparedFrozenPlanURL: cli.preparedFrozenPlan
         )
         let report = try await runner.run()
         print("V4 verdict: \(report.verdict.rawValue)")
@@ -246,8 +277,23 @@ private func run(arguments: [String]) async throws {
         print("V4 dataset audit: pairs=\(report.pairs.count), main=\(main), conditional=\(conditional), rejected=\(rejected)")
         print("V4 virgin frozen pairs: \(report.diversity.virginFrozenPairs); objective evaluation: NOT PERFORMED")
         print("V4 structural dataset verdict: \(report.verdict.rawValue)")
-        print("V4 readiness scope: DATASET_INTEGRITY_ONLY (Pre-V5 holdout readiness is evaluated separately by correctness-review)")
+        print("V4 readiness scope: DATASET_INTEGRITY_ONLY (Pre-V6 holdout readiness is evaluated separately by correctness-review)")
         print("V4 report: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "dataset-audit-preflight" {
+        let manifestURL = try cli.requiredManifest()
+        let auditURL = cli.output
+        let lockURL = manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json")
+        let evidence = try V4DatasetEvidenceValidator.validate(
+            manifestURL: manifestURL,
+            auditURL: auditURL,
+            lockURL: lockURL,
+            mediaScope: .tuneValidationOnly
+        )
+        print("V6 preflight audit evidence: manifest=\(evidence.manifestHash), lock=\(evidence.lockHash), audit=\(evidence.auditHash)")
+        print("V6 preflight audit: Tune/Validation media validated; Virgin Frozen media not opened")
         return
     }
 

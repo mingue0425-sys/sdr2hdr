@@ -381,7 +381,8 @@ public struct V4CorrectnessReviewReport: Codable, Sendable {
 public enum V4CorrectnessReview {
     public static func run(
         manifestURL: URL,
-        outputDirectory: URL
+        outputDirectory: URL,
+        preparedFrozenPlanURL: URL? = nil
     ) async throws -> V4CorrectnessReviewReport {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         let frozenObjectiveStart = V4FrozenObjectiveAccessRegistry.shared.snapshot()
@@ -390,29 +391,81 @@ public enum V4CorrectnessReview {
         let evidence = try V4DatasetEvidenceValidator.validate(
             manifestURL: manifestURL,
             auditURL: auditURL,
-            lockURL: lockURL
+            lockURL: lockURL,
+            mediaScope: .tuneValidationOnly
         )
         let audit = try JSONDecoder().decode(
             V4DatasetAuditReport.self,
             from: Data(contentsOf: auditURL)
         )
         let manifest = try V4Manifest.load(from: manifestURL)
-        let tune = try await structuralCheck(
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw CalibrationError.decodeFailed("Metal device unavailable for V6 preparation plan")
+        }
+        var preparationConfiguration = V2SearchConfiguration()
+        preparationConfiguration.maxFramesPerScene = 8
+        preparationConfiguration.alignmentSearchThreshold = 0
+        preparationConfiguration.referenceTargetPeakNits = 1_000
+        let repository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            configuration: preparationConfiguration,
+            acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
+        )
+        let structuralRecords = manifest.pairs
+            .filter { $0.split == .tune || $0.split == .validation }
+            .map { pair -> PairRecord in
+                let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+                return PairRecord(
+                    id: pair.id,
+                    sdr: urls.sdr.path,
+                    hdr: urls.hdr.path,
+                    license: pair.license,
+                    source: pair.source,
+                    expectedRelation: pair.expectedRelation.legacyRelation(),
+                    notes: pair.notes,
+                    split: pair.split
+                )
+            }
+        let preparedStructural = try await repository.prepare(records: structuralRecords)
+        let preparedPlan = try repository.sealPreparedEvaluationPlan(
+            records: structuralRecords,
+            inputHashes: V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit),
+            scope: "TUNE_VALIDATION"
+        )
+        try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        let preparedPlanArtifact = try V6PreparedEvaluationPlanArtifact(plan: preparedPlan)
+        try writeJSON(
+            preparedPlanArtifact,
+            to: outputDirectory.appendingPathComponent("v6-prepared-evaluation-plan.json")
+        )
+        try Data((preparedPlanArtifact.planSHA256 + "\n").utf8)
+            .write(to: outputDirectory.appendingPathComponent("v6-prepared-evaluation-plan.sha256"))
+        let tune = structuralCheck(
             split: .tune,
             manifest: manifest,
-            manifestURL: manifestURL
+            preparedPairs: preparedStructural,
+            preparedPlan: preparedPlan
         )
-        let validation = try await structuralCheck(
+        let validation = structuralCheck(
             split: .validation,
             manifest: manifest,
-            manifestURL: manifestURL
+            preparedPairs: preparedStructural,
+            preparedPlan: preparedPlan
         )
-        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let holdoutProvenance = V4HistoricalObjectiveProvenance.audit(
             repositoryRoot: repositoryRoot, outputDirectory: outputDirectory
         )
         let newHLGAudit = try await V4NewHLGHoldoutAuditor.audit(
             manifestURL: manifestURL, datasetAudit: audit, outputDirectory: outputDirectory
+        )
+        let frozenPlanCheck = validateFrozenPreparedPlan(
+            manifest: manifest,
+            audit: audit,
+            tuneValidationPlan: preparedPlan,
+            preparedFrozenPlanURL: preparedFrozenPlanURL,
+            holdoutProvenance: holdoutProvenance
         )
         let checks = makeChecks(
             manifest: manifest,
@@ -422,7 +475,9 @@ public enum V4CorrectnessReview {
             validation: validation,
             outputDirectory: outputDirectory,
             newHLGAudit: newHLGAudit,
-            holdoutProvenance: holdoutProvenance
+            holdoutProvenance: holdoutProvenance,
+            preparedPlan: preparedPlan,
+            frozenPlanCheck: frozenPlanCheck
         )
         let requiredIncomplete = checks.filter {
             $0.required && (!$0.executed || $0.status != "PASS")
@@ -445,12 +500,12 @@ public enum V4CorrectnessReview {
         } else if !tune.complete || !validation.complete || !requiredIncomplete.isEmpty {
             verdict = "EXECUTABLE_EVIDENCE_INCOMPLETE"
         } else {
-            verdict = "CORRECTNESS_READY_FOR_V5"
+            verdict = "CORRECTNESS_READY_FOR_V6"
         }
         let frozenObjectiveEnd = V4FrozenObjectiveAccessRegistry.shared.snapshot()
         let frozenObjectiveDelta = max(0, frozenObjectiveEnd.eventCount - frozenObjectiveStart.eventCount)
         let report = V4CorrectnessReviewReport(
-            version: "correctness-review-v3",
+            version: "correctness-review-v6",
             generatedAt: ISO8601DateFormatter().string(from: Date()),
             manifestPath: V4EvidencePath.portable(manifestURL, repositoryRoot: repositoryRoot),
             manifestHash: evidence.manifestHash,
@@ -471,91 +526,160 @@ public enum V4CorrectnessReview {
             outputDirectory: outputDirectory,
             newHLGAudit: newHLGAudit,
             holdoutProvenance: holdoutProvenance,
-            frozenObjectiveEvaluationCount: frozenObjectiveDelta
+            frozenObjectiveEvaluationCount: frozenObjectiveDelta,
+            repositoryRoot: repositoryRoot
         )
         return report
     }
 
+    /// Validate the admitted holdout plan without resolving or opening Frozen
+    /// media. The evaluator calls the same contract validator before its guard,
+    /// then materializes this exact plan only after the guard opens.
+    private static func validateFrozenPreparedPlan(
+        manifest: V4Manifest,
+        audit: V4DatasetAuditReport,
+        tuneValidationPlan: PreparedEvaluationPlan,
+        preparedFrozenPlanURL: URL?,
+        holdoutProvenance: V4HoldoutProvenanceAudit
+    ) -> V4CorrectnessCheck {
+        let eligibleByID = eligibleCoverageAuditRecords(audit)
+        let records = manifest.pairs.filter { pair in
+            pair.split == .frozen && pair.virginFrozen &&
+                eligibleByID[pair.id] != nil &&
+                !holdoutProvenance.consumedSet.contains(pair.id) &&
+                pair.objectiveEvaluated == false && pair.consumed == false
+        }
+        guard !records.isEmpty else {
+            return V4CorrectnessCheck(
+                id: "v6FrozenPreparedEvaluationPlan",
+                status: "FAIL",
+                evidence: V4CorrectnessEvidence(
+                    summary: "no objective-unexposed V6 Virgin Frozen records are eligible for a sealed preparation plan",
+                    counts: ["eligiblePairCount": 0],
+                    booleans: ["frozenMediaOpened": false, "planValidated": false]
+                )
+            )
+        }
+        guard let preparedFrozenPlanURL else {
+            return V4CorrectnessCheck(
+                id: "v6FrozenPreparedEvaluationPlan",
+                status: "FAIL",
+                evidence: V4CorrectnessEvidence(
+                    summary: "eligible V6 holdouts require an explicit --prepared-frozen-plan admitted before Pre-Frozen PASS",
+                    counts: ["eligiblePairCount": records.count],
+                    booleans: ["frozenMediaOpened": false, "planValidated": false]
+                )
+            )
+        }
+        do {
+            let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(from: preparedFrozenPlanURL)
+            try V6PreparedEvaluationPlanBuilder.validateSealedContract(
+                plan: artifact.plan,
+                scope: "VIRGIN_FROZEN",
+                records: records,
+                inputHashes: V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit),
+                preparation: tuneValidationPlan.preparation
+            )
+            return V4CorrectnessCheck(
+                id: "v6FrozenPreparedEvaluationPlan",
+                status: "PASS",
+                evidence: V4CorrectnessEvidence(
+                    summary: "metadata-only admission validated the exact Frozen plan used by evaluator entry; sha256=\(artifact.planSHA256)",
+                    counts: [
+                        "eligiblePairCount": records.count,
+                        "acceptedFrameCount": artifact.plan.pairs.reduce(0) { $0 + $1.alignment.acceptedFrameCount }
+                    ],
+                    booleans: ["frozenMediaOpened": false, "planValidated": true]
+                )
+            )
+        } catch {
+            return V4CorrectnessCheck(
+                id: "v6FrozenPreparedEvaluationPlan",
+                status: "FAIL",
+                evidence: V4CorrectnessEvidence(
+                    summary: "Frozen PreparedEvaluationPlan admission failed closed: \(error.localizedDescription)",
+                    counts: ["eligiblePairCount": records.count],
+                    booleans: ["frozenMediaOpened": false, "planValidated": false]
+                )
+            )
+        }
+    }
+
+    /// Build structural evidence from the exact V6 materialized plan.  This
+    /// intentionally contains no decoder, matcher, scene detector, or seek
+    /// call: those decisions were made once by `V2PreparedRepository` and are
+    /// now validated/read-only for both preflight and evaluator entry.
     private static func structuralCheck(
         split: DatasetSplit,
         manifest: V4Manifest,
-        manifestURL: URL
-    ) async throws -> V4StructuralSplitCheck {
-        let pairs = manifest.pairs.filter { $0.split == split }
+        preparedPairs: [PreparedPair],
+        preparedPlan: PreparedEvaluationPlan
+    ) -> V4StructuralSplitCheck {
+        let requestedPairs = manifest.pairs.filter { $0.split == split }
+        let preparedByID = Dictionary(uniqueKeysWithValues: preparedPairs.map { ($0.record.id, $0) })
         var results: [V4StructuralPairCheck] = []
-        results.reserveCapacity(pairs.count)
-        for pair in pairs {
-            let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+        results.reserveCapacity(requestedPairs.count)
+        for pair in requestedPairs {
             do {
-                // This pass reads the same sparse source proxies used by the
-                // audit plus short contiguous windows. It never runs an HDRCore
-                // candidate/objective and never touches Virgin Frozen.
-                let sdr = try await readStructuralSequence(
-                    url: urls.sdr,
-                    pixelFormat: CalibrationPixelFormat.sdrNV12,
-                    proxyWidth: 160
+                guard let prepared = preparedByID[pair.id] else {
+                    throw CalibrationError.incompleteEvaluation("V6 plan is missing \(pair.id)")
+                }
+                let accepted = try V6PreparedEvaluationEntry.acceptedMatches(
+                    prepared: prepared,
+                    plan: preparedPlan
                 )
-                let hdr = try await readStructuralSequence(
-                    url: urls.hdr,
-                    pixelFormat: CalibrationPixelFormat.hdrP010,
-                    proxyWidth: 160
+                _ = try V6PreparedEvaluationEntry.temporalWindows(
+                    prepared: prepared,
+                    plan: preparedPlan
                 )
-                // Structural readiness must exercise the same aligner as the
-                // calibration preparation path. Audit eligibility is separate
-                // evidence and cannot substitute for runner evaluability.
-                let alignment = PairEvaluator.align(
-                    sdr: sdr,
-                    hdr: hdr,
-                    confidenceThreshold: 0
-                )
-                let sortedConfidence = alignment.matches.map(\.confidence).sorted()
-                let p10Index = max(0, Int(Double(max(sortedConfidence.count - 1, 0)) * 0.10))
-                let p10Confidence = sortedConfidence.isEmpty ? 0 : sortedConfidence[p10Index]
-                let policyStatus = V4AlignmentPolicy.status(
-                    sampledFrames: sdr.samples.count,
-                    matchedFrames: alignment.matches.count,
-                    medianConfidence: alignment.medianConfidence,
-                    p10Confidence: p10Confidence
-                )
-                guard alignment.status != "REJECT", policyStatus != "REJECT" else {
-                    throw CalibrationError.alignmentFailed(
-                        "\(pair.id): structural alignment rejected (aligner=\(alignment.status), policy=\(policyStatus), median confidence \(alignment.medianConfidence), p10 \(p10Confidence))"
+                guard let pairPlan = preparedPlan.pairPlan(for: pair.id),
+                      pairPlan.temporalWindows.count == prepared.temporalWindows.count else {
+                    throw CalibrationError.incompleteEvaluation(
+                        "V6 temporal plan is missing or inconsistent for \(pair.id)"
                     )
                 }
-                let scenes = SceneDetector.detect(sequence: sdr)
+                let scenes = prepared.scenes
                 let covered = scenes.filter { scene in
-                    alignment.matches.contains { match in
-                        guard let position = match.sdrSequencePosition else { return false }
+                    accepted.contains { match in
+                        guard let position = match.match.sdrSequencePosition else { return false }
                         return scene.contains(sequencePosition: position)
                     }
                 }
                 let missing = scenes.filter { scene in
-                    !alignment.matches.contains { match in
-                        guard let position = match.sdrSequencePosition else { return false }
-                        return scene.contains(sequencePosition: position)
-                    }
+                    !covered.contains(where: { $0.id == scene.id })
                 }.map(\.id)
-                let temporalEvidence = try await prepareStructuralTemporalWindows(
-                    pairID: pair.id,
-                    scenes: scenes,
-                    covered: covered,
-                    alignment: alignment,
-                    sdrURL: urls.sdr,
-                    hdrURL: urls.hdr,
-                    fps: sdr.nominalFrameRate
-                )
-                let preparedWindows = temporalEvidence.filter { $0.accepted }
-                let validWindows = temporalEvidence.filter { $0.accepted }
+                let temporalEvidence = zip(prepared.temporalWindows, pairPlan.temporalWindows).map { window, planned in
+                    let decision = window.decision
+                    let error: String?
+                    if !decision.accepted {
+                        error = "fewer than \(decision.minimumRequiredFrameCount) paired contiguous frames"
+                    } else if !planned.evaluationAccepted {
+                        error = "temporal anchor confidence below sealed \(preparedPlan.preparation.acceptedConfidenceThreshold) gate"
+                    } else {
+                        error = nil
+                    }
+                    return V4TemporalWindowEvidence(
+                        sceneID: window.sceneID,
+                        requestedFrameCount: decision.targetFrameCount,
+                        preparedSDRFrameCount: window.frames.count,
+                        preparedHDRFrameCount: window.frames.filter { $0.hdrIndex != nil }.count,
+                        validContiguousFrameCount: window.frames.count,
+                        startSeconds: window.startSeconds,
+                        error: error,
+                        decision: decision
+                    )
+                }
+                let validWindows = temporalEvidence.filter(\.accepted)
                 results.append(V4StructuralPairCheck(
                     pairID: pair.id,
                     split: split,
                     requested: true,
-                    prepared: true,
-                    matchedFrameCount: alignment.matches.count,
+                    prepared: !accepted.isEmpty,
+                    matchedFrameCount: accepted.count,
                     sceneCount: scenes.count,
                     coveredSceneCount: covered.count,
                     requestedTemporalWindowCount: scenes.count,
-                    preparedTemporalWindowCount: preparedWindows.count,
+                    preparedTemporalWindowCount: validWindows.count,
                     validTemporalWindowCount: validWindows.count,
                     decodedTemporalFrameCount: temporalEvidence.reduce(0) { $0 + $1.validContiguousFrameCount },
                     temporalWindows: temporalEvidence,
@@ -581,7 +705,7 @@ public enum V4CorrectnessReview {
                 ))
             }
         }
-        let requested = pairs.map(\.id).sorted()
+        let requested = requestedPairs.map(\.id).sorted()
         let evaluated = results.filter(\.evaluable).map(\.pairID).sorted()
         return V4StructuralSplitCheck(
             split: split,
@@ -594,125 +718,6 @@ public enum V4CorrectnessReview {
         )
     }
 
-    /// Read the same short, distributed proxy windows used by the audit. A
-    /// full `FrameReader.read(maxFrames:)` on VP9 would decode an entire
-    /// multi-minute 8K asset just to prove structural completeness. The
-    /// windowed path preserves source indices and reassigns sequence positions
-    /// explicitly, so the sparse-index check remains meaningful without a
-    /// multi-minute decode for every correctness run.
-    private static func readStructuralSequence(
-        url: URL,
-        pixelFormat: OSType,
-        proxyWidth: Int
-    ) async throws -> FrameSequence {
-        let metadata = try await V4MetadataProbe.probe(url: url)
-        let fps = max(metadata.frameRate, 1)
-        let frameCount = 8
-        let windowSeconds = Double(frameCount - 1) / fps
-        let latestStart = max(0, metadata.durationSeconds - max(windowSeconds, 0.05))
-        let centers = [0.0, 0.25, 0.50, 0.75, 0.98]
-        var samples: [FrameSample] = []
-        for fraction in centers {
-            let center = metadata.durationSeconds * fraction
-            let start = max(0, min(latestStart, center - windowSeconds * 0.5))
-            let window = try await FrameReader.readWindow(
-                url: url,
-                pixelFormat: pixelFormat,
-                startSeconds: start,
-                frameCount: frameCount,
-                framesPerSecond: min(max(fps, 1), 60),
-                proxyWidth: proxyWidth
-            )
-            samples.append(contentsOf: window.samples)
-        }
-        let indexed = samples.enumerated().map { position, sample in
-            FrameSample(
-                index: sample.index,
-                sequencePosition: position,
-                timestamp: sample.timestamp,
-                pixelBuffer: sample.pixelBuffer,
-                descriptor: sample.descriptor,
-                lumaGrid: sample.lumaGrid
-            )
-        }
-        guard let first = indexed.first else {
-            throw CalibrationError.incompleteEvaluation("no structural proxy frames decoded: \(url.path)")
-        }
-        return FrameSequence(
-            url: url,
-            pixelFormat: pixelFormat,
-            width: CVPixelBufferGetWidth(first.pixelBuffer),
-            height: CVPixelBufferGetHeight(first.pixelBuffer),
-            nominalFrameRate: metadata.frameRate,
-            durationSeconds: metadata.durationSeconds,
-            samples: indexed
-        )
-    }
-
-    private static func prepareStructuralTemporalWindows(
-        pairID: String,
-        scenes: [SceneRange],
-        covered: [SceneRange],
-        alignment: AlignmentResult,
-        sdrURL: URL,
-        hdrURL: URL,
-        fps: Double
-    ) async throws -> [V4TemporalWindowEvidence] {
-        var evidence: [V4TemporalWindowEvidence] = []
-        evidence.reserveCapacity(covered.count)
-        for scene in covered {
-            guard let match = alignment.matches
-                .filter({ match in
-                    guard let position = match.sdrSequencePosition else { return false }
-                    return scene.contains(sequencePosition: position)
-                })
-                .max(by: { $0.confidence < $1.confidence }) else {
-                evidence.append(V4TemporalWindowEvidence(
-                    sceneID: scene.id, requestedFrameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                    preparedSDRFrameCount: 0, preparedHDRFrameCount: 0,
-                    validContiguousFrameCount: 0, startSeconds: 0,
-                    error: "no aligned scene anchor"
-                ))
-                continue
-            }
-            let start = max(match.sdrTimeSeconds - 0.05, 0)
-            let offset = match.hdrTimeSeconds - match.sdrTimeSeconds
-            do {
-                async let sdrWindow = FrameReader.readWindow(
-                    url: sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12,
-                    startSeconds: start, frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                    framesPerSecond: min(max(fps, 1), 60), proxyWidth: 160
-                )
-                async let hdrWindow = FrameReader.readWindow(
-                    url: hdrURL, pixelFormat: CalibrationPixelFormat.hdrP010,
-                    startSeconds: max(start + offset, 0), frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                    framesPerSecond: min(max(fps, 1), 60), proxyWidth: 160
-                )
-                let sdr = try await sdrWindow
-                let hdr = try await hdrWindow
-                let valid = min(sdr.samples.count, hdr.samples.count)
-                let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: valid)
-                evidence.append(V4TemporalWindowEvidence(
-                    sceneID: scene.id, requestedFrameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                    preparedSDRFrameCount: sdr.samples.count,
-                    preparedHDRFrameCount: hdr.samples.count,
-                    validContiguousFrameCount: valid,
-                    startSeconds: start,
-                    error: decision.accepted ? nil : "fewer than \(decision.minimumRequiredFrameCount) paired contiguous frames",
-                    decision: decision
-                ))
-            } catch {
-                evidence.append(V4TemporalWindowEvidence(
-                    sceneID: scene.id, requestedFrameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                    preparedSDRFrameCount: 0, preparedHDRFrameCount: 0,
-                    validContiguousFrameCount: 0, startSeconds: start,
-                    error: "\(pairID)/\(scene.id): \(error.localizedDescription)"
-                ))
-            }
-        }
-        return evidence
-    }
-
     private static func makeChecks(
         manifest: V4Manifest,
         evidence: V4DatasetEvidence,
@@ -721,7 +726,9 @@ public enum V4CorrectnessReview {
         validation: V4StructuralSplitCheck,
         outputDirectory: URL,
         newHLGAudit: V4NewHLGHoldoutAudit,
-        holdoutProvenance: V4HoldoutProvenanceAudit
+        holdoutProvenance: V4HoldoutProvenanceAudit,
+        preparedPlan: PreparedEvaluationPlan,
+        frozenPlanCheck: V4CorrectnessCheck
     ) -> [V4CorrectnessCheck] {
         let relationsPreserved = manifest.pairs.allSatisfy { $0.expectedRelation.supportsMainCalibration }
         let temporal = temporalParityCheck()
@@ -743,16 +750,27 @@ public enum V4CorrectnessReview {
         }
         let totalValidWindows = allPairs.reduce(0) { $0 + $1.validTemporalWindowCount }
         let totalDecodedFrames = allPairs.reduce(0) { $0 + $1.decodedTemporalFrameCount }
+        let planHash = (try? V6PreparedEvaluationPlanHasher.sha256(preparedPlan)) ?? "UNAVAILABLE"
         return [
+            V4CorrectnessCheck(
+                id: "v6PreparedEvaluationPlan",
+                status: planHash == "UNAVAILABLE" ? "FAIL" : "PASS",
+                evidence: V4CorrectnessEvidence(
+                    summary: "one canonical V6 preparation plan is shared by preflight and evaluator entry; sha256=\(planHash)",
+                    counts: ["pairCount": preparedPlan.pairOrder.count, "plannedAcceptedFrames": preparedPlan.pairs.reduce(0) { $0 + $1.alignment.acceptedFrameCount }],
+                    booleans: ["canonicalSerialization": planHash != "UNAVAILABLE"]
+                )
+            ),
             V4CorrectnessCheck(id: "dataset-audit-lock", status: "PASS", evidence: V4CorrectnessEvidence(
-                summary: "validator consumed READY audit + manifest/lock/media digests for \(evidence.eligiblePairIDs.count) eligible pairs in this run",
+                summary: "validator consumed READY audit + manifest/lock evidence; Tune/Validation media digests were checked and Frozen media remained sealed",
                 counts: ["eligiblePairs": evidence.eligiblePairIDs.count],
                 booleans: ["objectiveEvaluated": false, "virginFrozenObjectiveEvaluated": false]
             )),
+            frozenPlanCheck,
             V4CorrectnessCheck(
                 id: "sparse-index-domain",
                 status: tune.complete && validation.complete ? "PASS" : "FAIL",
-                evidence: "this run prepared Tune/Validation proxies and checked exact requested/evaluated IDs using sequencePosition"
+                evidence: "V6 PreparedEvaluationPlan checked exact requested/evaluated IDs using sequencePosition"
             ),
             V4CorrectnessCheck(
                 id: "sparseSpatialTemporalSeparation",
@@ -765,7 +783,7 @@ public enum V4CorrectnessReview {
                 evidence: "decoded \(totalDecodedFrames) paired contiguous frames across \(totalValidWindows) valid windows"
             ),
             preFrozenHoldoutPreservationCheck(),
-            holdoutProvenanceCheck(manifest: manifest, provenance: holdoutProvenance),
+            holdoutProvenanceCheck(manifest: manifest, audit: audit, provenance: holdoutProvenance),
             transferCoverageSemanticsCheck(manifest: manifest, audit: audit, provenance: holdoutProvenance),
             frozenPairCountSemanticsCheck(manifest: manifest, audit: audit, provenance: holdoutProvenance),
             familyCoverageSemanticsCheck(manifest: manifest, audit: audit, provenance: holdoutProvenance),
@@ -1086,31 +1104,54 @@ public enum V4CorrectnessReview {
 
     private static func eligibleCoverageAuditRecords(_ audit: V4DatasetAuditReport) -> [String: V4PairAudit] {
         Dictionary(uniqueKeysWithValues: audit.pairs.compactMap { pair -> (String, V4PairAudit)? in
-            guard V4CoverageAuditEligibility.isEligible(pair) else { return nil }
+            guard V4CoverageAuditEligibility.isEligible(pair),
+                  !V6VirginHoldoutPolicy.isExcluded(
+                      pairID: pair.id,
+                      sdrSHA256: pair.sdrDigest?.sha256,
+                      hdrSHA256: pair.hdrDigest?.sha256
+                  ) else { return nil }
             return (pair.id, pair)
         })
     }
 
     private static func holdoutProvenanceCheck(
         manifest: V4Manifest,
+        audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
         let declaredVirgin = Set(manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }.map(\.id))
-        let contaminated = declaredVirgin.intersection(provenance.consumedSet).sorted()
+        let excludedByAsset = Set(audit.pairs.compactMap { pair -> String? in
+            guard declaredVirgin.contains(pair.id),
+                  V6VirginHoldoutPolicy.isExcluded(
+                      pairID: pair.id,
+                      sdrSHA256: pair.sdrDigest?.sha256,
+                      hdrSHA256: pair.hdrDigest?.sha256
+                  ) else { return nil }
+            return pair.id
+        })
+        let excludedAttemptOne = declaredVirgin.intersection(V6VirginHoldoutPolicy.consumedPairIDs)
+            .union(excludedByAsset)
+        let eligibleVirgin = declaredVirgin.subtracting(excludedAttemptOne)
+        let contaminated = eligibleVirgin.intersection(provenance.consumedSet).sorted()
         let passed = contaminated.isEmpty
         return V4CorrectnessCheck(
             id: "holdoutProvenance",
             status: passed ? "PASS" : "FAIL",
             evidence: V4CorrectnessEvidence(
                 summary: passed
-                    ? "no manifest-declared Virgin Frozen pair appears in prior frozen objective artifacts"
-                    : "manifest-declared Virgin Frozen pairs were already objective-evaluated: \(contaminated.joined(separator: ","))",
+                    ? "no eligible V6 Virgin Frozen pair appears in prior frozen objective artifacts; attempt-1 IDs/assets are explicitly excluded"
+                    : "eligible Virgin Frozen pairs were already consumed: \(contaminated.joined(separator: ","))",
                 counts: [
                     "declaredVirginPairs": declaredVirgin.count,
+                    "excludedAttemptOnePairs": excludedAttemptOne.count,
+                    "eligibleVirginPairs": eligibleVirgin.count,
                     "historicallyConsumedVirginPairs": contaminated.count,
                     "historicalArtifactsScanned": provenance.scannedArtifacts.count
                 ],
-                booleans: ["contaminationDetected": !contaminated.isEmpty]
+                booleans: [
+                    "contaminationDetected": !contaminated.isEmpty,
+                    "attemptOneExclusionApplied": !excludedAttemptOne.isEmpty
+                ]
             )
         )
     }
@@ -1321,7 +1362,8 @@ public enum V4CorrectnessReview {
             "pre-v5-holdout-provenance.json", "pre-v5-frozen-coverage-policy.json",
             "pre-v5-new-hlg-holdout-audit.json", "pre-v5-temporal-window-policy.json",
             "pre-v5-executable-evidence.json", "pre-v5-freeze-integrity.json",
-            "pre-v5-final-correctness.json", "pre-v5-final-correctness.md"
+            "pre-v5-final-correctness.json", "pre-v5-final-correctness.md",
+            "v6-prepared-evaluation-plan.json", "v6-prepared-evaluation-plan.sha256"
         ]
         let forbidden = ["/Volumes/", "\\/Volumes\\/", "/Users/", "\\/Users\\/"]
         var leaking: [String] = []
@@ -1732,7 +1774,8 @@ public enum V4CorrectnessReview {
         outputDirectory: URL,
         newHLGAudit: V4NewHLGHoldoutAudit,
         holdoutProvenance: V4HoldoutProvenanceAudit,
-        frozenObjectiveEvaluationCount: Int
+        frozenObjectiveEvaluationCount: Int,
+        repositoryRoot: URL
     ) throws {
         func checkStatus(_ id: String) -> String {
             report.checks.first(where: { $0.id == id })?.status ?? "NOT_RUN"
@@ -1837,7 +1880,7 @@ public enum V4CorrectnessReview {
             ),
             to: outputDirectory.appendingPathComponent("promotion-gate-validation.json")
         )
-        let root = try V4SourceHasher.repositoryRoot(for: outputDirectory)
+        let root = repositoryRoot
         let sourceHash = try V4SourceHasher.sourceHash(repositoryRoot: root)
         let executableHash = try V4SourceHasher.executableHash()
         let git = try V4SourceHasher.gitEvidence(repositoryRoot: root)
@@ -1870,7 +1913,7 @@ public enum V4CorrectnessReview {
         let familyCheck = report.checks.first(where: { $0.id == "familyCoverageSemantics" })
         try writeJSON(
             V4PreV5CoverageArtifact(
-                version: "pre-v5-frozen-coverage-policy-v1",
+                version: "pre-v6-frozen-coverage-policy-v1",
                 currentRequiredTransfers: configuration.requiredFrozenTransfers,
                 currentRequiredFamilies: configuration.requiredFrozenFamilies,
                 actualVirginTransfers: actualVirginTransfers,
@@ -1964,7 +2007,7 @@ public enum V4CorrectnessReview {
         let portabilityPass = checkStatus("evidencePortability") == "PASS"
         try writeJSON(
             V4PreV5FinalArtifact(
-                version: "pre-v5-final-correctness-v1",
+                version: "pre-v6-final-correctness-v1",
                 generatedAt: report.generatedAt,
                 verdict: report.verdict,
                 datasetReady: audit.verdict == .ready,
@@ -2016,7 +2059,7 @@ public enum V4CorrectnessReview {
         let interview = windowLines.filter { $0.localizedCaseInsensitiveContains("interview") }.joined(separator: "\n")
         let campfire = windowLines.filter { $0.localizedCaseInsensitiveContains("campfire") }.joined(separator: "\n")
         let finalMarkdown = [
-            "# Pre-V5 Final Correctness",
+            "# Pre-V6 Final Correctness",
             "",
             "## A. Starting State",
             "",
@@ -2111,7 +2154,7 @@ public enum V4CorrectnessReview {
         ].joined(separator: "\n")
         try Data(finalMarkdown.utf8).write(to: outputDirectory.appendingPathComponent("pre-v5-final-correctness.md"))
         let coverageMarkdown = [
-            "# Pre-V5 Frozen Coverage Policy",
+            "# Pre-V6 Frozen Coverage Policy",
             "",
             "- Required transfers: \(configuration.requiredFrozenTransfers.sorted().joined(separator: ", "))",
             "- Current required family names: \(configuration.requiredFrozenFamilies.sorted().joined(separator: ", ")) (none; diversity policy is used)",

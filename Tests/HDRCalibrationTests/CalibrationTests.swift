@@ -207,6 +207,412 @@ final class CalibrationTests: XCTestCase {
         for index in 1..<counts.count { XCTAssertLessThanOrEqual(counts[index], counts[index - 1]) }
     }
 
+    func testV6PreparedPlanCanonicalHashAndExactIdentityValidation() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
+        let configuration = V6PreparationConfiguration(
+            maxFramesPerScene: 8,
+            maxDecodedFrames: 64,
+            acceptedConfidenceThreshold: 0.60
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            configuration: configuration,
+            inputHashes: [prepared.record.id: V6InputHashes(sdrSHA256: String(repeating: "a", count: 64), hdrSHA256: String(repeating: "b", count: 64))]
+        )
+        let firstHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        let secondHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        XCTAssertEqual(firstHash, secondHash)
+        XCTAssertEqual(plan.pairs.first?.alignment.acceptedFrameCount, 4)
+        XCTAssertEqual(plan.pairs.first?.alignment.matchedFrames.count, prepared.alignment.matches.count)
+        XCTAssertEqual(plan.pairs.first?.decode.decodedHDRFrameCount, prepared.hdrSequence.samples.count)
+        XCTAssertEqual(plan.pairs.first?.decode.referenceTransfer, .pq)
+        XCTAssertEqual(plan.preparation.referenceTargetPeakNits, 1_000)
+        XCTAssertNoThrow(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [prepared]))
+        let record = V4PairRecord(
+            id: prepared.record.id,
+            sdr: prepared.record.sdr,
+            hdr: prepared.record.hdr,
+            source: "test",
+            license: "test",
+            expectedRelation: .sameSource,
+            split: .tune
+        )
+        let hashes = V6InputHashes(
+            sdrSHA256: String(repeating: "a", count: 64),
+            hdrSHA256: String(repeating: "b", count: 64)
+        )
+        XCTAssertNoThrow(try V6PreparedEvaluationPlanBuilder.validateSealedContract(
+            plan: plan,
+            scope: "TUNE_VALIDATION",
+            records: [record],
+            inputHashes: [record.id: hashes],
+            preparation: configuration
+        ))
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validateSealedContract(
+            plan: plan,
+            scope: "VIRGIN_FROZEN",
+            records: [record],
+            inputHashes: [record.id: hashes],
+            preparation: configuration
+        ))
+
+        let driftedMatches = prepared.matches.enumerated().map { index, item in
+            guard index == 0 else { return item }
+            let match = MatchedFrame(
+                sdrIndex: item.match.sdrIndex,
+                hdrIndex: item.match.hdrIndex,
+                sdrSequencePosition: item.match.sdrSequencePosition,
+                hdrSequencePosition: item.match.hdrSequencePosition,
+                sdrTimeSeconds: item.match.sdrTimeSeconds,
+                hdrTimeSeconds: item.match.hdrTimeSeconds,
+                confidence: 0.59
+            )
+            return PreparedMatch(
+                match: match,
+                sdr: item.sdr,
+                hdr: item.hdr,
+                reference: item.reference,
+                sourceLuma: item.sourceLuma
+            )
+        }
+        let drifted = PreparedPair(
+            record: prepared.record,
+            sdrSequence: prepared.sdrSequence,
+            hdrSequence: prepared.hdrSequence,
+            referenceTransfer: prepared.referenceTransfer,
+            alignment: prepared.alignment,
+            scenes: prepared.scenes,
+            matches: driftedMatches,
+            temporalWindows: prepared.temporalWindows
+        )
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [drifted]))
+    }
+
+    func testV6EvaluatorEntryRejectsPlanWithNoAcceptedMatches() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
+        let lowConfidenceMatches = prepared.matches.map { item in
+            let match = MatchedFrame(
+                sdrIndex: item.match.sdrIndex,
+                hdrIndex: item.match.hdrIndex,
+                sdrSequencePosition: item.match.sdrSequencePosition,
+                hdrSequencePosition: item.match.hdrSequencePosition,
+                sdrTimeSeconds: item.match.sdrTimeSeconds,
+                hdrTimeSeconds: item.match.hdrTimeSeconds,
+                confidence: 0.20
+            )
+            return PreparedMatch(
+                match: match,
+                sdr: item.sdr,
+                hdr: item.hdr,
+                reference: item.reference,
+                sourceLuma: item.sourceLuma
+            )
+        }
+        let lowConfidence = PreparedPair(
+            record: prepared.record,
+            sdrSequence: prepared.sdrSequence,
+            hdrSequence: prepared.hdrSequence,
+            referenceTransfer: prepared.referenceTransfer,
+            alignment: prepared.alignment,
+            scenes: prepared.scenes,
+            matches: lowConfidenceMatches,
+            temporalWindows: prepared.temporalWindows
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [lowConfidence],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [lowConfidence.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "c", count: 64),
+                hdrSHA256: String(repeating: "d", count: 64)
+            )]
+        )
+        XCTAssertEqual(plan.pairs.first?.alignment.acceptedFrameCount, 0)
+        XCTAssertThrowsError(try V6PreparedEvaluationEntry.acceptedMatches(prepared: lowConfidence, plan: plan))
+        XCTAssertTrue(V6VirginHoldoutPolicy.consumedPairIDs.contains("dvb_live_linear_caminandes_hevc_uhd_sdr_hlg"))
+        XCTAssertFalse(V6VirginHoldoutPolicy.objectivePixelsRead)
+        XCTAssertFalse(V6VirginHoldoutPolicy.objectiveMetricsObserved)
+        XCTAssertTrue(V6VirginHoldoutPolicy.procedurallyConsumed)
+        XCTAssertFalse(V6VirginHoldoutPolicy.retryPermitted)
+    }
+
+    func testV6Live9PreflightAndEvaluatorEntryUseExactSameAcceptedFrameSet() throws {
+        // This is the minimal reproduction of the V5 failure: the old
+        // preflight counted raw matches while evaluator entry applied the
+        // 0.60 acceptance gate.  The V6 plan makes the decision once and
+        // exposes the same identity array to both callers.
+        let prepared = try makePreparedDiagnosticPair(
+            values: [0.10, 0.30, 0.70, 0.90],
+            id: "live_9_face_close_3840x2160_15000k"
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )]
+        )
+        let preflight = V6PreparedEvaluationPlanBuilder.acceptedMatches(
+            from: prepared,
+            confidenceThreshold: plan.preparation.acceptedConfidenceThreshold
+        ).map(V6PreparedEvaluationPlanBuilder.frameIdentity)
+        let evaluator = try V6PreparedEvaluationEntry.acceptedMatches(
+            prepared: prepared,
+            plan: plan
+        ).map(V6PreparedEvaluationPlanBuilder.frameIdentity)
+        XCTAssertEqual(preflight, evaluator)
+        XCTAssertFalse(preflight.isEmpty)
+
+        // If the preparation material changes at evaluator entry, the plan
+        // fails closed instead of producing a second, divergent selection.
+        let driftedMatch = prepared.matches[0]
+        let changed = MatchedFrame(
+            sdrIndex: driftedMatch.match.sdrIndex,
+            hdrIndex: driftedMatch.match.hdrIndex,
+            sdrSequencePosition: driftedMatch.match.sdrSequencePosition,
+            hdrSequencePosition: driftedMatch.match.hdrSequencePosition,
+            sdrTimeSeconds: driftedMatch.match.sdrTimeSeconds,
+            hdrTimeSeconds: driftedMatch.match.hdrTimeSeconds,
+            confidence: 0.59
+        )
+        let changedPair = PreparedPair(
+            record: prepared.record,
+            sdrSequence: prepared.sdrSequence,
+            hdrSequence: prepared.hdrSequence,
+            referenceTransfer: prepared.referenceTransfer,
+            alignment: prepared.alignment,
+            scenes: prepared.scenes,
+            matches: [PreparedMatch(
+                match: changed,
+                sdr: driftedMatch.sdr,
+                hdr: driftedMatch.hdr,
+                reference: driftedMatch.reference,
+                sourceLuma: driftedMatch.sourceLuma
+            )] + Array(prepared.matches.dropFirst()),
+            temporalWindows: prepared.temporalWindows
+        )
+        XCTAssertThrowsError(try V6PreparedEvaluationEntry.acceptedMatches(prepared: changedPair, plan: plan))
+    }
+
+    func testV6RealLive9PlanMaterializationMatchesPreflightExactly() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let manifestURL = root.appendingPathComponent("data_video/manifest-v4.json")
+        let manifest = try V4Manifest.load(from: manifestURL)
+        guard let pair = manifest.pairs.first(where: {
+            $0.id == "live_9_face_close_3840x2160_15000k" && $0.split == .tune
+        }) else {
+            return XCTFail("real Tune live_9 pair is missing")
+        }
+        let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+        let record = PairRecord(
+            id: pair.id,
+            sdr: urls.sdr.path,
+            hdr: urls.hdr.path,
+            license: pair.license,
+            source: pair.source,
+            expectedRelation: pair.expectedRelation.legacyRelation(),
+            notes: pair.notes,
+            split: pair.split
+        )
+        var configuration = V2SearchConfiguration()
+        configuration.searchSeed = V4CalibrationConfiguration().searchSeed
+        configuration.maxFramesPerScene = V4CalibrationConfiguration().maxFramesPerScene
+        configuration.referenceTargetPeakNits = V4CalibrationConfiguration().referenceTargetPeakNits
+        configuration.alignmentSearchThreshold = 0
+        let hashes = try V6PreparedEvaluationPlanBuilder.makeInputHashes(
+            records: [record], manifestURL: manifestURL
+        )
+
+        let preflightRepository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            configuration: configuration,
+            acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
+        )
+        _ = try await preflightRepository.prepare(records: [record])
+        let plan = try preflightRepository.sealPreparedEvaluationPlan(
+            records: [record], inputHashes: hashes, scope: "TUNE_VALIDATION"
+        )
+        let preflightIdentities = plan.pairPlan(for: record.id)?.alignment.acceptedFrames ?? []
+
+        let entryRepository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            configuration: configuration,
+            acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
+        )
+        let entry = try await entryRepository.materialize(
+            records: [record], using: plan, inputHashes: hashes
+        )
+        let entryIdentities = entry.first?.matches.map(
+            V6PreparedEvaluationPlanBuilder.frameIdentity
+        ) ?? []
+        XCTAssertEqual(preflightIdentities, entryIdentities)
+        XCTAssertTrue(preflightIdentities.isEmpty)
+    }
+
+    func testV6PreparedPlanRejectsNonPortableManifestPaths() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let manifest = V4Manifest(pairs: [V4PairRecord(
+            id: prepared.record.id,
+            sdr: "/tmp/sdr.mp4",
+            hdr: "tune/hdr.mp4",
+            source: "test",
+            license: "test",
+            expectedRelation: .sameSource,
+            split: .tune
+        )])
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            manifest: manifest,
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "e", count: 64),
+                hdrSHA256: String(repeating: "f", count: 64)
+            )]
+        ))
+    }
+
+    func testV6PreparedPlanLoaderRequiresMatchingExplicitSidecar() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "1", count: 64),
+                hdrSHA256: String(repeating: "2", count: 64)
+            )]
+        )
+        let artifact = try V6PreparedEvaluationPlanArtifact(plan: plan)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("v6-plan-loader-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let artifactURL = directory.appendingPathComponent("prepared.json")
+        let sidecarURL = directory.appendingPathComponent("prepared.sha256")
+        try V6PreparedEvaluationPlanHasher.canonicalData(artifact).write(to: artifactURL)
+        try Data((String(repeating: "0", count: 64) + "\n").utf8).write(to: sidecarURL)
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL))
+        try Data((artifact.planSHA256 + "\n").utf8).write(to: sidecarURL)
+        XCTAssertEqual(
+            try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL).planSHA256,
+            artifact.planSHA256
+        )
+    }
+
+    func testV6TemporalPlanPreservesLegacyConfidenceGate() throws {
+        let base = try makePreparedDiagnosticPair(values: Array(repeating: 0.50, count: 16))
+        let temporalFrames = base.matches.map { item in
+            PreparedTemporalFrame(
+                sdr: item.sdr,
+                reference: item.reference,
+                sourceLuma: item.sourceLuma,
+                confidence: 0.59,
+                hdrIndex: item.hdr.index,
+                hdrSequencePosition: item.hdr.sequencePosition,
+                hdrTimestampSeconds: item.hdr.descriptor.timestampSeconds
+            )
+        }
+        let window = PreparedTemporalWindow(
+            sceneID: "scene-0",
+            frames: temporalFrames,
+            decision: V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: temporalFrames.count),
+            startSeconds: 0,
+            offsetSeconds: 0
+        )
+        let prepared = PreparedPair(
+            record: base.record,
+            sdrSequence: base.sdrSequence,
+            hdrSequence: base.hdrSequence,
+            referenceTransfer: base.referenceTransfer,
+            alignment: base.alignment,
+            scenes: base.scenes,
+            matches: base.matches,
+            temporalWindows: [window]
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "3", count: 64),
+                hdrSHA256: String(repeating: "4", count: 64)
+            )]
+        )
+        XCTAssertEqual(plan.pairs.first?.temporalWindows.first?.decision.accepted, true)
+        XCTAssertEqual(plan.pairs.first?.temporalWindows.first?.evaluationAccepted, false)
+        XCTAssertEqual(
+            try V6PreparedEvaluationEntry.temporalWindows(prepared: prepared, plan: plan).count,
+            0
+        )
+    }
+
+    func testV6InstalledPlanPreventsIndependentPreparation() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let hashes = V6InputHashes(
+            sdrSHA256: String(repeating: "5", count: 64),
+            hdrSHA256: String(repeating: "6", count: 64)
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: hashes]
+        )
+        let repository = V2PreparedRepository(
+            manifestURL: URL(fileURLWithPath: "/tmp/not-opened.json"),
+            device: device,
+            configuration: V2SearchConfiguration()
+        )
+        _ = try repository.installPreparedEvaluationPlan(
+            plan,
+            records: [prepared.record],
+            inputHashes: [prepared.record.id: hashes]
+        )
+        do {
+            _ = try await repository.prepare(records: [prepared.record])
+            XCTFail("independent preparation unexpectedly ran after plan installation")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("cannot prepare a new pair"))
+        }
+    }
+
+    func testV6ConsumedHoldoutsAreAssetHashBound() {
+        let consumed = V6VirginHoldoutPolicy.consumedAssetPairs["live_8_drawing_3840x2160_15000k"]
+        XCTAssertNotNil(consumed)
+        XCTAssertTrue(V6VirginHoldoutPolicy.isExcluded(
+            pairID: "renamed-pair",
+            sdrSHA256: consumed?.sdrSHA256,
+            hdrSHA256: String(repeating: "f", count: 64)
+        ))
+        XCTAssertTrue(V6VirginHoldoutPolicy.isExcluded(
+            pairID: "another-name",
+            sdrSHA256: String(repeating: "e", count: 64),
+            hdrSHA256: consumed?.hdrSHA256
+        ))
+        XCTAssertFalse(V6VirginHoldoutPolicy.isExcluded(
+            pairID: "new-v6-holdout",
+            sdrSHA256: String(repeating: "a", count: 64),
+            hdrSHA256: String(repeating: "b", count: 64)
+        ))
+    }
+
+    func testV4RunRequiresExplicitPreparedPlanBeforeManifestAccess() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let runner = try CalibrationV4Runner(
+            manifestURL: URL(fileURLWithPath: "/tmp/manifest-must-not-be-read.json"),
+            outputDirectory: FileManager.default.temporaryDirectory,
+            device: device
+        )
+        do {
+            _ = try await runner.run()
+            XCTFail("v4-run unexpectedly accepted a missing PreparedEvaluationPlan")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("--prepared-plan"))
+        }
+    }
+
     func testSplitManagerRejectsDuplicatePairIDs() {
         let pair = PairRecord(id: "duplicate", sdr: "a.mp4", hdr: "b.mp4", license: "test", source: "local", split: .tune)
         XCTAssertThrowsError(try SplitManager.validate(PairManifest(pairs: [pair, pair])))
@@ -1049,7 +1455,7 @@ final class CalibrationTests: XCTestCase {
             "Sources/HDRCalibration/Decode.swift", "Sources/HDRCalibration/Alignment.swift",
             "Sources/HDRCalibration/FrameIO.swift", "Sources/HDRCalibration/Evaluation.swift",
             "Sources/HDRCalibration/CorrectnessReview.swift", "Sources/HDRCalibration/V2Runner.swift",
-            "Sources/HDRCalibration/V5Preflight.swift"
+            "Sources/HDRCalibration/V5Preflight.swift", "Sources/HDRCalibration/PreparedEvaluationPlan.swift"
         ]
         for path in required { try Data(path.utf8).write(to: root.appendingPathComponent(path)) }
         let before = try V4SourceHasher.sourceHash(repositoryRoot: root)
@@ -1323,7 +1729,10 @@ final class CalibrationTests: XCTestCase {
         )
     }
 
-    private func makePreparedDiagnosticPair(values: [Float]) throws -> PreparedPair {
+    private func makePreparedDiagnosticPair(
+        values: [Float],
+        id: String = "diagnostic"
+    ) throws -> PreparedPair {
         var samples: [FrameSample] = []
         var matches: [PreparedMatch] = []
         for (index, value) in values.enumerated() {
@@ -1365,10 +1774,12 @@ final class CalibrationTests: XCTestCase {
         )
         return PreparedPair(
             record: PairRecord(
-                id: "diagnostic", sdr: "sdr", hdr: "hdr",
+                id: id, sdr: "sdr", hdr: "hdr",
                 license: "test", source: "test", split: .tune
             ),
             sdrSequence: sequence,
+            hdrSequence: sequence,
+            referenceTransfer: .pq,
             alignment: AlignmentResult(
                 status: "ALIGNED", coarseOffsetSeconds: 0,
                 matches: matches.map(\.match), rejectedFrames: 0,
