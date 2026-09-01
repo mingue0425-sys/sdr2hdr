@@ -27,9 +27,13 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let pathResolutionPolicy: String
     public let sceneSelectionPolicy: String
     public let temporalSelectionPolicy: String
+    public let preparationAlgorithmVersion: String
+    public let matcherVersion: String
+    public let matcherConfiguration: V6MatcherConfiguration
+    public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v2",
+        version: String = "v6-prepared-evaluation-plan-v3",
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -47,7 +51,8 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         referenceDecoderPolicy: String = "HDRReferenceDecoder.linear-reference-v1",
         pathResolutionPolicy: String = "manifest-resolved-once;repository-relative-plan-paths",
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
-        temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window"
+        temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window",
+        matcherConfiguration: V6MatcherConfiguration = .v6
     ) {
         self.version = version
         self.maxFramesPerScene = maxFramesPerScene
@@ -68,6 +73,10 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         self.pathResolutionPolicy = pathResolutionPolicy
         self.sceneSelectionPolicy = sceneSelectionPolicy
         self.temporalSelectionPolicy = temporalSelectionPolicy
+        self.preparationAlgorithmVersion = matcherConfiguration.preparationAlgorithmVersion
+        self.matcherVersion = matcherConfiguration.matcherVersion
+        self.matcherConfiguration = matcherConfiguration
+        self.matcherConfigurationHash = (try? matcherConfiguration.canonicalSHA256()) ?? "INVALID"
     }
 
     public static let v6 = V6PreparationConfiguration()
@@ -209,11 +218,19 @@ public struct V6DecodeMetadata: Codable, Hashable, Sendable {
 }
 
 public struct V6AlignmentPlan: Codable, Hashable, Sendable {
+    public let matcherConfigurationHash: String
     public let status: String
     public let coarseOffsetSeconds: Double
+    public let secondBestOffsetSeconds: Double
+    public let bestVersusSecondMargin: Double
+    public let perWindowOffsets: [Double]
+    public let offsetDriftSeconds: Double
     public let matchedFrameCount: Int
+    public let rawAcceptedFrameCount: Int
+    public let rawAcceptanceRatio: Double
     public let rejectedFrameCount: Int
     public let medianConfidence: Double
+    public let confidenceQuantiles: V6ConfidenceQuantiles
     public let acceptedFrameCount: Int
     /// Every raw alignment identity is sealed because alignment statistics and
     /// temporal anchoring depend on the complete match set, not only accepted
@@ -222,20 +239,36 @@ public struct V6AlignmentPlan: Codable, Hashable, Sendable {
     public let acceptedFrames: [V6PreparedFrameIdentity]
 
     public init(
+        matcherConfigurationHash: String,
         status: String,
         coarseOffsetSeconds: Double,
+        secondBestOffsetSeconds: Double,
+        bestVersusSecondMargin: Double,
+        perWindowOffsets: [Double],
+        offsetDriftSeconds: Double,
         matchedFrameCount: Int,
+        rawAcceptedFrameCount: Int,
+        rawAcceptanceRatio: Double,
         rejectedFrameCount: Int,
         medianConfidence: Double,
+        confidenceQuantiles: V6ConfidenceQuantiles,
         acceptedFrameCount: Int,
         matchedFrames: [V6PreparedFrameIdentity],
         acceptedFrames: [V6PreparedFrameIdentity]
     ) {
+        self.matcherConfigurationHash = matcherConfigurationHash
         self.status = status
         self.coarseOffsetSeconds = coarseOffsetSeconds
+        self.secondBestOffsetSeconds = secondBestOffsetSeconds
+        self.bestVersusSecondMargin = bestVersusSecondMargin
+        self.perWindowOffsets = perWindowOffsets
+        self.offsetDriftSeconds = offsetDriftSeconds
         self.matchedFrameCount = matchedFrameCount
+        self.rawAcceptedFrameCount = rawAcceptedFrameCount
+        self.rawAcceptanceRatio = rawAcceptanceRatio
         self.rejectedFrameCount = rejectedFrameCount
         self.medianConfidence = medianConfidence
+        self.confidenceQuantiles = confidenceQuantiles
         self.acceptedFrameCount = acceptedFrameCount
         self.matchedFrames = matchedFrames
         self.acceptedFrames = acceptedFrames
@@ -284,7 +317,7 @@ public struct PreparedEvaluationPlan: Codable, Hashable, Sendable {
     public let pairs: [V6PreparedPairPlan]
 
     public init(
-        schemaVersion: String = "v6-prepared-evaluation-plan-v2",
+        schemaVersion: String = "v6-prepared-evaluation-plan-v3",
         scope: String,
         pairOrder: [String],
         preparation: V6PreparationConfiguration,
@@ -380,9 +413,11 @@ enum V6PreparedEvaluationPlanBuilder {
         inputHashes: [String: V6InputHashes],
         preparation: V6PreparationConfiguration
     ) throws {
-        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v2",
+        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v3",
               plan.scope == scope,
-              plan.preparation == preparation else {
+              plan.preparation == preparation,
+              plan.preparation.matcherConfigurationHash ==
+                (try plan.preparation.matcherConfiguration.canonicalSHA256()) else {
             throw CalibrationError.incompleteEvaluation(
                 "PreparedEvaluationPlan schema, scope, or preparation configuration mismatch"
             )
@@ -421,7 +456,17 @@ enum V6PreparedEvaluationPlanBuilder {
                   pair.decode.hdrHeight > 0,
                   pair.decode.decodedSDRFrameCount > 0,
                   pair.decode.decodedHDRFrameCount > 0,
+                  pair.alignment.matcherConfigurationHash == plan.preparation.matcherConfigurationHash,
                   pair.alignment.matchedFrameCount == pair.alignment.matchedFrames.count,
+                  pair.alignment.rawAcceptedFrameCount == pair.alignment.matchedFrames.filter({
+                      $0.confidence >= plan.preparation.acceptedConfidenceThreshold
+                  }).count,
+                  abs(pair.alignment.rawAcceptanceRatio -
+                      (pair.alignment.matchedFrames.isEmpty ? 0 :
+                        Double(pair.alignment.rawAcceptedFrameCount) /
+                            Double(pair.alignment.matchedFrames.count))) <= 1e-12,
+                  pair.alignment.offsetDriftSeconds >= 0,
+                  !pair.alignment.perWindowOffsets.isEmpty,
                   pair.alignment.acceptedFrameCount == pair.alignment.acceptedFrames.count,
                   pair.alignment.acceptedFrameCount > 0 else {
                 throw CalibrationError.incompleteEvaluation(
@@ -614,6 +659,16 @@ enum V6PreparedEvaluationPlanBuilder {
         }
         guard pairPlan.alignment.status == prepared.alignment.status,
               pairPlan.alignment.coarseOffsetSeconds == prepared.alignment.coarseOffsetSeconds,
+              pairPlan.alignment.secondBestOffsetSeconds ==
+                (prepared.alignment.secondBestOffsetSeconds ?? prepared.alignment.coarseOffsetSeconds),
+              pairPlan.alignment.bestVersusSecondMargin ==
+                (prepared.alignment.bestVersusSecondMargin ?? 0),
+              pairPlan.alignment.perWindowOffsets ==
+                (prepared.alignment.perWindowOffsets ?? [prepared.alignment.coarseOffsetSeconds]),
+              pairPlan.alignment.offsetDriftSeconds ==
+                (prepared.alignment.offsetDriftSeconds ?? 0),
+              pairPlan.alignment.matcherConfigurationHash ==
+                (prepared.alignment.matcherConfigurationHash ?? pairPlan.alignment.matcherConfigurationHash),
               pairPlan.alignment.matchedFrameCount == raw.count,
               pairPlan.alignment.rejectedFrameCount == prepared.alignment.rejectedFrames,
               pairPlan.alignment.medianConfidence == prepared.alignment.medianConfidence,
@@ -701,6 +756,10 @@ enum V6PreparedEvaluationPlanBuilder {
         let accepted = acceptedMatches(from: prepared, confidenceThreshold: configuration.acceptedConfidenceThreshold)
         let acceptedIdentities = accepted.map(frameIdentity)
         let raw = prepared.alignment.matches
+        let rawAcceptedCount = raw.filter {
+            $0.confidence >= configuration.acceptedConfidenceThreshold
+        }.count
+        let rawQuantiles = confidenceQuantiles(raw.map(\.confidence))
         let decode = V6DecodeMetadata(
             sdrWidth: prepared.sdrSequence.width,
             sdrHeight: prepared.sdrSequence.height,
@@ -746,11 +805,21 @@ enum V6PreparedEvaluationPlanBuilder {
             inputHashes: inputHashes,
             decode: decode,
             alignment: V6AlignmentPlan(
+                matcherConfigurationHash: configuration.matcherConfigurationHash,
                 status: prepared.alignment.status,
                 coarseOffsetSeconds: prepared.alignment.coarseOffsetSeconds,
+                secondBestOffsetSeconds: prepared.alignment.secondBestOffsetSeconds ??
+                    prepared.alignment.coarseOffsetSeconds,
+                bestVersusSecondMargin: prepared.alignment.bestVersusSecondMargin ?? 0,
+                perWindowOffsets: prepared.alignment.perWindowOffsets ??
+                    [prepared.alignment.coarseOffsetSeconds],
+                offsetDriftSeconds: prepared.alignment.offsetDriftSeconds ?? 0,
                 matchedFrameCount: prepared.alignment.matches.count,
+                rawAcceptedFrameCount: rawAcceptedCount,
+                rawAcceptanceRatio: raw.isEmpty ? 0 : Double(rawAcceptedCount) / Double(raw.count),
                 rejectedFrameCount: prepared.alignment.rejectedFrames,
                 medianConfidence: prepared.alignment.medianConfidence,
+                confidenceQuantiles: prepared.alignment.confidenceQuantiles ?? rawQuantiles,
                 acceptedFrameCount: acceptedIdentities.count,
                 matchedFrames: raw.map(frameIdentity),
                 acceptedFrames: acceptedIdentities
@@ -770,6 +839,18 @@ enum V6PreparedEvaluationPlanBuilder {
             )
         }
         return hashes
+    }
+
+    private static func confidenceQuantiles(_ values: [Double]) -> V6ConfidenceQuantiles {
+        let sorted = values.sorted()
+        func value(_ fraction: Double) -> Double {
+            guard !sorted.isEmpty else { return 0 }
+            return sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * fraction))]
+        }
+        return V6ConfidenceQuantiles(
+            minimum: value(0), p10: value(0.10), p25: value(0.25), p50: value(0.50),
+            p75: value(0.75), p90: value(0.90), maximum: value(1)
+        )
     }
 
     private static func validSHA256(_ value: String) -> Bool {
@@ -821,10 +902,31 @@ enum V6PreparedEvaluationPlanBuilder {
 /// guard.  It validates that the in-memory decoded material is exactly the
 /// material described by the preflight plan; it never reruns selection.
 enum V6PreparedEvaluationEntry {
+    private static func validateMatcherConfiguration(
+        plan: PreparedEvaluationPlan,
+        pairPlan: V6PreparedPairPlan? = nil
+    ) throws {
+        guard plan.preparation.matcherConfigurationHash ==
+                (try plan.preparation.matcherConfiguration.canonicalSHA256()) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan matcher configuration hash mismatch at evaluator entry"
+            )
+        }
+        if let pairPlan {
+            guard pairPlan.alignment.matcherConfigurationHash ==
+                    plan.preparation.matcherConfigurationHash else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan pair matcher configuration hash mismatch at evaluator entry"
+                )
+            }
+        }
+    }
+
     static func validatePairOrder(
         preparedPairs: [PreparedPair],
         plan: PreparedEvaluationPlan
     ) throws {
+        try validateMatcherConfiguration(plan: plan)
         let requested = preparedPairs.map(\.record.id)
         let expectedSubset = plan.pairOrder.filter { requested.contains($0) }
         guard requested == expectedSubset else {
@@ -843,6 +945,7 @@ enum V6PreparedEvaluationEntry {
                 "PreparedEvaluationPlan is missing \(prepared.record.id)"
             )
         }
+        try validateMatcherConfiguration(plan: plan, pairPlan: pairPlan)
         // Materialize only the identities already sealed by the plan.  This
         // deliberately does not filter, sort, select representatives, or
         // apply a second confidence threshold at evaluator entry.

@@ -57,58 +57,91 @@ public enum TemporalAligner {
         hdr: FrameSequence,
         offsetRangeSeconds: ClosedRange<Double> = -2...2,
         offsetStep: Double = 1.0 / 30.0,
-        confidenceThreshold: Double = 0.60
+        confidenceThreshold: Double = 0.60,
+        matcherConfiguration: V6MatcherConfiguration = .v6
     ) -> AlignmentResult {
         guard !sdr.samples.isEmpty, !hdr.samples.isEmpty else {
             return AlignmentResult(status: "REJECT", coarseOffsetSeconds: 0, matches: [], rejectedFrames: 0, medianConfidence: 0, notes: ["one sequence has no decoded samples"])
         }
-        var bestOffset = 0.0
-        var bestScore = Double.greatestFiniteMagnitude
-        var offset = offsetRangeSeconds.lowerBound
-        while offset <= offsetRangeSeconds.upperBound + offsetStep * 0.5 {
-            var distances: [Double] = []
-            for sample in sdr.samples {
+        let sdrFeatures = Dictionary(uniqueKeysWithValues: sdr.samples.map {
+            ($0.sequencePosition, V6TransferInvariantMatcher.features(
+                $0.lumaGrid, configuration: matcherConfiguration
+            ))
+        })
+        let hdrFeatures = Dictionary(uniqueKeysWithValues: hdr.samples.map {
+            ($0.sequencePosition, V6TransferInvariantMatcher.features(
+                $0.lumaGrid, configuration: matcherConfiguration
+            ))
+        })
+        var metricCache: [UInt64: V6MatcherComponentMetrics] = [:]
+        func metrics(_ lhs: FrameSample, _ rhs: FrameSample) -> V6MatcherComponentMetrics {
+            let key = UInt64(UInt32(truncatingIfNeeded: lhs.sequencePosition)) << 32 |
+                UInt64(UInt32(truncatingIfNeeded: rhs.sequencePosition))
+            if let cached = metricCache[key] { return cached }
+            let measured = V6TransferInvariantMatcher.compare(
+                sdrFeatures[lhs.sequencePosition]!, hdrFeatures[rhs.sequencePosition]!,
+                configuration: matcherConfiguration,
+                descriptorFallback: (lhs.descriptor, rhs.descriptor)
+            )
+            metricCache[key] = measured
+            return measured
+        }
+        func score(_ samples: ArraySlice<FrameSample>, offset: Double) -> Double {
+            var confidences: [Double] = []
+            for sample in samples {
                 let target = sample.descriptor.timestampSeconds + offset
                 if let nearest = nearestSample(to: target, in: hdr.samples) {
-                    distances.append(FrameDescriptorBuilder.alignmentDistance(
-                        sample.descriptor,
-                        nearest.descriptor,
-                        lhsGrid: sample.lumaGrid,
-                        rhsGrid: nearest.lumaGrid
-                    ))
+                    confidences.append(metrics(sample, nearest).confidence)
                 }
             }
-            if !distances.isEmpty {
-                let score = distances.reduce(0, +) / Double(distances.count)
-                if score < bestScore {
-                    bestScore = score
-                    bestOffset = offset
-                }
+            return confidences.isEmpty ? 0 : confidences.reduce(0, +) / Double(confidences.count)
+        }
+        var bestOffset = 0.0
+        var bestScore = -Double.greatestFiniteMagnitude
+        var offsetScores: [(offset: Double, score: Double)] = []
+        var offset = offsetRangeSeconds.lowerBound
+        while offset <= offsetRangeSeconds.upperBound + offsetStep * 0.5 {
+            let candidateScore = score(sdr.samples[...], offset: offset)
+            offsetScores.append((offset, candidateScore))
+            if candidateScore > bestScore {
+                bestScore = candidateScore
+                bestOffset = offset
             }
             offset += offsetStep
         }
+        let second = offsetScores
+            .filter { abs($0.offset - bestOffset) >= 0.10 }
+            .max { $0.score < $1.score } ?? (bestOffset, bestScore)
+        let windowSize = max(1, Int(ceil(Double(sdr.samples.count) / 8.0)))
+        var perWindowOffsets: [Double] = []
+        for start in stride(from: 0, to: sdr.samples.count, by: windowSize) {
+            let end = min(start + windowSize, sdr.samples.count)
+            let window = sdr.samples[start..<end]
+            let selected = offsetScores.map(\.offset).map { candidate in
+                (offset: candidate, score: score(window, offset: candidate))
+            }.max { $0.score < $1.score }
+            perWindowOffsets.append(selected?.offset ?? bestOffset)
+        }
+        let offsetDrift = (perWindowOffsets.max() ?? bestOffset) -
+            (perWindowOffsets.min() ?? bestOffset)
 
         var matches: [MatchedFrame] = []
         var rejected = 0
+        var rawConfidences: [Double] = []
         for sample in sdr.samples {
             let target = sample.descriptor.timestampSeconds + bestOffset
             guard let nearest = nearestSample(to: target, in: hdr.samples) else {
                 rejected += 1
                 continue
             }
-            let distance = FrameDescriptorBuilder.alignmentDistance(
-                sample.descriptor,
-                nearest.descriptor,
-                lhsGrid: sample.lumaGrid,
-                rhsGrid: nearest.lumaGrid
-            )
-            let confidence = max(0, min(1, exp(-distance * 4)))
+            let confidence = metrics(sample, nearest).confidence
+            rawConfidences.append(confidence)
             if confidence >= confidenceThreshold {
-            matches.append(MatchedFrame(
-                sdrIndex: sample.index,
-                hdrIndex: nearest.index,
-                sdrSequencePosition: sample.sequencePosition,
-                hdrSequencePosition: nearest.sequencePosition,
+                matches.append(MatchedFrame(
+                    sdrIndex: sample.index,
+                    hdrIndex: nearest.index,
+                    sdrSequencePosition: sample.sequencePosition,
+                    hdrSequencePosition: nearest.sequencePosition,
                     sdrTimeSeconds: sample.descriptor.timestampSeconds,
                     hdrTimeSeconds: nearest.descriptor.timestampSeconds,
                     confidence: confidence
@@ -133,7 +166,16 @@ public enum TemporalAligner {
             matches: matches,
             rejectedFrames: rejected,
             medianConfidence: median,
-            notes: ["brightness-invariant alignment descriptor: spatial correlation + shifted histogram + normalized statistics"]
+            notes: [
+                "matcher=\(matcherConfiguration.matcherVersion)",
+                "transfer-invariant evidence: rank luma + signed gradients + multi-scale NCC + edge mask + local contrast"
+            ],
+            secondBestOffsetSeconds: second.offset,
+            bestVersusSecondMargin: bestScore - second.score,
+            perWindowOffsets: perWindowOffsets,
+            offsetDriftSeconds: offsetDrift,
+            confidenceQuantiles: quantiles(rawConfidences),
+            matcherConfigurationHash: try? matcherConfiguration.canonicalSHA256()
         )
     }
 
@@ -141,6 +183,18 @@ public enum TemporalAligner {
         samples.min {
             abs($0.descriptor.timestampSeconds - timestamp) < abs($1.descriptor.timestampSeconds - timestamp)
         }
+    }
+
+    private static func quantiles(_ values: [Double]) -> V6ConfidenceQuantiles {
+        let sorted = values.sorted()
+        func value(_ fraction: Double) -> Double {
+            guard !sorted.isEmpty else { return 0 }
+            return sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * fraction))]
+        }
+        return V6ConfidenceQuantiles(
+            minimum: value(0), p10: value(0.10), p25: value(0.25), p50: value(0.50),
+            p75: value(0.75), p90: value(0.90), maximum: value(1)
+        )
     }
 }
 

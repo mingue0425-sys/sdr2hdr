@@ -42,7 +42,10 @@ final class V2PreparedRepository {
             referenceTargetPeakNits: configuration.referenceTargetPeakNits,
             allowHLGModel: true,
             sdrPixelFormat: CalibrationPixelFormat.sdrNV12,
-            hdrPixelFormat: CalibrationPixelFormat.hdrP010
+            hdrPixelFormat: CalibrationPixelFormat.hdrP010,
+            matcherConfiguration: V6MatcherConfiguration(
+                acceptedConfidenceThreshold: acceptedConfidenceThreshold
+            )
         )
         self.preparedEvaluationPlan = nil
         self.evaluator = PairEvaluator(
@@ -54,7 +57,8 @@ final class V2PreparedRepository {
                 alignmentConfidenceThreshold: 0,
                 referenceTargetPeakNits: configuration.referenceTargetPeakNits,
                 allowHLGModel: true
-            )
+            ),
+            matcherConfiguration: self.preparationConfiguration.matcherConfiguration
         )
     }
 
@@ -126,7 +130,16 @@ final class V2PreparedRepository {
         records: [PairRecord],
         inputHashes: [String: V6InputHashes]
     ) throws -> PreparedEvaluationPlan {
-        guard plan.scope == "TUNE_VALIDATION",
+        guard plan.preparation.matcherConfigurationHash ==
+                (try plan.preparation.matcherConfiguration.canonicalSHA256()),
+              plan.pairs.allSatisfy({
+                  $0.alignment.matcherConfigurationHash == plan.preparation.matcherConfigurationHash
+              }) else {
+            throw CalibrationError.incompleteEvaluation(
+                "preflight PreparedEvaluationPlan matcher configuration hash differs at evaluator entry"
+            )
+        }
+        guard plan.scope == "TUNE_VALIDATION" || plan.scope == "VIRGIN_FROZEN",
               plan.pairOrder == records.map(\.id) else {
             throw CalibrationError.incompleteEvaluation(
                 "preflight PreparedEvaluationPlan scope/order does not match evaluator records"

@@ -429,12 +429,26 @@ public enum V4CorrectnessReview {
                 )
             }
         let preparedStructural = try await repository.prepare(records: structuralRecords)
+        let inputHashesForPlan = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit)
         let preparedPlan = try repository.sealPreparedEvaluationPlan(
             records: structuralRecords,
-            inputHashes: V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit),
+            inputHashes: inputHashesForPlan,
             scope: "TUNE_VALIDATION"
         )
         try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        // Exercise the same read-only evaluator-entry materialization used by
+        // V4/V6 after a plan is sealed.  The second pass may decode the
+        // already-sealed identities, but it cannot align, select scenes, or
+        // apply a new confidence gate.  Structural checks below therefore
+        // describe the exact hand-off that an evaluator would consume.
+        let evaluatorEntryStructural = try await repository.materialize(
+            records: structuralRecords,
+            using: preparedPlan,
+            inputHashes: inputHashesForPlan
+        )
+        try V6PreparedEvaluationPlanBuilder.validate(
+            plan: preparedPlan, preparedPairs: evaluatorEntryStructural
+        )
         let preparedPlanArtifact = try V6PreparedEvaluationPlanArtifact(plan: preparedPlan)
         try writeJSON(
             preparedPlanArtifact,
@@ -445,13 +459,13 @@ public enum V4CorrectnessReview {
         let tune = structuralCheck(
             split: .tune,
             manifest: manifest,
-            preparedPairs: preparedStructural,
+            preparedPairs: evaluatorEntryStructural,
             preparedPlan: preparedPlan
         )
         let validation = structuralCheck(
             split: .validation,
             manifest: manifest,
-            preparedPairs: preparedStructural,
+            preparedPairs: evaluatorEntryStructural,
             preparedPlan: preparedPlan
         )
         let holdoutProvenance = V4HistoricalObjectiveProvenance.audit(
@@ -756,9 +770,14 @@ public enum V4CorrectnessReview {
                 id: "v6PreparedEvaluationPlan",
                 status: planHash == "UNAVAILABLE" ? "FAIL" : "PASS",
                 evidence: V4CorrectnessEvidence(
-                    summary: "one canonical V6 preparation plan is shared by preflight and evaluator entry; sha256=\(planHash)",
+                    summary: "one canonical V6 preparation plan is shared by preflight and read-only evaluator-entry materialization; sha256=\(planHash); matcherConfigurationHash=\(preparedPlan.preparation.matcherConfigurationHash)",
                     counts: ["pairCount": preparedPlan.pairOrder.count, "plannedAcceptedFrames": preparedPlan.pairs.reduce(0) { $0 + $1.alignment.acceptedFrameCount }],
-                    booleans: ["canonicalSerialization": planHash != "UNAVAILABLE"]
+                    booleans: [
+                        "canonicalSerialization": planHash != "UNAVAILABLE",
+                        "matcherConfigurationHashBound": preparedPlan.pairs.allSatisfy {
+                            $0.alignment.matcherConfigurationHash == preparedPlan.preparation.matcherConfigurationHash
+                        }
+                    ]
                 )
             ),
             V4CorrectnessCheck(id: "dataset-audit-lock", status: "PASS", evidence: V4CorrectnessEvidence(
@@ -1564,7 +1583,8 @@ public enum V4CorrectnessReview {
                 "Sources/HDRCalibration/Decode.swift", "Sources/HDRCalibration/Alignment.swift",
                 "Sources/HDRCalibration/FrameIO.swift", "Sources/HDRCalibration/Evaluation.swift",
                 "Sources/HDRCalibration/CorrectnessReview.swift", "Sources/HDRCalibration/V2Runner.swift",
-                "Sources/HDRCalibration/V5Preflight.swift"
+                "Sources/HDRCalibration/V5Preflight.swift",
+                "Sources/HDRCalibration/PreparedEvaluationPlan.swift"
             ]
             for relative in required {
                 let url = root.appendingPathComponent(relative)

@@ -207,6 +207,21 @@ final class CalibrationTests: XCTestCase {
         for index in 1..<counts.count { XCTAssertLessThanOrEqual(counts[index], counts[index - 1]) }
     }
 
+    func testV6TransferInvariantMatcherSurvivesMonotonicToneCurve() {
+        let base: [Float] = (0..<(64 * 36)).map { index in
+            let x = Double(index % 64) / 63.0
+            let y = Double(index / 64) / 35.0
+            return Float(min(1, max(0, 0.08 + 0.72 * x + 0.14 * sin(y * 12.0) + 0.06 * cos(x * 17.0))))
+        }
+        let toneMapped = base.map { Float(pow(Double($0), 0.58)) }
+        let lhs = V6TransferInvariantMatcher.features(base, configuration: .v6)
+        let rhs = V6TransferInvariantMatcher.features(toneMapped, configuration: .v6)
+        let metrics = V6TransferInvariantMatcher.compare(lhs, rhs, configuration: .v6)
+        XCTAssertGreaterThan(metrics.rankNormalizedLumaCorrelation, 0.98)
+        XCTAssertGreaterThan(metrics.gradientCorrelation, 0.80)
+        XCTAssertGreaterThan(metrics.confidence, 0.60)
+    }
+
     func testV6PreparedPlanCanonicalHashAndExactIdentityValidation() throws {
         let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
         let configuration = V6PreparationConfiguration(
@@ -287,6 +302,56 @@ final class CalibrationTests: XCTestCase {
             temporalWindows: prepared.temporalWindows
         )
         XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [drifted]))
+    }
+
+    func testV6MatcherConfigurationHashIsCanonicalAndEvaluatorBound() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
+        let configuration = V6PreparationConfiguration(
+            maxFramesPerScene: 8,
+            maxDecodedFrames: 64,
+            acceptedConfidenceThreshold: 0.60,
+            matcherConfiguration: V6MatcherConfiguration(matcherVersion: "v6-test-matcher")
+        )
+        let record = V4PairRecord(
+            id: prepared.record.id,
+            sdr: prepared.record.sdr,
+            hdr: prepared.record.hdr,
+            source: "test",
+            license: "test",
+            expectedRelation: .sameSource,
+            split: .tune
+        )
+        let hashes = [record.id: V6InputHashes(
+            sdrSHA256: String(repeating: "a", count: 64),
+            hdrSHA256: String(repeating: "b", count: 64)
+        )]
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            configuration: configuration,
+            inputHashes: hashes
+        )
+        XCTAssertEqual(
+            plan.preparation.matcherConfigurationHash,
+            try plan.preparation.matcherConfiguration.canonicalSHA256()
+        )
+        let changedConfiguration = V6PreparationConfiguration(
+            maxFramesPerScene: 8,
+            maxDecodedFrames: 64,
+            acceptedConfidenceThreshold: 0.60,
+            matcherConfiguration: V6MatcherConfiguration(matcherVersion: "v6-tampered-matcher")
+        )
+        XCTAssertNotEqual(
+            configuration.matcherConfigurationHash,
+            changedConfiguration.matcherConfigurationHash
+        )
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validateSealedContract(
+            plan: plan,
+            scope: "TUNE_VALIDATION",
+            records: [record],
+            inputHashes: hashes,
+            preparation: changedConfiguration
+        ))
     }
 
     func testV6EvaluatorEntryRejectsPlanWithNoAcceptedMatches() throws {
@@ -450,7 +515,7 @@ final class CalibrationTests: XCTestCase {
             V6PreparedEvaluationPlanBuilder.frameIdentity
         ) ?? []
         XCTAssertEqual(preflightIdentities, entryIdentities)
-        XCTAssertTrue(preflightIdentities.isEmpty)
+        XCTAssertGreaterThan(preflightIdentities.count, 0)
     }
 
     func testV6PreparedPlanRejectsNonPortableManifestPaths() throws {
@@ -576,6 +641,32 @@ final class CalibrationTests: XCTestCase {
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("cannot prepare a new pair"))
         }
+    }
+
+    func testV6RepositoryAcceptsVirginFrozenPlanScopeReadOnly() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let hashes = V6InputHashes(
+            sdrSHA256: String(repeating: "7", count: 64),
+            hdrSHA256: String(repeating: "8", count: 64)
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: hashes],
+            scope: "VIRGIN_FROZEN"
+        )
+        let repository = V2PreparedRepository(
+            manifestURL: URL(fileURLWithPath: "/tmp/not-opened.json"),
+            device: device,
+            configuration: V2SearchConfiguration(),
+            acceptedConfidenceThreshold: 0.60
+        )
+        XCTAssertNoThrow(try repository.installPreparedEvaluationPlan(
+            plan,
+            records: [prepared.record],
+            inputHashes: [prepared.record.id: hashes]
+        ))
     }
 
     func testV6ConsumedHoldoutsAreAssetHashBound() {

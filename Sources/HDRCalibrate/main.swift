@@ -149,6 +149,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
       HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 --output results/data-video-v4-final.json
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
+      HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-import-live --root "/path/to/LIVE" --manifest data_video/manifest-v4.json --select 6 [--dry-run]
@@ -198,6 +199,15 @@ private func run(arguments: [String]) async throws {
                 "correctness-review did not reach CORRECTNESS_READY_FOR_V6: \(report.verdict)"
             )
         }
+        return
+    }
+    if cli.command == "matcher-diagnostic" {
+        let report = try await V6MatcherDiagnostics.run(
+            manifestURL: try cli.requiredManifest(), outputURL: cli.output
+        )
+        print("V6 matcher diagnostics: \(report.pairs.count) Tune/Validation pairs")
+        print("Frozen files accessed: \(report.frozenFilesAccessed)")
+        print("matcher diagnostic report: \(cli.output.path)")
         return
     }
     if cli.command == "v2-audit" {

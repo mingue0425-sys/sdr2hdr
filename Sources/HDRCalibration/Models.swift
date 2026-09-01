@@ -304,6 +304,12 @@ public struct AlignmentResult: Codable, Sendable {
     public var rejectedFrames: Int
     public var medianConfidence: Double
     public var notes: [String]
+    public var secondBestOffsetSeconds: Double?
+    public var bestVersusSecondMargin: Double?
+    public var perWindowOffsets: [Double]?
+    public var offsetDriftSeconds: Double?
+    public var confidenceQuantiles: V6ConfidenceQuantiles?
+    public var matcherConfigurationHash: String?
 
     public init(
         status: String,
@@ -311,7 +317,13 @@ public struct AlignmentResult: Codable, Sendable {
         matches: [MatchedFrame],
         rejectedFrames: Int,
         medianConfidence: Double,
-        notes: [String] = []
+        notes: [String] = [],
+        secondBestOffsetSeconds: Double? = nil,
+        bestVersusSecondMargin: Double? = nil,
+        perWindowOffsets: [Double]? = nil,
+        offsetDriftSeconds: Double? = nil,
+        confidenceQuantiles: V6ConfidenceQuantiles? = nil,
+        matcherConfigurationHash: String? = nil
     ) {
         self.status = status
         self.coarseOffsetSeconds = coarseOffsetSeconds
@@ -319,6 +331,12 @@ public struct AlignmentResult: Codable, Sendable {
         self.rejectedFrames = rejectedFrames
         self.medianConfidence = medianConfidence
         self.notes = notes
+        self.secondBestOffsetSeconds = secondBestOffsetSeconds
+        self.bestVersusSecondMargin = bestVersusSecondMargin
+        self.perWindowOffsets = perWindowOffsets
+        self.offsetDriftSeconds = offsetDriftSeconds
+        self.confidenceQuantiles = confidenceQuantiles
+        self.matcherConfigurationHash = matcherConfigurationHash
     }
 }
 

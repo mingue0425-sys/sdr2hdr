@@ -314,10 +314,16 @@ struct PreparedPair {
 public final class PairEvaluator {
     private let device: MTLDevice
     private let experiment: ExperimentConfig
+    private let matcherConfiguration: V6MatcherConfiguration
 
-    public init(device: MTLDevice, experiment: ExperimentConfig = ExperimentConfig()) {
+    public init(
+        device: MTLDevice,
+        experiment: ExperimentConfig = ExperimentConfig(),
+        matcherConfiguration: V6MatcherConfiguration = .v6
+    ) {
         self.device = device
         self.experiment = experiment
+        self.matcherConfiguration = matcherConfiguration
     }
 
     /// Single alignment entry point shared by the production calibration
@@ -325,12 +331,14 @@ public final class PairEvaluator {
     public static func align(
         sdr: FrameSequence,
         hdr: FrameSequence,
-        confidenceThreshold: Double
+        confidenceThreshold: Double,
+        matcherConfiguration: V6MatcherConfiguration = .v6
     ) -> AlignmentResult {
         TemporalAligner.align(
             sdr: sdr,
             hdr: hdr,
-            confidenceThreshold: confidenceThreshold
+            confidenceThreshold: confidenceThreshold,
+            matcherConfiguration: matcherConfiguration
         )
     }
 
@@ -355,7 +363,8 @@ public final class PairEvaluator {
         let alignment = Self.align(
             sdr: sdrSequence,
             hdr: hdrSequence,
-            confidenceThreshold: experiment.alignmentConfidenceThreshold
+            confidenceThreshold: experiment.alignmentConfidenceThreshold,
+            matcherConfiguration: matcherConfiguration
         )
         let sortedConfidence = alignment.matches.map(\.confidence).sorted()
         let p10Index = max(0, Int(Double(max(sortedConfidence.count - 1, 0)) * 0.10))
@@ -526,7 +535,13 @@ public final class PairEvaluator {
             matches: rawMatches,
             rejectedFrames: pairPlan.alignment.rejectedFrameCount,
             medianConfidence: pairPlan.alignment.medianConfidence,
-            notes: ["materialized read-only from PreparedEvaluationPlan"]
+            notes: ["materialized read-only from PreparedEvaluationPlan"],
+            secondBestOffsetSeconds: pairPlan.alignment.secondBestOffsetSeconds,
+            bestVersusSecondMargin: pairPlan.alignment.bestVersusSecondMargin,
+            perWindowOffsets: pairPlan.alignment.perWindowOffsets,
+            offsetDriftSeconds: pairPlan.alignment.offsetDriftSeconds,
+            confidenceQuantiles: pairPlan.alignment.confidenceQuantiles,
+            matcherConfigurationHash: pairPlan.alignment.matcherConfigurationHash
         )
         guard rawMatches.count == pairPlan.alignment.matchedFrameCount else {
             throw CalibrationError.incompleteEvaluation(
