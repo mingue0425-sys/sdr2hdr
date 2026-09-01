@@ -100,20 +100,22 @@ public final class HDRMetalView: NSView, @preconcurrency CAMetalDisplayLinkDeleg
 
     public func updateScreenCapabilities() {
         var capabilities = DisplayCapabilities.read(from: window?.screen ?? NSScreen.main)
-        displayCapabilities = capabilities
-        let enableEDR = capabilities.isEDRCapable
-        metalLayer.wantsExtendedDynamicRangeContent = enableEDR
-        metalLayer.colorspace = DisplayCapabilities.colorSpace(forEDR: enableEDR)
+        let requestEDR = capabilities.isEDRCapable
+        metalLayer.wantsExtendedDynamicRangeContent = requestEDR
         // Direct EDR policy: HDRCore emits mastering-domain values. The
         // presentation shader maps only highlights into current physical EDR.
         // No CAEDRMetadata is attached, avoiding a second tone-mapping pass.
         metalLayer.edrMetadata = nil
-        if enableEDR {
-            let refreshed = DisplayCapabilities.read(from: window?.screen ?? NSScreen.main)
-            if refreshed.currentHeadroom > 1.001 {
-                capabilities = refreshed
-            }
+        if requestEDR {
+            // Requesting EDR may change the screen's current headroom. Always
+            // use the refreshed state for both the shader branch and layer
+            // color space so a capable-but-inactive display cannot interpret
+            // linear sRGB fallback pixels as BT.2020.
+            capabilities = DisplayCapabilities.read(from: window?.screen ?? NSScreen.main)
         }
+        metalLayer.colorspace = DisplayCapabilities.colorSpace(
+            forEDR: capabilities.presentsExtendedBT2020
+        )
         displayCapabilities = capabilities
         playbackController?.updateDisplayCapabilities(capabilities)
         if playbackController?.videoInfo?.nominalFrameRate == 0 {

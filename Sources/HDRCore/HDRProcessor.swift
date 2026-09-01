@@ -156,9 +156,28 @@ private final class OutputTexturePool: @unchecked Sendable {
     }
 }
 
+/// Keeps a pooled output texture exclusively leased until both the GPU
+/// command and every copy of the returned HDRFrame have released it.  The
+/// command-buffer completion handler and HDRFrame intentionally share this
+/// token; deinitialization is therefore the exact two-party lifetime barrier.
+private final class OutputLeaseLifetime: @unchecked Sendable {
+    private let pool: OutputTexturePool
+    private let id: Int
+
+    init(pool: OutputTexturePool, id: Int) {
+        self.pool = pool
+        self.id = id
+    }
+
+    deinit {
+        pool.release(id: id)
+    }
+}
+
 private final class TemporalState: @unchecked Sendable {
     private let lock = NSLock()
     private var control = HDRTemporalControlState()
+    private var generation: UInt64 = 0
 
     func value() -> Float {
         lock.lock()
@@ -172,9 +191,10 @@ private final class TemporalState: @unchecked Sendable {
         return (control.adaptation, control.automaticSequence)
     }
 
-    func reset() {
+    func advanceGeneration(to generation: UInt64, reset: Bool) {
         lock.lock()
-        control.reset()
+        self.generation = generation
+        if reset { control.reset() }
         lock.unlock()
     }
 
@@ -184,20 +204,28 @@ private final class TemporalState: @unchecked Sendable {
         lock.unlock()
     }
 
-    func updateAutomatic(averageLuminance: Float, stability: Float, sequence: UInt64) {
+    @discardableResult
+    func updateAutomatic(
+        averageLuminance: Float,
+        stability: Float,
+        sequence: UInt64,
+        generation: UInt64
+    ) -> Bool {
         lock.lock()
-        _ = control.updateAutomaticAverage(
+        defer { lock.unlock() }
+        guard generation == self.generation else { return false }
+        return control.updateAutomaticAverage(
             averageLuminance: averageLuminance,
             stability: stability,
             sequence: sequence
         )
-        lock.unlock()
     }
 }
 
 private final class SceneShadowState: @unchecked Sendable {
     private let lock = NSLock()
     private var control = HDRTemporalControlState()
+    private var generation: UInt64 = 0
 
     func value() -> (floor: Float, top: Float, valid: Bool) {
         lock.lock()
@@ -211,9 +239,10 @@ private final class SceneShadowState: @unchecked Sendable {
         return (control.shadowFloor, control.shadowTop, control.shadowStatisticsValid, control.shadowSequence)
     }
 
-    func reset() {
+    func advanceGeneration(to generation: UInt64, reset: Bool) {
         lock.lock()
-        control.reset()
+        self.generation = generation
+        if reset { control.reset() }
         lock.unlock()
     }
 
@@ -230,16 +259,18 @@ private final class SceneShadowState: @unchecked Sendable {
         statistics: HDRSceneStatistics,
         averageLuminance: Float,
         stability: Float,
-        sequence: UInt64
+        sequence: UInt64,
+        generation: UInt64
     ) -> Bool {
         lock.lock()
+        defer { lock.unlock() }
+        guard generation == self.generation else { return false }
         let sceneCut = control.updateAutomaticStatistics(
             statistics,
             averageLuminance: averageLuminance,
             stability: stability,
             sequence: sequence
         )
-        lock.unlock()
         return sceneCut
     }
 }
@@ -322,6 +353,7 @@ public struct HDRTemporalCompletionTrace: Equatable, Sendable {
 
 private final class TemporalCompletionBookkeeping: @unchecked Sendable {
     private let lock = NSLock()
+    private var generationStorage: UInt64 = 0
     private var lastCompletedSequenceStorage: UInt64 = 0
     private var traceEnabledStorage = false
 
@@ -334,8 +366,16 @@ private final class TemporalCompletionBookkeeping: @unchecked Sendable {
         set { lock.withLock { traceEnabledStorage = newValue } }
     }
 
-    func recordCompleted(sequence: UInt64) {
+    func advanceGeneration(to generation: UInt64) {
         lock.withLock {
+            generationStorage = generation
+            lastCompletedSequenceStorage = 0
+        }
+    }
+
+    func recordCompleted(sequence: UInt64, generation: UInt64) {
+        lock.withLock {
+            guard generation == generationStorage else { return }
             lastCompletedSequenceStorage = max(lastCompletedSequenceStorage, sequence)
         }
     }
@@ -386,6 +426,7 @@ public final class HDRProcessor {
     private var debugEnabled = false
     private var automaticTemporalEnabled = true
     private var temporalSubmissionSequenceStorage: UInt64 = 0
+    private var temporalGenerationStorage: UInt64 = 0
     private let temporalCompletionBookkeeping = TemporalCompletionBookkeeping()
     private let temporalTraceStore = TemporalTraceStore()
 
@@ -421,7 +462,13 @@ public final class HDRProcessor {
     /// and only waits after submission when it needs a numeric readback.
     public var automaticTemporalEstimationEnabled: Bool {
         get { stateLock.withLock { automaticTemporalEnabled } }
-        set { stateLock.withLock { automaticTemporalEnabled = newValue } }
+        set {
+            stateLock.withLock {
+                guard automaticTemporalEnabled != newValue else { return }
+                automaticTemporalEnabled = newValue
+                advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
+            }
+        }
     }
 
     /// Prepares the reusable RGBA16Float output ring for a known stream size.
@@ -469,9 +516,12 @@ public final class HDRProcessor {
     public func update(configuration: HDRConfiguration) throws {
         do {
             let validated = try configuration.validated()
-            stateLock.lock()
-            currentConfiguration = validated
-            stateLock.unlock()
+            stateLock.withLock {
+                currentConfiguration = validated
+                // Frames already in flight captured the previous constants.
+                // Preserve the causal history, but reject their late updates.
+                advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
+            }
         } catch let error as HDRConfigurationError {
             throw HDRProcessorError.configuration(error)
         }
@@ -505,14 +555,38 @@ public final class HDRProcessor {
     /// Resets temporal history at a seek/scene boundary. Offline calibration
     /// and HDRPlayer use the same state transition.
     public func resetTemporalState(averageLuminance: Float = 0.5) {
-        let stability = configuration.temporalStability
-        temporalState.update(averageLuminance: averageLuminance, stability: stability, sceneCut: true)
+        stateLock.withLock {
+            let stability = currentConfiguration.temporalStability
+            advanceTemporalGenerationLocked(resetTemporal: true, resetScene: false)
+            temporalState.update(
+                averageLuminance: averageLuminance,
+                stability: stability,
+                sceneCut: true
+            )
+        }
     }
 
     /// Clears history to the neutral adaptation used at processor startup.
     public func clearTemporalHistory() {
-        temporalState.reset()
-        sceneShadowState.reset()
+        stateLock.withLock {
+            advanceTemporalGenerationLocked(resetTemporal: true, resetScene: true)
+        }
+    }
+
+    /// Must be called with stateLock held.  State objects validate this
+    /// generation while holding their own locks, closing the reset/completion
+    /// race rather than relying on a check performed before the update.
+    @discardableResult
+    private func advanceTemporalGenerationLocked(
+        resetTemporal: Bool,
+        resetScene: Bool
+    ) -> UInt64 {
+        temporalGenerationStorage &+= 1
+        let generation = temporalGenerationStorage
+        temporalState.advanceGeneration(to: generation, reset: resetTemporal)
+        sceneShadowState.advanceGeneration(to: generation, reset: resetScene)
+        temporalCompletionBookkeeping.advanceGeneration(to: generation)
+        return generation
     }
 
     /// Exposed for calibration diagnostics; it does not synchronize with GPU.
@@ -560,8 +634,30 @@ public final class HDRProcessor {
             throw HDRProcessorError.invalidDimensions
         }
 
-        let configuration = self.configuration
-        let debugEnabled = self.debugInstrumentationEnabled
+        // Capture configuration, instrumentation, submission sequence and
+        // generation atomically. A concurrent update may still let this frame
+        // render with the old constants, but its completion can no longer
+        // mutate the new temporal generation.
+        let processState: (
+            configuration: HDRConfiguration,
+            debugEnabled: Bool,
+            temporalSubmission: (sequence: UInt64, generation: UInt64)?
+        ) = stateLock.withLock {
+            let submission: (sequence: UInt64, generation: UInt64)?
+            if automaticTemporalEnabled {
+                temporalSubmissionSequenceStorage &+= 1
+                submission = (
+                    sequence: temporalSubmissionSequenceStorage,
+                    generation: temporalGenerationStorage
+                )
+            } else {
+                submission = nil
+            }
+            return (currentConfiguration, debugEnabled, submission)
+        }
+        let configuration = processState.configuration
+        let debugEnabled = processState.debugEnabled
+        let temporalSubmission = processState.temporalSubmission
         let resolvedColor: ResolvedColorDescription
         do {
             resolvedColor = try HDRColorMetadataResolver.resolve(
@@ -574,6 +670,7 @@ public final class HDRProcessor {
 
         let inputTextures = try context.textureCache.makeTextures(for: pixelBuffer)
         let lease = try outputPool.acquire(width: width, height: height)
+        let outputLeaseLifetime = OutputLeaseLifetime(pool: outputPool, id: lease.id)
 
         let metalCommandBuffer: MTLCommandBuffer
         let ownsCommandBuffer: Bool
@@ -582,7 +679,6 @@ public final class HDRProcessor {
             ownsCommandBuffer = false
         } else {
             guard let createdCommandBuffer = context.commandQueue.makeCommandBuffer() else {
-                outputPool.release(id: lease.id)
                 throw HDRProcessorError.commandBufferCreationFailed
             }
             metalCommandBuffer = createdCommandBuffer
@@ -595,7 +691,6 @@ public final class HDRProcessor {
                 length: MemoryLayout<HDRDebugStatsStorage>.stride,
                 options: .storageModeShared
             ) else {
-                outputPool.release(id: lease.id)
                 throw HDRProcessorError.debugBufferCreationFailed
             }
             createdBuffer.contents()
@@ -613,22 +708,9 @@ public final class HDRProcessor {
         } else {
             pipeline = isYUV ? context.nv12Pipeline : context.bgraPipeline
         }
-        guard let encoder = metalCommandBuffer.makeComputeCommandEncoder() else {
-            outputPool.release(id: lease.id)
-            throw HDRProcessorError.commandEncoderCreationFailed
-        }
-
-        // Allocate the causal submission sequence before snapshotting shader
-        // parameters so debug parity traces can bind the exact state consumed
-        // by this frame to the completion that will later produce new state.
-        let temporalSequence: UInt64? = stateLock.withLock {
-            guard automaticTemporalEnabled else { return nil }
-            temporalSubmissionSequenceStorage &+= 1
-            return temporalSubmissionSequenceStorage
-        }
         let parameterSnapshot = makeShaderParameters(configuration: configuration, color: resolvedColor)
         var parameters = parameterSnapshot.parameters
-        if temporalTraceEnabled, let sequence = temporalSequence {
+        if temporalTraceEnabled, let sequence = temporalSubmission?.sequence {
             temporalTraceStore.append(HDRTemporalSubmissionTrace(
                 submissionSequence: sequence,
                 temporalStateVersionConsumed: parameterSnapshot.temporalVersion,
@@ -638,6 +720,24 @@ public final class HDRProcessor {
                 sceneShadowTopUsed: parameters.sceneShadowTop,
                 sceneStatisticsValidUsed: parameters.sceneStatisticsValid != 0
             ))
+        }
+
+        // Allocate every fallible per-frame resource before encoding anything
+        // into a caller-owned command buffer. The transform and temporal
+        // estimator then share one compute encoder, so a late encoder failure
+        // cannot leave partially encoded work with an already-released lease.
+        let temporalEstimateBuffer: MTLBuffer?
+        if temporalSubmission != nil {
+            let buffer = try temporalEstimateBuffers.buffer(for: lease.id)
+            buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee =
+                TemporalLumaStatsStorage()
+            temporalEstimateBuffer = buffer
+        } else {
+            temporalEstimateBuffer = nil
+        }
+
+        guard let encoder = metalCommandBuffer.makeComputeCommandEncoder() else {
+            throw HDRProcessorError.commandEncoderCreationFailed
         }
         encoder.setComputePipelineState(pipeline)
         if isYUV {
@@ -657,34 +757,31 @@ public final class HDRProcessor {
             MTLSize(width: width, height: height, depth: 1),
             threadsPerThreadgroup: threads
         )
-        encoder.endEncoding()
 
-        let temporalEstimateBuffer: MTLBuffer?
-        if temporalSequence != nil {
-            let buffer = try temporalEstimateBuffers.buffer(for: lease.id)
-            buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee = TemporalLumaStatsStorage()
-            guard let temporalEncoder = metalCommandBuffer.makeComputeCommandEncoder() else {
-                outputPool.release(id: lease.id)
-                throw HDRProcessorError.commandEncoderCreationFailed
-            }
+        if let buffer = temporalEstimateBuffer {
             let temporalPipeline = isYUV ? context.nv12TemporalPipeline : context.bgraTemporalPipeline
-            temporalEncoder.setComputePipelineState(temporalPipeline)
-            temporalEncoder.setTexture(isYUV ? inputTextures.y : inputTextures.bgra, index: 0)
-            temporalEncoder.setBytes(&parameters, length: MemoryLayout<HDRShaderParameters>.stride, index: 0)
-            temporalEncoder.setBuffer(buffer, offset: 0, index: 1)
-            temporalEncoder.dispatchThreads(
+            encoder.setComputePipelineState(temporalPipeline)
+            if isYUV {
+                encoder.setTexture(inputTextures.y, index: 0)
+                encoder.setTexture(inputTextures.uv, index: 1)
+            } else {
+                encoder.setTexture(inputTextures.bgra, index: 0)
+            }
+            encoder.setBytes(
+                &parameters,
+                length: MemoryLayout<HDRShaderParameters>.stride,
+                index: 0
+            )
+            encoder.setBuffer(buffer, offset: 0, index: 1)
+            encoder.dispatchThreads(
                 MTLSize(width: 16, height: 9, depth: 1),
                 threadsPerThreadgroup: context.threadgroupSize(for: temporalPipeline)
             )
-            temporalEncoder.endEncoding()
-            temporalEstimateBuffer = buffer
-        } else {
-            temporalEstimateBuffer = nil
         }
+        encoder.endEncoding()
 
         // Retain CVMetalTexture wrappers and the pixel buffer through GPU
         // completion. No CPU copy is introduced by this lifetime guarantee.
-        let leaseID = lease.id
         let inputLifetime = GPUInputLifetime(pixelBuffer: pixelBuffer, metalTextures: inputTextures.retainedMetalTextures)
         let debugLifetime = debugBuffer.map { DebugBufferLifetime(buffer: $0) }
         let debugStore = self.debugStore
@@ -695,33 +792,44 @@ public final class HDRProcessor {
         let temporalEstimateLifetime = temporalEstimateBuffer.map(TemporalEstimateBufferLifetime.init)
         let temporalCompletionBookkeeping = self.temporalCompletionBookkeeping
         let temporalTraceStore = self.temporalTraceStore
-        metalCommandBuffer.addCompletedHandler { [outputPool, inputLifetime, leaseID, debugLifetime, debugStore, temporalEstimateLifetime, temporalState, sceneShadowState, temporalCompletionBookkeeping, temporalTraceStore] commandBuffer in
+        metalCommandBuffer.addCompletedHandler { [outputLeaseLifetime, inputLifetime, debugLifetime, debugStore, temporalEstimateLifetime, temporalState, sceneShadowState, temporalCompletionBookkeeping, temporalTraceStore] commandBuffer in
+            _ = outputLeaseLifetime
             _ = inputLifetime
-            if commandBuffer.status == .completed, let sequence = temporalSequence {
-                temporalCompletionBookkeeping.recordCompleted(sequence: sequence)
-            }
             if let debugLifetime {
                 debugStore.update(from: debugLifetime.buffer, width: width, height: height, commandBuffer: commandBuffer)
             }
-            if commandBuffer.status == .completed, let temporalEstimateLifetime {
+            var appliedTemporalUpdate = false
+            if commandBuffer.status == .completed,
+               let temporalEstimateLifetime,
+               let submission = temporalSubmission {
                 let stats = temporalEstimateLifetime.buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee
                 if stats.sampleCount > 0 {
                     let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) / 65535
-                    temporalState.updateAutomatic(
+                    appliedTemporalUpdate = temporalState.updateAutomatic(
                         averageLuminance: average, stability: temporalStability,
-                        sequence: temporalSequence ?? 0
+                        sequence: submission.sequence,
+                        generation: submission.generation
                     )
-                    if sceneRelativeEnabled {
+                    if appliedTemporalUpdate, sceneRelativeEnabled {
                         _ = sceneShadowState.updateAutomatic(
                             statistics: HDRSceneStatistics(histogram: stats.histogram),
                             averageLuminance: average,
                             stability: temporalStability,
-                            sequence: temporalSequence ?? 0
+                            sequence: submission.sequence,
+                            generation: submission.generation
+                        )
+                    }
+                    if appliedTemporalUpdate {
+                        temporalCompletionBookkeeping.recordCompleted(
+                            sequence: submission.sequence,
+                            generation: submission.generation
                         )
                     }
                 }
             }
-            if temporalCompletionBookkeeping.traceEnabled, let sequence = temporalSequence, commandBuffer.status == .completed {
+            if temporalCompletionBookkeeping.traceEnabled,
+               appliedTemporalUpdate,
+               let sequence = temporalSubmission?.sequence {
                 let temporalSnapshot = temporalState.snapshot()
                 let sceneSnapshot = sceneShadowState.snapshot()
                 temporalTraceStore.append(HDRTemporalCompletionTrace(
@@ -734,13 +842,17 @@ public final class HDRProcessor {
                     sceneStatisticsValidProduced: sceneSnapshot.valid
                 ))
             }
-            outputPool.release(id: leaseID)
         }
         if ownsCommandBuffer {
             metalCommandBuffer.commit()
         }
 
-        return HDRFrame(texture: lease.texture, sourceTimestamp: timestamp, configuration: configuration)
+        return HDRFrame(
+            texture: lease.texture,
+            sourceTimestamp: timestamp,
+            configuration: configuration,
+            leaseLifetime: outputLeaseLifetime
+        )
     }
 
     private func makeShaderParameters(

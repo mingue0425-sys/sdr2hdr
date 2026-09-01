@@ -34,6 +34,58 @@ final class CalibrationTests: XCTestCase {
         XCTAssertEqual(shared.matches, direct.matches)
     }
 
+    func testAlignersRejectUnsafeSearchParametersWithoutLooping() throws {
+        let sdr = try makeSequence(times: [0, 1], values: [0.1, 0.9])
+        let hdr = try makeSequence(times: [0, 1], values: [0.1, 0.9])
+        let production = TemporalAligner.align(
+            sdr: sdr, hdr: hdr, offsetRangeSeconds: -1...1, offsetStep: 0
+        )
+        XCTAssertEqual(production.status, "REJECT")
+        XCTAssertTrue(production.notes.joined().contains("invalid"))
+
+        let audit = V4AuditTemporalAligner.align(
+            sdr: sdr, hdr: hdr, offsetRangeSeconds: -1...1, offsetStep: 0
+        )
+        XCTAssertEqual(audit.status, "REJECT")
+        XCTAssertTrue(audit.notes.joined().contains("invalid"))
+    }
+
+    func testTemporalAlignerUsesSealedMatcherOffsetConfiguration() throws {
+        let sdr = try makeSequence(times: [0, 1, 2], values: [0.1, 0.5, 0.9])
+        let hdr = try makeSequence(times: [1, 2, 3], values: [0.1, 0.5, 0.9])
+        let configuration = V6MatcherConfiguration(
+            offsetMinimumSeconds: 1,
+            offsetMaximumSeconds: 1,
+            offsetStepSeconds: 1,
+            acceptedConfidenceThreshold: 0
+        )
+        let result = TemporalAligner.align(
+            sdr: sdr, hdr: hdr, matcherConfiguration: configuration
+        )
+        XCTAssertEqual(result.coarseOffsetSeconds, 1, accuracy: 0)
+        XCTAssertEqual(result.matches.count, 3)
+    }
+
+    func testTemporalAlignerUsesOneToOneTimestampBoundedPairs() throws {
+        let sdr = try makeSequence(times: [0, 0.01], values: [0.2, 0.2])
+        let oneHDR = try makeSequence(times: [0], values: [0.2])
+        let paired = TemporalAligner.align(
+            sdr: sdr, hdr: oneHDR,
+            offsetRangeSeconds: 0...0, offsetStep: 1, confidenceThreshold: 0
+        )
+        XCTAssertEqual(paired.matches.count, 1)
+        XCTAssertEqual(Set(paired.matches.compactMap(\.hdrSequencePosition)).count, 1)
+
+        let farHDR = try makeSequence(times: [10], values: [0.2])
+        let distant = TemporalAligner.align(
+            sdr: try makeSequence(times: [0], values: [0.2]),
+            hdr: farHDR,
+            offsetRangeSeconds: 0...0, offsetStep: 1, confidenceThreshold: 0
+        )
+        XCTAssertEqual(distant.status, "REJECT")
+        XCTAssertTrue(distant.matches.isEmpty)
+    }
+
     func testSplitAssignmentDoesNotChangeDuringManifestRoundTrip() throws {
         let record = PairRecord(
             id: "pair",
@@ -220,6 +272,74 @@ final class CalibrationTests: XCTestCase {
         XCTAssertGreaterThan(metrics.rankNormalizedLumaCorrelation, 0.98)
         XCTAssertGreaterThan(metrics.gradientCorrelation, 0.80)
         XCTAssertGreaterThan(metrics.confidence, 0.60)
+    }
+
+    func testV6TransferInvariantMatcherAssignsAverageRanksToTies() {
+        let ranks = V6TransferInvariantMatcher.averageRanks([0, 0, 1, 1])
+        XCTAssertEqual(ranks[0], ranks[1], accuracy: 0)
+        XCTAssertEqual(ranks[2], ranks[3], accuracy: 0)
+        XCTAssertEqual(ranks[0], 1.0 / 6.0, accuracy: 0.000_001)
+        XCTAssertEqual(ranks[2], 5.0 / 6.0, accuracy: 0.000_001)
+        XCTAssertEqual(
+            V6TransferInvariantMatcher.averageRanks([0.5, 0.5, 0.5]),
+            [0.5, 0.5, 0.5]
+        )
+    }
+
+    func testV6MatcherDiagnosticConfigurationRejectsUnsafeAndUnsealedValues() throws {
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(offsetStepSeconds: 0),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(offsetStepSeconds: -0.01),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(offsetStepSeconds: 0.000_001),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(matcherConfigurationHash: String(repeating: "G", count: 64)),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(matcherConfigurationHash: String(repeating: "A", count: 64)),
+            requireSealedProduction: false
+        ))
+
+        let validButUnsealed = V6MatcherEvidenceConfiguration(windowCount: 7)
+        XCTAssertNoThrow(try V6MatcherDiagnostics.validateConfiguration(
+            validButUnsealed,
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            validButUnsealed,
+            requireSealedProduction: true
+        ))
+        XCTAssertNoThrow(try V6MatcherDiagnostics.validateConfiguration(
+            .v6,
+            requireSealedProduction: true
+        ))
+    }
+
+    func testV6PreparationRejectsUnboundMatcherThreshold() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.1, 0.9])
+        let configuration = V6PreparationConfiguration(
+            maxDecodedFrames: 64,
+            acceptedConfidenceThreshold: 0.70,
+            matcherConfiguration: .v6
+        )
+        XCTAssertNotNil(configuration.validationFailure())
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            configuration: configuration,
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )]
+        ))
     }
 
     func testV6PreparedPlanCanonicalHashAndExactIdentityValidation() throws {
@@ -640,6 +760,10 @@ final class CalibrationTests: XCTestCase {
             return XCTFail("real Tune live_9 pair is missing")
         }
         let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+        guard FileManager.default.isReadableFile(atPath: urls.sdr.path),
+              FileManager.default.isReadableFile(atPath: urls.hdr.path) else {
+            throw XCTSkip("real Tune live_9 media is unavailable")
+        }
         let record = PairRecord(
             id: pair.id,
             sdr: urls.sdr.path,

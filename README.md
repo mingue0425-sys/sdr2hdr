@@ -8,7 +8,7 @@ The core deliberately stops at a GPU HDR frame:
 AVFoundation / VideoToolbox / ScreenCaptureKit
         -> CVPixelBuffer
         -> CVMetalTextureCache
-        -> one Metal compute dispatch
+        -> Metal transform + sparse temporal proxy dispatches
         -> RGBA16Float BT.2020 HDR texture
 ```
 
@@ -30,10 +30,11 @@ let frame = try processor.process(
     commandBuffer: commandBuffer
 )
 // Encode/commit commandBuffer in the caller's GPU schedule.
-// frame.texture is RGBA16Float and valid through command completion.
+// frame.texture is RGBA16Float and remains exclusively leased while `frame`
+// (or a copy) is retained, and at least through command completion.
 ```
 
-`HDRConfiguration.update` changes only constants. Metal libraries and pipeline
+`HDRProcessor.update(configuration:)` changes only constants. Metal libraries and pipeline
 states remain persistent. The output pool has three reusable textures per
 stream size so up to three command buffers can be in flight without a new
 texture allocation.
@@ -93,8 +94,9 @@ AVPlayer's default video presentation, pulls the current PTS-matched frame from
 `AVPlayerItemVideoOutput`, sends it through `HDRProcessor`, and encodes the
 presentation draw into the same command buffer as the transform.
 
-The layer uses `RGBA16Float`, `extendedLinearITUR_2020`, and
-`wantsExtendedDynamicRangeContent`. The player uses Direct EDR policy and
+The layer uses `RGBA16Float` and requests extended dynamic range on capable
+screens. Its color space is `extendedLinearITUR_2020` only while current EDR
+headroom is active; the SDR fallback is tagged `extendedLinearSRGB`. The player uses Direct EDR policy and
 intentionally leaves `CAMetalLayer.edrMetadata` nil; attaching CAEDRMetadata
 here would introduce a second system tone-mapping stage. HDRCore emits its
 mastering-domain signal, then the fused presentation shader smoothly compresses
@@ -201,3 +203,25 @@ candidate is retained for diagnostics only:
 
 The repository's example manifest remains intentionally empty and returns
 `DATASET_INSUFFICIENT` rather than fitting against a fabricated HDR target.
+
+## V4/V6 correctness workflow
+
+V4/V6 separates Tune/Validation diagnostics from a one-use Virgin Frozen
+evaluation. `correctness-review` may prepare and seal the Tune/Validation plan,
+but it must report zero objective Frozen evaluations. A V6 Frozen plan is
+accepted only when it was explicitly admitted before objective decoding and
+its canonical plan hash, sidecar, pair order, media identities, and preparation
+configuration all match.
+
+```bash
+./RUN_MACOS_VERIFY.sh fast
+./RUN_MACOS_VERIFY.sh full
+./.build/debug/HDRCalibrate verify-prepared-plan \
+  --prepared-plan results/v6-prepared-evaluation-plan.json
+```
+
+Fast mode caches expensive media work, but every `data_video` JSON control
+file and every cached output artifact is byte-bound to the cache entry. Both
+fast and full modes re-run semantic gates and the Swift canonical plan-hash
+validator. Missing, stale, incomplete, or consumed holdout evidence fails
+closed; it is never converted into a passing verdict.

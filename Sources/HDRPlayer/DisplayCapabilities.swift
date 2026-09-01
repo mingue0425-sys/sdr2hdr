@@ -25,6 +25,13 @@ public struct DisplayCapabilities: Equatable, Sendable {
         isEDRCapable && currentHeadroom > 1.0 + 0.001
     }
 
+    /// The presentation shader emits BT.2020 only while EDR is physically
+    /// active. Potential capability alone is insufficient because the SDR
+    /// fallback branch emits linear sRGB/BT.709 primaries.
+    public var presentsExtendedBT2020: Bool {
+        isActivelyUsingEDR
+    }
+
     public static let fallback = DisplayCapabilities(
         screenName: "Unknown display",
         potentialHeadroom: 1,

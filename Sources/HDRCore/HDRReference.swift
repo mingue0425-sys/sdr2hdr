@@ -73,8 +73,10 @@ public enum HDRReference {
         )
         let gain = expandedLuminance / max(luminance, 1e-6)
         var expanded = linear * gain
-        let chromaReduction = configuration.saturationCompensation *
-            smoothstep(1, max(1.001, expandedLuminance), expandedLuminance) * 0.35
+        let chromaReduction = highlightChromaReduction(
+            expandedLuminance: expandedLuminance,
+            configuration: configuration
+        )
         expanded = simd_mix(expanded, SIMD3(repeating: expandedLuminance), SIMD3(repeating: min(max(chromaReduction, 0), 1)))
 
         var bt2020 = HDRColorMath.bt709ToBT2020 * expanded
@@ -113,6 +115,18 @@ public enum HDRReference {
             chromaScale = min(chromaScale, max(peakRatio - safeLuminance, 0) / max(maximum - safeLuminance, 1e-6))
         }
         return SIMD3(repeating: safeLuminance) + (rgb - SIMD3(repeating: safeLuminance)) * min(max(chromaScale, 0), 1)
+    }
+
+    /// Highlight-only chroma compression in the fixed tone-output domain.
+    /// Internal visibility lets tests assert continuity independently of the
+    /// GPU/reference pixel-parity checks.
+    static func highlightChromaReduction(
+        expandedLuminance: Float,
+        configuration: HDRConfiguration
+    ) -> Float {
+        let peakRatio = configuration.peakNits / configuration.paperWhiteNits
+        return configuration.saturationCompensation *
+            smoothstep(1, max(1.001, peakRatio), expandedLuminance) * 0.35
     }
 
     private static func smoothstep(_ edge0: Float, _ edge1: Float, _ value: Float) -> Float {

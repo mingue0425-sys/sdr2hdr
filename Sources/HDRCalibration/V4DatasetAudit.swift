@@ -213,38 +213,78 @@ public enum V4AuditTemporalAligner {
         offsetStep: Double = 1.0 / 30.0,
         confidenceThreshold: Double = 0.60
     ) -> AlignmentResult {
-        guard !sdr.samples.isEmpty, !hdr.samples.isEmpty else {
-            return AlignmentResult(status: "REJECT", coarseOffsetSeconds: 0, matches: [], rejectedFrames: 0, medianConfidence: 0, notes: ["one sequence has no decoded samples"])
+        guard offsetRangeSeconds.lowerBound.isFinite,
+              offsetRangeSeconds.upperBound.isFinite,
+              offsetRangeSeconds.lowerBound >= -60,
+              offsetRangeSeconds.upperBound <= 60,
+              offsetStep.isFinite,
+              offsetStep >= 1e-6,
+              offsetStep <= 10,
+              confidenceThreshold.isFinite,
+              (0...1).contains(confidenceThreshold) else {
+            return rejection(
+                "invalid V4 audit alignment search bounds or confidence threshold",
+                rejectedFrames: sdr.samples.count
+            )
         }
+        let candidateCount = Int(ceil(
+            (offsetRangeSeconds.upperBound - offsetRangeSeconds.lowerBound) / offsetStep
+        )) + 1
+        guard candidateCount <= 10_000 else {
+            return rejection(
+                "V4 audit alignment offset grid exceeds 10000 candidates",
+                rejectedFrames: sdr.samples.count
+            )
+        }
+        guard !sdr.samples.isEmpty, !hdr.samples.isEmpty else {
+            return rejection(
+                "one sequence has no decoded samples",
+                rejectedFrames: sdr.samples.count
+            )
+        }
+        let maximumPairingDistance = maximumPairingDistanceSeconds(
+            sdrFPS: sdr.nominalFrameRate,
+            hdrFPS: hdr.nominalFrameRate,
+            offsetStep: offsetStep
+        )
         var bestOffset = 0.0
         var bestScore = Double.greatestFiniteMagnitude
-        var offset = offsetRangeSeconds.lowerBound
-        while offset <= offsetRangeSeconds.upperBound + offsetStep * 0.5 {
-            var distances: [Double] = []
-            for sample in sdr.samples {
-                let target = sample.descriptor.timestampSeconds + offset
-                if let nearest = nearestSample(to: target, in: hdr.samples) {
-                    distances.append(distance(sample, nearest))
-                }
-            }
+        for offset in offsetCandidates(range: offsetRangeSeconds, step: offsetStep) {
+            let pairs = pairedSamples(
+                sdr: sdr.samples,
+                hdr: hdr.samples,
+                offset: offset,
+                maximumDistance: maximumPairingDistance
+            )
+            let distances = pairs.map { distance($0.0, $0.1) }
             if !distances.isEmpty {
-                let score = distances.reduce(0, +) / Double(distances.count)
-                if score < bestScore {
+                let mean = distances.reduce(0, +) / Double(distances.count)
+                let coverage = Double(distances.count) / Double(sdr.samples.count)
+                let score = mean + (1 - min(max(coverage, 0), 1))
+                if score < bestScore || (
+                    score == bestScore && preferredOffset(offset, over: bestOffset)
+                ) {
                     bestScore = score
                     bestOffset = offset
                 }
             }
-            offset += offsetStep
+        }
+        guard bestScore.isFinite else {
+            return rejection(
+                "V4 audit alignment found no timestamp-valid pairs",
+                rejectedFrames: sdr.samples.count
+            )
         }
 
         var matches: [MatchedFrame] = []
-        var rejected = 0
-        for sample in sdr.samples {
-            let target = sample.descriptor.timestampSeconds + bestOffset
-            guard let nearest = nearestSample(to: target, in: hdr.samples) else {
-                rejected += 1
-                continue
-            }
+        let pairs = pairedSamples(
+            sdr: sdr.samples,
+            hdr: hdr.samples,
+            offset: bestOffset,
+            maximumDistance: maximumPairingDistance
+        )
+        var rejected = sdr.samples.count - pairs.count
+        for (sample, nearest) in pairs {
             let confidence = max(0, min(1, exp(-distance(sample, nearest) * 4)))
             if confidence >= confidenceThreshold {
                 matches.append(MatchedFrame(
@@ -276,14 +316,79 @@ public enum V4AuditTemporalAligner {
             matches: matches,
             rejectedFrames: rejected,
             medianConfidence: median,
-            notes: ["V4 grade-robust alignment: spatial Pearson correlation + histogram CDF + normalized edge statistics"]
+            notes: [
+                "V4 grade-robust alignment: spatial Pearson correlation + histogram CDF + normalized edge statistics",
+                "one-to-one timestamp pairing tolerance=\(maximumPairingDistance)s",
+            ]
         )
     }
 
-    private static func nearestSample(to timestamp: Double, in samples: [FrameSample]) -> FrameSample? {
-        samples.min {
-            abs($0.descriptor.timestampSeconds - timestamp) < abs($1.descriptor.timestampSeconds - timestamp)
+    private static func rejection(_ note: String, rejectedFrames: Int) -> AlignmentResult {
+        AlignmentResult(
+            status: "REJECT",
+            coarseOffsetSeconds: 0,
+            matches: [],
+            rejectedFrames: max(rejectedFrames, 0),
+            medianConfidence: 0,
+            notes: [note]
+        )
+    }
+
+    private static func offsetCandidates(
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> [Double] {
+        let span = range.upperBound - range.lowerBound
+        let regularCount = Int(floor(span / step)) + 1
+        var result = (0..<regularCount).map { range.lowerBound + Double($0) * step }
+        if let last = result.last, range.upperBound - last > 1e-12 {
+            result.append(range.upperBound)
         }
+        return result
+    }
+
+    private static func maximumPairingDistanceSeconds(
+        sdrFPS: Double,
+        hdrFPS: Double,
+        offsetStep: Double
+    ) -> Double {
+        let rates = [sdrFPS, hdrFPS].filter { $0.isFinite && $0 > 0 }
+        let slowestRate = rates.min() ?? 24
+        return min(0.25, max(0.75 / max(slowestRate, 1), offsetStep * 0.55))
+    }
+
+    private static func preferredOffset(_ candidate: Double, over current: Double) -> Bool {
+        if abs(candidate) != abs(current) { return abs(candidate) < abs(current) }
+        return candidate < current
+    }
+
+    private static func pairedSamples(
+        sdr: [FrameSample],
+        hdr: [FrameSample],
+        offset: Double,
+        maximumDistance: Double
+    ) -> [(FrameSample, FrameSample)] {
+        var result: [(FrameSample, FrameSample)] = []
+        var usedHDRPositions = Set<Int>()
+        result.reserveCapacity(min(sdr.count, hdr.count))
+        for sample in sdr {
+            let target = sample.descriptor.timestampSeconds + offset
+            guard let nearest = hdr.lazy.filter({
+                !usedHDRPositions.contains($0.sequencePosition)
+            }).min(by: {
+                let leftDistance = abs($0.descriptor.timestampSeconds - target)
+                let rightDistance = abs($1.descriptor.timestampSeconds - target)
+                if leftDistance == rightDistance {
+                    return $0.sequencePosition < $1.sequencePosition
+                }
+                return leftDistance < rightDistance
+            }), abs(nearest.descriptor.timestampSeconds - target) <= maximumDistance else {
+                continue
+            }
+            usedHDRPositions.insert(nearest.sequencePosition)
+            result.append((sample, nearest))
+        }
+        return result
     }
 
     private static func distance(_ lhs: FrameSample, _ rhs: FrameSample) -> Double {

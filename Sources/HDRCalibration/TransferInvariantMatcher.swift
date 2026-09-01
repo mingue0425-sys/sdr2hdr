@@ -18,8 +18,8 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
     public let multiScaleWidths: [Int]
 
     public init(
-        preparationAlgorithmVersion: String = "v6-prepared-evaluation-v3",
-        matcherVersion: String = "v6-transfer-invariant-matcher-v1",
+        preparationAlgorithmVersion: String = "v6-prepared-evaluation-v4",
+        matcherVersion: String = "v6-transfer-invariant-matcher-v2",
         gridWidth: Int = 64,
         gridHeight: Int = 36,
         offsetMinimumSeconds: Double = -2,
@@ -50,6 +50,56 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
     }
 
     public static let v6 = V6MatcherConfiguration()
+
+    /// Returns a deterministic failure reason for configurations that could
+    /// hang, over-allocate, or produce confidence values outside [0, 1].
+    /// Production plan validators and the runtime aligner share this check.
+    func validationFailure() -> String? {
+        let scalarValues = [
+            offsetMinimumSeconds, offsetMaximumSeconds, offsetStepSeconds,
+            acceptedConfidenceThreshold, rankWeight, signedGradientWeight,
+            multiScaleNCCWeight, edgeMaskWeight, localContrastWeight,
+        ]
+        guard scalarValues.allSatisfy(\.isFinite) else {
+            return "matcher configuration contains a non-finite value"
+        }
+        guard !preparationAlgorithmVersion.isEmpty, !matcherVersion.isEmpty else {
+            return "matcher configuration versions must be non-empty"
+        }
+        guard (2...4096).contains(gridWidth), (2...4096).contains(gridHeight) else {
+            return "matcher grid dimensions are outside safe bounds"
+        }
+        guard offsetMinimumSeconds >= -60,
+              offsetMaximumSeconds <= 60,
+              offsetMinimumSeconds <= offsetMaximumSeconds,
+              offsetStepSeconds >= 1e-6,
+              offsetStepSeconds <= 10 else {
+            return "matcher offset grid is outside safe bounds"
+        }
+        let offsetCandidateCount = Int(
+            ceil((offsetMaximumSeconds - offsetMinimumSeconds) / offsetStepSeconds)
+        ) + 1
+        guard offsetCandidateCount <= 10_000 else {
+            return "matcher offset grid exceeds 10000 candidates"
+        }
+        guard (0...1).contains(acceptedConfidenceThreshold) else {
+            return "matcher confidence threshold is outside [0, 1]"
+        }
+        let weights = [
+            rankWeight, signedGradientWeight, multiScaleNCCWeight,
+            edgeMaskWeight, localContrastWeight,
+        ]
+        guard weights.allSatisfy({ $0 >= 0 }),
+              abs(weights.reduce(0, +) - 1) <= 1e-9 else {
+            return "matcher weights must be non-negative and sum to one"
+        }
+        guard !multiScaleWidths.isEmpty,
+              multiScaleWidths.count <= 16,
+              multiScaleWidths.allSatisfy({ (2...gridWidth).contains($0) }) else {
+            return "matcher multi-scale widths are outside the configured grid"
+        }
+        return nil
+    }
 
     public func canonicalSHA256() throws -> String {
         let encoder = JSONEncoder()
@@ -115,7 +165,7 @@ enum V6TransferInvariantMatcher {
         }
         return V6MatcherFeatures(
             luma: luma,
-            rank: ranks(luma),
+            rank: averageRanks(luma),
             gradient: gradient,
             edgeMask: edgeMask,
             localContrast: localContrast(
@@ -154,6 +204,7 @@ enum V6TransferInvariantMatcher {
             let distance = FrameDescriptorBuilder.alignmentDistance(lhsDescriptor, rhsDescriptor)
             confidence = positive(exp(-distance * 4))
         }
+        confidence = positive(confidence)
         return V6MatcherComponentMetrics(
             edgeCorrelation: edge,
             normalizedLumaCorrelation: luma,
@@ -183,11 +234,28 @@ enum V6TransferInvariantMatcher {
         return denominator > 1e-12 ? max(-1, min(1, numerator / denominator)) : 0
     }
 
-    private static func ranks(_ values: [Float]) -> [Float] {
-        let order = values.indices.sorted { values[$0] < values[$1] }
+    /// Normalized average ranks. Equal luminance samples must receive equal
+    /// ranks; assigning ties by array index manufactures spatial correlation
+    /// in flat or quantized images.
+    static func averageRanks(_ values: [Float]) -> [Float] {
+        guard !values.isEmpty else { return [] }
+        let order = values.indices.sorted {
+            if values[$0] == values[$1] { return $0 < $1 }
+            return values[$0] < values[$1]
+        }
         var result = Array(repeating: Float(0), count: values.count)
-        for (rank, index) in order.enumerated() {
-            result[index] = Float(rank) / Float(max(values.count - 1, 1))
+        let denominator = Float(max(values.count - 1, 1))
+        var start = 0
+        while start < order.count {
+            var end = start + 1
+            while end < order.count, values[order[end]] == values[order[start]] {
+                end += 1
+            }
+            let averageRank = Float(start + end - 1) * 0.5 / denominator
+            for position in start..<end {
+                result[order[position]] = averageRank
+            }
+            start = end
         }
         return result
     }

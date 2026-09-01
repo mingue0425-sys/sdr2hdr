@@ -342,8 +342,9 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// 0...1. Limits expansion and chroma changes in the shadow region.
     public var shadowProtection: Float
 
-    /// 0...1. Used by the optional external luminance-estimate adaptation
-    /// hook. The default pipeline has no automatic exposure adaptation.
+    /// 0...1. Controls the default asynchronous causal luminance estimator.
+    /// Explicit estimates remain available for offline parity and controlled
+    /// scene-boundary updates.
     public var temporalStability: Float
 
     public var outputMode: HDROutputMode

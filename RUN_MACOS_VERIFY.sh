@@ -15,7 +15,7 @@ esac
 cd "$ROOT"
 mkdir -p results .build/pre-v6-verify-cache
 CACHE_DIR="$ROOT/.build/pre-v6-verify-cache"
-CACHE_VERSION="pre-v6-fast-cache-v1-plan-sealed"
+CACHE_VERSION="pre-v6-fast-cache-v2-artifact-sealed"
 
 stage() {
   local label="$1"
@@ -87,12 +87,16 @@ for base in source_roots:
         for p in sorted(base.rglob('*.swift')):
             add_file(p)
 
-# Media/stat evidence. JSON files are generated/manifest state and are handled
-# separately above; backups are explicitly ignored.
+# Media/stat evidence. Every JSON control/provenance/lock file is a correctness
+# input and is hashed byte-for-byte. Large media remains metadata-based in fast
+# mode; backups are explicitly ignored.
 data = root/'data_video'
 if data.exists():
     for p in sorted(x for x in data.rglob('*') if x.is_file()):
-        if p.suffix.lower() == '.json' or '.bak' in p.name:
+        if '.bak' in p.name:
+            continue
+        if p.suffix.lower() == '.json':
+            add_file(p)
             continue
         st = p.stat()
         add_text('media-stat', f'{p.relative_to(root)}|{st.st_size}|{st.st_mtime_ns}')
@@ -107,16 +111,36 @@ cache_hit() {
   [ "${FORCE_VERIFY:-0}" != "1" ] || return 1
   [ -f "$CACHE_DIR/$name.key" ] || return 1
   [ "$(cat "$CACHE_DIR/$name.key")" = "$key" ] || return 1
+  [ -f "$CACHE_DIR/$name.artifacts" ] || return 1
   local artifact
   for artifact in "$@"; do
     [ -s "$artifact" ] || return 1
   done
+  [ "$(artifact_fingerprint "$@")" = "$(cat "$CACHE_DIR/$name.artifacts")" ] || return 1
+}
+
+artifact_fingerprint() {
+  python3 - "$@" <<'PYARTIFACT'
+import hashlib, pathlib, sys
+h = hashlib.sha256()
+for arg in sys.argv[1:]:
+    path = pathlib.Path(arg)
+    h.update(str(path).encode()); h.update(b'\0')
+    if not path.exists() or path.stat().st_size == 0:
+        h.update(b'missing-or-empty\0')
+    else:
+        h.update(path.read_bytes()); h.update(b'\0')
+print(h.hexdigest())
+PYARTIFACT
 }
 
 cache_store() {
   local name="$1" key="$2"
+  shift 2
   printf '%s\n' "$key" > "$CACHE_DIR/$name.key.tmp"
+  artifact_fingerprint "$@" > "$CACHE_DIR/$name.artifacts.tmp"
   mv "$CACHE_DIR/$name.key.tmp" "$CACHE_DIR/$name.key"
+  mv "$CACHE_DIR/$name.artifacts.tmp" "$CACHE_DIR/$name.artifacts"
 }
 
 
@@ -135,7 +159,7 @@ for base in source_roots:
         paths.extend(sorted(base.rglob('*.swift')))
 data = root/'data_video'
 if data.exists():
-    paths.extend(sorted(p for p in data.rglob('*') if p.is_file() and p.suffix.lower() != '.json' and '.bak' not in p.name))
+    paths.extend(sorted(p for p in data.rglob('*') if p.is_file() and '.bak' not in p.name))
 mt = 0
 for p in paths:
     if p.exists():
@@ -158,6 +182,7 @@ PYART
 }
 
 prime_cache_from_current_artifacts() {
+  local calibrator="$1"
   local audit_key correctness_input_key correctness_key
   local audit_input_mtime audit_artifact_mtime correctness_input_mtime correctness_artifact_mtime
 
@@ -182,9 +207,16 @@ prime_cache_from_current_artifacts() {
   fi
 
   # Never bless an artifact set that is fresh but semantically failing.
-  assert_pre_v5_ready
-  cache_store audit "$audit_key"
-  cache_store correctness "$correctness_key"
+  assert_pre_v6_ready "$calibrator"
+  cache_store audit "$audit_key" \
+    results/dataset-v4-final.json \
+    data_video/dataset-v4-lock.json
+  cache_store correctness "$correctness_key" \
+    results/pre-v5-final-correctness.json \
+    results/pre-v5-frozen-coverage-policy.json \
+    results/temporal-burst-parity.json \
+    results/v6-prepared-evaluation-plan.json \
+    results/v6-prepared-evaluation-plan.sha256
   echo 'FAST CACHE PRIMED from fresh existing artifacts.'
   echo 'No objective evaluation was performed by this operation.'
 }
@@ -227,7 +259,10 @@ run_correctness() {
 }
 
 
-assert_pre_v5_ready() {
+assert_pre_v6_ready() {
+  local calibrator="$1"
+  "$calibrator" verify-prepared-plan \
+    --prepared-plan results/v6-prepared-evaluation-plan.json
   python3 - "$ROOT" <<'PYVERIFY'
 import json
 import pathlib
@@ -412,12 +447,12 @@ if isinstance(burst, dict):
             )
 
 if errors:
-    print("PRE-V5 VERIFY FAILED:", file=sys.stderr)
+    print("PRE-V6 VERIFY FAILED:", file=sys.stderr)
     for error in errors:
         print(f"  - {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("PRE-V5 semantic gates: PASS")
+print("PRE-V6 semantic gates: PASS")
 PYVERIFY
 }
 
@@ -431,7 +466,9 @@ run_audit_cached() {
     echo 'NOTE: full mode always revalidates media content.'
   else
     stage 'dataset audit / evidence refresh' run_audit "$calibrator"
-    cache_store audit "$key"
+    cache_store audit "$key" \
+      results/dataset-v4-final.json \
+      data_video/dataset-v4-lock.json
   fi
 }
 
@@ -444,15 +481,20 @@ run_correctness_cached() {
       results/v6-prepared-evaluation-plan.json \
       results/v6-prepared-evaluation-plan.sha256; then
     printf '\n== correctness review ==\n'
-    echo 'CACHE HIT: correctness inputs unchanged; reusing pre-V5 correctness artifacts'
+    echo 'CACHE HIT: correctness inputs and artifacts unchanged; reusing pre-V6 correctness artifacts'
   else
     stage 'correctness review' run_correctness "$calibrator"
   fi
 
   # Cache presence/freshness is not sufficient. A cached FAIL must remain a
   # failing verification and must never be promoted into a green cache entry.
-  assert_pre_v5_ready
-  cache_store correctness "$key"
+  assert_pre_v6_ready "$calibrator"
+  cache_store correctness "$key" \
+    results/pre-v5-final-correctness.json \
+    results/pre-v5-frozen-coverage-policy.json \
+    results/temporal-burst-parity.json \
+    results/v6-prepared-evaluation-plan.json \
+    results/v6-prepared-evaluation-plan.sha256
 }
 
 print_summary() {
@@ -505,10 +547,18 @@ print_summary() {
   fi
 }
 
+# Shell regression tests source the functions above without building Swift or
+# touching correctness artifacts.
+if [ "${VERIFY_SCRIPT_LIBRARY_ONLY:-0}" = "1" ]; then
+  return 0 2>/dev/null || exit 0
+fi
+
 TOTAL_START=$SECONDS
 
 if [ "$MODE" = "prime" ]; then
-  prime_cache_from_current_artifacts
+  stage 'debug HDRCalibrate build' swift build -c debug --disable-index-store --product HDRCalibrate
+  CALIBRATOR="$(calibrator_for debug)"
+  prime_cache_from_current_artifacts "$CALIBRATOR"
   print_summary
   printf '\nTOTAL VERIFY TIME: %ss (%s mode)\n' "$((SECONDS - TOTAL_START))" "$MODE"
   exit 0
@@ -536,14 +586,21 @@ else
   stage 'debug tests' swift test -c debug --disable-index-store
   stage 'release tests' swift test -c release --disable-index-store
   stage 'correctness review' run_correctness "$CALIBRATOR"
-  assert_pre_v5_ready
+  assert_pre_v6_ready "$CALIBRATOR"
 
   # Seed the fast cache only after the full content-validating run succeeds.
   AUDIT_KEY="$(fingerprint audit)"
   CORRECTNESS_INPUT_KEY="$(fingerprint correctness)"
   CORRECTNESS_KEY="$(printf '%s\n%s\n' "$AUDIT_KEY" "$CORRECTNESS_INPUT_KEY" | shasum -a 256 | awk '{print $1}')"
-  cache_store audit "$AUDIT_KEY"
-  cache_store correctness "$CORRECTNESS_KEY"
+  cache_store audit "$AUDIT_KEY" \
+    results/dataset-v4-final.json \
+    data_video/dataset-v4-lock.json
+  cache_store correctness "$CORRECTNESS_KEY" \
+    results/pre-v5-final-correctness.json \
+    results/pre-v5-frozen-coverage-policy.json \
+    results/temporal-burst-parity.json \
+    results/v6-prepared-evaluation-plan.json \
+    results/v6-prepared-evaluation-plan.sha256
 fi
 
 print_summary

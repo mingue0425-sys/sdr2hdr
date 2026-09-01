@@ -40,6 +40,41 @@ final class HDRMathTests: XCTestCase {
         XCTAssertLessThan(HDRReference.toneExpand(1, configuration: configuration), configuration.peakNits / configuration.paperWhiteNits)
     }
 
+    func testHighlightChromaReductionUsesContinuousFixedOutputDomain() {
+        var configuration = HDRConfiguration.hdr
+        configuration.saturationCompensation = 1
+        let peakRatio = configuration.peakNits / configuration.paperWhiteNits
+        var previous: Float = -1
+        var maximumStep: Float = 0
+        for index in 0...1_000 {
+            let luminance = 1 + (peakRatio - 1) * Float(index) / 1_000
+            let reduction = HDRReference.highlightChromaReduction(
+                expandedLuminance: luminance,
+                configuration: configuration
+            )
+            XCTAssertGreaterThanOrEqual(reduction, previous)
+            if previous >= 0 { maximumStep = max(maximumStep, reduction - previous) }
+            previous = reduction
+        }
+        XCTAssertEqual(
+            HDRReference.highlightChromaReduction(
+                expandedLuminance: 1,
+                configuration: configuration
+            ),
+            0,
+            accuracy: 1e-7
+        )
+        XCTAssertLessThan(
+            HDRReference.highlightChromaReduction(
+                expandedLuminance: 1.001,
+                configuration: configuration
+            ),
+            0.000_01
+        )
+        XCTAssertEqual(previous, 0.35, accuracy: 1e-6)
+        XCTAssertLessThan(maximumStep, 0.001)
+    }
+
     func testBT709ToBT2020MatrixPreservesNeutral() {
         let white = HDRColorMath.bt709ToBT2020 * SIMD3<Float>(repeating: 1)
         XCTAssertEqual(white.x, 1, accuracy: 2e-5)
@@ -232,6 +267,89 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertLessThan(processor.temporalAdaptation, 0.95)
         XCTAssertTrue(processor.temporalAdaptation.isFinite)
+    }
+
+    func testClearTemporalHistoryRejectsPriorUncommittedGeneration() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.temporalStability = 0
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        let pixelBuffer = try makeBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.95))
+        let commandBuffer = try processor.makeCommandBuffer()
+        _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+
+        // The completion belongs to the old generation even though it has not
+        // been committed yet. It must not resurrect state after the reset.
+        processor.clearTemporalHistory()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        XCTAssertEqual(processor.temporalAdaptation, 1, accuracy: 0.000_001)
+        XCTAssertEqual(processor.lastCompletedTemporalSequence, 0)
+    }
+
+    func testRetainedFrameKeepsOutputTextureExclusivelyLeased() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let processor = try HDRProcessor(device: device, configuration: .natural)
+        let pixelBuffer = try makeBGRA(width: 8, height: 8, rgb: SIMD3(repeating: 0.5))
+
+        let firstCommandBuffer = try processor.makeCommandBuffer()
+        let firstFrame = try processor.process(
+            pixelBuffer: pixelBuffer,
+            commandBuffer: firstCommandBuffer
+        )
+        firstCommandBuffer.commit()
+        firstCommandBuffer.waitUntilCompleted()
+
+        let secondCommandBuffer = try processor.makeCommandBuffer()
+        let secondFrame = try processor.process(
+            pixelBuffer: pixelBuffer,
+            commandBuffer: secondCommandBuffer
+        )
+        XCTAssertFalse(firstFrame.texture === secondFrame.texture)
+        secondCommandBuffer.commit()
+        secondCommandBuffer.waitUntilCompleted()
+    }
+
+    func testNV12AndBGRATemporalEstimatorsAgreeForColoredInput() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.temporalStability = 0
+        configuration.inputFallbackPolicy = .bt709FullRange
+
+        let rgb = SIMD3<Float>(0.78, 0.32, 0.18)
+        let signalLuma = 0.2126 * rgb.x + 0.7152 * rgb.y + 0.0722 * rgb.z
+        let cb = (rgb.z - signalLuma) / 1.8556
+        let cr = (rgb.x - signalLuma) / 1.5748
+        func byte(_ value: Float, lower: Int, upper: Int) -> UInt8 {
+            UInt8(min(max(Int(value.rounded()), lower), upper))
+        }
+        let nv12 = try makeNV12(
+            width: 32,
+            height: 18,
+            y: byte(16 + signalLuma * 219, lower: 16, upper: 235),
+            cb: byte(128 + cb * 224, lower: 16, upper: 240),
+            cr: byte(128 + cr * 224, lower: 16, upper: 240),
+            attachMetadata: true
+        )
+        let bgra = try makeBGRA(width: 32, height: 18, rgb: rgb)
+        let nv12Processor = try HDRProcessor(device: device, configuration: configuration)
+        let bgraProcessor = try HDRProcessor(device: device, configuration: configuration)
+
+        let nv12Command = try nv12Processor.makeCommandBuffer()
+        _ = try nv12Processor.process(pixelBuffer: nv12, commandBuffer: nv12Command)
+        nv12Command.commit()
+        let bgraCommand = try bgraProcessor.makeCommandBuffer()
+        _ = try bgraProcessor.process(pixelBuffer: bgra, commandBuffer: bgraCommand)
+        bgraCommand.commit()
+        nv12Command.waitUntilCompleted()
+        bgraCommand.waitUntilCompleted()
+
+        XCTAssertEqual(
+            nv12Processor.temporalAdaptation,
+            bgraProcessor.temporalAdaptation,
+            accuracy: 0.005
+        )
     }
 
     func testNV12MetalOutputMatchesScalarReferenceForNeutralGray() throws {

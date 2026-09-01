@@ -2,6 +2,10 @@ import Foundation
 import Metal
 
 public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
+    public static var v6: V6MatcherEvidenceConfiguration {
+        V6MatcherEvidenceConfiguration()
+    }
+
     public let version: String
     public let offsetMinimumSeconds: Double
     public let offsetMaximumSeconds: Double
@@ -15,7 +19,7 @@ public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-matcher-evidence-v1",
+        version: String = "v6-matcher-evidence-v2",
         offsetMinimumSeconds: Double = -2,
         offsetMaximumSeconds: Double = 2,
         offsetStepSeconds: Double = 1.0 / 30.0,
@@ -277,7 +281,19 @@ public enum V6MatcherDiagnostics {
         let offset: Double
         let metrics: [Metrics]
         let pairs: [(FrameSample, FrameSample)]
-        var score: Double { metrics.isEmpty ? 0 : metrics.map(\.robust).reduce(0, +) / Double(metrics.count) }
+        let expectedPairCount: Int
+
+        var score: Double {
+            guard !metrics.isEmpty, expectedPairCount > 0 else { return 0 }
+            let mean = metrics.map(\.robust).reduce(0, +) / Double(metrics.count)
+            let coverage = min(1, Double(metrics.count) / Double(expectedPairCount))
+            return mean * coverage
+        }
+    }
+
+    private struct MetricKey: Hashable {
+        let sdrSequencePosition: Int
+        let hdrSequencePosition: Int
     }
 
     private typealias Features = V6MatcherFeatures
@@ -352,13 +368,20 @@ public enum V6MatcherDiagnostics {
             manifestURL: manifestURL
         )
         let auditByID = try auditRecordsByID(audit)
-        let inputHashes = Dictionary(uniqueKeysWithValues: records.map { record in
-            let audited = auditByID[record.id]!
-            return (record.id, V6InputHashes(
-                sdrSHA256: audited.sdrDigest!.sha256,
-                hdrSHA256: audited.hdrDigest!.sha256
-            ))
-        })
+        var inputHashes: [String: V6InputHashes] = [:]
+        for record in records {
+            guard let audited = auditByID[record.id],
+                  let sdrDigest = audited.sdrDigest?.sha256,
+                  let hdrDigest = audited.hdrDigest?.sha256 else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics lost validated audit hashes for \(record.id)"
+                )
+            }
+            inputHashes[record.id] = V6InputHashes(
+                sdrSHA256: sdrDigest,
+                hdrSHA256: hdrDigest
+            )
+        }
         let frozenInputPaths = manifest.pairs
             .filter { $0.split == .frozen || $0.virginFrozen }
             .flatMap { pair in
@@ -468,6 +491,7 @@ public enum V6MatcherDiagnostics {
         hdr: FrameSequence,
         configuration: V6MatcherEvidenceConfiguration = V6MatcherEvidenceConfiguration()
     ) throws -> V6StructuralDiagnosticEvidence {
+        try validateConfiguration(configuration, requireSealedProduction: false)
         try analyzeStructural(
             pairID: "synthetic-structural-diagnostic",
             sdr: sdr,
@@ -481,6 +505,7 @@ public enum V6MatcherDiagnostics {
         outputURL: URL,
         configuration: V6MatcherEvidenceConfiguration = V6MatcherEvidenceConfiguration()
     ) async throws -> V6MatcherDiagnosticReport {
+        try validateConfiguration(configuration, requireSealedProduction: true)
         let manifest = try V4Manifest.load(from: manifestURL)
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let auditURL = repositoryRoot.appendingPathComponent("results/dataset-v4-final.json")
@@ -522,17 +547,6 @@ public enum V6MatcherDiagnostics {
             manifest: manifest, audit: audit, repositoryRoot: repositoryRoot,
             manifestURL: manifestURL
         )
-        let productionMatcherConfiguration = V6MatcherConfiguration(
-            acceptedConfidenceThreshold: configuration.acceptanceThreshold
-        )
-        guard configuration.matcherConfigurationHash ==
-                (try productionMatcherConfiguration.canonicalSHA256()),
-              configuration.maxDecodedFrames == V6PreparationConfiguration.v6.maxDecodedFrames,
-              configuration.proxyWidth == V6PreparationConfiguration.v6.proxyWidth else {
-            throw CalibrationError.incompleteEvaluation(
-                "matcher diagnostic configuration is not the sealed production V6 configuration"
-            )
-        }
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw CalibrationError.decodeFailed("Metal device unavailable for production preparation")
         }
@@ -636,8 +650,15 @@ public enum V6MatcherDiagnostics {
         hdr: FrameSequence,
         configuration: V6MatcherEvidenceConfiguration
     ) throws -> (structural: V6StructuralDiagnosticEvidence, sourceIntegrity: V6SourceIntegrityEvidence) {
+        try validateSequence(sdr, role: "SDR")
+        try validateSequence(hdr, role: "HDR")
         let offsets = offsetCandidates(configuration)
-        var metricCache: [UInt64: Metrics] = [:]
+        let maximumPairingDistance = maximumPairingDistanceSeconds(
+            sdrFPS: sdr.nominalFrameRate,
+            hdrFPS: hdr.nominalFrameRate,
+            offsetStep: configuration.offsetStepSeconds
+        )
+        var metricCache: [MetricKey: Metrics] = [:]
         let sdrFeatures = Dictionary(uniqueKeysWithValues: sdr.samples.map {
             ($0.sequencePosition, features($0.lumaGrid))
         })
@@ -650,24 +671,28 @@ public enum V6MatcherDiagnostics {
             candidates.append(offsetEvidence(
                 offset: offset, sdr: sdr.samples, hdr: hdr.samples,
                 sdrFeatures: sdrFeatures, hdrFeatures: hdrFeatures,
+                maximumPairingDistance: maximumPairingDistance,
                 metricCache: &metricCache
             ))
         }
-        guard let best = candidates.max(by: { $0.score < $1.score }) else {
+        guard let best = preferredEvidence(candidates) else {
             throw CalibrationError.alignmentFailed("\(pairID): no diagnostic offset candidates")
         }
         let second = candidates
             .filter { abs($0.offset - best.offset) >= configuration.secondBestExclusionSeconds }
-            .max(by: { $0.score < $1.score }) ?? best
-        let windows = windowEvidence(
+        let secondBest = preferredEvidence(second) ?? best
+        let windows = try windowEvidence(
             sdr: sdr.samples, hdr: hdr.samples,
             configuration: configuration,
             sdrFeatures: sdrFeatures, hdrFeatures: hdrFeatures,
+            maximumPairingDistance: maximumPairingDistance,
             metricCache: &metricCache
         )
         let offsetsByWindow = windows.map(\.bestOffsetSeconds)
         let drift = (offsetsByWindow.max() ?? best.offset) - (offsetsByWindow.min() ?? best.offset)
         let aggregate = aggregateMetrics(best.metrics)
+        let structuralCoverage = sdr.samples.isEmpty ? 0 :
+            min(1, Double(best.pairs.count) / Double(sdr.samples.count))
         let hdrPositions = best.pairs.map { $0.1.sequencePosition }
         let duplicateCount = hdrPositions.count - Set(hdrPositions).count
         var dropped = 0
@@ -683,15 +708,15 @@ public enum V6MatcherDiagnostics {
         return (
             structural: V6StructuralDiagnosticEvidence(
                 robustBestOffset: best.offset,
-                secondBestOffset: second.offset,
-                bestVsSecondMargin: best.score - second.score,
+                secondBestOffset: secondBest.offset,
+                bestVsSecondMargin: best.score - secondBest.score,
                 normalizedLumaCorrelation: aggregate.luma,
                 rankNormalizedLumaCorrelation: aggregate.rank,
                 gradientCorrelation: aggregate.gradient,
                 multiScaleNCC: aggregate.multiScale,
                 edgeCorrelation: aggregate.edge,
                 localContrastCorrelation: aggregate.localContrast,
-                robustConfidence: aggregate.robust,
+                robustConfidence: aggregate.robust * structuralCoverage,
                 sceneBoundaryConsistency: sceneConsistency,
                 perWindowOffsets: windows,
                 offsetDrift: drift
@@ -714,13 +739,82 @@ public enum V6MatcherDiagnostics {
     }
 
     private static func offsetCandidates(_ configuration: V6MatcherEvidenceConfiguration) -> [Double] {
-        var result: [Double] = []
-        var value = configuration.offsetMinimumSeconds
-        while value <= configuration.offsetMaximumSeconds + configuration.offsetStepSeconds * 0.5 {
-            result.append(value)
-            value += configuration.offsetStepSeconds
+        let span = configuration.offsetMaximumSeconds - configuration.offsetMinimumSeconds
+        let regularCount = Int(floor(span / configuration.offsetStepSeconds)) + 1
+        var result = (0..<regularCount).map {
+            configuration.offsetMinimumSeconds + Double($0) * configuration.offsetStepSeconds
+        }
+        if let last = result.last,
+           configuration.offsetMaximumSeconds - last > 1e-12 {
+            result.append(configuration.offsetMaximumSeconds)
         }
         return result
+    }
+
+    static func validateConfiguration(
+        _ configuration: V6MatcherEvidenceConfiguration,
+        requireSealedProduction: Bool
+    ) throws {
+        let matcherHashBytes = configuration.matcherConfigurationHash.utf8
+        let matcherHashIsCanonical = matcherHashBytes.count == 64 && matcherHashBytes.allSatisfy {
+            ($0 >= 48 && $0 <= 57) || ($0 >= 97 && $0 <= 102)
+        }
+        let numericValues = [
+            configuration.offsetMinimumSeconds,
+            configuration.offsetMaximumSeconds,
+            configuration.offsetStepSeconds,
+            configuration.secondBestExclusionSeconds,
+            configuration.acceptanceThreshold,
+        ]
+        guard numericValues.allSatisfy(\.isFinite),
+              configuration.offsetMinimumSeconds >= -60,
+              configuration.offsetMaximumSeconds <= 60,
+              configuration.offsetMinimumSeconds <= configuration.offsetMaximumSeconds,
+              configuration.offsetStepSeconds >= 1e-6,
+              configuration.offsetStepSeconds <= 10,
+              configuration.secondBestExclusionSeconds >= 0,
+              configuration.secondBestExclusionSeconds <= 60,
+              (1...64).contains(configuration.windowCount),
+              (16...4096).contains(configuration.proxyWidth),
+              (1...4096).contains(configuration.maxDecodedFrames),
+              (0...1).contains(configuration.acceptanceThreshold),
+              !configuration.version.isEmpty,
+              !configuration.matcherVersion.isEmpty,
+              matcherHashIsCanonical else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostic configuration contains invalid or unsafe bounds"
+            )
+        }
+        let span = configuration.offsetMaximumSeconds - configuration.offsetMinimumSeconds
+        let candidateCount = Int(ceil(span / configuration.offsetStepSeconds)) + 1
+        guard candidateCount <= 10_000 else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostic offset grid exceeds 10000 candidates"
+            )
+        }
+        if requireSealedProduction {
+            let expected = V6MatcherEvidenceConfiguration.v6
+            let expectedMatcherHash = try V6MatcherConfiguration.v6.canonicalSHA256()
+            guard configuration == expected,
+                  configuration.matcherConfigurationHash == expectedMatcherHash,
+                  configuration.maxDecodedFrames == V6PreparationConfiguration.v6.maxDecodedFrames,
+                  configuration.proxyWidth == V6PreparationConfiguration.v6.proxyWidth else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostic configuration is not the fully sealed production V6 configuration"
+                )
+            }
+        }
+    }
+
+    private static func maximumPairingDistanceSeconds(
+        sdrFPS: Double,
+        hdrFPS: Double,
+        offsetStep: Double
+    ) -> Double {
+        let validRates = [sdrFPS, hdrFPS].filter { $0.isFinite && $0 > 0 }
+        let slowestRate = validRates.min() ?? 24
+        let frameTolerance = 0.75 / max(slowestRate, 1)
+        return min(0.25, max(frameTolerance, offsetStep * 0.55))
     }
 
     private static func offsetEvidence(
@@ -729,29 +823,49 @@ public enum V6MatcherDiagnostics {
         hdr: [FrameSample],
         sdrFeatures: [Int: Features],
         hdrFeatures: [Int: Features],
-        metricCache: inout [UInt64: Metrics]
+        maximumPairingDistance: Double,
+        metricCache: inout [MetricKey: Metrics]
     ) -> OffsetEvidence {
         var pairs: [(FrameSample, FrameSample)] = []
         var metrics: [Metrics] = []
+        var usedHDRPositions = Set<Int>()
         for sample in sdr {
             let target = sample.descriptor.timestampSeconds + offset
-            guard let nearest = hdr.min(by: {
-                abs($0.descriptor.timestampSeconds - target) < abs($1.descriptor.timestampSeconds - target)
-            }) else { continue }
-            pairs.append((sample, nearest))
-            let key = UInt64(UInt32(truncatingIfNeeded: sample.sequencePosition)) << 32 |
-                UInt64(UInt32(truncatingIfNeeded: nearest.sequencePosition))
+            guard let nearest = hdr.lazy.filter({
+                !usedHDRPositions.contains($0.sequencePosition)
+            }).min(by: {
+                let leftDistance = abs($0.descriptor.timestampSeconds - target)
+                let rightDistance = abs($1.descriptor.timestampSeconds - target)
+                if leftDistance == rightDistance {
+                    return $0.sequencePosition < $1.sequencePosition
+                }
+                return leftDistance < rightDistance
+            }), abs(nearest.descriptor.timestampSeconds - target) <= maximumPairingDistance else {
+                continue
+            }
+            let key = MetricKey(
+                sdrSequencePosition: sample.sequencePosition,
+                hdrSequencePosition: nearest.sequencePosition
+            )
+            let measured: Metrics
             if let cached = metricCache[key] {
-                metrics.append(cached)
+                measured = cached
             } else {
                 guard let left = sdrFeatures[sample.sequencePosition],
                       let right = hdrFeatures[nearest.sequencePosition] else { continue }
-                let measured = compare(left, right)
+                measured = compare(left, right)
                 metricCache[key] = measured
-                metrics.append(measured)
             }
+            usedHDRPositions.insert(nearest.sequencePosition)
+            pairs.append((sample, nearest))
+            metrics.append(measured)
         }
-        return OffsetEvidence(offset: offset, metrics: metrics, pairs: pairs)
+        return OffsetEvidence(
+            offset: offset,
+            metrics: metrics,
+            pairs: pairs,
+            expectedPairCount: sdr.count
+        )
     }
 
     private static func windowEvidence(
@@ -760,8 +874,9 @@ public enum V6MatcherDiagnostics {
         configuration: V6MatcherEvidenceConfiguration,
         sdrFeatures: [Int: Features],
         hdrFeatures: [Int: Features],
-        metricCache: inout [UInt64: Metrics]
-    ) -> [V6MatcherWindowEvidence] {
+        maximumPairingDistance: Double,
+        metricCache: inout [MetricKey: Metrics]
+    ) throws -> [V6MatcherWindowEvidence] {
         guard !sdr.isEmpty else { return [] }
         let size = max(1, Int(ceil(Double(sdr.count) / Double(max(configuration.windowCount, 1)))))
         var result: [V6MatcherWindowEvidence] = []
@@ -773,10 +888,15 @@ public enum V6MatcherDiagnostics {
                 candidates.append(offsetEvidence(
                     offset: offset, sdr: samples, hdr: hdr,
                     sdrFeatures: sdrFeatures, hdrFeatures: hdrFeatures,
+                    maximumPairingDistance: maximumPairingDistance,
                     metricCache: &metricCache
                 ))
             }
-            let best = candidates.max(by: { $0.score < $1.score })!
+            guard let best = preferredEvidence(candidates) else {
+                throw CalibrationError.alignmentFailed(
+                    "diagnostic window produced no offset candidates"
+                )
+            }
             result.append(V6MatcherWindowEvidence(
                 windowIndex: windowIndex,
                 startSequencePosition: samples.first?.sequencePosition ?? start,
@@ -788,8 +908,58 @@ public enum V6MatcherDiagnostics {
         return result
     }
 
+    private static func preferredEvidence(_ candidates: [OffsetEvidence]) -> OffsetEvidence? {
+        var best: OffsetEvidence?
+        for candidate in candidates {
+            guard let current = best else {
+                best = candidate
+                continue
+            }
+            if candidate.score != current.score {
+                if candidate.score > current.score { best = candidate }
+                continue
+            }
+            if abs(candidate.offset) != abs(current.offset) {
+                if abs(candidate.offset) < abs(current.offset) { best = candidate }
+                continue
+            }
+            if candidate.offset < current.offset { best = candidate }
+        }
+        return best
+    }
+
     private static func features(_ luma: [Float]) -> Features {
         V6TransferInvariantMatcher.features(luma, configuration: .v6)
+    }
+
+    private static func validateSequence(_ sequence: FrameSequence, role: String) throws {
+        let expectedGridCount = V6MatcherConfiguration.v6.gridWidth *
+            V6MatcherConfiguration.v6.gridHeight
+        guard !sequence.samples.isEmpty,
+              Set(sequence.samples.map(\.sequencePosition)).count == sequence.samples.count else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics require non-empty \(role) samples with unique positions"
+            )
+        }
+        for (index, sample) in sequence.samples.enumerated() {
+            guard sample.descriptor.timestampSeconds.isFinite,
+                  sample.lumaGrid.count == expectedGridCount,
+                  sample.lumaGrid.allSatisfy(\.isFinite) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics found invalid \(role) proxy sample \(index)"
+                )
+            }
+            if index > 0 {
+                let previous = sequence.samples[index - 1]
+                guard sample.sequencePosition > previous.sequencePosition,
+                      sample.descriptor.timestampSeconds >=
+                        previous.descriptor.timestampSeconds else {
+                    throw CalibrationError.incompleteEvaluation(
+                        "matcher diagnostics require monotonic \(role) sample order"
+                    )
+                }
+            }
+        }
     }
 
     private static func compare(_ lhs: Features, _ rhs: Features) -> Metrics {
@@ -836,52 +1006,6 @@ public enum V6MatcherDiagnostics {
         }
         let denominator = sqrt(leftVariance * rightVariance)
         return denominator > 1e-12 ? max(-1, min(1, numerator / denominator)) : 0
-    }
-
-    private static func ranks(_ values: [Float]) -> [Float] {
-        let order = values.indices.sorted { values[$0] < values[$1] }
-        var result = Array(repeating: Float(0), count: values.count)
-        for (rank, index) in order.enumerated() { result[index] = Float(rank) / Float(max(values.count - 1, 1)) }
-        return result
-    }
-
-    private static func gradients(_ values: [Float], width: Int, height: Int) -> [Float] {
-        guard values.count == width * height else { return [] }
-        var result: [Float] = []
-        result.reserveCapacity((width - 1) * (height - 1) * 2)
-        for row in 0..<(height - 1) {
-            for column in 0..<(width - 1) {
-                let index = row * width + column
-                result.append(values[index + 1] - values[index])
-                result.append(values[index + width] - values[index])
-            }
-        }
-        return result
-    }
-
-    private static func medianAbsolute(_ values: [Float]) -> Float {
-        let sorted = values.map { abs($0) }.sorted()
-        return sorted.isEmpty ? 0 : sorted[sorted.count / 2]
-    }
-
-    private static func localContrast(_ values: [Float], width: Int, height: Int) -> [Float] {
-        guard values.count == width * height else { return [] }
-        var result = Array(repeating: Float(0), count: values.count)
-        for row in 0..<height {
-            for column in 0..<width {
-                var total: Float = 0
-                var count: Float = 0
-                for y in max(0, row - 1)...min(height - 1, row + 1) {
-                    for x in max(0, column - 1)...min(width - 1, column + 1) {
-                        total += values[y * width + x]
-                        count += 1
-                    }
-                }
-                let index = row * width + column
-                result[index] = values[index] - total / max(count, 1)
-            }
-        }
-        return result
     }
 
     private static func temporalChangeCorrelation(_ pairs: [(FrameSample, FrameSample)]) -> Double {

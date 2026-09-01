@@ -130,7 +130,7 @@ private enum CLIError: Error, LocalizedError {
         case .missingManifest: return "--manifest is required"
         case .missingRoot: return "--root is required"
         case .missingCandidate: return "--candidate is required"
-        case .missingPreparedPlan: return "--prepared-plan is required for v4-run"
+        case .missingPreparedPlan: return "--prepared-plan is required"
         case .unknownOption(let option): return "unknown option: \(option)\n\n\(Self.usageText)"
         }
     }
@@ -150,6 +150,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 --output results/data-video-v4-final.json
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
+      HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-import-live --root "/path/to/LIVE" --manifest data_video/manifest-v4.json --select 6 [--dry-run]
@@ -170,6 +171,18 @@ private func loadCalibrationReport(from url: URL) throws -> CalibrationReport {
 
 private func run(arguments: [String]) async throws {
     let cli = try CLI(arguments: arguments)
+    if cli.command == "verify-prepared-plan" {
+        let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
+            from: try cli.requiredPreparedPlan()
+        )
+        guard artifact.plan.preparation == .v6 else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan does not use the current fully sealed V6 preparation configuration"
+            )
+        }
+        print("PreparedEvaluationPlan verified: \(artifact.planSHA256)")
+        return
+    }
     if cli.command == "dataset-import-live" {
         let root = try cli.requiredRoot()
         let manifest = try cli.requiredManifest()

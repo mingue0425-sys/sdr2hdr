@@ -1,4 +1,5 @@
 import CoreMedia
+import CoreGraphics
 import HDRCore
 import XCTest
 import Metal
@@ -97,6 +98,18 @@ final class PlayerLogicTests: XCTestCase {
         )
         XCTAssertFalse(activation.isActivelyUsingEDR)
         XCTAssertEqual(activation.usableHeadroom, 1, accuracy: 0.001)
+        XCTAssertFalse(activation.presentsExtendedBT2020)
+        XCTAssertEqual(
+            DisplayCapabilities.colorSpace(
+                forEDR: activation.presentsExtendedBT2020
+            )?.name as String?,
+            CGColorSpace.extendedLinearSRGB as String
+        )
+        XCTAssertTrue(hdr.presentsExtendedBT2020)
+        XCTAssertEqual(
+            DisplayCapabilities.colorSpace(forEDR: hdr.presentsExtendedBT2020)?.name as String?,
+            CGColorSpace.extendedLinearITUR_2020 as String
+        )
     }
 
     func testCLIParserAcceptsUnicodeAndSpacesAndPattern() throws {

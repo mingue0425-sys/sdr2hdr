@@ -235,8 +235,11 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) 
     float expandedLuminance = toneExpand(luminance, p);
     float gain = expandedLuminance / max(luminance, 1e-6f);
     float3 expanded = linear * gain;
+    // Use the fixed output-domain peak as the upper edge. Using the sample
+    // itself as edge1 made every value >= 1.001 land at t=1, collapsing the
+    // entire highlight chroma transition into a 0.1% luminance interval.
     float chromaReduction = clamp(
-        p.saturationCompensation * smoothStepSafe(1.0f, max(1.001f, expandedLuminance), expandedLuminance) * 0.35f,
+        p.saturationCompensation * smoothStepSafe(1.0f, max(1.001f, p.peakRatio), expandedLuminance) * 0.35f,
         0.0f,
         1.0f
     );
@@ -332,6 +335,7 @@ kernel void sdrBGRA8ToHDRDebug(
 // It is independent of output resolution and does not read the HDR texture.
 kernel void estimateNV12TemporalLuminance(
     texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
     constant SDRToHDRParameters& p [[buffer(0)]],
     device TemporalLumaStats* stats [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]) {
@@ -340,12 +344,18 @@ kernel void estimateNV12TemporalLuminance(
         min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
         min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
     );
-    float signal = clamp((yTexture.read(position).r - p.yOffset) * p.yScale, 0.0f, 1.0f);
-    float linear = inverseTransfer(signal, p);
-    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(clamp(linear, 0.0f, 1.0f) * 65535.0f + 0.5f), memory_order_relaxed);
+    uint2 uvPosition = uint2(
+        min(position.x / 2, uvTexture.get_width() - 1),
+        min(position.y / 2, uvTexture.get_height() - 1)
+    );
+    float y = (yTexture.read(position).r - p.yOffset) * p.yScale;
+    float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
+    float3 linearRGB = linearizeSignal(signalRGB, p);
+    float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
+    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision == 2) {
-        uint bin = min(uint(clamp(linear, 0.0f, 0.999999f) * 16.0f), 15u);
+        uint bin = min(uint(clamp(luminance, 0.0f, 0.999999f) * 16.0f), 15u);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }
