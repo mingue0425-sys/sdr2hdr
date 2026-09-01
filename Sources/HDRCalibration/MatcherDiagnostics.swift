@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 
 public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
     public let version: String
@@ -50,7 +51,7 @@ public struct V6ConfidenceQuantiles: Codable, Hashable, Sendable {
     public let maximum: Double
 }
 
-public struct V6MatcherWindowEvidence: Codable, Sendable {
+public struct V6MatcherWindowEvidence: Codable, Hashable, Sendable {
     public let windowIndex: Int
     public let startSequencePosition: Int
     public let endSequencePosition: Int
@@ -58,29 +59,97 @@ public struct V6MatcherWindowEvidence: Codable, Sendable {
     public let robustScore: Double
 }
 
-public struct V6MatcherPairEvidence: Codable, Sendable {
-    public let pairID: String
-    public let split: DatasetSplit
+/// Evidence copied from the immutable production preparation plan.  These
+/// values describe the matcher/alignment result that the evaluator will
+/// consume; they are never recomputed from the experimental structural score.
+/// `acceptedMatchCount` and `acceptanceRatio` refer to the plan's final
+/// accepted representative identity set.  The raw alignment acceptance values
+/// are retained separately as `rawAcceptedMatchCount` and
+/// `rawAcceptanceRatio`.
+public struct V6ProductionMatcherEvidence: Codable, Hashable, Sendable {
+    public let bestOffset: Double
     public let rawMatchCount: Int
     public let acceptedMatchCount: Int
     public let acceptanceRatio: Double
-    public let confidence: V6ConfidenceQuantiles
-    public let legacyAcceptedMatchCount: Int
-    public let legacyAcceptanceRatio: Double
-    public let legacyConfidence: V6ConfidenceQuantiles
-    public let bestTemporalOffsetSeconds: Double
-    public let secondBestOffsetSeconds: Double
-    public let bestVersusSecondMargin: Double
-    public let perWindowOffsets: [V6MatcherWindowEvidence]
-    public let offsetDriftSeconds: Double
-    public let edgeCorrelation: Double
+    public let rawAcceptedMatchCount: Int
+    public let rawAcceptanceRatio: Double
+    public let confidenceQuantiles: V6ConfidenceQuantiles
+    public let acceptedFrameIdentities: [V6PreparedFrameIdentity]
+    public let alignmentConfigurationHash: String
+
+    public init(
+        bestOffset: Double,
+        rawMatchCount: Int,
+        acceptedMatchCount: Int,
+        acceptanceRatio: Double,
+        rawAcceptedMatchCount: Int = 0,
+        rawAcceptanceRatio: Double = 0,
+        confidenceQuantiles: V6ConfidenceQuantiles,
+        acceptedFrameIdentities: [V6PreparedFrameIdentity],
+        alignmentConfigurationHash: String
+    ) {
+        self.bestOffset = bestOffset
+        self.rawMatchCount = rawMatchCount
+        self.acceptedMatchCount = acceptedMatchCount
+        self.acceptanceRatio = acceptanceRatio
+        self.rawAcceptedMatchCount = rawAcceptedMatchCount
+        self.rawAcceptanceRatio = rawAcceptanceRatio
+        self.confidenceQuantiles = confidenceQuantiles
+        self.acceptedFrameIdentities = acceptedFrameIdentities
+        self.alignmentConfigurationHash = alignmentConfigurationHash
+    }
+}
+
+/// Experimental structural evidence.  It is intentionally a different type
+/// from `V6ProductionMatcherEvidence`: robust scores can explain a production
+/// false negative, but can never alter production acceptance or identity.
+public struct V6StructuralDiagnosticEvidence: Codable, Hashable, Sendable {
+    public let robustBestOffset: Double
+    public let secondBestOffset: Double
+    public let bestVsSecondMargin: Double
     public let normalizedLumaCorrelation: Double
     public let rankNormalizedLumaCorrelation: Double
     public let gradientCorrelation: Double
-    public let localContrastCorrelation: Double
     public let multiScaleNCC: Double
+    public let edgeCorrelation: Double
+    public let localContrastCorrelation: Double
     public let robustConfidence: Double
     public let sceneBoundaryConsistency: Double
+    public let perWindowOffsets: [V6MatcherWindowEvidence]
+    public let offsetDrift: Double
+
+    public init(
+        robustBestOffset: Double,
+        secondBestOffset: Double,
+        bestVsSecondMargin: Double,
+        normalizedLumaCorrelation: Double,
+        rankNormalizedLumaCorrelation: Double,
+        gradientCorrelation: Double,
+        multiScaleNCC: Double,
+        edgeCorrelation: Double,
+        localContrastCorrelation: Double,
+        robustConfidence: Double,
+        sceneBoundaryConsistency: Double,
+        perWindowOffsets: [V6MatcherWindowEvidence],
+        offsetDrift: Double
+    ) {
+        self.robustBestOffset = robustBestOffset
+        self.secondBestOffset = secondBestOffset
+        self.bestVsSecondMargin = bestVsSecondMargin
+        self.normalizedLumaCorrelation = normalizedLumaCorrelation
+        self.rankNormalizedLumaCorrelation = rankNormalizedLumaCorrelation
+        self.gradientCorrelation = gradientCorrelation
+        self.multiScaleNCC = multiScaleNCC
+        self.edgeCorrelation = edgeCorrelation
+        self.localContrastCorrelation = localContrastCorrelation
+        self.robustConfidence = robustConfidence
+        self.sceneBoundaryConsistency = sceneBoundaryConsistency
+        self.perWindowOffsets = perWindowOffsets
+        self.offsetDrift = offsetDrift
+    }
+}
+
+public struct V6SourceIntegrityEvidence: Codable, Hashable, Sendable {
     public let duplicatedHDRMatchCount: Int
     public let droppedFrameEvidenceCount: Int
     public let sdrFPS: Double
@@ -91,7 +160,82 @@ public struct V6MatcherPairEvidence: Codable, Sendable {
     public let sdrDimensions: String
     public let hdrDimensions: String
     public let aspectRatioDelta: Double
-    public let cropOrEditMismatch: Bool
+    public let aspectRatioMismatchEvidence: Bool
+    public let durationMismatchEvidence: Bool
+
+    public init(
+        duplicatedHDRMatchCount: Int,
+        droppedFrameEvidenceCount: Int,
+        sdrFPS: Double,
+        hdrFPS: Double,
+        sdrDurationSeconds: Double,
+        hdrDurationSeconds: Double,
+        durationDeltaSeconds: Double,
+        sdrDimensions: String,
+        hdrDimensions: String,
+        aspectRatioDelta: Double,
+        aspectRatioMismatchEvidence: Bool,
+        durationMismatchEvidence: Bool
+    ) {
+        self.duplicatedHDRMatchCount = duplicatedHDRMatchCount
+        self.droppedFrameEvidenceCount = droppedFrameEvidenceCount
+        self.sdrFPS = sdrFPS
+        self.hdrFPS = hdrFPS
+        self.sdrDurationSeconds = sdrDurationSeconds
+        self.hdrDurationSeconds = hdrDurationSeconds
+        self.durationDeltaSeconds = durationDeltaSeconds
+        self.sdrDimensions = sdrDimensions
+        self.hdrDimensions = hdrDimensions
+        self.aspectRatioDelta = aspectRatioDelta
+        self.aspectRatioMismatchEvidence = aspectRatioMismatchEvidence
+        self.durationMismatchEvidence = durationMismatchEvidence
+    }
+}
+
+/// The diagnostic's access record is produced from the paths that the
+/// production preparation session actually opened and the paths rejected by
+/// the pre-decode holdout guard.  There is no constant “false” escape hatch.
+public struct V6MatcherAccessTelemetry: Codable, Hashable, Sendable {
+    public let openedMediaPaths: [String]
+    public let rejectedMediaPaths: [String]
+    public let frozenInputPaths: [String]
+    public let frozenFilesAccessed: Bool
+
+    public init(
+        openedMediaPaths: [String],
+        rejectedMediaPaths: [String],
+        frozenInputPaths: [String]
+    ) {
+        let opened = Array(Set(openedMediaPaths)).sorted()
+        let rejected = Array(Set(rejectedMediaPaths)).sorted()
+        let frozen = Array(Set(frozenInputPaths)).sorted()
+        self.openedMediaPaths = opened
+        self.rejectedMediaPaths = rejected
+        self.frozenInputPaths = frozen
+        self.frozenFilesAccessed = !Set(opened).intersection(frozen).isEmpty
+    }
+}
+
+public struct V6MatcherPairEvidence: Codable, Hashable, Sendable {
+    public let pairID: String
+    public let split: DatasetSplit
+    public let productionMatcher: V6ProductionMatcherEvidence
+    public let structuralDiagnostic: V6StructuralDiagnosticEvidence
+    public let sourceIntegrity: V6SourceIntegrityEvidence
+
+    public init(
+        pairID: String,
+        split: DatasetSplit,
+        productionMatcher: V6ProductionMatcherEvidence,
+        structuralDiagnostic: V6StructuralDiagnosticEvidence,
+        sourceIntegrity: V6SourceIntegrityEvidence
+    ) {
+        self.pairID = pairID
+        self.split = split
+        self.productionMatcher = productionMatcher
+        self.structuralDiagnostic = structuralDiagnostic
+        self.sourceIntegrity = sourceIntegrity
+    }
 }
 
 public struct V6MatcherDiagnosticReport: Codable, Sendable {
@@ -99,11 +243,19 @@ public struct V6MatcherDiagnosticReport: Codable, Sendable {
     public let generatedAtUTC: String
     public let manifestPath: String
     public let frozenFilesAccessed: Bool
+    public let accessTelemetry: V6MatcherAccessTelemetry
+    public let preparedEvaluationPlanSHA256: String
     public let configuration: V6MatcherEvidenceConfiguration
     public let pairs: [V6MatcherPairEvidence]
 }
 
 public enum V6MatcherDiagnostics {
+    private struct PreflightContext {
+        let records: [V4PairRecord]
+        let inputHashes: [String: V6InputHashes]
+        let frozenInputPaths: [String]
+    }
+
     private struct Metrics {
         let edge: Double
         let luma: Double
@@ -130,37 +282,342 @@ public enum V6MatcherDiagnostics {
 
     private typealias Features = V6MatcherFeatures
 
+    /// Validate all manifest/audit identities before a media decoder can be
+    /// called.  The V6 consumed-holdout policy is the single source of truth
+    /// for ID and byte-hash exclusion; missing audit bytes fail closed.
+    ///
+    /// This internal entry point is intentionally useful to regression tests:
+    /// tests can prove a consumed Tune/Validation alias is rejected without
+    /// opening a media file.
+    static func validateRecordsBeforeDecode(
+        manifest: V4Manifest,
+        audit: V4DatasetAuditReport,
+        repositoryRoot: URL,
+        manifestURL: URL? = nil
+    ) throws -> [V4PairRecord] {
+        let records = manifest.pairs.filter { $0.split == .tune || $0.split == .validation }
+        guard !records.isEmpty else {
+            throw CalibrationError.incompleteEvaluation("matcher diagnostics require Tune/Validation records")
+        }
+        let auditByID = try auditRecordsByID(audit)
+        for record in records {
+            guard record.split == .tune || record.split == .validation,
+                  !record.virginFrozen,
+                  record.consumed != true,
+                  record.objectiveEvaluated != true else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics may only open unconsumed Tune/Validation media: \(record.id)"
+                )
+            }
+            guard let audited = auditByID[record.id],
+                  audited.split == record.split,
+                  normalizedManifestPath(record.sdr, manifestURL: manifestURL,
+                                         roots: manifest.roots,
+                                         repositoryRoot: repositoryRoot) ==
+                    normalizedManifestPath(audited.sdrPath, manifestURL: manifestURL,
+                                           roots: manifest.roots,
+                                           repositoryRoot: repositoryRoot),
+                  normalizedManifestPath(record.hdr, manifestURL: manifestURL,
+                                         roots: manifest.roots,
+                                         repositoryRoot: repositoryRoot) ==
+                    normalizedManifestPath(audited.hdrPath, manifestURL: manifestURL,
+                                           roots: manifest.roots,
+                                           repositoryRoot: repositoryRoot),
+                  let sdrDigest = audited.sdrDigest?.sha256,
+                  let hdrDigest = audited.hdrDigest?.sha256,
+                  validSHA256(sdrDigest), validSHA256(hdrDigest) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics require complete pre-decode audit hashes for \(record.id)"
+                )
+            }
+            guard !V6VirginHoldoutPolicy.isExcluded(
+                pairID: record.id, sdrSHA256: sdrDigest, hdrSHA256: hdrDigest
+            ) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics reject consumed V6 holdout identity before media open: \(record.id)"
+                )
+            }
+        }
+        return records
+    }
+
+    private static func preflight(
+        manifest: V4Manifest,
+        audit: V4DatasetAuditReport,
+        repositoryRoot: URL,
+        manifestURL: URL
+    ) throws -> PreflightContext {
+        let records = try validateRecordsBeforeDecode(
+            manifest: manifest, audit: audit, repositoryRoot: repositoryRoot,
+            manifestURL: manifestURL
+        )
+        let auditByID = try auditRecordsByID(audit)
+        let inputHashes = Dictionary(uniqueKeysWithValues: records.map { record in
+            let audited = auditByID[record.id]!
+            return (record.id, V6InputHashes(
+                sdrSHA256: audited.sdrDigest!.sha256,
+                hdrSHA256: audited.hdrDigest!.sha256
+            ))
+        })
+        let frozenInputPaths = manifest.pairs
+            .filter { $0.split == .frozen || $0.virginFrozen }
+            .flatMap { pair in
+                [normalizedManifestPath(pair.sdr, manifestURL: manifestURL,
+                                        roots: manifest.roots,
+                                        repositoryRoot: repositoryRoot),
+                 normalizedManifestPath(pair.hdr, manifestURL: manifestURL,
+                                        roots: manifest.roots,
+                                        repositoryRoot: repositoryRoot)]
+            }
+        return PreflightContext(
+            records: records,
+            inputHashes: inputHashes,
+            frozenInputPaths: frozenInputPaths
+        )
+    }
+
+    /// Validate the committed audit/lock contract without opening any media
+    /// bytes.  This preserves the existing dataset evidence semantics while
+    /// keeping the consumed-holdout guard ahead of all decoder work.
+    private static func validateAuditLockBeforeDecode(
+        manifest: V4Manifest,
+        audit: V4DatasetAuditReport,
+        lock: V4DatasetLock,
+        manifestURL: URL,
+        repositoryRoot: URL,
+        manifestHash: String
+    ) throws {
+        guard audit.verdict == .ready,
+              audit.version == V4DatasetAuditor.auditEvidenceVersion,
+              audit.auditConfigHash == V4DatasetAuditor.auditConfigurationHash,
+              lock.manifestSHA256 == manifestHash else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics require current READY audit and dataset lock evidence"
+            )
+        }
+        let auditByID = try auditRecordsByID(audit)
+        for pair in manifest.pairs where pair.split == .tune || pair.split == .validation {
+            guard let audited = auditByID[pair.id],
+                  let sdr = audited.sdrDigest,
+                  let hdr = audited.hdrDigest else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics require locked digests before media open: \(pair.id)"
+                )
+            }
+            for digest in [sdr, hdr] {
+                let expectedPath = normalizedManifestPath(
+                    digest.path, manifestURL: manifestURL,
+                    roots: manifest.roots, repositoryRoot: repositoryRoot
+                )
+                guard let locked = lock.files.first(where: {
+                    normalizedManifestPath(
+                        $0.path, manifestURL: manifestURL,
+                        roots: manifest.roots, repositoryRoot: repositoryRoot
+                    ) == expectedPath
+                }), locked.sha256.lowercased() == digest.sha256.lowercased(),
+                locked.sizeBytes == digest.sizeBytes else {
+                    throw CalibrationError.incompleteEvaluation(
+                        "matcher diagnostics dataset lock digest mismatch before media open: \(pair.id)"
+                    )
+                }
+            }
+        }
+    }
+
+    /// Copy production evidence verbatim from the sealed plan.  In
+    /// particular, this function never receives an experimental offset or
+    /// confidence vector, preventing robust diagnostics from changing the
+    /// production accepted set.
+    static func productionEvidence(
+        from pairPlan: V6PreparedPairPlan
+    ) -> V6ProductionMatcherEvidence {
+        let alignment = pairPlan.alignment
+        return V6ProductionMatcherEvidence(
+            bestOffset: alignment.coarseOffsetSeconds,
+            rawMatchCount: alignment.matchedFrameCount,
+            acceptedMatchCount: alignment.acceptedFrameCount,
+            acceptanceRatio: alignment.matchedFrameCount == 0 ? 0 :
+                Double(alignment.acceptedFrameCount) / Double(alignment.matchedFrameCount),
+            rawAcceptedMatchCount: alignment.rawAcceptedFrameCount,
+            rawAcceptanceRatio: alignment.rawAcceptanceRatio,
+            confidenceQuantiles: alignment.confidenceQuantiles,
+            acceptedFrameIdentities: alignment.acceptedFrames,
+            alignmentConfigurationHash: alignment.matcherConfigurationHash
+        )
+    }
+
+    static func makePairEvidence(
+        pairPlan: V6PreparedPairPlan,
+        structural: V6StructuralDiagnosticEvidence,
+        sourceIntegrity: V6SourceIntegrityEvidence
+    ) -> V6MatcherPairEvidence {
+        V6MatcherPairEvidence(
+            pairID: pairPlan.pairID,
+            split: pairPlan.split,
+            productionMatcher: productionEvidence(from: pairPlan),
+            structuralDiagnostic: structural,
+            sourceIntegrity: sourceIntegrity
+        )
+    }
+
+    /// Run only the experimental structural scorer over already-decoded
+    /// sequences.  This is exposed to synthetic tests, but it has no API that
+    /// can feed a production acceptance decision.
+    static func structuralEvidence(
+        sdr: FrameSequence,
+        hdr: FrameSequence,
+        configuration: V6MatcherEvidenceConfiguration = V6MatcherEvidenceConfiguration()
+    ) throws -> V6StructuralDiagnosticEvidence {
+        try analyzeStructural(
+            pairID: "synthetic-structural-diagnostic",
+            sdr: sdr,
+            hdr: hdr,
+            configuration: configuration
+        ).structural
+    }
+
     public static func run(
         manifestURL: URL,
         outputURL: URL,
         configuration: V6MatcherEvidenceConfiguration = V6MatcherEvidenceConfiguration()
     ) async throws -> V6MatcherDiagnosticReport {
         let manifest = try V4Manifest.load(from: manifestURL)
-        let records = manifest.pairs.filter { $0.split == .tune || $0.split == .validation }
-        guard records.allSatisfy({ !$0.virginFrozen && $0.split != .frozen }) else {
-            throw CalibrationError.incompleteEvaluation("matcher diagnostics may only open Tune/Validation media")
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        let auditURL = repositoryRoot.appendingPathComponent("results/dataset-v4-final.json")
+        guard FileManager.default.isReadableFile(atPath: auditURL.path) else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics require the sealed Tune/Validation dataset audit"
+            )
         }
-        var evidence: [V6MatcherPairEvidence] = []
-        for record in records {
-            let urls = record.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
-            async let sdr = FrameReader.read(
-                url: urls.sdr, pixelFormat: CalibrationPixelFormat.sdrNV12,
-                maxFrames: configuration.maxDecodedFrames, proxyWidth: configuration.proxyWidth
+        let audit = try JSONDecoder().decode(
+            V4DatasetAuditReport.self, from: Data(contentsOf: auditURL)
+        )
+        guard !audit.objectiveEvaluated, audit.frozenObjectiveEvaluated.isEmpty else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics require an objective-free Tune/Validation audit"
             )
-            async let hdr = FrameReader.read(
-                url: urls.hdr, pixelFormat: CalibrationPixelFormat.hdrP010,
-                maxFrames: configuration.maxDecodedFrames, proxyWidth: configuration.proxyWidth
+        }
+        let manifestHash = try V4DatasetIntegrity.sha256(url: manifestURL)
+        guard audit.manifestSHA256 == manifestHash else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics dataset audit manifest hash mismatch"
             )
-            evidence.append(try analyze(
-                pairID: record.id, split: record.split,
-                sdr: await sdr, hdr: await hdr, configuration: configuration
+        }
+        let lockURL = manifestURL.deletingLastPathComponent()
+            .appendingPathComponent("dataset-v4-lock.json")
+        guard FileManager.default.isReadableFile(atPath: lockURL.path) else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics require the sealed Tune/Validation dataset lock"
+            )
+        }
+        let lock = try JSONDecoder().decode(
+            V4DatasetLock.self, from: Data(contentsOf: lockURL)
+        )
+        try validateAuditLockBeforeDecode(
+            manifest: manifest, audit: audit, lock: lock,
+            manifestURL: manifestURL, repositoryRoot: repositoryRoot,
+            manifestHash: manifestHash
+        )
+        let context = try preflight(
+            manifest: manifest, audit: audit, repositoryRoot: repositoryRoot,
+            manifestURL: manifestURL
+        )
+        let productionMatcherConfiguration = V6MatcherConfiguration(
+            acceptedConfidenceThreshold: configuration.acceptanceThreshold
+        )
+        guard configuration.matcherConfigurationHash ==
+                (try productionMatcherConfiguration.canonicalSHA256()),
+              configuration.maxDecodedFrames == V6PreparationConfiguration.v6.maxDecodedFrames,
+              configuration.proxyWidth == V6PreparationConfiguration.v6.proxyWidth else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostic configuration is not the sealed production V6 configuration"
+            )
+        }
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw CalibrationError.decodeFailed("Metal device unavailable for production preparation")
+        }
+        var searchConfiguration = V2SearchConfiguration()
+        searchConfiguration.maxFramesPerScene = 8
+        searchConfiguration.alignmentSearchThreshold = 0
+        searchConfiguration.referenceTargetPeakNits = 1_000
+        let repository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            configuration: searchConfiguration,
+            acceptedConfidenceThreshold: configuration.acceptanceThreshold
+        )
+        let productionRecords = context.records.map { pair -> PairRecord in
+            let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+            return PairRecord(
+                id: pair.id, sdr: urls.sdr.path, hdr: urls.hdr.path,
+                license: pair.license, source: pair.source,
+                expectedRelation: pair.expectedRelation.legacyRelation(),
+                notes: pair.notes, split: pair.split
+            )
+        }
+        var prepared: [PreparedPair] = []
+        var openedPaths: [String] = []
+        for record in productionRecords {
+            // The V6 preflight above has already checked ID and byte identity.
+            // Record paths only after a successful production preparation, so
+            // the report describes actual opened media rather than assumptions.
+            let value = try await repository.prepare(records: [record])
+            guard let pair = value.first else {
+                throw CalibrationError.incompleteEvaluation(
+                    "production preparation returned no pair for \(record.id)"
+                )
+            }
+            prepared.append(pair)
+            openedPaths.append(V4EvidencePath.portable(
+                pair.sdrSequence.url, repositoryRoot: repositoryRoot
+            ))
+            openedPaths.append(V4EvidencePath.portable(
+                pair.hdrSequence.url, repositoryRoot: repositoryRoot
             ))
         }
+        let preparedPlan = try repository.sealPreparedEvaluationPlan(
+            records: productionRecords,
+            inputHashes: context.inputHashes,
+            scope: "TUNE_VALIDATION"
+        )
+        try V6PreparedEvaluationPlanBuilder.validate(
+            plan: preparedPlan, preparedPairs: prepared
+        )
+        let preparedPlanHash = try V6PreparedEvaluationPlanHasher.sha256(preparedPlan)
+        var evidence: [V6MatcherPairEvidence] = []
+        for pair in prepared {
+            guard let pairPlan = preparedPlan.pairPlan(for: pair.record.id) else {
+                throw CalibrationError.incompleteEvaluation(
+                    "production PreparedEvaluationPlan is missing \(pair.record.id)"
+                )
+            }
+            let structural = try analyzeStructural(
+                pairID: pair.record.id,
+                sdr: pair.sdrSequence,
+                hdr: pair.hdrSequence,
+                configuration: configuration
+            )
+            evidence.append(makePairEvidence(
+                pairPlan: pairPlan,
+                structural: structural.structural,
+                sourceIntegrity: structural.sourceIntegrity
+            ))
+        }
+        let telemetry = V6MatcherAccessTelemetry(
+            openedMediaPaths: openedPaths,
+            rejectedMediaPaths: [],
+            frozenInputPaths: context.frozenInputPaths
+        )
+        let portableManifest = V4EvidencePath.portable(
+            manifestURL, repositoryRoot: repositoryRoot
+        )
         let report = V6MatcherDiagnosticReport(
-            schemaVersion: "v6-matcher-diagnostic-v2",
+            schemaVersion: "v6-matcher-diagnostic-v3",
             generatedAtUTC: ISO8601DateFormatter().string(from: Date()),
-            manifestPath: "repo:data_video/manifest-v4.json",
-            frozenFilesAccessed: false,
+            manifestPath: portableManifest,
+            frozenFilesAccessed: telemetry.frozenFilesAccessed,
+            accessTelemetry: telemetry,
+            preparedEvaluationPlanSHA256: preparedPlanHash,
             configuration: configuration,
             pairs: evidence
         )
@@ -173,13 +630,12 @@ public enum V6MatcherDiagnostics {
         return report
     }
 
-    private static func analyze(
+    private static func analyzeStructural(
         pairID: String,
-        split: DatasetSplit,
         sdr: FrameSequence,
         hdr: FrameSequence,
         configuration: V6MatcherEvidenceConfiguration
-    ) throws -> V6MatcherPairEvidence {
+    ) throws -> (structural: V6StructuralDiagnosticEvidence, sourceIntegrity: V6SourceIntegrityEvidence) {
         let offsets = offsetCandidates(configuration)
         var metricCache: [UInt64: Metrics] = [:]
         let sdrFeatures = Dictionary(uniqueKeysWithValues: sdr.samples.map {
@@ -203,16 +659,6 @@ public enum V6MatcherDiagnostics {
         let second = candidates
             .filter { abs($0.offset - best.offset) >= configuration.secondBestExclusionSeconds }
             .max(by: { $0.score < $1.score }) ?? best
-        let legacyConfidence = best.pairs.map { pair in
-            let distance = FrameDescriptorBuilder.alignmentDistance(
-                pair.0.descriptor, pair.1.descriptor,
-                lhsGrid: pair.0.lumaGrid, rhsGrid: pair.1.lumaGrid
-            )
-            return max(0, min(1, exp(-distance * 4)))
-        }
-        let robustConfidences = best.metrics.map(\.robust)
-        let accepted = robustConfidences.filter { $0 >= configuration.acceptanceThreshold }.count
-        let legacyAccepted = legacyConfidence.filter { $0 >= configuration.acceptanceThreshold }.count
         let windows = windowEvidence(
             sdr: sdr.samples, hdr: hdr.samples,
             configuration: configuration,
@@ -234,37 +680,36 @@ public enum V6MatcherDiagnostics {
         let sdrAspect = Double(sdr.width) / Double(max(sdr.height, 1))
         let hdrAspect = Double(hdr.width) / Double(max(hdr.height, 1))
         let aspectDelta = abs(sdrAspect - hdrAspect) / max(sdrAspect, hdrAspect)
-        return V6MatcherPairEvidence(
-            pairID: pairID, split: split,
-            rawMatchCount: best.pairs.count,
-            acceptedMatchCount: accepted,
-            acceptanceRatio: robustConfidences.isEmpty ? 0 : Double(accepted) / Double(robustConfidences.count),
-            confidence: quantiles(robustConfidences),
-            legacyAcceptedMatchCount: legacyAccepted,
-            legacyAcceptanceRatio: legacyConfidence.isEmpty ? 0 : Double(legacyAccepted) / Double(legacyConfidence.count),
-            legacyConfidence: quantiles(legacyConfidence),
-            bestTemporalOffsetSeconds: best.offset,
-            secondBestOffsetSeconds: second.offset,
-            bestVersusSecondMargin: best.score - second.score,
-            perWindowOffsets: windows,
-            offsetDriftSeconds: drift,
-            edgeCorrelation: aggregate.edge,
-            normalizedLumaCorrelation: aggregate.luma,
-            rankNormalizedLumaCorrelation: aggregate.rank,
-            gradientCorrelation: aggregate.gradient,
-            localContrastCorrelation: aggregate.localContrast,
-            multiScaleNCC: aggregate.multiScale,
-            robustConfidence: aggregate.robust,
-            sceneBoundaryConsistency: sceneConsistency,
-            duplicatedHDRMatchCount: duplicateCount,
-            droppedFrameEvidenceCount: dropped,
-            sdrFPS: sdr.nominalFrameRate, hdrFPS: hdr.nominalFrameRate,
-            sdrDurationSeconds: sdr.durationSeconds, hdrDurationSeconds: hdr.durationSeconds,
-            durationDeltaSeconds: abs(sdr.durationSeconds - hdr.durationSeconds),
-            sdrDimensions: "\(sdr.width)x\(sdr.height)",
-            hdrDimensions: "\(hdr.width)x\(hdr.height)",
-            aspectRatioDelta: aspectDelta,
-            cropOrEditMismatch: aspectDelta > 0.02 || abs(sdr.durationSeconds - hdr.durationSeconds) > 0.25
+        return (
+            structural: V6StructuralDiagnosticEvidence(
+                robustBestOffset: best.offset,
+                secondBestOffset: second.offset,
+                bestVsSecondMargin: best.score - second.score,
+                normalizedLumaCorrelation: aggregate.luma,
+                rankNormalizedLumaCorrelation: aggregate.rank,
+                gradientCorrelation: aggregate.gradient,
+                multiScaleNCC: aggregate.multiScale,
+                edgeCorrelation: aggregate.edge,
+                localContrastCorrelation: aggregate.localContrast,
+                robustConfidence: aggregate.robust,
+                sceneBoundaryConsistency: sceneConsistency,
+                perWindowOffsets: windows,
+                offsetDrift: drift
+            ),
+            sourceIntegrity: V6SourceIntegrityEvidence(
+                duplicatedHDRMatchCount: duplicateCount,
+                droppedFrameEvidenceCount: dropped,
+                sdrFPS: sdr.nominalFrameRate,
+                hdrFPS: hdr.nominalFrameRate,
+                sdrDurationSeconds: sdr.durationSeconds,
+                hdrDurationSeconds: hdr.durationSeconds,
+                durationDeltaSeconds: abs(sdr.durationSeconds - hdr.durationSeconds),
+                sdrDimensions: "\(sdr.width)x\(sdr.height)",
+                hdrDimensions: "\(hdr.width)x\(hdr.height)",
+                aspectRatioDelta: aspectDelta,
+                aspectRatioMismatchEvidence: aspectDelta > 0.02,
+                durationMismatchEvidence: abs(sdr.durationSeconds - hdr.durationSeconds) > 0.25
+            )
         )
     }
 
@@ -459,6 +904,68 @@ public enum V6MatcherDiagnostics {
         return V6ConfidenceQuantiles(
             minimum: value(0), p10: value(0.10), p25: value(0.25), p50: value(0.50),
             p75: value(0.75), p90: value(0.90), maximum: value(1)
+        )
+    }
+
+    private static func validSHA256(_ value: String) -> Bool {
+        value.count == 64 && value.unicodeScalars.allSatisfy { scalar in
+            switch scalar.value {
+            case 48...57, 65...70, 97...102: return true
+            default: return false
+            }
+        }
+    }
+
+    private static func auditRecordsByID(
+        _ audit: V4DatasetAuditReport
+    ) throws -> [String: V4PairAudit] {
+        var result: [String: V4PairAudit] = [:]
+        for pair in audit.pairs {
+            guard result.updateValue(pair, forKey: pair.id) == nil else {
+                throw CalibrationError.incompleteEvaluation(
+                    "matcher diagnostics audit contains duplicate pair id: \(pair.id)"
+                )
+            }
+        }
+        return result
+    }
+
+    /// Normalize a manifest or audit path for identity comparison without
+    /// touching the referenced media.  Root aliases are resolved as pure path
+    /// arithmetic, then converted to the repository's portable `repo:` form.
+    private static func normalizedManifestPath(
+        _ path: String,
+        manifestURL: URL?,
+        roots: [String: String],
+        repositoryRoot: URL
+    ) -> String {
+        let normalized = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalized.hasPrefix("repo:") {
+            return normalized
+        }
+        let base = (manifestURL?.deletingLastPathComponent() ?? repositoryRoot)
+            .standardizedFileURL
+        if let separator = normalized.firstIndex(of: ":") {
+            let alias = String(normalized[..<separator])
+            if let root = roots[alias] {
+                let relative = String(normalized[normalized.index(after: separator)...])
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                let rootURL = root.hasPrefix("/")
+                    ? URL(fileURLWithPath: root)
+                    : base.appendingPathComponent(root)
+                return V4EvidencePath.portable(
+                    rootURL.appendingPathComponent(relative),
+                    repositoryRoot: repositoryRoot
+                )
+            }
+        }
+        if normalized.hasPrefix("/") {
+            return V4EvidencePath.portable(
+                URL(fileURLWithPath: normalized), repositoryRoot: repositoryRoot
+            )
+        }
+        return V4EvidencePath.portable(
+            base.appendingPathComponent(normalized), repositoryRoot: repositoryRoot
         )
     }
 }

@@ -460,6 +460,175 @@ final class CalibrationTests: XCTestCase {
         XCTAssertThrowsError(try V6PreparedEvaluationEntry.acceptedMatches(prepared: changedPair, plan: plan))
     }
 
+    func testV6MatcherDiagnosticProductionEvidenceEqualsPreparedPlanExactly() throws {
+        let prepared = try makePreparedDiagnosticPair(
+            values: [0.10, 0.30, 0.70, 0.90], id: "diagnostic-production"
+        )
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )]
+        )
+        guard let pairPlan = plan.pairPlan(for: prepared.record.id) else {
+            return XCTFail("prepared plan pair is missing")
+        }
+        let structural = V6StructuralDiagnosticEvidence(
+            robustBestOffset: 1.0,
+            secondBestOffset: -1.0,
+            bestVsSecondMargin: 0.25,
+            normalizedLumaCorrelation: 0.99,
+            rankNormalizedLumaCorrelation: 0.99,
+            gradientCorrelation: 0.98,
+            multiScaleNCC: 0.97,
+            edgeCorrelation: 0.96,
+            localContrastCorrelation: 0.95,
+            robustConfidence: 0.98,
+            sceneBoundaryConsistency: 0.94,
+            perWindowOffsets: [],
+            offsetDrift: 2.0
+        )
+        let source = V6SourceIntegrityEvidence(
+            duplicatedHDRMatchCount: 0,
+            droppedFrameEvidenceCount: 0,
+            sdrFPS: 30,
+            hdrFPS: 30,
+            sdrDurationSeconds: 4.0,
+            hdrDurationSeconds: 4.0,
+            durationDeltaSeconds: 0,
+            sdrDimensions: "32x18",
+            hdrDimensions: "32x18",
+            aspectRatioDelta: 0,
+            aspectRatioMismatchEvidence: false,
+            durationMismatchEvidence: false
+        )
+        let evidence = V6MatcherDiagnostics.makePairEvidence(
+            pairPlan: pairPlan, structural: structural, sourceIntegrity: source
+        )
+        let production = evidence.productionMatcher
+        XCTAssertEqual(production.bestOffset, pairPlan.alignment.coarseOffsetSeconds)
+        XCTAssertEqual(production.rawMatchCount, pairPlan.alignment.matchedFrameCount)
+        XCTAssertEqual(production.acceptedMatchCount, pairPlan.alignment.acceptedFrameCount)
+        XCTAssertEqual(
+            production.acceptanceRatio,
+            Double(pairPlan.alignment.acceptedFrameCount) /
+                Double(pairPlan.alignment.matchedFrameCount)
+        )
+        XCTAssertEqual(production.rawAcceptedMatchCount, pairPlan.alignment.rawAcceptedFrameCount)
+        XCTAssertEqual(production.rawAcceptanceRatio, pairPlan.alignment.rawAcceptanceRatio)
+        XCTAssertEqual(production.confidenceQuantiles, pairPlan.alignment.confidenceQuantiles)
+        XCTAssertEqual(production.acceptedFrameIdentities, pairPlan.alignment.acceptedFrames)
+        XCTAssertEqual(
+            production.alignmentConfigurationHash,
+            pairPlan.alignment.matcherConfigurationHash
+        )
+        // The experimental robust offset differs deliberately; production
+        // identities remain the sealed plan identities and do not move.
+        XCTAssertNotEqual(structural.robustBestOffset, production.bestOffset)
+        XCTAssertEqual(evidence.structuralDiagnostic.robustBestOffset, 1.0)
+        XCTAssertEqual(evidence.productionMatcher.acceptedFrameIdentities, pairPlan.alignment.acceptedFrames)
+
+        // Exercise the real experimental scorer with a degenerate synthetic
+        // sequence.  Its tie-breaking offset is intentionally unrelated to
+        // the sealed production offset, yet the production identity array is
+        // still byte-for-byte unchanged.
+        let computedStructural = try V6MatcherDiagnostics.structuralEvidence(
+            sdr: prepared.sdrSequence, hdr: prepared.hdrSequence
+        )
+        XCTAssertNotEqual(computedStructural.robustBestOffset, production.bestOffset)
+        XCTAssertEqual(production.acceptedFrameIdentities, pairPlan.alignment.acceptedFrames)
+    }
+
+    func testV6MatcherDiagnosticsRejectConsumedHashBeforeMediaOpen() throws {
+        let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let manifestURL = root.appendingPathComponent("data_video/manifest-v4.json")
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let auditURL = root.appendingPathComponent("results/dataset-v4-final.json")
+        let audit = try JSONDecoder().decode(
+            V4DatasetAuditReport.self, from: Data(contentsOf: auditURL)
+        )
+        guard let index = manifest.pairs.firstIndex(where: {
+            $0.id == "live_9_face_close_3840x2160_15000k"
+        }), let auditIndex = audit.pairs.firstIndex(where: {
+            $0.id == "live_9_face_close_3840x2160_15000k"
+        }), let consumed = V6VirginHoldoutPolicy.consumedAssetPairs["live_8_drawing_3840x2160_15000k"] else {
+            throw XCTSkip("V6 manifest/audit fixture unavailable")
+        }
+        var aliasManifest = manifest
+        aliasManifest.pairs[index].id = "fresh-alias"
+        var aliasAudit = audit
+        aliasAudit.pairs[auditIndex].id = "fresh-alias"
+        aliasAudit.pairs[auditIndex].sdrDigest?.sha256 = consumed.sdrSHA256
+        aliasAudit.pairs[auditIndex].hdrDigest?.sha256 = consumed.hdrSHA256
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateRecordsBeforeDecode(
+            manifest: aliasManifest,
+            audit: aliasAudit,
+            repositoryRoot: root,
+            manifestURL: manifestURL
+        )) { error in
+            XCTAssertTrue(error.localizedDescription.contains("consumed V6 holdout"))
+        }
+    }
+
+    func testV6MatcherDiagnosticsRejectFrozenScopeBeforeMediaOpen() throws {
+        let pair = V4PairRecord(
+            id: "frozen-only",
+            sdr: "frozen.sdr.mp4",
+            hdr: "frozen.hdr.mp4",
+            source: "fixture",
+            license: "fixture",
+            expectedRelation: .sameSource,
+            split: .frozen,
+            virginFrozen: true
+        )
+        let auditPair = V4PairAudit(
+            id: pair.id,
+            source: pair.source,
+            split: .frozen,
+            virginFrozen: true,
+            expectedRelation: pair.expectedRelation,
+            suitability: .reject,
+            status: .invalidMetadata,
+            sdrPath: pair.sdr,
+            hdrPath: pair.hdr,
+            sdrDigest: V4FileDigest(path: pair.sdr, sizeBytes: 1, sha256: String(repeating: "a", count: 64)),
+            hdrDigest: V4FileDigest(path: pair.hdr, sizeBytes: 1, sha256: String(repeating: "b", count: 64))
+        )
+        let audit = V4DatasetAuditReport(
+            manifestPath: "repo:data_video/manifest-v4.json",
+            manifestSHA256: String(repeating: "c", count: 64),
+            pairs: [auditPair],
+            diversity: V4DiversityReport(),
+            notes: []
+        )
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateRecordsBeforeDecode(
+            manifest: V4Manifest(pairs: [pair]),
+            audit: audit,
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository")
+        )) { error in
+            XCTAssertTrue(error.localizedDescription.contains("require Tune/Validation records"))
+        }
+    }
+
+    func testV6MatcherAccessTelemetryIsDerivedFromOpenedPaths() {
+        let frozenPath = "repo:data_video/frozen.sdr.mp4"
+        let opened = V6MatcherAccessTelemetry(
+            openedMediaPaths: [frozenPath],
+            rejectedMediaPaths: [],
+            frozenInputPaths: [frozenPath]
+        )
+        XCTAssertTrue(opened.frozenFilesAccessed)
+        let clean = V6MatcherAccessTelemetry(
+            openedMediaPaths: ["repo:data_video/tune.sdr.mp4"],
+            rejectedMediaPaths: [frozenPath],
+            frozenInputPaths: [frozenPath]
+        )
+        XCTAssertFalse(clean.frozenFilesAccessed)
+        XCTAssertEqual(clean.rejectedMediaPaths, [frozenPath])
+    }
+
     func testV6RealLive9PlanMaterializationMatchesPreflightExactly() async throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
