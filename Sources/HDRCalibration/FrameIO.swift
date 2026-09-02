@@ -65,6 +65,39 @@ public struct FrameSequence {
 }
 
 public enum FrameReader {
+    static func sourceFrameIndex(
+        startSeconds: Double,
+        outputIndex: Int,
+        outputFramesPerSecond: Double,
+        sourceFramesPerSecond: Double
+    ) -> Int? {
+        guard startSeconds.isFinite,
+              startSeconds >= 0,
+              outputIndex >= 0,
+              outputFramesPerSecond.isFinite,
+              outputFramesPerSecond > 0,
+              sourceFramesPerSecond.isFinite,
+              sourceFramesPerSecond > 0 else {
+            return nil
+        }
+
+        let sourceRate = max(
+            sourceFramesPerSecond,
+            outputFramesPerSecond
+        )
+        let startPosition = startSeconds * sourceRate
+        let sourceStep = sourceRate / outputFramesPerSecond
+        let position = startPosition + Double(outputIndex) * sourceStep
+
+        guard position.isFinite,
+              position >= 0,
+              position <= Double(Int32.max) else {
+            return nil
+        }
+
+        return Int(position.rounded())
+    }
+
     private struct ValidatedVideoMetadata {
         let sourceWidth: Int
         let sourceHeight: Int
@@ -392,17 +425,19 @@ private enum FFmpegFrameReader {
             let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
             let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
             let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
-            let sourceFramePosition = ((startSeconds ?? 0) +
-                Double(index) / outputFPSForTimestamp) *
-                max(nominalFrameRate, outputFPSForTimestamp)
-            guard sourceFramePosition.isFinite,
-                  sourceFramePosition >= 0,
-                  sourceFramePosition <= Double(Int32.max) else {
+            guard let sourceFrameIndex = FrameReader.sourceFrameIndex(
+                startSeconds: startSeconds ?? 0,
+                outputIndex: index,
+                outputFramesPerSecond: outputFPSForTimestamp,
+                sourceFramesPerSecond: max(
+                    nominalFrameRate,
+                    outputFPSForTimestamp
+                )
+            ) else {
                 throw CalibrationError.decodeFailed(
                     "ffmpeg source position exceeds the supported timeline"
                 )
             }
-            let sourceFrameIndex = Int(sourceFramePosition.rounded())
             samples.append(FrameSample(
                 index: sourceFrameIndex,
                 sequencePosition: index,

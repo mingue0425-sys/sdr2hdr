@@ -7,6 +7,27 @@ import simd
 import XCTest
 
 final class CalibrationTests: XCTestCase {
+    func testFFmpegSourceFrameIndexIsMonotonicAtHalfFrameWindowStart() {
+        let indices = (0..<8).compactMap {
+            FrameReader.sourceFrameIndex(
+                startSeconds: 15.29,
+                outputIndex: $0,
+                outputFramesPerSecond: 50,
+                sourceFramesPerSecond: 50
+            )
+        }
+
+        XCTAssertEqual(
+            indices,
+            [765, 766, 767, 768, 769, 770, 771, 772]
+        )
+        XCTAssertTrue(
+            zip(indices, indices.dropFirst()).allSatisfy {
+                $0 < $1
+            }
+        )
+    }
+
     func testMetadataProbeRejectsUnsafeNumericConversions() throws {
         XCTAssertThrowsError(try MetadataProbe.validatedNumericMetadata(
             durationSeconds: .nan,
