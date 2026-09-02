@@ -26,4 +26,10 @@ jobs:
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
       - name: Swift tests
-        run: swift test -c debug --disable-index-store
+        run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
+
+      - name: V4 runtime Metal benchmark
+        run: swift test -c debug --disable-index-store --filter CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
+
+      - name: Metal reference tests
+        run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests
