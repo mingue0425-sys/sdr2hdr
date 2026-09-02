@@ -32,7 +32,10 @@ final class V2PreparedRepository {
         self.manifestURL = manifestURL
         self.preparationConfiguration = V6PreparationConfiguration(
             maxFramesPerScene: configuration.maxFramesPerScene,
-            maxDecodedFrames: max(64, configuration.maxFramesPerScene * 16),
+            maxDecodedFrames: max(
+                64,
+                min(max(configuration.maxFramesPerScene, 1), 32) * 16
+            ),
             alignmentConfidenceThreshold: 0,
             acceptedConfidenceThreshold: acceptedConfidenceThreshold,
             temporalFramesPerSecond: 30,

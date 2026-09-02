@@ -15,7 +15,7 @@ esac
 cd "$ROOT"
 mkdir -p results .build/pre-v6-verify-cache
 CACHE_DIR="$ROOT/.build/pre-v6-verify-cache"
-CACHE_VERSION="pre-v6-fast-cache-v2-artifact-sealed"
+CACHE_VERSION="pre-v6-fast-cache-v3-semantic-sealed"
 
 stage() {
   local label="$1"
@@ -70,10 +70,8 @@ add_text('scope', scope)
 for rel in ('Package.swift', 'data_video/manifest-v4.json', 'dataset/holdout-provenance-v5.json'):
     add_file(root / rel)
 
-if scope == 'audit':
-    source_roots = [root/'Sources/HDRCalibration']
-else:
-    source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
+source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
+if scope != 'audit':
     # The CLI owns semantic exit-code behavior for correctness-review, so it is
     # part of the correctness cache identity as well.
     add_file(root/'Sources/HDRCalibrate/main.swift')
@@ -147,13 +145,17 @@ cache_store() {
 inputs_newest_mtime_ns() {
   local scope="$1"
   python3 - "$ROOT" "$scope" <<'PYMTIME'
-import pathlib, sys
+import os, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 scope = sys.argv[2]
 paths = [root/'Package.swift', root/'data_video/manifest-v4.json', root/'dataset/holdout-provenance-v5.json']
-source_roots = [root/'Sources/HDRCalibration'] if scope == 'audit' else [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
+source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
 if scope != 'audit':
     paths.append(root/'Sources/HDRCalibrate/main.swift')
+    frozen_plan = os.environ.get('V6_FROZEN_PLAN')
+    if frozen_plan:
+        plan_path = pathlib.Path(frozen_plan)
+        paths.extend([plan_path, plan_path.with_suffix('.sha256')])
 for base in source_roots:
     if base.exists():
         paths.extend(sorted(base.rglob('*.swift')))
@@ -265,6 +267,7 @@ assert_pre_v6_ready() {
     --prepared-plan results/v6-prepared-evaluation-plan.json
   python3 - "$ROOT" <<'PYVERIFY'
 import json
+import math
 import pathlib
 import sys
 
@@ -287,7 +290,12 @@ def load_required(path):
         return None
     try:
         with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            return json.load(
+                handle,
+                parse_constant=lambda value: (_ for _ in ()).throw(
+                    ValueError(f"non-finite JSON number {value!r}")
+                ),
+            )
     except Exception as exc:
         errors.append(f"invalid JSON in {relative}: {exc}")
         return None
@@ -324,32 +332,44 @@ if isinstance(final, dict):
 
     for key in ("virginFrozenObjectiveEvaluationCount", "objectiveEvaluationCount"):
         value = final.get(key)
-        if value != 0:
+        if type(value) is not int or value != 0:
             errors.append(
-                f"{key} must be 0 during correctness review, got {value!r}"
+                f"{key} must be the integer 0 during correctness review, got {value!r}"
             )
 
     checks = final.get("checks")
     if not isinstance(checks, list):
         errors.append("pre-v5-final-correctness.json has no checks array")
     else:
-        seen = set()
-        for check in checks:
+        checks_by_id = {}
+        for index, check in enumerate(checks):
             if not isinstance(check, dict):
                 errors.append(
-                    "pre-v5-final-correctness.json contains a non-object check"
+                    f"correctness check at index {index} is not an object"
                 )
                 continue
 
-            check_id = str(check.get("id", "<missing-id>"))
-            seen.add(check_id)
-            required = bool(check.get("required", True))
+            check_id = check.get("id")
+            if not isinstance(check_id, str) or not check_id:
+                errors.append(f"correctness check at index {index} has no valid id")
+                continue
+            if check_id in checks_by_id:
+                errors.append(f"duplicate correctness check id: {check_id}")
+                continue
+            checks_by_id[check_id] = check
+
+            required = check.get("required")
+            executed = check.get("executed")
             status = check.get("status")
-            executed = check.get(
-                "executed",
-                status not in ("NOT_RUN", "NOT_MEASURED", "SKIPPED"),
-            )
-            if required and (executed is not True or status != "PASS"):
+            if not isinstance(required, bool):
+                errors.append(
+                    f"correctness check {check_id} has non-boolean required={required!r}"
+                )
+            if not isinstance(executed, bool):
+                errors.append(
+                    f"correctness check {check_id} has non-boolean executed={executed!r}"
+                )
+            if required is True and (executed is not True or status != "PASS"):
                 errors.append(
                     f"required check {check_id} is not PASS/executed "
                     f"(status={status!r}, executed={executed!r})"
@@ -367,25 +387,35 @@ if isinstance(final, dict):
             "freeze-integrity",
             "v6FrozenPreparedEvaluationPlan",
         }
-        missing = sorted(critical - seen)
-        if missing:
-            errors.append(
-                "missing critical correctness checks: " + ", ".join(missing)
-            )
-
-        v6_check = next(
-            (check for check in checks if isinstance(check, dict) and check.get("id") == "v6PreparedEvaluationPlan"),
-            None,
-        )
-        if not isinstance(v6_check, dict) or v6_check.get("status") != "PASS":
-            errors.append("v6PreparedEvaluationPlan check is not PASS")
+        for check_id in sorted(critical | {"v6PreparedEvaluationPlan"}):
+            check = checks_by_id.get(check_id)
+            if check is None:
+                errors.append(f"missing critical correctness check: {check_id}")
+            elif (
+                check.get("required") is not True
+                or check.get("executed") is not True
+                or check.get("status") != "PASS"
+            ):
+                errors.append(
+                    f"critical check {check_id} must be required, executed, and PASS"
+                )
 
 if isinstance(plan, dict):
     plan_hash = plan.get("planSHA256")
-    if not isinstance(plan_hash, str) or len(plan_hash) != 64:
+    if (
+        not isinstance(plan_hash, str)
+        or len(plan_hash) != 64
+        or any(character not in "0123456789abcdef" for character in plan_hash)
+    ):
         errors.append("v6-prepared-evaluation-plan.json has no canonical planSHA256")
     plan_body = plan.get("plan")
-    if not isinstance(plan_body, dict) or not plan_body.get("pairOrder"):
+    pair_order = plan_body.get("pairOrder") if isinstance(plan_body, dict) else None
+    if (
+        not isinstance(pair_order, list)
+        or not pair_order
+        or any(not isinstance(pair_id, str) or not pair_id for pair_id in pair_order)
+        or len(set(pair_order)) != len(pair_order)
+    ):
         errors.append("v6-prepared-evaluation-plan.json has no pairOrder")
     if not plan_hash_path.exists() or plan_hash_path.stat().st_size == 0:
         errors.append("missing required artifact: results/v6-prepared-evaluation-plan.sha256")
@@ -426,11 +456,7 @@ if isinstance(burst, dict):
             else None
         )
 
-        if (
-            not isinstance(max_in_flight, (int, float))
-            or isinstance(max_in_flight, bool)
-            or max_in_flight < 2
-        ):
+        if type(max_in_flight) is not int or max_in_flight < 2:
             errors.append(
                 "temporal burst parity did not exercise a burst "
                 f"(maxFramesInFlight={max_in_flight!r})"
@@ -439,6 +465,8 @@ if isinstance(burst, dict):
         if (
             not isinstance(max_error, (int, float))
             or isinstance(max_error, bool)
+            or not math.isfinite(float(max_error))
+            or max_error < 0
             or max_error > 1e-6
         ):
             errors.append(

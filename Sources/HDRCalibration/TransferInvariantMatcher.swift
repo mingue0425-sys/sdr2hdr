@@ -18,8 +18,8 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
     public let multiScaleWidths: [Int]
 
     public init(
-        preparationAlgorithmVersion: String = "v6-prepared-evaluation-v4",
-        matcherVersion: String = "v6-transfer-invariant-matcher-v2",
+        preparationAlgorithmVersion: String = "v6-prepared-evaluation-v6",
+        matcherVersion: String = "v6-transfer-invariant-matcher-v3",
         gridWidth: Int = 64,
         gridHeight: Int = 36,
         offsetMinimumSeconds: Double = -2,
@@ -66,7 +66,12 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
         guard !preparationAlgorithmVersion.isEmpty, !matcherVersion.isEmpty else {
             return "matcher configuration versions must be non-empty"
         }
-        guard (2...4096).contains(gridWidth), (2...4096).contains(gridHeight) else {
+        guard (2...512).contains(gridWidth),
+              (2...512).contains(gridHeight) else {
+            return "matcher grid dimensions are outside safe bounds"
+        }
+        let gridCellCount = gridWidth * gridHeight
+        guard gridCellCount <= 4_096 else {
             return "matcher grid dimensions are outside safe bounds"
         }
         guard offsetMinimumSeconds >= -60,
@@ -95,8 +100,20 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
         }
         guard !multiScaleWidths.isEmpty,
               multiScaleWidths.count <= 16,
-              multiScaleWidths.allSatisfy({ (2...gridWidth).contains($0) }) else {
+              multiScaleWidths.allSatisfy({ (2...gridWidth).contains($0) }),
+              Set(multiScaleWidths).count == multiScaleWidths.count,
+              zip(multiScaleWidths, multiScaleWidths.dropFirst()).allSatisfy {
+                  $0.0 > $0.1
+              } else {
             return "matcher multi-scale widths are outside the configured grid"
+        }
+        let scaleCellCount = multiScaleWidths.reduce(0) { total, width in
+            let height = max(1, Int((Double(width) * Double(gridHeight) /
+                Double(gridWidth)).rounded()))
+            return total + width * height
+        }
+        guard scaleCellCount <= gridCellCount * 2 else {
+            return "matcher multi-scale proxy allocation exceeds safe bounds"
         }
         return nil
     }

@@ -11,7 +11,7 @@ public enum V4MetadataProbe {
            let root = runJSON(executable: ffprobe, arguments: [
                "-v", "error", "-show_streams", "-show_format", "-of", "json", url.path
            ]) {
-            return parseFFProbe(root, url: url)
+            return try parseFFProbe(root, url: url)
         }
 
         let metadata = try await MetadataProbe.probe(url: url)
@@ -37,7 +37,10 @@ public enum V4MetadataProbe {
         )
     }
 
-    private static func parseFFProbe(_ root: [String: Any], url: URL) -> V4StreamMetadata {
+    private static func parseFFProbe(
+        _ root: [String: Any],
+        url: URL
+    ) throws -> V4StreamMetadata {
         let streams = root["streams"] as? [[String: Any]] ?? []
         let video = streams.first(where: { ($0["codec_type"] as? String) == "video" }) ?? [:]
         let audioCount = streams.filter { ($0["codec_type"] as? String) == "audio" }.count
@@ -74,15 +77,32 @@ public enum V4MetadataProbe {
         let maxCLL = firstFloat(in: metadataValues, keys: ["max_content", "max_cll", "maxCLL"])
         let maxFALL = firstFloat(in: metadataValues, keys: ["max_average", "max_fall", "maxFALL"])
         let duration = double("duration") ?? numberAsDouble(format["duration"]) ?? 0
+        let frameRate = rational(string("avg_frame_rate") ?? string("r_frame_rate"))
+        let width = intValue(video["width"]) ?? 0
+        let height = intValue(video["height"]) ?? 0
+        let estimatedFrameCount = duration * frameRate
+        guard duration.isFinite,
+              duration >= 0,
+              duration <= Double(Int32.max),
+              frameRate.isFinite,
+              (0...1_000).contains(frameRate),
+              estimatedFrameCount.isFinite,
+              estimatedFrameCount <= Double(Int32.max),
+              (1...65_536).contains(width),
+              (1...65_536).contains(height) else {
+            throw CalibrationError.metadataUnavailable(
+                "ffprobe returned invalid or unsafe numeric metadata: \(url.path)"
+            )
+        }
 
         return V4StreamMetadata(
             path: url.path,
             durationSeconds: duration,
-            frameRate: rational(string("avg_frame_rate") ?? string("r_frame_rate")),
+            frameRate: frameRate,
             timeBase: string("time_base"),
             codec: string("codec_name"),
-            width: intValue(video["width"]) ?? 0,
-            height: intValue(video["height"]) ?? 0,
+            width: width,
+            height: height,
             pixelFormat: pixelFormat,
             bitDepth: bitDepth,
             colorRange: string("color_range"),
@@ -242,6 +262,34 @@ public enum V4AuditTemporalAligner {
                 rejectedFrames: sdr.samples.count
             )
         }
+        let expectedGridCount = V6MatcherConfiguration.v6.gridWidth *
+            V6MatcherConfiguration.v6.gridHeight
+        if let failure = FrameSequenceValidator.failure(
+            sdr, expectedGridCount: expectedGridCount
+        ) {
+            return rejection(
+                "invalid V4 audit SDR sequence: \(failure)",
+                rejectedFrames: sdr.samples.count
+            )
+        }
+        if let failure = FrameSequenceValidator.failure(
+            hdr, expectedGridCount: expectedGridCount
+        ) {
+            return rejection(
+                "invalid V4 audit HDR sequence: \(failure)",
+                rejectedFrames: sdr.samples.count
+            )
+        }
+        guard MonotonicTimestampPairer.workIsWithinBudget(
+            sdrCount: sdr.samples.count,
+            hdrCount: hdr.samples.count,
+            candidateCount: candidateCount
+        ) else {
+            return rejection(
+                "V4 audit alignment exceeds the bounded pairing work budget",
+                rejectedFrames: sdr.samples.count
+            )
+        }
         let maximumPairingDistance = maximumPairingDistanceSeconds(
             sdrFPS: sdr.nominalFrameRate,
             hdrFPS: hdr.nominalFrameRate,
@@ -368,27 +416,10 @@ public enum V4AuditTemporalAligner {
         offset: Double,
         maximumDistance: Double
     ) -> [(FrameSample, FrameSample)] {
-        var result: [(FrameSample, FrameSample)] = []
-        var usedHDRPositions = Set<Int>()
-        result.reserveCapacity(min(sdr.count, hdr.count))
-        for sample in sdr {
-            let target = sample.descriptor.timestampSeconds + offset
-            guard let nearest = hdr.lazy.filter({
-                !usedHDRPositions.contains($0.sequencePosition)
-            }).min(by: {
-                let leftDistance = abs($0.descriptor.timestampSeconds - target)
-                let rightDistance = abs($1.descriptor.timestampSeconds - target)
-                if leftDistance == rightDistance {
-                    return $0.sequencePosition < $1.sequencePosition
-                }
-                return leftDistance < rightDistance
-            }), abs(nearest.descriptor.timestampSeconds - target) <= maximumDistance else {
-                continue
-            }
-            usedHDRPositions.insert(nearest.sequencePosition)
-            result.append((sample, nearest))
-        }
-        return result
+        MonotonicTimestampPairer.pairs(
+            sdr: sdr, hdr: hdr,
+            offset: offset, maximumDistance: maximumDistance
+        )
     }
 
     private static func distance(_ lhs: FrameSample, _ rhs: FrameSample) -> Double {
@@ -443,13 +474,13 @@ public enum V4DatasetAuditor {
     /// Version and digest of the audit policy are part of the immutable
     /// evidence contract. A change to metadata, decode, alignment,
     /// eligibility, or diversity policy requires a fresh audit artifact.
-    public static let auditEvidenceVersion = "dataset-v4-audit-v2"
+    public static let auditEvidenceVersion = "dataset-v4-audit-v3"
 
     private static let auditConfigurationMaterial = """
-    metadata:explicit-bt709-sdr-with-documented-fallback-v3
+    metadata:explicit-bt709-sdr-with-documented-fallback-v4-bounded-numerics
     hdr:explicit-pq-or-hlg-v2
-    decode:first-middle-last-v2
-    alignment:temporal-spatial-v4
+    decode:first-middle-last-v3-bounded-proxy
+    alignment:temporal-spatial-v5-monotonic-max-cardinality
     virgin-evidence:manifest-bound-sha-vui-contiguous-decode-alignment-v1
     eligibility:main-calibration-only-v2
     diversity:eligible-records-only-v2

@@ -19,7 +19,7 @@ public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-matcher-evidence-v2",
+        version: String = "v6-matcher-evidence-v3",
         offsetMinimumSeconds: Double = -2,
         offsetMaximumSeconds: Double = 2,
         offsetStepSeconds: Double = 1.0 / 30.0,
@@ -653,6 +653,15 @@ public enum V6MatcherDiagnostics {
         try validateSequence(sdr, role: "SDR")
         try validateSequence(hdr, role: "HDR")
         let offsets = offsetCandidates(configuration)
+        guard MonotonicTimestampPairer.workIsWithinBudget(
+            sdrCount: sdr.samples.count,
+            hdrCount: hdr.samples.count,
+            candidateCount: offsets.count
+        ) else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostics exceed the bounded pairing work budget"
+            )
+        }
         let maximumPairingDistance = maximumPairingDistanceSeconds(
             sdrFPS: sdr.nominalFrameRate,
             hdrFPS: hdr.nominalFrameRate,
@@ -775,8 +784,8 @@ public enum V6MatcherDiagnostics {
               configuration.secondBestExclusionSeconds >= 0,
               configuration.secondBestExclusionSeconds <= 60,
               (1...64).contains(configuration.windowCount),
-              (16...4096).contains(configuration.proxyWidth),
-              (1...4096).contains(configuration.maxDecodedFrames),
+              (16...512).contains(configuration.proxyWidth),
+              (1...512).contains(configuration.maxDecodedFrames),
               (0...1).contains(configuration.acceptanceThreshold),
               !configuration.version.isEmpty,
               !configuration.matcherVersion.isEmpty,
@@ -792,9 +801,16 @@ public enum V6MatcherDiagnostics {
                 "matcher diagnostic offset grid exceeds 10000 candidates"
             )
         }
+        let expectedMatcher = V6MatcherConfiguration.v6
+        let expectedMatcherHash = try expectedMatcher.canonicalSHA256()
+        guard configuration.matcherVersion == expectedMatcher.matcherVersion,
+              configuration.matcherConfigurationHash == expectedMatcherHash else {
+            throw CalibrationError.incompleteEvaluation(
+                "matcher diagnostic identity does not match the implemented matcher"
+            )
+        }
         if requireSealedProduction {
             let expected = V6MatcherEvidenceConfiguration.v6
-            let expectedMatcherHash = try V6MatcherConfiguration.v6.canonicalSHA256()
             guard configuration == expected,
                   configuration.matcherConfigurationHash == expectedMatcherHash,
                   configuration.maxDecodedFrames == V6PreparationConfiguration.v6.maxDecodedFrames,
@@ -826,23 +842,12 @@ public enum V6MatcherDiagnostics {
         maximumPairingDistance: Double,
         metricCache: inout [MetricKey: Metrics]
     ) -> OffsetEvidence {
-        var pairs: [(FrameSample, FrameSample)] = []
+        let pairs = MonotonicTimestampPairer.pairs(
+            sdr: sdr, hdr: hdr,
+            offset: offset, maximumDistance: maximumPairingDistance
+        )
         var metrics: [Metrics] = []
-        var usedHDRPositions = Set<Int>()
-        for sample in sdr {
-            let target = sample.descriptor.timestampSeconds + offset
-            guard let nearest = hdr.lazy.filter({
-                !usedHDRPositions.contains($0.sequencePosition)
-            }).min(by: {
-                let leftDistance = abs($0.descriptor.timestampSeconds - target)
-                let rightDistance = abs($1.descriptor.timestampSeconds - target)
-                if leftDistance == rightDistance {
-                    return $0.sequencePosition < $1.sequencePosition
-                }
-                return leftDistance < rightDistance
-            }), abs(nearest.descriptor.timestampSeconds - target) <= maximumPairingDistance else {
-                continue
-            }
+        for (sample, nearest) in pairs {
             let key = MetricKey(
                 sdrSequencePosition: sample.sequencePosition,
                 hdrSequencePosition: nearest.sequencePosition
@@ -856,8 +861,6 @@ public enum V6MatcherDiagnostics {
                 measured = compare(left, right)
                 metricCache[key] = measured
             }
-            usedHDRPositions.insert(nearest.sequencePosition)
-            pairs.append((sample, nearest))
             metrics.append(measured)
         }
         return OffsetEvidence(
@@ -935,30 +938,12 @@ public enum V6MatcherDiagnostics {
     private static func validateSequence(_ sequence: FrameSequence, role: String) throws {
         let expectedGridCount = V6MatcherConfiguration.v6.gridWidth *
             V6MatcherConfiguration.v6.gridHeight
-        guard !sequence.samples.isEmpty,
-              Set(sequence.samples.map(\.sequencePosition)).count == sequence.samples.count else {
+        if let failure = FrameSequenceValidator.failure(
+            sequence, expectedGridCount: expectedGridCount
+        ) {
             throw CalibrationError.incompleteEvaluation(
-                "matcher diagnostics require non-empty \(role) samples with unique positions"
+                "matcher diagnostics found invalid \(role) sequence: \(failure)"
             )
-        }
-        for (index, sample) in sequence.samples.enumerated() {
-            guard sample.descriptor.timestampSeconds.isFinite,
-                  sample.lumaGrid.count == expectedGridCount,
-                  sample.lumaGrid.allSatisfy(\.isFinite) else {
-                throw CalibrationError.incompleteEvaluation(
-                    "matcher diagnostics found invalid \(role) proxy sample \(index)"
-                )
-            }
-            if index > 0 {
-                let previous = sequence.samples[index - 1]
-                guard sample.sequencePosition > previous.sequencePosition,
-                      sample.descriptor.timestampSeconds >=
-                        previous.descriptor.timestampSeconds else {
-                    throw CalibrationError.incompleteEvaluation(
-                        "matcher diagnostics require monotonic \(role) sample order"
-                    )
-                }
-            }
         }
     }
 

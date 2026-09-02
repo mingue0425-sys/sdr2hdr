@@ -343,13 +343,18 @@ public final class PairEvaluator {
     }
 
     func prepare(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
+        guard (1...512).contains(experiment.maxFramesPerScene) else {
+            throw CalibrationError.incompleteEvaluation(
+                "maxFramesPerScene is outside the supported 1...512 range"
+            )
+        }
         let urls = record.resolvedURLs(relativeTo: manifestURL)
         let hdrMetadata = try await MetadataProbe.probe(url: urls.hdr)
         if hdrMetadata.color.referenceTransfer == .hlg && !experiment.allowHLGModel {
             throw CalibrationError.unsupportedReference("HLG model disabled for \(record.id)")
         }
 
-        let maxFrames = max(64, experiment.maxFramesPerScene * 16)
+        let maxFrames = max(64, min(experiment.maxFramesPerScene, 32) * 16)
         let sdrSequence = try await FrameReader.read(
             url: urls.sdr,
             pixelFormat: CalibrationPixelFormat.sdrNV12,
@@ -513,6 +518,7 @@ public final class PairEvaluator {
             sdrDurationSeconds: sdrSequence.durationSeconds,
             hdrWidth: hdrSequence.width,
             hdrHeight: hdrSequence.height,
+            hdrNominalFrameRate: hdrSequence.nominalFrameRate,
             hdrDurationSeconds: hdrSequence.durationSeconds,
             decodedSDRFrameCount: sdrSequence.samples.count,
             decodedHDRFrameCount: hdrSequence.samples.count,
@@ -680,7 +686,12 @@ public final class PairEvaluator {
                 proxyWidth: preparation.proxyWidth
             )
             let count = min(sdr.samples.count, hdr.samples.count)
-            let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
+            let temporalPolicy = V4TemporalWindowPolicy(
+                targetFrameCount: preparation.temporalTargetFrameCount,
+                minimumRequiredFrameCount: preparation.temporalMinimumFrameCount,
+                warmupFrameCount: preparation.temporalWarmupFrameCount
+            )
+            let decision = temporalPolicy.decision(actualDecodedFrameCount: count)
             guard decision == plan.decision, count == plan.frames.count else {
                 throw CalibrationError.incompleteEvaluation(
                     "PreparedEvaluationPlan temporal decode mismatch for \(pairID)"

@@ -22,17 +22,68 @@ public enum MetadataProbe {
         let codec = descriptions.first.map {
             fourCC(CMFormatDescriptionGetMediaSubType($0))
         }
-        return VideoMetadata(
-            path: url.path,
+        let numeric = try validatedNumericMetadata(
             durationSeconds: duration.isNumeric ? duration.seconds : 0,
             frameRate: frameRate,
-            frameCount: frameRate > 0 && duration.isNumeric ? Int((duration.seconds * frameRate).rounded()) : nil,
-            width: Int(naturalSize.width),
-            height: Int(naturalSize.height),
+            width: Double(naturalSize.width),
+            height: Double(naturalSize.height)
+        )
+        return VideoMetadata(
+            path: url.path,
+            durationSeconds: numeric.durationSeconds,
+            frameRate: numeric.frameRate,
+            frameCount: numeric.frameCount,
+            width: numeric.width,
+            height: numeric.height,
             codec: codec,
             pixelFormat: nil,
             audioTrackCount: audioTracks.count,
             color: color
+        )
+    }
+
+    /// Validate file-derived numeric fields before any floating-point to
+    /// integer conversion. Malformed media metadata must produce a normal
+    /// decode error instead of trapping the calibration process.
+    static func validatedNumericMetadata(
+        durationSeconds: Double,
+        frameRate: Double,
+        width: Double,
+        height: Double
+    ) throws -> (
+        durationSeconds: Double,
+        frameRate: Double,
+        frameCount: Int?,
+        width: Int,
+        height: Int
+    ) {
+        guard durationSeconds.isFinite,
+              durationSeconds >= 0,
+              durationSeconds <= Double(Int32.max),
+              frameRate.isFinite,
+              (0...1_000).contains(frameRate),
+              width.isFinite,
+              height.isFinite,
+              (1...65_536).contains(width),
+              (1...65_536).contains(height) else {
+            throw CalibrationError.metadataUnavailable(
+                "video contains invalid or unsafe numeric metadata"
+            )
+        }
+        let estimatedFrames = durationSeconds * frameRate
+        guard estimatedFrames.isFinite,
+              estimatedFrames <= Double(Int32.max) else {
+            throw CalibrationError.metadataUnavailable(
+                "video frame count exceeds the supported timeline"
+            )
+        }
+        return (
+            durationSeconds,
+            frameRate,
+            frameRate > 0 && durationSeconds > 0
+                ? Int(estimatedFrames.rounded()) : nil,
+            Int(width.rounded()),
+            Int(height.rounded())
         )
     }
 
@@ -42,8 +93,25 @@ public enum MetadataProbe {
         hdr: VideoMetadata
     ) -> PairValidation {
         var notes: [String] = []
-        guard sdr.durationSeconds > 0, hdr.durationSeconds > 0 else {
-            return PairValidation(pair: record, sdrMetadata: sdr, hdrMetadata: hdr, status: .pairUncertain, notes: ["zero or unknown duration"])
+        guard sdr.durationSeconds.isFinite,
+              hdr.durationSeconds.isFinite,
+              sdr.durationSeconds > 0,
+              hdr.durationSeconds > 0,
+              sdr.frameRate.isFinite,
+              hdr.frameRate.isFinite,
+              sdr.frameRate >= 0,
+              hdr.frameRate >= 0,
+              sdr.width > 0,
+              sdr.height > 0,
+              hdr.width > 0,
+              hdr.height > 0 else {
+            return PairValidation(
+                pair: record,
+                sdrMetadata: sdr,
+                hdrMetadata: hdr,
+                status: .pairUncertain,
+                notes: ["invalid, zero, or unknown stream metadata"]
+            )
         }
         guard hdr.color.referenceTransfer == .pq || hdr.color.referenceTransfer == .hlg else {
             notes.append("HDR transfer is \(hdr.color.transfer ?? "missing"), not PQ; HLG/unknown references are excluded")
@@ -91,18 +159,15 @@ public enum MetadataProbe {
         var maxCLL: Float?
         var maxFALL: Float?
         var masteringPeak: Float?
-        if let data = extensions[kCMFormatDescriptionExtension_ContentLightLevelInfo as String] as? Data, data.count >= 4 {
-            maxCLL = Float(data.withUnsafeBytes { bytes in
-                UInt16(bigEndian: bytes.load(fromByteOffset: 0, as: UInt16.self))
-            })
-            maxFALL = Float(data.withUnsafeBytes { bytes in
-                UInt16(bigEndian: bytes.load(fromByteOffset: 2, as: UInt16.self))
-            })
+        if let data = extensions[kCMFormatDescriptionExtension_ContentLightLevelInfo as String] as? Data,
+           let contentPeak = bigEndianUInt16(data, offset: 0),
+           let frameAverage = bigEndianUInt16(data, offset: 2) {
+            maxCLL = Float(contentPeak)
+            maxFALL = Float(frameAverage)
         }
-        if let data = extensions[kCMFormatDescriptionExtension_MasteringDisplayColorVolume as String] as? Data, data.count >= 24 {
-            masteringPeak = Float(data.withUnsafeBytes { bytes in
-                UInt32(bigEndian: bytes.load(fromByteOffset: 16, as: UInt32.self))
-            }) * 0.0001
+        if let data = extensions[kCMFormatDescriptionExtension_MasteringDisplayColorVolume as String] as? Data,
+           let peak = bigEndianUInt32(data, offset: 16) {
+            masteringPeak = Float(peak) * 0.0001
         }
         return ColorMetadataSummary(
             primaries: string(kCMFormatDescriptionExtension_ColorPrimaries),
@@ -114,6 +179,25 @@ public enum MetadataProbe {
             maxCLL: maxCLL,
             maxFALL: maxFALL
         )
+    }
+
+    private static func bigEndianUInt16(_ data: Data, offset: Int) -> UInt16? {
+        guard offset >= 0, data.count - offset >= 2 else { return nil }
+        return data.withUnsafeBytes { raw in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            return UInt16(bytes[offset]) << 8 | UInt16(bytes[offset + 1])
+        }
+    }
+
+    private static func bigEndianUInt32(_ data: Data, offset: Int) -> UInt32? {
+        guard offset >= 0, data.count - offset >= 4 else { return nil }
+        return data.withUnsafeBytes { raw in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            return UInt32(bytes[offset]) << 24 |
+                UInt32(bytes[offset + 1]) << 16 |
+                UInt32(bytes[offset + 2]) << 8 |
+                UInt32(bytes[offset + 3])
+        }
     }
 
     private static func fourCC(_ value: FourCharCode) -> String {

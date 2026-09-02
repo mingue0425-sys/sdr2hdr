@@ -1,3 +1,4 @@
+import CoreMedia
 import Foundation
 
 public struct SceneRange: Codable, Sendable {
@@ -48,6 +49,210 @@ public struct SceneRange: Codable, Sendable {
         try container.encode(startSequencePosition, forKey: .startSequencePosition)
         try container.encode(endSequencePosition, forKey: .endSequencePosition)
         try container.encode(tags, forKey: .tags)
+    }
+}
+
+/// Produces a deterministic, one-to-one timestamp pairing without allowing
+/// either source timeline to run backwards. The objective is lexicographic:
+/// preserve the maximum number of usable pairs first, then minimize total
+/// timestamp error among solutions with the same cardinality.
+enum MonotonicTimestampPairer {
+    private static let maximumWorkCells = 50_000_000
+
+    private struct Score {
+        let pairCount: Int
+        let totalDistance: Double
+    }
+
+    private enum Decision: UInt8 {
+        case end
+        case skipSDR
+        case skipHDR
+        case match
+
+        var tieBreakPriority: Int {
+            switch self {
+            case .match: return 3
+            case .skipHDR: return 2
+            case .skipSDR: return 1
+            case .end: return 0
+            }
+        }
+    }
+
+    static func pairs(
+        sdr: [FrameSample],
+        hdr: [FrameSample],
+        offset: Double,
+        maximumDistance: Double
+    ) -> [(FrameSample, FrameSample)] {
+        guard !sdr.isEmpty, !hdr.isEmpty,
+              sdr.count <= 512, hdr.count <= 512,
+              offset.isFinite, maximumDistance.isFinite,
+              maximumDistance >= 0 else { return [] }
+
+        let columnCount = hdr.count + 1
+        func cell(_ sdrIndex: Int, _ hdrIndex: Int) -> Int {
+            sdrIndex * columnCount + hdrIndex
+        }
+
+        let cellCount = (sdr.count + 1) * columnCount
+        var scores = Array(
+            repeating: Score(pairCount: 0, totalDistance: 0),
+            count: cellCount
+        )
+        var decisions = Array(repeating: Decision.end, count: cellCount)
+
+        func preferred(
+            _ candidate: Score,
+            candidateDecision: Decision,
+            over current: Score,
+            currentDecision: Decision
+        ) -> Bool {
+            if candidate.pairCount != current.pairCount {
+                return candidate.pairCount > current.pairCount
+            }
+            if candidate.totalDistance != current.totalDistance {
+                return candidate.totalDistance < current.totalDistance
+            }
+            return candidateDecision.tieBreakPriority > currentDecision.tieBreakPriority
+        }
+
+        for sdrIndex in stride(from: sdr.count - 1, through: 0, by: -1) {
+            for hdrIndex in stride(from: hdr.count - 1, through: 0, by: -1) {
+                var best = scores[cell(sdrIndex + 1, hdrIndex)]
+                var decision = Decision.skipSDR
+
+                let skipHDR = scores[cell(sdrIndex, hdrIndex + 1)]
+                if preferred(
+                    skipHDR, candidateDecision: .skipHDR,
+                    over: best, currentDecision: decision
+                ) {
+                    best = skipHDR
+                    decision = .skipHDR
+                }
+
+                let distance = abs(
+                    hdr[hdrIndex].descriptor.timestampSeconds -
+                        (sdr[sdrIndex].descriptor.timestampSeconds + offset)
+                )
+                if distance <= maximumDistance {
+                    let suffix = scores[cell(sdrIndex + 1, hdrIndex + 1)]
+                    let matched = Score(
+                        pairCount: suffix.pairCount + 1,
+                        totalDistance: suffix.totalDistance + distance
+                    )
+                    if preferred(
+                        matched, candidateDecision: .match,
+                        over: best, currentDecision: decision
+                    ) {
+                        best = matched
+                        decision = .match
+                    }
+                }
+
+                scores[cell(sdrIndex, hdrIndex)] = best
+                decisions[cell(sdrIndex, hdrIndex)] = decision
+            }
+        }
+
+        var result: [(FrameSample, FrameSample)] = []
+        result.reserveCapacity(scores[cell(0, 0)].pairCount)
+        var sdrIndex = 0
+        var hdrIndex = 0
+        while sdrIndex < sdr.count, hdrIndex < hdr.count {
+            switch decisions[cell(sdrIndex, hdrIndex)] {
+            case .match:
+                result.append((sdr[sdrIndex], hdr[hdrIndex]))
+                sdrIndex += 1
+                hdrIndex += 1
+            case .skipSDR:
+                sdrIndex += 1
+            case .skipHDR:
+                hdrIndex += 1
+            case .end:
+                sdrIndex = sdr.count
+                hdrIndex = hdr.count
+            }
+        }
+        return result
+    }
+
+    /// Bounds the aggregate DP work across offset search, window search, and
+    /// final materialization. Callers validate actual sequence sizes first, so
+    /// this calculation can stay exact without trusting configured maxima.
+    static func workIsWithinBudget(
+        sdrCount: Int,
+        hdrCount: Int,
+        candidateCount: Int,
+        passCount: Int = 3
+    ) -> Bool {
+        guard sdrCount > 0, hdrCount > 0,
+              candidateCount > 0, passCount > 0,
+              sdrCount <= 512, hdrCount <= 512 else { return false }
+        let cellCount = (sdrCount + 1) * (hdrCount + 1)
+        return candidateCount <= maximumWorkCells / cellCount / passCount
+    }
+}
+
+enum FrameSequenceValidator {
+    static func failure(
+        _ sequence: FrameSequence,
+        expectedGridCount: Int
+    ) -> String? {
+        guard sequence.width > 0, sequence.height > 0,
+              sequence.nominalFrameRate.isFinite,
+              sequence.nominalFrameRate >= 0,
+              sequence.durationSeconds.isFinite,
+              sequence.durationSeconds >= 0 else {
+            return "sequence metadata contains invalid dimensions, rate, or duration"
+        }
+        guard !sequence.samples.isEmpty else { return "sequence has no samples" }
+        guard sequence.samples.count <= 512 else {
+            return "sequence exceeds the 512-sample alignment safety bound"
+        }
+        guard Set(sequence.samples.map(\.sequencePosition)).count ==
+                sequence.samples.count else {
+            return "duplicate sequence positions"
+        }
+        for (index, sample) in sequence.samples.enumerated() {
+            let descriptor = sample.descriptor
+            guard descriptor.histogram.count == 16,
+                  sample.lumaGrid.count == expectedGridCount else {
+                return "sample \(index) has an invalid descriptor or proxy shape"
+            }
+            let histogramSum = descriptor.histogram.reduce(0, +)
+            let sampleTimestamp = sample.timestamp.isNumeric ? sample.timestamp.seconds : .nan
+            guard sample.index >= 0,
+                  sample.sequencePosition == index,
+                  sampleTimestamp.isFinite,
+                  descriptor.timestampSeconds.isFinite,
+                  abs(sampleTimestamp - descriptor.timestampSeconds) <= 1e-9,
+                  descriptor.meanLuma.isFinite,
+                  descriptor.variance.isFinite,
+                  descriptor.edgeEnergy.isFinite,
+                  (0...1).contains(descriptor.meanLuma),
+                  (0...0.251).contains(descriptor.variance),
+                  (0...1).contains(descriptor.edgeEnergy),
+                  descriptor.histogram.allSatisfy {
+                    $0.isFinite && (0...1).contains($0)
+                  },
+                  abs(histogramSum - 1) <= 0.001,
+                  sample.lumaGrid.allSatisfy {
+                    $0.isFinite && (0...1).contains($0)
+                  } else {
+                return "sample \(index) contains invalid descriptor or proxy data"
+            }
+            if index > 0 {
+                let previous = sequence.samples[index - 1]
+                guard sample.index > previous.index,
+                      descriptor.timestampSeconds >
+                        previous.descriptor.timestampSeconds else {
+                    return "samples are not in monotonic sequence/timestamp order"
+                }
+            }
+        }
+        return nil
     }
 }
 
@@ -107,11 +312,25 @@ public enum TemporalAligner {
             )
         }
         let expectedGridCount = matcherConfiguration.gridWidth * matcherConfiguration.gridHeight
-        if let failure = sequenceValidationFailure(sdr, expectedGridCount: expectedGridCount) {
+        if let failure = FrameSequenceValidator.failure(
+            sdr, expectedGridCount: expectedGridCount
+        ) {
             return rejection("invalid SDR sequence: \(failure)", rejectedFrames: sdr.samples.count)
         }
-        if let failure = sequenceValidationFailure(hdr, expectedGridCount: expectedGridCount) {
+        if let failure = FrameSequenceValidator.failure(
+            hdr, expectedGridCount: expectedGridCount
+        ) {
             return rejection("invalid HDR sequence: \(failure)", rejectedFrames: sdr.samples.count)
+        }
+        guard MonotonicTimestampPairer.workIsWithinBudget(
+            sdrCount: sdr.samples.count,
+            hdrCount: hdr.samples.count,
+            candidateCount: offsetCount
+        ) else {
+            return rejection(
+                "alignment search exceeds the bounded pairing work budget",
+                rejectedFrames: sdr.samples.count
+            )
         }
         let sdrFeatures = Dictionary(uniqueKeysWithValues: sdr.samples.map {
             ($0.sequencePosition, V6TransferInvariantMatcher.features(
@@ -256,35 +475,6 @@ public enum TemporalAligner {
         )
     }
 
-    private static func sequenceValidationFailure(
-        _ sequence: FrameSequence,
-        expectedGridCount: Int
-    ) -> String? {
-        guard Set(sequence.samples.map(\.sequencePosition)).count == sequence.samples.count else {
-            return "duplicate sequence positions"
-        }
-        for (index, sample) in sequence.samples.enumerated() {
-            guard sample.descriptor.timestampSeconds.isFinite,
-                  sample.descriptor.meanLuma.isFinite,
-                  sample.descriptor.variance.isFinite,
-                  sample.descriptor.edgeEnergy.isFinite,
-                  sample.descriptor.histogram.allSatisfy(\.isFinite),
-                  sample.lumaGrid.count == expectedGridCount,
-                  sample.lumaGrid.allSatisfy(\.isFinite) else {
-                return "sample \(index) contains invalid descriptor or proxy data"
-            }
-            if index > 0 {
-                let previous = sequence.samples[index - 1]
-                guard sample.sequencePosition > previous.sequencePosition,
-                      sample.descriptor.timestampSeconds >=
-                        previous.descriptor.timestampSeconds else {
-                    return "samples are not in monotonic sequence/timestamp order"
-                }
-            }
-        }
-        return nil
-    }
-
     private static func offsetCandidates(
         range: ClosedRange<Double>,
         step: Double
@@ -336,27 +526,10 @@ public enum TemporalAligner {
         offset: Double,
         maximumDistance: Double
     ) -> [(FrameSample, FrameSample)] {
-        var result: [(FrameSample, FrameSample)] = []
-        var usedHDRPositions = Set<Int>()
-        result.reserveCapacity(min(sdr.count, hdr.count))
-        for sample in sdr {
-            let target = sample.descriptor.timestampSeconds + offset
-            guard let nearest = hdr.lazy.filter({
-                !usedHDRPositions.contains($0.sequencePosition)
-            }).min(by: {
-                let leftDistance = abs($0.descriptor.timestampSeconds - target)
-                let rightDistance = abs($1.descriptor.timestampSeconds - target)
-                if leftDistance == rightDistance {
-                    return $0.sequencePosition < $1.sequencePosition
-                }
-                return leftDistance < rightDistance
-            }), abs(nearest.descriptor.timestampSeconds - target) <= maximumDistance else {
-                continue
-            }
-            usedHDRPositions.insert(nearest.sequencePosition)
-            result.append((sample, nearest))
-        }
-        return result
+        MonotonicTimestampPairer.pairs(
+            sdr: Array(sdr), hdr: hdr,
+            offset: offset, maximumDistance: maximumDistance
+        )
     }
 
     private static func quantiles(_ values: [Double]) -> V6ConfidenceQuantiles {

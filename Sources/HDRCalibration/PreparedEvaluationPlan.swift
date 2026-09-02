@@ -33,7 +33,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v3",
+        version: String = "v6-prepared-evaluation-plan-v4",
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -99,19 +99,20 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               !temporalSelectionPolicy.isEmpty else {
             return "preparation configuration contains an empty policy identifier"
         }
-        guard (1...1024).contains(maxFramesPerScene),
-              (1...4096).contains(maxDecodedFrames),
+        guard (1...512).contains(maxFramesPerScene),
+              (1...512).contains(maxDecodedFrames),
               maxDecodedFrames >= maxFramesPerScene,
-              (16...4096).contains(proxyWidth) else {
+              (16...512).contains(proxyWidth) else {
             return "preparation frame or proxy bounds are invalid"
         }
-        guard (0...1).contains(alignmentConfidenceThreshold),
+        guard alignmentConfidenceThreshold == 0,
               (0...1).contains(acceptedConfidenceThreshold),
               acceptedConfidenceThreshold == matcherConfiguration.acceptedConfidenceThreshold else {
             return "preparation and matcher confidence thresholds are invalid or inconsistent"
         }
         guard temporalFramesPerSecond >= 1, temporalFramesPerSecond <= 240,
               temporalTargetFrameCount > 0,
+              temporalTargetFrameCount <= maxDecodedFrames,
               temporalMinimumFrameCount > 0,
               temporalMinimumFrameCount <= temporalTargetFrameCount,
               temporalWarmupFrameCount >= 0,
@@ -119,7 +120,8 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
             return "preparation temporal-window bounds are invalid"
         }
         guard referenceTargetPeakNits >= 1, referenceTargetPeakNits <= 10_000,
-              sdrPixelFormat != 0, hdrPixelFormat != 0 else {
+              sdrPixelFormat == CalibrationPixelFormat.sdrNV12,
+              hdrPixelFormat == CalibrationPixelFormat.hdrP010 else {
             return "preparation reference or pixel-format values are invalid"
         }
         guard preparationAlgorithmVersion == matcherConfiguration.preparationAlgorithmVersion,
@@ -230,6 +232,7 @@ public struct V6DecodeMetadata: Codable, Hashable, Sendable {
     public let sdrDurationSeconds: Double
     public let hdrWidth: Int
     public let hdrHeight: Int
+    public let hdrNominalFrameRate: Double
     public let hdrDurationSeconds: Double
     public let decodedSDRFrameCount: Int
     public let decodedHDRFrameCount: Int
@@ -244,6 +247,7 @@ public struct V6DecodeMetadata: Codable, Hashable, Sendable {
         sdrDurationSeconds: Double,
         hdrWidth: Int,
         hdrHeight: Int,
+        hdrNominalFrameRate: Double,
         hdrDurationSeconds: Double,
         decodedSDRFrameCount: Int,
         decodedHDRFrameCount: Int,
@@ -257,6 +261,7 @@ public struct V6DecodeMetadata: Codable, Hashable, Sendable {
         self.sdrDurationSeconds = sdrDurationSeconds
         self.hdrWidth = hdrWidth
         self.hdrHeight = hdrHeight
+        self.hdrNominalFrameRate = hdrNominalFrameRate
         self.hdrDurationSeconds = hdrDurationSeconds
         self.decodedSDRFrameCount = decodedSDRFrameCount
         self.decodedHDRFrameCount = decodedHDRFrameCount
@@ -366,7 +371,7 @@ public struct PreparedEvaluationPlan: Codable, Hashable, Sendable {
     public let pairs: [V6PreparedPairPlan]
 
     public init(
-        schemaVersion: String = "v6-prepared-evaluation-plan-v3",
+        schemaVersion: String = "v6-prepared-evaluation-plan-v4",
         scope: String,
         pairOrder: [String],
         preparation: V6PreparationConfiguration,
@@ -428,7 +433,8 @@ public enum V6PreparedEvaluationPlanLoader {
 
 private enum V6PreparedEvaluationPlanSemantics {
     static func validate(_ plan: PreparedEvaluationPlan) throws {
-        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v3",
+        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v4",
+              plan.preparation.version == "v6-prepared-evaluation-plan-v4",
               plan.scope == "TUNE_VALIDATION" || plan.scope == "VIRGIN_FROZEN",
               !plan.pairOrder.isEmpty,
               Set(plan.pairOrder).count == plan.pairOrder.count,
@@ -440,41 +446,90 @@ private enum V6PreparedEvaluationPlanSemantics {
         }
         for pair in plan.pairs {
             let alignment = pair.alignment
+            let matcher = plan.preparation.matcherConfiguration
+            let offsetMinimum = matcher.offsetMinimumSeconds
+            let offsetMaximum = matcher.offsetMaximumSeconds
+            let permittedOffsetRange = offsetMinimum...offsetMaximum
+            let windowMinimum = alignment.perWindowOffsets.min() ?? 0
+            let windowMaximum = alignment.perWindowOffsets.max() ?? 0
+            let expectedDrift = windowMaximum - windowMinimum
+            let sortedConfidences = alignment.matchedFrames.map(\.confidence).sorted()
+            let expectedMedian = sortedConfidences.isEmpty
+                ? -1 : sortedConfidences[sortedConfidences.count / 2]
+            let expectedQuantiles = confidenceQuantiles(sortedConfidences)
+            let expectedStatus = abs(alignment.coarseOffsetSeconds) > 0.01 ||
+                alignment.rejectedFrameCount > 0
+                ? "PAIR_NEEDS_ALIGNMENT" : "ALIGNED"
             guard !pair.pairID.isEmpty,
+                  (plan.scope == "VIRGIN_FROZEN" ?
+                    pair.split == .frozen : pair.split != .frozen),
                   portable(pair.sdrPath), portable(pair.hdrPath),
                   canonicalSHA256(pair.inputHashes.sdrSHA256),
                   canonicalSHA256(pair.inputHashes.hdrSHA256),
-                  pair.decode.sdrWidth > 0, pair.decode.sdrHeight > 0,
-                  pair.decode.hdrWidth > 0, pair.decode.hdrHeight > 0,
+                  (1...512).contains(pair.decode.sdrWidth),
+                  (1...512).contains(pair.decode.hdrWidth),
+                  (2...4_096).contains(pair.decode.sdrHeight),
+                  (2...4_096).contains(pair.decode.hdrHeight),
+                  pair.decode.sdrHeight.isMultiple(of: 2),
+                  pair.decode.hdrHeight.isMultiple(of: 2),
                   pair.decode.decodedSDRFrameCount > 0,
                   pair.decode.decodedHDRFrameCount > 0,
+                  pair.decode.decodedSDRFrameCount <= plan.preparation.maxDecodedFrames,
+                  pair.decode.decodedHDRFrameCount <= plan.preparation.maxDecodedFrames,
                   pair.decode.sdrNominalFrameRate.isFinite,
+                  pair.decode.sdrNominalFrameRate > 0,
+                  pair.decode.sdrNominalFrameRate <= 1_000,
+                  pair.decode.hdrNominalFrameRate.isFinite,
+                  pair.decode.hdrNominalFrameRate > 0,
+                  pair.decode.hdrNominalFrameRate <= 1_000,
                   pair.decode.sdrDurationSeconds.isFinite,
                   pair.decode.hdrDurationSeconds.isFinite,
                   pair.decode.sdrDurationSeconds >= 0,
                   pair.decode.hdrDurationSeconds >= 0,
+                  pair.decode.sdrPixelFormat == plan.preparation.sdrPixelFormat,
+                  pair.decode.hdrPixelFormat == plan.preparation.hdrPixelFormat,
                   alignment.matcherConfigurationHash ==
                     plan.preparation.matcherConfigurationHash,
-                  alignment.status != "REJECT",
+                  alignment.status == expectedStatus,
                   alignment.matchedFrameCount == alignment.matchedFrames.count,
+                  alignment.matchedFrameCount <= pair.decode.decodedSDRFrameCount,
+                  alignment.matchedFrameCount <= pair.decode.decodedHDRFrameCount,
                   alignment.acceptedFrameCount == alignment.acceptedFrames.count,
                   alignment.acceptedFrameCount > 0,
                   alignment.rejectedFrameCount >= 0,
+                  alignment.rejectedFrameCount <= pair.decode.decodedSDRFrameCount,
                   alignment.rawAcceptedFrameCount >= 0,
                   alignment.rawAcceptedFrameCount <= alignment.matchedFrameCount,
+                  alignment.matchedFrameCount == pair.decode.decodedSDRFrameCount -
+                    alignment.rejectedFrameCount,
                   alignment.rawAcceptanceRatio.isFinite,
                   (0...1).contains(alignment.rawAcceptanceRatio),
                   alignment.medianConfidence.isFinite,
                   (0...1).contains(alignment.medianConfidence),
+                  alignment.medianConfidence == expectedMedian,
                   alignment.coarseOffsetSeconds.isFinite,
                   alignment.secondBestOffsetSeconds.isFinite,
                   alignment.bestVersusSecondMargin.isFinite,
+                  alignment.bestVersusSecondMargin >= -1e-12,
+                  permittedOffsetRange.contains(alignment.coarseOffsetSeconds),
+                  permittedOffsetRange.contains(alignment.secondBestOffsetSeconds),
                   alignment.offsetDriftSeconds.isFinite,
                   alignment.offsetDriftSeconds >= 0,
                   !alignment.perWindowOffsets.isEmpty,
-                  alignment.perWindowOffsets.allSatisfy(\.isFinite),
+                  alignment.perWindowOffsets.count <= 8,
+                  alignment.perWindowOffsets.allSatisfy {
+                    $0.isFinite && permittedOffsetRange.contains($0)
+                  },
+                  abs(expectedDrift - alignment.offsetDriftSeconds) <= 1e-12,
+                  alignment.confidenceQuantiles == expectedQuantiles,
                   identitiesAreValid(alignment.matchedFrames),
-                  identitiesAreValid(alignment.acceptedFrames) else {
+                  identitiesAreValid(alignment.acceptedFrames),
+                  identitiesFitDecodedSequences(
+                    alignment.matchedFrames,
+                    sdrCount: pair.decode.decodedSDRFrameCount,
+                    hdrCount: pair.decode.decodedHDRFrameCount
+                  ),
+                  identitiesAreStrictlyMonotonic(alignment.matchedFrames) else {
                 throw CalibrationError.incompleteEvaluation(
                     "PreparedEvaluationPlan has invalid pair evidence for \(pair.pairID)"
                 )
@@ -486,6 +541,9 @@ private enum V6PreparedEvaluationPlanSemantics {
             let expectedRatio = alignment.matchedFrames.isEmpty ? 0 :
                 Double(expectedRawAccepted) / Double(alignment.matchedFrames.count)
             guard alignment.acceptedFrames.allSatisfy(rawIdentitySet.contains),
+                  alignment.acceptedFrames.allSatisfy {
+                    $0.confidence >= plan.preparation.acceptedConfidenceThreshold
+                  },
                   expectedRawAccepted == alignment.rawAcceptedFrameCount,
                   abs(expectedRatio - alignment.rawAcceptanceRatio) <= 1e-12,
                   Set(alignment.matchedFrames.map(\.sdrSequencePosition)).count ==
@@ -496,12 +554,34 @@ private enum V6PreparedEvaluationPlanSemantics {
                     "PreparedEvaluationPlan identity or acceptance evidence is inconsistent for \(pair.pairID)"
                 )
             }
+            try validateSceneAndTemporalEvidence(
+                pair,
+                preparation: plan.preparation
+            )
         }
     }
 
     private static func portable(_ path: String) -> Bool {
-        !path.isEmpty && !path.hasPrefix("/") && !path.hasPrefix("~") &&
-            !path.contains("\\") && !path.split(separator: "/").contains("..")
+        guard !path.isEmpty,
+              path == path.trimmingCharacters(in: .whitespacesAndNewlines),
+              !path.contains("\\"),
+              !path.unicodeScalars.contains(where: {
+                CharacterSet.controlCharacters.contains($0)
+              })
+        else { return false }
+        let relative: Substring
+        if let separator = path.firstIndex(of: ":") {
+            let alias = path[..<separator]
+            guard !alias.isEmpty,
+                  alias.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" })
+            else { return false }
+            relative = path[path.index(after: separator)...]
+        } else {
+            relative = path[...]
+        }
+        return !relative.isEmpty && !relative.hasPrefix("/") &&
+            !relative.hasPrefix("~") &&
+            !relative.split(separator: "/").contains("..")
     }
 
     private static func canonicalSHA256(_ value: String) -> Bool {
@@ -517,6 +597,130 @@ private enum V6PreparedEvaluationPlanSemantics {
                 $0.hdrSourceFrameIndex >= 0 && $0.hdrSequencePosition >= 0 &&
                 $0.sdrTimestampSeconds.isFinite && $0.hdrTimestampSeconds.isFinite &&
                 $0.confidence.isFinite && (0...1).contains($0.confidence)
+        }
+    }
+
+    private static func identitiesAreStrictlyMonotonic(
+        _ values: [V6PreparedFrameIdentity]
+    ) -> Bool {
+        zip(values, values.dropFirst()).allSatisfy {
+            $0.0.sdrSequencePosition < $0.1.sdrSequencePosition &&
+                $0.0.hdrSequencePosition < $0.1.hdrSequencePosition &&
+                $0.0.sdrTimestampSeconds <= $0.1.sdrTimestampSeconds &&
+                $0.0.hdrTimestampSeconds <= $0.1.hdrTimestampSeconds
+        }
+    }
+
+    private static func identitiesFitDecodedSequences(
+        _ values: [V6PreparedFrameIdentity],
+        sdrCount: Int,
+        hdrCount: Int
+    ) -> Bool {
+        values.allSatisfy {
+            $0.sdrSequencePosition < sdrCount &&
+                $0.hdrSequencePosition < hdrCount
+        }
+    }
+
+    private static func confidenceQuantiles(
+        _ sortedValues: [Double]
+    ) -> V6ConfidenceQuantiles {
+        func value(_ fraction: Double) -> Double {
+            guard !sortedValues.isEmpty else { return 0 }
+            return sortedValues[min(
+                sortedValues.count - 1,
+                Int(Double(sortedValues.count - 1) * fraction)
+            )]
+        }
+        return V6ConfidenceQuantiles(
+            minimum: value(0),
+            p10: value(0.10),
+            p25: value(0.25),
+            p50: value(0.50),
+            p75: value(0.75),
+            p90: value(0.90),
+            maximum: value(1)
+        )
+    }
+
+    private static func validateSceneAndTemporalEvidence(
+        _ pair: V6PreparedPairPlan,
+        preparation: V6PreparationConfiguration
+    ) throws {
+        let sceneIDs = pair.scenes.map(\.id)
+        let scenesValid = !pair.scenes.isEmpty &&
+            Set(sceneIDs).count == sceneIDs.count &&
+            pair.scenes.first?.startSequencePosition == 0 &&
+            pair.scenes.last?.endSequencePosition ==
+                pair.decode.decodedSDRFrameCount - 1 &&
+            pair.scenes.allSatisfy { scene in
+                !scene.id.isEmpty &&
+                    scene.startSequencePosition >= 0 &&
+                    scene.endSequencePosition >= scene.startSequencePosition &&
+                    scene.endSequencePosition < pair.decode.decodedSDRFrameCount &&
+                    scene.acceptedSequencePositions ==
+                        scene.acceptedSequencePositions.sorted() &&
+                    Set(scene.acceptedSequencePositions).count ==
+                        scene.acceptedSequencePositions.count &&
+                    scene.acceptedSequencePositions.allSatisfy {
+                        $0 >= scene.startSequencePosition &&
+                            $0 <= scene.endSequencePosition
+                    }
+            } &&
+            zip(pair.scenes, pair.scenes.dropFirst()).allSatisfy {
+                $0.0.endSequencePosition + 1 == $0.1.startSequencePosition
+            }
+        let sceneAcceptedPositions = pair.scenes.flatMap(\.acceptedSequencePositions)
+        let alignmentAcceptedPositions = pair.alignment.acceptedFrames.map(
+            \.sdrSequencePosition
+        )
+        guard scenesValid,
+              sceneAcceptedPositions == alignmentAcceptedPositions else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan scene evidence is inconsistent for \(pair.pairID)"
+            )
+        }
+
+        let temporalPolicy = V4TemporalWindowPolicy(
+            targetFrameCount: preparation.temporalTargetFrameCount,
+            minimumRequiredFrameCount: preparation.temporalMinimumFrameCount,
+            warmupFrameCount: preparation.temporalWarmupFrameCount
+        )
+        let matcherMinimum = preparation.matcherConfiguration.offsetMinimumSeconds
+        let matcherMaximum = preparation.matcherConfiguration.offsetMaximumSeconds
+        let matcherRange = matcherMinimum...matcherMaximum
+        guard Set(pair.temporalWindows.map(\.sceneID)).count ==
+                pair.temporalWindows.count else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan has duplicate temporal scene windows for \(pair.pairID)"
+            )
+        }
+        for window in pair.temporalWindows {
+            let expectedDecision = temporalPolicy.decision(
+                actualDecodedFrameCount: window.frames.count
+            )
+            let expectedEvaluationAcceptance = expectedDecision.accepted &&
+                (window.frames.first.map {
+                    $0.confidence >= preparation.acceptedConfidenceThreshold
+                } ?? false)
+            guard sceneIDs.contains(window.sceneID),
+                  window.startSeconds.isFinite,
+                  window.startSeconds >= 0,
+                  window.offsetSeconds.isFinite,
+                  matcherRange.contains(window.offsetSeconds),
+                  window.frames.count <= preparation.temporalTargetFrameCount,
+                  identitiesAreValid(window.frames),
+                  identitiesAreStrictlyMonotonic(window.frames),
+                  window.frames.enumerated().allSatisfy {
+                      $0.element.sdrSequencePosition == $0.offset &&
+                          $0.element.hdrSequencePosition == $0.offset
+                  },
+                  window.decision == expectedDecision,
+                  window.evaluationAccepted == expectedEvaluationAcceptance else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan temporal evidence is inconsistent for \(pair.pairID)"
+                )
+            }
         }
     }
 }
@@ -559,7 +763,7 @@ enum V6PreparedEvaluationPlanBuilder {
         preparation: V6PreparationConfiguration
     ) throws {
         try V6PreparedEvaluationPlanSemantics.validate(plan)
-        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v3",
+        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v4",
               plan.scope == scope,
               plan.preparation == preparation,
               plan.preparation.matcherConfigurationHash ==
@@ -654,12 +858,14 @@ enum V6PreparedEvaluationPlanBuilder {
                 )
             )
         }
-        return PreparedEvaluationPlan(
+        let plan = PreparedEvaluationPlan(
             scope: scope,
             pairOrder: ordered.map(\.record.id),
             preparation: configuration,
             pairs: pairPlans
         )
+        try V6PreparedEvaluationPlanSemantics.validate(plan)
+        return plan
     }
 
     static func acceptedMatches(
@@ -796,6 +1002,7 @@ enum V6PreparedEvaluationPlanBuilder {
             sdrDurationSeconds: prepared.sdrSequence.durationSeconds,
             hdrWidth: prepared.hdrSequence.width,
             hdrHeight: prepared.hdrSequence.height,
+            hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
             decodedSDRFrameCount: prepared.sdrSequence.samples.count,
             decodedHDRFrameCount: prepared.hdrSequence.samples.count,
@@ -918,6 +1125,7 @@ enum V6PreparedEvaluationPlanBuilder {
             sdrDurationSeconds: prepared.sdrSequence.durationSeconds,
             hdrWidth: prepared.hdrSequence.width,
             hdrHeight: prepared.hdrSequence.height,
+            hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
             decodedSDRFrameCount: prepared.sdrSequence.samples.count,
             decodedHDRFrameCount: prepared.hdrSequence.samples.count,
@@ -1034,13 +1242,34 @@ enum V6PreparedEvaluationPlanBuilder {
         }
         guard !normalized.hasPrefix("/"),
               !normalized.hasPrefix("~"),
-              !normalized.contains("\\") else {
+              !normalized.contains("\\"),
+              !normalized.unicodeScalars.contains(where: {
+                CharacterSet.controlCharacters.contains($0)
+              }) else {
             throw CalibrationError.invalidManifest(
                 "PreparedEvaluationPlan " + role + " path is not portable for " + pairID
             )
         }
-        let relative = normalized.hasPrefix("repo:") ? String(normalized.dropFirst(5)) : normalized
-        guard !relative.split(separator: "/", omittingEmptySubsequences: true).contains("..") else {
+        let relative: Substring
+        if let separator = normalized.firstIndex(of: ":") {
+            let alias = normalized[..<separator]
+            guard !alias.isEmpty,
+                  alias.allSatisfy({
+                    $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-"
+                  }) else {
+                throw CalibrationError.invalidManifest(
+                    "PreparedEvaluationPlan " + role + " path has an invalid alias for " + pairID
+                )
+            }
+            relative = normalized[normalized.index(after: separator)...]
+        } else {
+            relative = normalized[...]
+        }
+        guard !relative.isEmpty,
+              !relative.hasPrefix("/"),
+              !relative.hasPrefix("~"),
+              !relative.split(separator: "/", omittingEmptySubsequences: true)
+                .contains("..") else {
             throw CalibrationError.invalidManifest(
                 "PreparedEvaluationPlan " + role + " path escapes repository for " + pairID
             )

@@ -269,11 +269,38 @@ final class HDRMetalReferenceTests: XCTestCase {
         XCTAssertTrue(processor.temporalAdaptation.isFinite)
     }
 
+    func testAutomaticTemporalEstimatorRecordsNonSceneCutCompletion() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.toneCurveRevision = .sceneRelativeV4
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.temporalTraceEnabled = true
+        processor.clearTemporalTrace()
+
+        let values: [Float] = [0.45, 0.50]
+        for value in values {
+            let pixelBuffer = try makeBGRA(
+                width: 32,
+                height: 18,
+                rgb: SIMD3(repeating: value)
+            )
+            let commandBuffer = try processor.makeCommandBuffer()
+            _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+            XCTAssertNil(commandBuffer.error)
+        }
+
+        XCTAssertEqual(processor.lastCompletedTemporalSequence, 2)
+        XCTAssertEqual(processor.temporalCompletionTrace.count, 2)
+    }
+
     func testClearTemporalHistoryRejectsPriorUncommittedGeneration() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
         var configuration = HDRConfiguration.calibratedV2
         configuration.temporalStability = 0
         let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.temporalTraceEnabled = true
         let pixelBuffer = try makeBGRA(width: 32, height: 18, rgb: SIMD3(repeating: 0.95))
         let commandBuffer = try processor.makeCommandBuffer()
         _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
@@ -286,6 +313,32 @@ final class HDRMetalReferenceTests: XCTestCase {
 
         XCTAssertEqual(processor.temporalAdaptation, 1, accuracy: 0.000_001)
         XCTAssertEqual(processor.lastCompletedTemporalSequence, 0)
+        XCTAssertTrue(processor.temporalCompletionTrace.isEmpty)
+    }
+
+    func testManualTemporalEstimateRejectsPriorUncommittedGeneration() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        var configuration = HDRConfiguration.calibratedV2
+        configuration.temporalStability = 0
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.temporalTraceEnabled = true
+        let pixelBuffer = try makeBGRA(
+            width: 32,
+            height: 18,
+            rgb: SIMD3(repeating: 0.95)
+        )
+        let commandBuffer = try processor.makeCommandBuffer()
+        _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+
+        processor.updateTemporalEstimate(averageLuminance: 0.10, sceneCut: true)
+        let manualState = processor.temporalAdaptation
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        XCTAssertNil(commandBuffer.error)
+        XCTAssertEqual(processor.temporalAdaptation, manualState, accuracy: 0.000_001)
+        XCTAssertEqual(processor.lastCompletedTemporalSequence, 0)
+        XCTAssertTrue(processor.temporalCompletionTrace.isEmpty)
     }
 
     func testRetainedFrameKeepsOutputTextureExclusivelyLeased() throws {

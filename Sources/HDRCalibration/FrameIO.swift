@@ -65,6 +65,14 @@ public struct FrameSequence {
 }
 
 public enum FrameReader {
+    private struct ValidatedVideoMetadata {
+        let sourceWidth: Int
+        let sourceHeight: Int
+        let proxyHeight: Int
+        let nominalFrameRate: Double
+        let durationSeconds: Double
+    }
+
     /// Decodes a short consecutive proxy sequence for temporal calibration.
     /// Unlike `read`, this never spreads samples across the whole asset.
     public static func readWindow(
@@ -75,6 +83,17 @@ public enum FrameReader {
         framesPerSecond: Double = 30,
         proxyWidth: Int = 320
     ) async throws -> FrameSequence {
+        guard (1...512).contains(frameCount),
+              (16...512).contains(proxyWidth),
+              isSupported(pixelFormat: pixelFormat),
+              startSeconds.isFinite,
+              framesPerSecond.isFinite,
+              framesPerSecond >= 0.001,
+              framesPerSecond <= 1_000 else {
+            throw CalibrationError.decodeFailed(
+                "window decode request contains invalid or unsafe bounds"
+            )
+        }
         let asset = AVURLAsset(url: url)
         let tracks = try await asset.loadTracks(withMediaType: .video)
         guard let track = tracks.first else {
@@ -83,17 +102,30 @@ public enum FrameReader {
         let duration = try await asset.load(.duration)
         let naturalSize = try await track.load(.naturalSize)
         let nominal = Double(try await track.load(.nominalFrameRate))
+        let metadata = try validatedMetadata(
+            naturalSize: naturalSize,
+            nominalFrameRate: nominal,
+            duration: duration,
+            proxyWidth: proxyWidth,
+            url: url
+        )
+        let sourcePosition = max(startSeconds, 0) * max(metadata.nominalFrameRate, framesPerSecond)
+        guard sourcePosition.isFinite, sourcePosition <= Double(Int32.max) else {
+            throw CalibrationError.decodeFailed(
+                "window decode start exceeds the supported source timeline"
+            )
+        }
         return try FFmpegFrameReader.read(
             url: url,
             pixelFormat: pixelFormat,
-            maxFrames: max(frameCount, 1),
+            maxFrames: frameCount,
             proxyWidth: proxyWidth,
-            sourceWidth: Int(naturalSize.width),
-            sourceHeight: Int(naturalSize.height),
-            nominalFrameRate: nominal,
-            durationSeconds: duration.isNumeric ? duration.seconds : 0,
+            sourceWidth: metadata.sourceWidth,
+            sourceHeight: metadata.sourceHeight,
+            nominalFrameRate: metadata.nominalFrameRate,
+            durationSeconds: metadata.durationSeconds,
             startSeconds: max(startSeconds, 0),
-            samplingFPS: min(max(framesPerSecond, 1), nominal > 0 ? nominal : framesPerSecond)
+            samplingFPS: min(framesPerSecond, metadata.nominalFrameRate > 0 ? metadata.nominalFrameRate : framesPerSecond)
         )
     }
 
@@ -103,6 +135,13 @@ public enum FrameReader {
         maxFrames: Int = 240,
         proxyWidth: Int = 320
     ) async throws -> FrameSequence {
+        guard (1...512).contains(maxFrames),
+              (16...512).contains(proxyWidth),
+              isSupported(pixelFormat: pixelFormat) else {
+            throw CalibrationError.decodeFailed(
+                "proxy decode request contains invalid or unsafe bounds"
+            )
+        }
         let asset = AVURLAsset(url: url)
         let tracks = try await asset.loadTracks(withMediaType: .video)
         guard let track = tracks.first else {
@@ -111,6 +150,13 @@ public enum FrameReader {
         let duration = try await asset.load(.duration)
         let naturalSize = try await track.load(.naturalSize)
         let nominalFrameRate = Double(try await track.load(.nominalFrameRate))
+        let metadata = try validatedMetadata(
+            naturalSize: naturalSize,
+            nominalFrameRate: nominalFrameRate,
+            duration: duration,
+            proxyWidth: proxyWidth,
+            url: url
+        )
         let formatDescriptions = try await track.load(.formatDescriptions)
         let codec = formatDescriptions.first.map { fourCC(CMFormatDescriptionGetMediaSubType($0)) }
         if codec == "vp09" || codec == "av01" {
@@ -119,20 +165,26 @@ public enum FrameReader {
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
-                sourceWidth: Int(naturalSize.width),
-                sourceHeight: Int(naturalSize.height),
-                nominalFrameRate: nominalFrameRate,
-                durationSeconds: duration.isNumeric ? duration.seconds : 0
+                sourceWidth: metadata.sourceWidth,
+                sourceHeight: metadata.sourceHeight,
+                nominalFrameRate: metadata.nominalFrameRate,
+                durationSeconds: metadata.durationSeconds
             )
         }
-        let estimatedFrames = nominalFrameRate > 0 && duration.isNumeric
-            ? max(1, Int((duration.seconds * nominalFrameRate).rounded()))
-            : maxFrames
-        let stride = max(1, Int(ceil(Double(estimatedFrames) / Double(max(maxFrames, 1)))))
+        let estimatedFrames = metadata.nominalFrameRate > 0 && metadata.durationSeconds > 0
+            ? metadata.durationSeconds * metadata.nominalFrameRate
+            : Double(maxFrames)
+        let strideValue = ceil(estimatedFrames / Double(maxFrames))
+        guard strideValue.isFinite, strideValue <= Double(Int32.max) else {
+            throw CalibrationError.decodeFailed(
+                "video timeline exceeds the supported proxy sampling range"
+            )
+        }
+        let stride = max(1, Int(strideValue))
         let settings: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: pixelFormat,
             kCVPixelBufferWidthKey as String: proxyWidth,
-            kCVPixelBufferHeightKey as String: max(1, Int((Double(proxyWidth) * naturalSize.height / max(naturalSize.width, 1)).rounded())),
+            kCVPixelBufferHeightKey as String: metadata.proxyHeight,
             kCVPixelBufferMetalCompatibilityKey as String: true,
             kCVPixelBufferIOSurfacePropertiesKey as String: [:]
         ]
@@ -149,10 +201,10 @@ public enum FrameReader {
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
-                sourceWidth: Int(naturalSize.width),
-                sourceHeight: Int(naturalSize.height),
-                nominalFrameRate: nominalFrameRate,
-                durationSeconds: duration.isNumeric ? duration.seconds : 0
+                sourceWidth: metadata.sourceWidth,
+                sourceHeight: metadata.sourceHeight,
+                nominalFrameRate: metadata.nominalFrameRate,
+                durationSeconds: metadata.durationSeconds
             )
         }
 
@@ -173,6 +225,10 @@ public enum FrameReader {
                 descriptor: descriptor,
                 lumaGrid: grid
             ))
+            if samples.count >= maxFrames {
+                reader.cancelReading()
+                break
+            }
         }
         if reader.status == .failed || samples.isEmpty {
             return try FFmpegFrameReader.read(
@@ -180,22 +236,68 @@ public enum FrameReader {
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
-                sourceWidth: Int(naturalSize.width),
-                sourceHeight: Int(naturalSize.height),
-                nominalFrameRate: nominalFrameRate,
-                durationSeconds: duration.isNumeric ? duration.seconds : 0
+                sourceWidth: metadata.sourceWidth,
+                sourceHeight: metadata.sourceHeight,
+                nominalFrameRate: metadata.nominalFrameRate,
+                durationSeconds: metadata.durationSeconds
             )
         }
-        let actualWidth = samples.first.map { CVPixelBufferGetWidth($0.pixelBuffer) } ?? Int(naturalSize.width)
-        let actualHeight = samples.first.map { CVPixelBufferGetHeight($0.pixelBuffer) } ?? Int(naturalSize.height)
+        let actualWidth = samples.first.map { CVPixelBufferGetWidth($0.pixelBuffer) } ?? metadata.sourceWidth
+        let actualHeight = samples.first.map { CVPixelBufferGetHeight($0.pixelBuffer) } ?? metadata.sourceHeight
         return FrameSequence(
             url: url,
             pixelFormat: pixelFormat,
             width: actualWidth,
             height: actualHeight,
-            nominalFrameRate: nominalFrameRate,
-            durationSeconds: duration.isNumeric ? duration.seconds : 0,
+            nominalFrameRate: metadata.nominalFrameRate,
+            durationSeconds: metadata.durationSeconds,
             samples: samples
+        )
+    }
+
+    private static func isSupported(pixelFormat: OSType) -> Bool {
+        pixelFormat == CalibrationPixelFormat.sdrNV12 ||
+            pixelFormat == CalibrationPixelFormat.hdrP010
+    }
+
+    private static func validatedMetadata(
+        naturalSize: CGSize,
+        nominalFrameRate: Double,
+        duration: CMTime,
+        proxyWidth: Int,
+        url: URL
+    ) throws -> ValidatedVideoMetadata {
+        let durationSeconds = duration.isNumeric ? duration.seconds : 0
+        guard naturalSize.width.isFinite,
+              naturalSize.height.isFinite,
+              naturalSize.width > 0,
+              naturalSize.height > 0,
+              naturalSize.width <= 65_536,
+              naturalSize.height <= 65_536,
+              nominalFrameRate.isFinite,
+              (0...1_000).contains(nominalFrameRate),
+              durationSeconds.isFinite,
+              durationSeconds >= 0 else {
+            throw CalibrationError.decodeFailed(
+                "video metadata is invalid or unsafe: \(url.lastPathComponent)"
+            )
+        }
+
+        let sourceWidth = Int(naturalSize.width.rounded())
+        let sourceHeight = Int(naturalSize.height.rounded())
+        let scaledHeight = Double(proxyWidth) * Double(sourceHeight) / Double(sourceWidth)
+        guard scaledHeight.isFinite, scaledHeight > 0, scaledHeight <= 4_096 else {
+            throw CalibrationError.decodeFailed(
+                "video aspect ratio produces an unsafe proxy size: \(url.lastPathComponent)"
+            )
+        }
+        let proxyHeight = max(2, Int(scaledHeight.rounded()) / 2 * 2)
+        return ValidatedVideoMetadata(
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            proxyHeight: proxyHeight,
+            nominalFrameRate: nominalFrameRate,
+            durationSeconds: durationSeconds
         )
     }
 
@@ -227,7 +329,21 @@ private enum FFmpegFrameReader {
         let isP010 = pixelFormat == CalibrationPixelFormat.hdrP010
         let proxyHeight = max(2, Int((Double(proxyWidth) * Double(sourceHeight) / Double(max(sourceWidth, 1))).rounded() / 2) * 2)
         let outputPixelFormat = isP010 ? "p010le" : "nv12"
-        let outputFPS = samplingFPS ?? (durationSeconds > 0 ? max(0.25, Double(maxFrames) / durationSeconds) : max(nominalFrameRate, 1))
+        let distributedFPS = durationSeconds > 0
+            ? max(0.25, Double(maxFrames) / durationSeconds)
+            : max(nominalFrameRate, 1)
+        let requestedFPS = samplingFPS ?? distributedFPS
+        let outputFPS = nominalFrameRate > 0
+            ? min(requestedFPS, nominalFrameRate)
+            : min(requestedFPS, 1_000)
+        guard outputFPS.isFinite,
+              outputFPS >= 0.001,
+              outputFPS <= 1_000,
+              proxyHeight <= 4_096 else {
+            throw CalibrationError.decodeFailed(
+                "ffmpeg proxy rate or dimensions exceed safe bounds"
+            )
+        }
         let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -249,6 +365,10 @@ private enum FFmpegFrameReader {
         process.standardOutput = stdout
         process.standardError = FileHandle(forWritingAtPath: "/dev/null")
         try process.run()
+        defer {
+            if process.isRunning { process.terminate() }
+            process.waitUntilExit()
+        }
 
         let frameBytes = isP010
             ? proxyWidth * proxyHeight * 2 + proxyWidth * max(1, proxyHeight / 2) * 2
@@ -272,8 +392,17 @@ private enum FFmpegFrameReader {
             let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
             let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
             let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
-            let sourceFrameIndex = Int((((startSeconds ?? 0) + Double(index) / outputFPSForTimestamp) *
-                max(nominalFrameRate, outputFPSForTimestamp)).rounded())
+            let sourceFramePosition = ((startSeconds ?? 0) +
+                Double(index) / outputFPSForTimestamp) *
+                max(nominalFrameRate, outputFPSForTimestamp)
+            guard sourceFramePosition.isFinite,
+                  sourceFramePosition >= 0,
+                  sourceFramePosition <= Double(Int32.max) else {
+                throw CalibrationError.decodeFailed(
+                    "ffmpeg source position exceeds the supported timeline"
+                )
+            }
+            let sourceFrameIndex = Int(sourceFramePosition.rounded())
             samples.append(FrameSample(
                 index: sourceFrameIndex,
                 sequencePosition: index,

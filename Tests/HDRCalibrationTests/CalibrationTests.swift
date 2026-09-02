@@ -7,6 +7,43 @@ import simd
 import XCTest
 
 final class CalibrationTests: XCTestCase {
+    func testMetadataProbeRejectsUnsafeNumericConversions() throws {
+        XCTAssertThrowsError(try MetadataProbe.validatedNumericMetadata(
+            durationSeconds: .nan,
+            frameRate: 30,
+            width: 1_920,
+            height: 1_080
+        ))
+        XCTAssertThrowsError(try MetadataProbe.validatedNumericMetadata(
+            durationSeconds: Double(Int32.max),
+            frameRate: 1_000,
+            width: 1_920,
+            height: 1_080
+        ))
+        XCTAssertThrowsError(try MetadataProbe.validatedNumericMetadata(
+            durationSeconds: 1,
+            frameRate: .infinity,
+            width: 1_920,
+            height: 1_080
+        ))
+        XCTAssertThrowsError(try MetadataProbe.validatedNumericMetadata(
+            durationSeconds: 1,
+            frameRate: 30,
+            width: 0,
+            height: 1_080
+        ))
+
+        let valid = try MetadataProbe.validatedNumericMetadata(
+            durationSeconds: 2,
+            frameRate: 30,
+            width: 1_920,
+            height: 1_080
+        )
+        XCTAssertEqual(valid.frameCount, 60)
+        XCTAssertEqual(valid.width, 1_920)
+        XCTAssertEqual(valid.height, 1_080)
+    }
+
     func testMetricVectorPercentilesAreFiniteAndOrdered() {
         let vector = MetricVector(values: [0, 1, 2, 3, 4, 5])
         XCTAssertEqual(vector.p50, 2, accuracy: 0.001)
@@ -86,6 +123,80 @@ final class CalibrationTests: XCTestCase {
         XCTAssertTrue(distant.matches.isEmpty)
     }
 
+    func testTimestampPairingPreservesTimelineOrderAndMaximumCardinality() throws {
+        let sdr = try makeSequence(times: [0.20, 0.24], values: [0.2, 0.2])
+        let hdr = try makeSequence(times: [0.00, 0.21], values: [0.2, 0.2])
+
+        let pairs = MonotonicTimestampPairer.pairs(
+            sdr: sdr.samples, hdr: hdr.samples,
+            offset: 0, maximumDistance: 0.25
+        )
+
+        XCTAssertEqual(pairs.count, 2)
+        XCTAssertEqual(pairs.map { $0.0.sequencePosition }, [0, 1])
+        XCTAssertEqual(pairs.map { $0.1.sequencePosition }, [0, 1])
+    }
+
+    func testTimestampPairingRejectsUnsafeCombinedWork() {
+        XCTAssertTrue(MonotonicTimestampPairer.workIsWithinBudget(
+            sdrCount: 128,
+            hdrCount: 128,
+            candidateCount: 121
+        ))
+        XCTAssertFalse(MonotonicTimestampPairer.workIsWithinBudget(
+            sdrCount: 512,
+            hdrCount: 512,
+            candidateCount: 121
+        ))
+    }
+
+    func testAlignmentPathsRejectMalformedProxyEvidence() throws {
+        let valid = try makeSequence(times: [0], values: [0.2])
+        let sample = try XCTUnwrap(valid.samples.first)
+        let malformed = FrameSample(
+            index: sample.index,
+            sequencePosition: sample.sequencePosition,
+            timestamp: sample.timestamp,
+            pixelBuffer: sample.pixelBuffer,
+            descriptor: FrameDescriptor(
+                timestampSeconds: 0,
+                meanLuma: -1,
+                variance: 0,
+                histogram: [1],
+                edgeEnergy: 0
+            ),
+            lumaGrid: sample.lumaGrid
+        )
+        let invalid = FrameSequence(
+            url: valid.url,
+            pixelFormat: valid.pixelFormat,
+            width: valid.width,
+            height: valid.height,
+            nominalFrameRate: valid.nominalFrameRate,
+            durationSeconds: valid.durationSeconds,
+            samples: [malformed]
+        )
+
+        XCTAssertEqual(
+            TemporalAligner.align(
+                sdr: invalid, hdr: valid,
+                offsetRangeSeconds: 0...0, offsetStep: 1
+            ).status,
+            "REJECT"
+        )
+        XCTAssertEqual(
+            V4AuditTemporalAligner.align(
+                sdr: invalid, hdr: valid,
+                offsetRangeSeconds: 0...0, offsetStep: 1
+            ).status,
+            "REJECT"
+        )
+        XCTAssertThrowsError(try V6MatcherDiagnostics.structuralEvidence(
+            sdr: invalid,
+            hdr: valid
+        ))
+    }
+
     func testSplitAssignmentDoesNotChangeDuringManifestRoundTrip() throws {
         let record = PairRecord(
             id: "pair",
@@ -153,6 +264,53 @@ final class CalibrationTests: XCTestCase {
                 timestampSeconds: sample.timestamp.seconds,
                 configuration: configuration
             )
+        }
+    }
+
+    func testFrameReaderRejectsUnsafeBoundsBeforeOpeningMedia() async {
+        let missing = URL(fileURLWithPath: "/tmp/does-not-exist.mp4")
+        do {
+            _ = try await FrameReader.read(
+                url: missing,
+                pixelFormat: CalibrationPixelFormat.sdrNV12,
+                maxFrames: 513
+            )
+            XCTFail("oversized proxy decode unexpectedly opened input")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unsafe bounds"))
+        }
+
+        do {
+            _ = try await FrameReader.readWindow(
+                url: missing,
+                pixelFormat: CalibrationPixelFormat.hdrP010,
+                startSeconds: .nan
+            )
+            XCTFail("non-finite window decode unexpectedly opened input")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unsafe bounds"))
+        }
+
+        do {
+            _ = try await FrameReader.readWindow(
+                url: missing,
+                pixelFormat: CalibrationPixelFormat.hdrP010,
+                startSeconds: 0,
+                framesPerSecond: 1_001
+            )
+            XCTFail("oversized temporal rate unexpectedly opened input")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unsafe bounds"))
+        }
+
+        do {
+            _ = try await FrameReader.read(
+                url: missing,
+                pixelFormat: kCVPixelFormatType_32BGRA
+            )
+            XCTFail("unsupported pixel format unexpectedly opened input")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unsafe bounds"))
         }
     }
 
@@ -286,6 +444,23 @@ final class CalibrationTests: XCTestCase {
         )
     }
 
+    func testV6MatcherConfigurationRejectsExcessiveProxyAllocation() {
+        let oversized = V6MatcherConfiguration(
+            gridWidth: 512,
+            gridHeight: 512
+        )
+        XCTAssertNotNil(oversized.validationFailure())
+        XCTAssertNotNil(V6MatcherConfiguration(
+            gridWidth: 128,
+            gridHeight: 64,
+            multiScaleWidths: [128, 64, 32]
+        ).validationFailure())
+        XCTAssertNotNil(V6MatcherConfiguration(
+            multiScaleWidths: Array(repeating: 64, count: 16)
+        ).validationFailure())
+        XCTAssertNil(V6MatcherConfiguration.v6.validationFailure())
+    }
+
     func testV6MatcherDiagnosticConfigurationRejectsUnsafeAndUnsealedValues() throws {
         XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
             V6MatcherEvidenceConfiguration(offsetStepSeconds: 0),
@@ -300,11 +475,27 @@ final class CalibrationTests: XCTestCase {
             requireSealedProduction: false
         ))
         XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(maxDecodedFrames: 513),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(proxyWidth: 513),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
             V6MatcherEvidenceConfiguration(matcherConfigurationHash: String(repeating: "G", count: 64)),
             requireSealedProduction: false
         ))
         XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
             V6MatcherEvidenceConfiguration(matcherConfigurationHash: String(repeating: "A", count: 64)),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(matcherConfigurationHash: String(repeating: "a", count: 64)),
+            requireSealedProduction: false
+        ))
+        XCTAssertThrowsError(try V6MatcherDiagnostics.validateConfiguration(
+            V6MatcherEvidenceConfiguration(matcherVersion: "pretend-v6-matcher"),
             requireSealedProduction: false
         ))
 
@@ -340,6 +531,18 @@ final class CalibrationTests: XCTestCase {
                 hdrSHA256: String(repeating: "b", count: 64)
             )]
         ))
+    }
+
+    func testV6PreparationRejectsExcessiveDecodeCount() {
+        XCTAssertNotNil(V6PreparationConfiguration(
+            maxDecodedFrames: 513
+        ).validationFailure())
+        XCTAssertNotNil(V6PreparationConfiguration(
+            proxyWidth: 513
+        ).validationFailure())
+        XCTAssertNotNil(V6PreparationConfiguration(
+            alignmentConfidenceThreshold: 0.01
+        ).validationFailure())
     }
 
     func testV6PreparedPlanCanonicalHashAndExactIdentityValidation() throws {
@@ -474,7 +677,7 @@ final class CalibrationTests: XCTestCase {
         ))
     }
 
-    func testV6EvaluatorEntryRejectsPlanWithNoAcceptedMatches() throws {
+    func testV6PlanBuilderRejectsPlanWithNoAcceptedMatches() throws {
         let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
         let lowConfidenceMatches = prepared.matches.map { item in
             let match = MatchedFrame(
@@ -504,16 +707,14 @@ final class CalibrationTests: XCTestCase {
             matches: lowConfidenceMatches,
             temporalWindows: prepared.temporalWindows
         )
-        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.makePlan(
             preparedPairs: [lowConfidence],
             repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
             inputHashes: [lowConfidence.record.id: V6InputHashes(
                 sdrSHA256: String(repeating: "c", count: 64),
                 hdrSHA256: String(repeating: "d", count: 64)
             )]
-        )
-        XCTAssertEqual(plan.pairs.first?.alignment.acceptedFrameCount, 0)
-        XCTAssertThrowsError(try V6PreparedEvaluationEntry.acceptedMatches(prepared: lowConfidence, plan: plan))
+        ))
         XCTAssertTrue(V6VirginHoldoutPolicy.consumedPairIDs.contains("dvb_live_linear_caminandes_hevc_uhd_sdr_hlg"))
         XCTAssertFalse(V6VirginHoldoutPolicy.objectivePixelsRead)
         XCTAssertFalse(V6VirginHoldoutPolicy.objectiveMetricsObserved)
@@ -858,6 +1059,70 @@ final class CalibrationTests: XCTestCase {
             try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL).planSHA256,
             artifact.planSHA256
         )
+
+        let planObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: try JSONEncoder().encode(plan)
+            ) as? [String: Any]
+        )
+        let pairs = try XCTUnwrap(planObject["pairs"] as? [[String: Any]])
+
+        func expectSemanticRejection(_ tamperedPair: [String: Any]) throws {
+            var tamperedObject = planObject
+            tamperedObject["pairs"] = [tamperedPair]
+            let tamperedPlan = try JSONDecoder().decode(
+                PreparedEvaluationPlan.self,
+                from: JSONSerialization.data(withJSONObject: tamperedObject)
+            )
+            let tamperedArtifact = try V6PreparedEvaluationPlanArtifact(plan: tamperedPlan)
+            try V6PreparedEvaluationPlanHasher.canonicalData(tamperedArtifact)
+                .write(to: artifactURL)
+            try Data((tamperedArtifact.planSHA256 + "\n").utf8)
+                .write(to: sidecarURL)
+            XCTAssertThrowsError(
+                try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL)
+            )
+        }
+
+        var splitTamperedPair = pairs[0]
+        splitTamperedPair["split"] = "frozen"
+        try expectSemanticRejection(splitTamperedPair)
+
+        var pathTamperedPair = pairs[0]
+        pathTamperedPair["sdrPath"] = "repo:/tmp/escaped.mp4"
+        try expectSemanticRejection(pathTamperedPair)
+
+        var fpsTamperedPair = pairs[0]
+        var decode = try XCTUnwrap(fpsTamperedPair["decode"] as? [String: Any])
+        decode["hdrNominalFrameRate"] = 0
+        fpsTamperedPair["decode"] = decode
+        try expectSemanticRejection(fpsTamperedPair)
+
+        var statusTamperedPair = pairs[0]
+        var alignment = try XCTUnwrap(statusTamperedPair["alignment"] as? [String: Any])
+        alignment["status"] = "NOT_REJECT"
+        statusTamperedPair["alignment"] = alignment
+        try expectSemanticRejection(statusTamperedPair)
+
+        var validStatusTamperedPair = pairs[0]
+        alignment = try XCTUnwrap(validStatusTamperedPair["alignment"] as? [String: Any])
+        alignment["status"] = alignment["status"] as? String == "ALIGNED"
+            ? "PAIR_NEEDS_ALIGNMENT" : "ALIGNED"
+        validStatusTamperedPair["alignment"] = alignment
+        try expectSemanticRejection(validStatusTamperedPair)
+
+        var medianTamperedPair = pairs[0]
+        alignment = try XCTUnwrap(medianTamperedPair["alignment"] as? [String: Any])
+        let originalMedian = try XCTUnwrap(alignment["medianConfidence"] as? Double)
+        alignment["medianConfidence"] = originalMedian == 0 ? 1.0 : 0.0
+        medianTamperedPair["alignment"] = alignment
+        try expectSemanticRejection(medianTamperedPair)
+
+        var countTamperedPair = pairs[0]
+        alignment = try XCTUnwrap(countTamperedPair["alignment"] as? [String: Any])
+        alignment["rejectedFrameCount"] = 1
+        countTamperedPair["alignment"] = alignment
+        try expectSemanticRejection(countTamperedPair)
     }
 
     func testV6TemporalPlanPreservesLegacyConfidenceGate() throws {
@@ -938,7 +1203,27 @@ final class CalibrationTests: XCTestCase {
 
     func testV6RepositoryAcceptsVirginFrozenPlanScopeReadOnly() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
-        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let base = try makePreparedDiagnosticPair(values: [0.20, 0.80])
+        let frozenRecord = PairRecord(
+            id: base.record.id,
+            sdr: base.record.sdr,
+            hdr: base.record.hdr,
+            license: base.record.license,
+            source: base.record.source,
+            expectedRelation: base.record.expectedRelation,
+            notes: base.record.notes,
+            split: .frozen
+        )
+        let prepared = PreparedPair(
+            record: frozenRecord,
+            sdrSequence: base.sdrSequence,
+            hdrSequence: base.hdrSequence,
+            referenceTransfer: base.referenceTransfer,
+            alignment: base.alignment,
+            scenes: base.scenes,
+            matches: base.matches,
+            temporalWindows: base.temporalWindows
+        )
         let hashes = V6InputHashes(
             sdrSHA256: String(repeating: "7", count: 64),
             hdrSHA256: String(repeating: "8", count: 64)
@@ -2150,9 +2435,15 @@ final class CalibrationTests: XCTestCase {
                 sourceLuma: Array(repeating: value, count: 32 * 18)
             ))
         }
-        let sequence = FrameSequence(
+        let sdrSequence = FrameSequence(
             url: URL(fileURLWithPath: "/tmp/diagnostic.mp4"),
-            pixelFormat: kCVPixelFormatType_32BGRA,
+            pixelFormat: CalibrationPixelFormat.sdrNV12,
+            width: 32, height: 18, nominalFrameRate: 30,
+            durationSeconds: Double(values.count) / 30, samples: samples
+        )
+        let hdrSequence = FrameSequence(
+            url: URL(fileURLWithPath: "/tmp/diagnostic.mp4"),
+            pixelFormat: CalibrationPixelFormat.hdrP010,
             width: 32, height: 18, nominalFrameRate: 30,
             durationSeconds: Double(values.count) / 30, samples: samples
         )
@@ -2161,8 +2452,8 @@ final class CalibrationTests: XCTestCase {
                 id: id, sdr: "sdr", hdr: "hdr",
                 license: "test", source: "test", split: .tune
             ),
-            sdrSequence: sequence,
-            hdrSequence: sequence,
+            sdrSequence: sdrSequence,
+            hdrSequence: hdrSequence,
             referenceTransfer: .pq,
             alignment: AlignmentResult(
                 status: "ALIGNED", coarseOffsetSeconds: 0,
