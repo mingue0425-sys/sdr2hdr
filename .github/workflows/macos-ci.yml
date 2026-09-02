@@ -31,5 +31,8 @@ jobs:
       - name: V4 runtime Metal benchmark
         run: swift test -c debug --disable-index-store --filter CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
-      - name: Metal reference tests
-        run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests
+      - name: BGRA zero-copy Metal test
+        run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests/testBGRAFallbackUsesZeroCopyTexturePathAndMatchesReference
+
+      - name: Remaining Metal reference tests
+        run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests --skip HDRMetalReferenceTests/testBGRAFallbackUsesZeroCopyTexturePathAndMatchesReference
