@@ -54,8 +54,12 @@ private func run(arguments: [String]) async throws {
         }
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         _ = try processor.process(pixelBuffer: pixelBuffer, timestamp: timestamp, commandBuffer: commandBuffer)
-        commandBuffer.commit()
-        await commandBuffer.completed()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            commandBuffer.addCompletedHandler { _ in
+                continuation.resume()
+            }
+            commandBuffer.commit()
+        }
         guard commandBuffer.status == .completed else {
             throw commandBuffer.error ?? NSError(domain: "HDRSample", code: 6, userInfo: [NSLocalizedDescriptionKey: "Metal processing failed"])
         }
