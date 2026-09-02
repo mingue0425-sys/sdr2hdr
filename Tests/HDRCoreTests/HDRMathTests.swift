@@ -432,12 +432,9 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertNil(commandBuffer.error)
 
-        var output = [Float16](repeating: 0, count: 4)
-        frame.texture.getBytes(
-            &output,
-            bytesPerRow: 2 * MemoryLayout<Float16>.size * 4,
-            from: MTLRegionMake2D(0, 0, 1, 1),
-            mipmapLevel: 0
+        let output = try readFirstRGBA16FloatPixel(
+            frame.texture,
+            device: device
         )
         let signal = (Float(128) - 16) / 219
         let normalizedSignal = min(max(signal, 0), 1)
@@ -484,12 +481,9 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertNil(commandBuffer.error)
 
-        var output = [Float16](repeating: 0, count: 4)
-        frame.texture.getBytes(
-            &output,
-            bytesPerRow: 2 * MemoryLayout<Float16>.size * 4,
-            from: MTLRegionMake2D(0, 0, 1, 1),
-            mipmapLevel: 0
+        let output = try readFirstRGBA16FloatPixel(
+            frame.texture,
+            device: device
         )
         let expected = HDRReference.process(
             signalRGB: SIMD3(0.8, 0.2, 0.05),
@@ -541,6 +535,62 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         XCTAssertEqual(processor.runtimeMetrics.outputTextureAllocations, 3)
+    }
+
+    private func readFirstRGBA16FloatPixel(
+        _ texture: MTLTexture,
+        device: MTLDevice
+    ) throws -> [Float16] {
+        guard texture.pixelFormat == .rgba16Float,
+              texture.width > 0,
+              texture.height > 0 else {
+            throw NSError(domain: "HDRCoreTests", code: 20)
+        }
+
+        let componentCount = 4
+        let bytesPerPixel = componentCount * MemoryLayout<Float16>.stride
+
+        guard let stagingBuffer = device.makeBuffer(
+            length: bytesPerPixel,
+            options: .storageModeShared
+        ),
+        let commandQueue = device.makeCommandQueue(),
+        let commandBuffer = commandQueue.makeCommandBuffer(),
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
+            throw NSError(domain: "HDRCoreTests", code: 21)
+        }
+
+        blitEncoder.copy(
+            from: texture,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+            sourceSize: MTLSize(width: 1, height: 1, depth: 1),
+            to: stagingBuffer,
+            destinationOffset: 0,
+            destinationBytesPerRow: bytesPerPixel,
+            destinationBytesPerImage: bytesPerPixel
+        )
+        blitEncoder.endEncoding()
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        if let error = commandBuffer.error {
+            throw error
+        }
+
+        let values = stagingBuffer.contents().bindMemory(
+            to: Float16.self,
+            capacity: componentCount
+        )
+
+        return Array(
+            UnsafeBufferPointer(
+                start: values,
+                count: componentCount
+            )
+        )
     }
 
     private func makeNV12(
