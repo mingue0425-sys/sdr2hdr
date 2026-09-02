@@ -517,9 +517,9 @@ private enum V6PreparedEvaluationPlanSemantics {
                   alignment.offsetDriftSeconds >= 0,
                   !alignment.perWindowOffsets.isEmpty,
                   alignment.perWindowOffsets.count <= 8,
-                  alignment.perWindowOffsets.allSatisfy {
+                  alignment.perWindowOffsets.allSatisfy({
                     $0.isFinite && permittedOffsetRange.contains($0)
-                  },
+                  }),
                   abs(expectedDrift - alignment.offsetDriftSeconds) <= 1e-12,
                   alignment.confidenceQuantiles == expectedQuantiles,
                   identitiesAreValid(alignment.matchedFrames),
@@ -541,9 +541,9 @@ private enum V6PreparedEvaluationPlanSemantics {
             let expectedRatio = alignment.matchedFrames.isEmpty ? 0 :
                 Double(expectedRawAccepted) / Double(alignment.matchedFrames.count)
             guard alignment.acceptedFrames.allSatisfy(rawIdentitySet.contains),
-                  alignment.acceptedFrames.allSatisfy {
+                  alignment.acceptedFrames.allSatisfy({
                     $0.confidence >= plan.preparation.acceptedConfidenceThreshold
-                  },
+                  }),
                   expectedRawAccepted == alignment.rawAcceptedFrameCount,
                   abs(expectedRatio - alignment.rawAcceptanceRatio) <= 1e-12,
                   Set(alignment.matchedFrames.map(\.sdrSequencePosition)).count ==
@@ -711,10 +711,10 @@ private enum V6PreparedEvaluationPlanSemantics {
                   window.frames.count <= preparation.temporalTargetFrameCount,
                   identitiesAreValid(window.frames),
                   identitiesAreStrictlyMonotonic(window.frames),
-                  window.frames.enumerated().allSatisfy {
+                  window.frames.enumerated().allSatisfy({
                       $0.element.sdrSequencePosition == $0.offset &&
                           $0.element.hdrSequencePosition == $0.offset
-                  },
+                  }),
                   window.decision == expectedDecision,
                   window.evaluationAccepted == expectedEvaluationAcceptance else {
                 throw CalibrationError.incompleteEvaluation(

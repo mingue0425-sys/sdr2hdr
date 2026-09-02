@@ -624,7 +624,7 @@ public final class HDRProcessor {
 
     /// Clears history to the neutral adaptation used at processor startup.
     public func clearTemporalHistory() {
-        stateLock.withLock {
+        _ = stateLock.withLock {
             advanceTemporalGenerationLocked(resetTemporal: true, resetScene: true)
         }
     }
@@ -714,10 +714,10 @@ public final class HDRProcessor {
             }
             return (
                 currentConfiguration,
-                debugEnabled,
+                self.debugEnabled,
                 submission,
-                temporalState.snapshot(),
-                sceneShadowState.snapshot()
+                self.temporalState.snapshot(),
+                self.sceneShadowState.snapshot()
             )
         }
         let configuration = processState.configuration

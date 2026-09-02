@@ -102,9 +102,9 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
               multiScaleWidths.count <= 16,
               multiScaleWidths.allSatisfy({ (2...gridWidth).contains($0) }),
               Set(multiScaleWidths).count == multiScaleWidths.count,
-              zip(multiScaleWidths, multiScaleWidths.dropFirst()).allSatisfy {
+              zip(multiScaleWidths, multiScaleWidths.dropFirst()).allSatisfy({
                   $0.0 > $0.1
-              } else {
+              }) else {
             return "matcher multi-scale widths are outside the configured grid"
         }
         let scaleCellCount = multiScaleWidths.reduce(0) { total, width in

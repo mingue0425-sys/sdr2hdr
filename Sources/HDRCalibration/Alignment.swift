@@ -234,13 +234,13 @@ enum FrameSequenceValidator {
                   (0...1).contains(descriptor.meanLuma),
                   (0...0.251).contains(descriptor.variance),
                   (0...1).contains(descriptor.edgeEnergy),
-                  descriptor.histogram.allSatisfy {
+                  descriptor.histogram.allSatisfy({
                     $0.isFinite && (0...1).contains($0)
-                  },
+                  }),
                   abs(histogramSum - 1) <= 0.001,
-                  sample.lumaGrid.allSatisfy {
+                  sample.lumaGrid.allSatisfy({
                     $0.isFinite && (0...1).contains($0)
-                  } else {
+                  }) else {
                 return "sample \(index) contains invalid descriptor or proxy data"
             }
             if index > 0 {

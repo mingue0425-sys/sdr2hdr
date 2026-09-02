@@ -492,7 +492,7 @@ public enum V6MatcherDiagnostics {
         configuration: V6MatcherEvidenceConfiguration = V6MatcherEvidenceConfiguration()
     ) throws -> V6StructuralDiagnosticEvidence {
         try validateConfiguration(configuration, requireSealedProduction: false)
-        try analyzeStructural(
+        return try analyzeStructural(
             pairID: "synthetic-structural-diagnostic",
             sdr: sdr,
             hdr: hdr,

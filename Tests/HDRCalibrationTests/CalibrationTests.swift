@@ -851,13 +851,39 @@ final class CalibrationTests: XCTestCase {
         XCTAssertEqual(evidence.structuralDiagnostic.robustBestOffset, 1.0)
         XCTAssertEqual(evidence.productionMatcher.acceptedFrameIdentities, pairPlan.alignment.acceptedFrames)
 
-        // Exercise the real experimental scorer with a degenerate synthetic
-        // sequence.  Its tie-breaking offset is intentionally unrelated to
+        // Exercise the real experimental scorer with a one-frame synthetic
+        // timeline shift. Its robust offset is intentionally unrelated to
         // the sealed production offset, yet the production identity array is
         // still byte-for-byte unchanged.
-        let computedStructural = try V6MatcherDiagnostics.structuralEvidence(
-            sdr: prepared.sdrSequence, hdr: prepared.hdrSequence
+        let shiftedHDR = FrameSequence(
+            url: prepared.hdrSequence.url,
+            pixelFormat: prepared.hdrSequence.pixelFormat,
+            width: prepared.hdrSequence.width,
+            height: prepared.hdrSequence.height,
+            nominalFrameRate: prepared.hdrSequence.nominalFrameRate,
+            durationSeconds: prepared.hdrSequence.durationSeconds + (1.0 / 30.0),
+            samples: prepared.hdrSequence.samples.map { sample in
+                let timestamp = CMTime(
+                    seconds: sample.timestamp.seconds + (1.0 / 30.0),
+                    preferredTimescale: 600
+                )
+                return FrameSample(
+                    index: sample.index,
+                    sequencePosition: sample.sequencePosition,
+                    timestamp: timestamp,
+                    pixelBuffer: sample.pixelBuffer,
+                    descriptor: FrameDescriptorBuilder.make(
+                        timestamp: timestamp,
+                        lumaGrid: sample.lumaGrid
+                    ),
+                    lumaGrid: sample.lumaGrid
+                )
+            }
         )
+        let computedStructural = try V6MatcherDiagnostics.structuralEvidence(
+            sdr: prepared.sdrSequence, hdr: shiftedHDR
+        )
+        XCTAssertEqual(computedStructural.robustBestOffset, 1.0 / 30.0, accuracy: 1e-12)
         XCTAssertNotEqual(computedStructural.robustBestOffset, production.bestOffset)
         XCTAssertEqual(production.acceptedFrameIdentities, pairPlan.alignment.acceptedFrames)
     }
@@ -2319,6 +2345,19 @@ final class CalibrationTests: XCTestCase {
             .appendingPathComponent("data_video/LIVE Paired Comparison HDR vs. SDR Database")
         guard FileManager.default.fileExists(atPath: root.path) else {
             throw XCTSkip("local LIVE dataset is not present")
+        }
+        let directoryNames = Set(
+            (FileManager.default.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )?.compactMap { $0 as? URL } ?? [])
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+            .map { $0.lastPathComponent.lowercased() }
+        )
+        guard directoryNames.contains("open-sourced_sdr"),
+              directoryNames.contains("open-sourced_hdr10") else {
+            throw XCTSkip("local LIVE paired media directories are not present")
         }
         let report = try V4LiveImporter.discover(rootURL: root)
         XCTAssertEqual(report.sdrCandidates, report.hdrCandidates)
