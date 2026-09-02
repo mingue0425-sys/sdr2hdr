@@ -418,11 +418,22 @@ final class CalibrationTests: XCTestCase {
     }
 
     func testV6TransferInvariantMatcherSurvivesMonotonicToneCurve() {
-        let base: [Float] = (0..<(64 * 36)).map { index in
-            let x = Double(index % 64) / 63.0
-            let y = Double(index / 64) / 35.0
-            return Float(min(1, max(0, 0.08 + 0.72 * x + 0.14 * sin(y * 12.0) + 0.06 * cos(x * 17.0))))
+        let width = 64
+        let height = 36
+        var base: [Float] = []
+        base.reserveCapacity(width * height)
+
+        for index in 0..<(width * height) {
+            let x = Double(index % width) / Double(width - 1)
+            let y = Double(index / width) / Double(height - 1)
+            let horizontal = 0.72 * x
+            let verticalWave = 0.14 * sin(y * 12.0)
+            let horizontalWave = 0.06 * cos(x * 17.0)
+            let value = 0.08 + horizontal + verticalWave + horizontalWave
+            let clamped = min(1.0, max(0.0, value))
+            base.append(Float(clamped))
         }
+
         let toneMapped = base.map { Float(pow(Double($0), 0.58)) }
         let lhs = V6TransferInvariantMatcher.features(base, configuration: .v6)
         let rhs = V6TransferInvariantMatcher.features(toneMapped, configuration: .v6)
