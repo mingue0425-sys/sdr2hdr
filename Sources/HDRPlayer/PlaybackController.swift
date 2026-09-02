@@ -428,22 +428,11 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         output: AVPlayerItemVideoOutput,
         itemTime: CMTime
     ) -> (pixelBuffer: CVPixelBuffer, displayTime: CMTime)? {
-        if #available(macOS 26.0, *) {
-            let result = output.pixelBufferAndDisplayTime(forItemTime: itemTime)
-            guard let pixelBuffer = result.pixelBuffer else { return nil }
-            // `unsafeBuffer` unwraps the CoreVideo object without copying
-            // pixels. It is the supported bridge from the macOS 26 read-only
-            // Swift wrapper to the CVPixelBuffer-based HDRCore API.
-            var coreBuffer: CVPixelBuffer?
-            pixelBuffer.withUnsafeBuffer { unsafeBuffer in
-                coreBuffer = unsafeBuffer
-            }
-            guard let coreBuffer else { return nil }
-            return (coreBuffer, result.itemTimeForDisplay)
-        }
-
         var displayTime = CMTime.invalid
-        guard let pixelBuffer = output.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: &displayTime) else {
+        guard let pixelBuffer = output.copyPixelBuffer(
+            forItemTime: itemTime,
+            itemTimeForDisplay: &displayTime
+        ) else {
             return nil
         }
         return (pixelBuffer, displayTime)
@@ -469,19 +458,6 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     }
 
     private static func makeVideoOutput() -> AVPlayerItemVideoOutput {
-        if #available(macOS 26.0, *) {
-            let attributes = CVPixelBufferAttributes(
-                pixelFormatTypes: [
-                    CVPixelFormatType(rawValue: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
-                ],
-                size: nil,
-                compatibility: .metalTexture,
-                bytesPerRowAlignment: nil,
-                planeAlignment: nil,
-                extendedPixels: nil
-            )
-            return AVPlayerItemVideoOutput(pixelBufferAttributes: attributes)
-        }
         let attributes: [String: any Sendable] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
             kCVPixelBufferMetalCompatibilityKey as String: true,
