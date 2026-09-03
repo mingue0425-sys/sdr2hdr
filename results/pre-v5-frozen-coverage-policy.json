@@ -1,27 +1,26 @@
 {
   "actualVirginFamilies" : [
-    "SoleMates",
-    "LIVE",
-    "DVB Live-Linear"
+    "K-Choreo",
+    "LIVE"
   ],
   "actualVirginFrozenPairs" : 3,
   "actualVirginTransfers" : [
-    "PQ",
-    "HLG"
+    "HLG",
+    "PQ"
   ],
   "currentRequiredFamilies" : [
 
   ],
   "currentRequiredTransfers" : [
-    "HLG",
-    "PQ"
+    "PQ",
+    "HLG"
   ],
   "familyStatus" : "PASS",
   "minimumDistinctVirginFrozenFamilies" : 2,
   "minimumVirginFrozenPairs" : 3,
   "pairCountStatus" : "PASS",
   "transferStatus" : "PASS",
-  "version" : "pre-v5-frozen-coverage-policy-v1",
+  "version" : "pre-v6-frozen-coverage-policy-v1",
   "whyEachRequirementExists" : [
     "HLG and PQ are both production input\/reference transfer families and must be represented in Virgin Frozen.",
     "Family diversity tests distributional generalisation; a legacy family name is not itself a scientific requirement.",

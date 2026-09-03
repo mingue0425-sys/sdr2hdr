@@ -1,13 +1,15 @@
 # Correctness Review Fixes
 
-- Verdict: `CORRECTNESS_READY_FOR_V5`
+- Verdict: `CORRECTNESS_READY_FOR_V6`
 - Virgin Frozen objective evaluated: `false`
 - Tune structural completeness: 5/5
 - Validation structural completeness: 3/3
 
 | Finding | Status |
 | --- | --- |
+| v6PreparedEvaluationPlan | PASS |
 | dataset-audit-lock | PASS |
+| v6FrozenPreparedEvaluationPlan | PASS |
 | sparse-index-domain | PASS |
 | sparseSpatialTemporalSeparation | PASS |
 | realTemporalWindowPreparation | PASS |

@@ -1,24 +1,40 @@
 {
   "candidates" : [
     {
-      "accepted" : true,
+      "accepted" : false,
       "alignmentStatus" : "ALIGNED;median=0.9957;p10=0.9890;matchRatio=1.0000",
-      "decodeStatus" : "PASS_SDR=6;HDR=6;FULL=3072",
+      "decodeStatus" : "SDR=true;HDR=true",
       "hdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
       "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+      "metadataStatus" : "REJECTED",
+      "objectiveHistory" : "PRIOR_OBJECTIVE_EVIDENCE_FOUND",
+      "provenanceStatus" : "EVIDENCE_REJECTED",
+      "rejectionReasons" : [
+        "historical frozen objective evidence already consumed this pair",
+        "objectiveUse is not virgin"
+      ],
+      "sdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "source" : "manifest-v4-virgin-evidence"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.8659;p10=0.8121;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=6;HDR=6;FULL_FILE_SDR=12072;FULL_FILE_HDR=12072",
+      "hdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_HLG.mp4",
+      "id" : "v6_kbs_dirty_work_hlg",
       "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_ARIB_STD_B67",
       "objectiveHistory" : "NO_PRIOR_FROZEN_OBJECTIVE_EVIDENCE",
-      "provenanceStatus" : "PASS_MANIFEST_SHA=66e2dc6bb74f6fce83ce80f70d46a9deda89b5082f110435ba5b83a20246038d;ASSET_SHA_MATCH;CONTIGUOUS=16;DURATION=61.44",
+      "provenanceStatus" : "PASS_MANIFEST_SHA=eeace152cef90e1452391ec3a23fbe4eb4d41967458d8013b128a2cfbe1203ce;ASSET_SHA_MATCH;FULL_FILE_FRAMES=12072;DURATION=201.40",
       "rejectionReasons" : [
 
       ],
-      "sdrPath" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_03_HEVC_UHD_SDR.mp4",
+      "sdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
       "source" : "manifest-v4-virgin-evidence"
     }
   ],
   "consumedHLGPairIDs" : [
     "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
-    "video6_le_sserafim_hot"
+    "v6_kbs_dirty_work_hlg"
   ],
   "found" : true,
   "objectiveEvaluationCount" : 0,
@@ -29,5 +45,5 @@
     "workspace-parent"
   ],
   "status" : "FOUND",
-  "version" : "pre-v5-new-hlg-holdout-audit-v3"
+  "version" : "pre-v6-new-hlg-holdout-audit-v1"
 }

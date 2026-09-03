@@ -1,55 +1,56 @@
 {
-  "auditConfigHash" : "234b727337d85cc4142d5ac6bc88648b7563b5d8b2ad68f6cfc611500d332ec6",
+  "auditConfigHash" : "1b3162e53d632c26b4281deeb9e63b2ae1932657d8f7d3659d56ffd8336fe638",
   "diversity" : {
-    "acceptedPairs" : 13,
+    "acceptedPairs" : 16,
     "categories" : {
       "animation" : 2,
       "cinematic" : 2,
-      "dance" : 5,
-      "high-contrast" : 8,
+      "dance" : 6,
+      "high-contrast" : 10,
       "high-key" : 5,
       "highlight-rich" : 2,
-      "indoor" : 4,
+      "indoor" : 5,
       "low-contrast" : 6,
-      "low-key" : 5,
+      "low-key" : 6,
       "low-saturation" : 1,
+      "natural" : 1,
       "night" : 3,
-      "outdoor" : 2,
-      "saturated" : 5,
+      "outdoor" : 3,
+      "saturated" : 6,
       "shadow-rich" : 3,
-      "skin" : 7
+      "skin" : 8
     },
     "conditionalPairs" : 0,
     "contentFamilies" : {
       "DVB Live-Linear" : 1,
-      "K-Choreo" : 5,
-      "LIVE" : 6,
+      "K-Choreo" : 6,
+      "LIVE" : 8,
       "SoleMates" : 1
     },
     "frameRates" : {
       "24.000" : 1,
       "50.000" : 1,
-      "59.940" : 6,
+      "59.940" : 8,
       "59.944" : 1,
-      "59.945" : 3,
+      "59.945" : 4,
       "59.949" : 1
     },
-    "frozenPairs" : 5,
+    "frozenPairs" : 8,
     "hdrTransfers" : {
-      "HLG" : 6,
-      "PQ" : 7
+      "HLG" : 7,
+      "PQ" : 9
     },
-    "mainCalibrationPairs" : 13,
+    "mainCalibrationPairs" : 16,
     "rejectedPairs" : 0,
     "resolutions" : {
       "2048x1024" : 1,
-      "3840x2026" : 5,
-      "3840x2160" : 7
+      "3840x2026" : 6,
+      "3840x2160" : 9
     },
-    "totalPairs" : 13,
+    "totalPairs" : 16,
     "tunePairs" : 5,
     "validationPairs" : 3,
-    "virginFrozenPairs" : 3
+    "virginFrozenPairs" : 6
   },
   "frozenObjectiveEvaluated" : [
 
@@ -57,9 +58,9 @@
   "gateReasons" : [
 
   ],
-  "generatedAt" : "2026-09-02T11:45:39Z",
+  "generatedAt" : "2026-09-03T12:27:17Z",
   "manifestPath" : "repo:data_video\/manifest-v4.json",
-  "manifestSHA256" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
+  "manifestSHA256" : "50fb0bc20f3f0d78b9d2d3ff6cf400fbb3d1c37aba48013aaf45b6e107f23243",
   "notes" : [
     "This command performs manifest, integrity, metadata, decode-smoke, spatial and temporal alignment checks only.",
     "No baseline, candidate, validation or frozen objective was evaluated.",
@@ -714,7 +715,7 @@
       "id" : "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
       "notes" : [
         "objective evaluation is forbidden in dataset-audit",
-        "HDR colour identity verified from hash-bound decoded-keyframe Virgin evidence"
+        "HDR colour identity (HLG) verified from hash-bound decoded-keyframe Virgin evidence"
       ],
       "sdrDecode" : {
         "attempted" : true,
@@ -1342,6 +1343,303 @@
       "status" : "ACCEPTED",
       "suitability" : "MAIN_CALIBRATION",
       "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8703607386213615,
+        "medianConfidence" : 0.8658698084241729,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8120927522928703,
+        "p50Confidence" : 0.8658698084241729,
+        "p90Confidence" : 0.9422004622202752,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_HLG.mp4",
+        "sha256" : "c6ad60310e208f46e2fe4e520fadad5bfa0b0ba2af1108f1c425ef10d82028a8",
+        "sizeBytes" : 662872851
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 201.4,
+        "frameRate" : 59.94458403265371,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_HLG.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_HLG.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "v6_kbs_dirty_work_hlg",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit",
+        "HDR colour identity (HLG) verified from hash-bound decoded-keyframe Virgin evidence"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
+        "sha256" : "8d86b7911463b60b4538b3a44ebc093f44aec534685091b1cbdd530d26a9de23",
+        "sizeBytes" : 587353131
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 201.4,
+        "frameRate" : 59.94458403265371,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8494078983967072,
+        "medianConfidence" : 0.8494829085030641,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8468490610158574,
+        "p50Confidence" : 0.8494829085030641,
+        "p90Confidence" : 0.8514808780920134,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "177b54d2fa2925d2e747c491ac4d9af9bd4f107651d0277f7a6c8f2efc854a1b",
+        "sizeBytes" : 15103201
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "v6_live_2_basketball_evening_pq",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit",
+        "HDR colour identity (PQ) verified from hash-bound decoded-keyframe Virgin evidence"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+        "sha256" : "489fa3813d1ef9fbae3dedc9c161f438e0b294a4ce4a683c5d8ddc015b6b96be",
+        "sizeBytes" : 15044176
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8399268481645501,
+        "medianConfidence" : 0.8393388093990366,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8351331903634159,
+        "p50Confidence" : 0.8393388093990366,
+        "p90Confidence" : 0.8433799707329745,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/3_Cafe_HDR10_3840x2160_15000k.mp4",
+        "sha256" : "162dc1955a0199738e55380bfae866c227deb60163d8ec3e4ee59e899da3b0ab",
+        "sizeBytes" : 14993780
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/3_Cafe_HDR10_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/3_Cafe_HDR10_3840x2160_15000k.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "v6_live_3_cafe_pq",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit",
+        "HDR colour identity (PQ) verified from hash-bound decoded-keyframe Virgin evidence"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/3_Cafe_SDR_3840x2160_15000k.mp4",
+        "sha256" : "075ccf2c046bd6a182be5f7a64df73459c6bcaf1e33b691fb656e9b2df83c198",
+        "sizeBytes" : 14869487
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "hevc",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 8.008,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/3_Cafe_SDR_3840x2160_15000k.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/3_Cafe_SDR_3840x2160_15000k.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
     }
   ],
   "verdict" : "DATASET_V4_READY",

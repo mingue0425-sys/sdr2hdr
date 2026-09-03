@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "v4-virgin-pair-evidence-v2",
+  "verdict": "PAIR_VALID_VIRGIN",
+  "pair": {
+    "provider": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+    "family": "LIVE",
+    "expectedRelation": "same-source"
+  },
+  "assets": {
+    "sdr": {
+      "path": "live:open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+      "sha256": "489fa3813d1ef9fbae3dedc9c161f438e0b294a4ce4a683c5d8ddc015b6b96be"
+    },
+    "hdr": {
+      "path": "live:open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+      "sha256": "177b54d2fa2925d2e747c491ac4d9af9bd4f107651d0277f7a6c8f2efc854a1b"
+    }
+  },
+  "metadataEvidence": {
+    "sdr": {
+      "codec": "hevc",
+      "profile": "Main",
+      "width": 3840,
+      "height": 2160,
+      "pixelFormat": "yuv420p",
+      "colorRange": "tv",
+      "colorPrimaries": "bt709",
+      "transfer": "bt709",
+      "matrix": "bt709",
+      "bitDepth": 8,
+      "frameRate": "60000/1001",
+      "durationSeconds": 8.008,
+      "ffprobe": {
+        "codec_name": "hevc",
+        "profile": "Main",
+        "width": 3840,
+        "height": 2160,
+        "pix_fmt": "yuv420p",
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "duration": "8.008000",
+        "nb_frames": "480"
+      }
+    },
+    "hdr": {
+      "codec": "hevc",
+      "profile": "Main 10",
+      "width": 3840,
+      "height": 2160,
+      "pixelFormat": "yuv420p10le",
+      "colorRange": "tv",
+      "colorPrimaries": "bt2020",
+      "transfer": "smpte2084",
+      "matrix": "bt2020nc",
+      "bitDepth": 10,
+      "frameRate": "60000/1001",
+      "durationSeconds": 8.008,
+      "ffprobe": {
+        "codec_name": "hevc",
+        "profile": "Main 10",
+        "width": 3840,
+        "height": 2160,
+        "pix_fmt": "yuv420p10le",
+        "color_range": "tv",
+        "color_space": "bt2020nc",
+        "color_transfer": "smpte2084",
+        "color_primaries": "bt2020",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "duration": "8.008000",
+        "nb_frames": "480"
+      }
+    }
+  },
+  "fullDecodeEvidence": {
+    "fullFile": true,
+    "errors": [],
+    "sdrDecodedFrames": 480,
+    "hdrDecodedFrames": 480,
+    "decodedFrameCountsExactlyEqual": true,
+    "sdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i live:open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_15000k.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 live:open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+      "countExitStatus": 0,
+      "countStdout": "480\n",
+      "countStderr": "",
+      "decodedFrames": 480,
+      "errors": []
+    },
+    "hdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i live:open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 live:open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+      "countExitStatus": 0,
+      "countStdout": "480\n",
+      "countStderr": "",
+      "decodedFrames": 480,
+      "errors": []
+    }
+  },
+  "alignmentEvidence": {
+    "status": "ALIGNED",
+    "sampledFrames": 40,
+    "matchedFrames": 40,
+    "matchRatio": 1.0,
+    "p10Confidence": 0.8468490610158574,
+    "medianConfidence": 0.8496432559167626,
+    "windowCount": 5,
+    "framesPerWindow": 8,
+    "maxAbsoluteOffsetSeconds": 0.0,
+    "offsetSpreadSeconds": 0.0,
+    "driftFrames": 0,
+    "durationSeconds": 8.008,
+    "errors": []
+  },
+  "selectionEvidence": {
+    "objectiveEvaluationCount": 0,
+    "frameInspectionBeforeSelection": false,
+    "sourceIdentityPreregistered": true,
+    "sourceIdentity": "preregistered",
+    "sourceID": "2_Basketball_Evening",
+    "selectionMode": "metadata-and-structural-screen-before-objective-evaluation"
+  },
+  "objectiveUse": {
+    "consumed": false,
+    "evaluationCount": 0
+  }
+}

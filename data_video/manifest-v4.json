@@ -475,6 +475,95 @@
       "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
       "split": "tune",
       "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-contrast",
+        "saturated"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-master",
+      "group": "kchoreo_v6_kbs_dirty_work",
+      "hdr": "virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_HLG.mp4",
+      "id": "v6_kbs_dirty_work_hlg",
+      "license": "user-provided-local",
+      "notes": "V6 evidence-bound Virgin Frozen HLG pair. Source identity was preregistered before frame inspection; no objective evaluation is permitted.",
+      "objectiveEvaluated": false,
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "arib-std-b67",
+      "sdr": "virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_SDR.mp4",
+      "source": "KBS Kpop",
+      "sourceURL": "https://www.youtube.com/watch?v=iSEvfuJO0hQ",
+      "split": "frozen",
+      "consumed": false,
+      "virginEvidence": {
+        "hdrSHA256": "c6ad60310e208f46e2fe4e520fadad5bfa0b0ba2af1108f1c425ef10d82028a8",
+        "sdrSHA256": "8d86b7911463b60b4538b3a44ebc093f44aec534685091b1cbdd530d26a9de23",
+        "validationManifest": "virgin_candidates/v6_kbs_dirty_work_hlg_sdr/VIRGIN_PAIR_VALID.json",
+        "validationManifestSHA256": "eeace152cef90e1452391ec3a23fbe4eb4d41967458d8013b128a2cfbe1203ce"
+      },
+      "virginFrozen": true
+    },
+    {
+      "contentCategory": [
+        "outdoor",
+        "low-key",
+        "high-contrast"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_2_Basketball_Evening_v6",
+      "hdr": "live:open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+      "id": "v6_live_2_basketball_evening_pq",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "notes": "V6 evidence-bound Virgin Frozen PQ pair. Source-level virginity and structural preselection were established before objective evaluation; no objective evaluation is permitted.",
+      "objectiveEvaluated": false,
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "live:open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "frozen",
+      "consumed": false,
+      "virginEvidence": {
+        "hdrSHA256": "177b54d2fa2925d2e747c491ac4d9af9bd4f107651d0277f7a6c8f2efc854a1b",
+        "sdrSHA256": "489fa3813d1ef9fbae3dedc9c161f438e0b294a4ce4a683c5d8ddc015b6b96be",
+        "validationManifest": "virgin_candidates/v6_live_2_basketball_evening_pq/VIRGIN_PAIR_VALID.json",
+        "validationManifestSHA256": "79a1640512967afc760648975a1ca8d8a0f3b67f2588583f24af3ce3b5d351d0"
+      },
+      "virginFrozen": true
+    },
+    {
+      "contentCategory": [
+        "indoor",
+        "skin",
+        "natural"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_3_Cafe_v6",
+      "hdr": "live:open-sourced_HDR10/3_Cafe_HDR10_3840x2160_15000k.mp4",
+      "id": "v6_live_3_cafe_pq",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "notes": "V6 evidence-bound Virgin Frozen PQ pair. Source-level virginity and structural preselection were established before objective evaluation; no objective evaluation is permitted.",
+      "objectiveEvaluated": false,
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "live:open-sourced_SDR/3_Cafe_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "frozen",
+      "consumed": false,
+      "virginEvidence": {
+        "hdrSHA256": "162dc1955a0199738e55380bfae866c227deb60163d8ec3e4ee59e899da3b0ab",
+        "sdrSHA256": "075ccf2c046bd6a182be5f7a64df73459c6bcaf1e33b691fb656e9b2df83c198",
+        "validationManifest": "virgin_candidates/v6_live_3_cafe_pq/VIRGIN_PAIR_VALID.json",
+        "validationManifestSHA256": "4214925ac162ecdd57a62b6c74eba9b3ea61c97509a17414e59f08fa80e31755"
+      },
+      "virginFrozen": true
     }
   ],
   "roots": {

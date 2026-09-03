@@ -358,19 +358,60 @@ public enum V4HistoricalObjectiveProvenance {
 }
 
 public struct V4VirginPairEvidenceValidation: Sendable, Equatable {
+    /// The normalized validator schema. Legacy numeric/omitted schema values
+    /// are reported as the explicit v1 name without changing their on-disk
+    /// representation.
+    public let schemaVersion: String
+    /// Transfer family proven by the evidence-bound HDR metadata. Legacy v1
+    /// evidence is always HLG; generic v2 may prove HLG or PQ.
+    public let hdrTransferFamily: String
     public let validationManifestSHA256: String
     public let sdrSHA256: String
     public let hdrSHA256: String
+    /// Kept for callers that report the legacy DASH evidence. Generic v2 file
+    /// evidence leaves these empty/zero; callers must branch on schemaVersion.
     public let segmentIdentities: [String]
     public let segmentCount: Int
     public let durationSeconds: Double
+    public let decodedHDRFrameCount: Int
     public let decodedFrameCount: Int
+
+    public var isLegacyDASHEvidence: Bool {
+        schemaVersion == V4VirginPairEvidenceValidator.legacySchemaVersion
+    }
+
+    public init(
+        schemaVersion: String = V4VirginPairEvidenceValidator.legacySchemaVersion,
+        hdrTransferFamily: String = "UNKNOWN",
+        validationManifestSHA256: String,
+        sdrSHA256: String,
+        hdrSHA256: String,
+        segmentIdentities: [String] = [],
+        segmentCount: Int = 0,
+        durationSeconds: Double,
+        decodedFrameCount: Int,
+        decodedHDRFrameCount: Int? = nil
+    ) {
+        self.schemaVersion = schemaVersion
+        self.hdrTransferFamily = hdrTransferFamily
+        self.validationManifestSHA256 = validationManifestSHA256
+        self.sdrSHA256 = sdrSHA256
+        self.hdrSHA256 = hdrSHA256
+        self.segmentIdentities = segmentIdentities
+        self.segmentCount = segmentCount
+        self.durationSeconds = durationSeconds
+        self.decodedHDRFrameCount = decodedHDRFrameCount ?? decodedFrameCount
+        self.decodedFrameCount = decodedFrameCount
+    }
 }
 
 /// Validates an evidence-bound Virgin Frozen addition without invoking an
 /// objective evaluator. Every admission condition is fail-closed and the
 /// media digests come from the current dataset audit, not from filenames.
 public enum V4VirginPairEvidenceValidator {
+    public static let legacySchemaVersion = "v4-virgin-pair-evidence-v1"
+    public static let genericSchemaVersion = "v4-virgin-pair-evidence-v2"
+
     private struct JSONView {
         let root: [String: Any]
 
@@ -385,10 +426,71 @@ public enum V4VirginPairEvidenceValidator {
 
         func string(_ path: [String]) -> String? { value(path) as? String }
         func bool(_ path: [String]) -> Bool? { value(path) as? Bool }
+        func strictBool(_ path: [String]) -> Bool? {
+            guard let raw = value(path), let number = raw as? NSNumber,
+                  CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+            return number.boolValue
+        }
         func int(_ path: [String]) -> Int? { (value(path) as? NSNumber)?.intValue }
         func double(_ path: [String]) -> Double? { (value(path) as? NSNumber)?.doubleValue }
         func strings(_ path: [String]) -> [String]? { value(path) as? [String] }
         func array(_ path: [String]) -> [Any]? { value(path) as? [Any] }
+
+        func stringsOrSingle(_ path: [String]) -> [String]? {
+            if let value = value(path) as? String { return [value] }
+            return value(path) as? [String]
+        }
+
+        func strictInt(_ path: [String]) -> Int? {
+            guard let raw = value(path), let number = raw as? NSNumber,
+                  !Self.isBoolean(number) else { return nil }
+            let value = number.doubleValue
+            guard value.isFinite,
+                  value.rounded(.towardZero) == value,
+                  value >= Double(Int.min), value <= Double(Int.max) else { return nil }
+            return Int(value)
+        }
+
+        func strictDouble(_ path: [String]) -> Double? {
+            guard let raw = value(path), let number = raw as? NSNumber,
+                  !Self.isBoolean(number) else { return nil }
+            let value = number.doubleValue
+            return value.isFinite ? value : nil
+        }
+
+        func finiteNumbersOnly() -> Bool {
+            Self.finiteNumbersOnly(root)
+        }
+
+        func finiteNumbersOnly(_ path: [String]) -> Bool {
+            guard let value = value(path) else { return false }
+            return Self.finiteNumbersOnly(value)
+        }
+
+        private static func finiteNumbersOnly(_ value: Any) -> Bool {
+            if let number = value as? NSNumber {
+                return isBoolean(number) || number.doubleValue.isFinite
+            }
+            if value is Bool { return true }
+            if let object = value as? [String: Any] {
+                return object.values.allSatisfy { finiteNumbersOnly($0) }
+            }
+            if let array = value as? [Any] {
+                return array.allSatisfy { finiteNumbersOnly($0) }
+            }
+            return true
+        }
+
+        private static func isBoolean(_ number: NSNumber) -> Bool {
+            CFGetTypeID(number) == CFBooleanGetTypeID()
+        }
+    }
+
+    private struct CommonEvidence {
+        let reference: V4VirginEvidenceReference
+        let evidenceHash: String
+        let json: JSONView
+        let schemaVersion: String
     }
 
     public static func validate(
@@ -403,27 +505,59 @@ public enum V4VirginPairEvidenceValidator {
             }
         }
 
+        let common = try commonEvidence(
+            pair: pair,
+            manifestURL: manifestURL,
+            auditedSDRSHA256: auditedSDRSHA256,
+            auditedHDRSHA256: auditedHDRSHA256
+        )
+        switch common.schemaVersion {
+        case legacySchemaVersion:
+            return try validateLegacyV1(
+                pair: pair,
+                common: common
+            )
+        case genericSchemaVersion:
+            return try validateGenericV2(
+                pair: pair,
+                common: common
+            )
+        default:
+            // commonEvidence exhausts schema selection; keep this guard for
+            // future edits so the validator cannot silently accept a new form.
+            try require(false, "unsupported Virgin evidence schema")
+            fatalError("unreachable")
+        }
+    }
+
+    private static func commonEvidence(
+        pair: V4PairRecord,
+        manifestURL: URL,
+        auditedSDRSHA256: String,
+        auditedHDRSHA256: String
+    ) throws -> CommonEvidence {
+        func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            guard condition() else {
+                throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): \(message)")
+            }
+        }
+
         guard let reference = pair.virginEvidence else {
             throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): missing virginEvidence reference")
         }
         try require(pair.split == .frozen && pair.virginFrozen, "pair is not declared Virgin Frozen")
         try require(pair.objectiveEvaluated == false, "objectiveEvaluated must be explicitly false")
         try require(pair.consumed == false, "consumed must be explicitly false")
-        try require(!pair.sdr.hasPrefix("/") && !pair.hdr.hasPrefix("/"), "media paths must be portable relative paths")
+        try require(!pair.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, "provider is empty")
         try require(
-            !pair.sdr.split(separator: "/").contains("..") && !pair.hdr.split(separator: "/").contains(".."),
-            "media paths may not escape the manifest directory"
+            pair.contentFamily.map { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? false,
+            "content family is empty"
         )
-        try require(pair.contentFamily == "DVB Live-Linear", "content family is not DVB Live-Linear")
-        try require(pair.source == "DVB Project", "provider is not DVB Project")
-        let declaredTransfer = (pair.referenceTransfer ?? "").lowercased()
-        try require(
-            declaredTransfer == "arib-std-b67" || declaredTransfer == "hlg",
-            "declared HDR transfer is not HLG/ARIB STD-B67"
-        )
-        try require((pair.referencePrimaries ?? "").lowercased() == "bt2020", "declared HDR primaries are not BT.2020")
+        try require(!pair.sdr.isEmpty && !pair.hdr.isEmpty, "media paths must not be empty")
+        try require(!isEscapingMediaPath(pair.sdr) && !isEscapingMediaPath(pair.hdr), "media paths must be portable relative paths")
 
         let manifestBase = manifestURL.deletingLastPathComponent().standardizedFileURL
+        try require(!isEscapingRelativePath(reference.validationManifest), "validation manifest path is not portable")
         let evidenceURL = manifestBase.appendingPathComponent(reference.validationManifest).standardizedFileURL
         try require(
             evidenceURL.path.hasPrefix(manifestBase.path + "/"),
@@ -440,14 +574,36 @@ public enum V4VirginPairEvidenceValidator {
             throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): validation manifest root is not an object")
         }
         let json = JSONView(root: root)
+        try require(json.finiteNumbersOnly(), "evidence contains a non-finite numeric value")
+        let schemaVersion = try schemaVersion(json: json, pairID: pair.id)
+
         try require(json.string(["verdict"]) == "PAIR_VALID_VIRGIN", "verdict is not PAIR_VALID_VIRGIN")
-        try require(
-            json.string(["temporalReadiness"]) == "CONTIGUOUS_TEMPORAL_READY",
-            "temporal readiness is not CONTIGUOUS_TEMPORAL_READY"
-        )
-        try require(json.bool(["objectiveUse", "consumed"]) == false, "objectiveUse.consumed is not false")
-        try require(json.string(["pair", "provider"]) == "DVB Project", "evidence provider mismatch")
-        try require(json.string(["pair", "family"]) == "DVB Live-Linear", "evidence family mismatch")
+        try require(json.strictBool(["objectiveUse", "consumed"]) == false, "objectiveUse.consumed is not false")
+        let objectiveCountPaths = [
+            ["objectiveUse", "evaluationCount"],
+            ["objectiveUse", "evaluation_count"]
+        ]
+        let objectiveCountPresent = objectiveCountPaths.contains { json.value($0) != nil }
+        let objectiveCountValues = presentIntValues(json, paths: objectiveCountPaths)
+        if schemaVersion == genericSchemaVersion {
+            try require(
+                singleIntValue(objectiveCountValues, satisfying: { $0 == 0 }),
+                "objectiveUse.evaluationCount must be explicitly 0"
+            )
+        } else if objectiveCountPresent {
+            // The committed v1 evidence predates this field. When it is
+            // present, however, it must still be a real integer zero.
+            try require(
+                singleIntValue(objectiveCountValues, satisfying: { $0 == 0 }),
+                "objectiveUse.evaluationCount is not 0"
+            )
+        }
+
+        guard let family = pair.contentFamily else {
+            throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): content family is empty")
+        }
+        try require(json.string(["pair", "provider"]) == pair.source, "evidence provider mismatch")
+        try require(json.string(["pair", "family"]) == family, "evidence family mismatch")
 
         let urls = pair.resolvedURLs(relativeTo: manifestURL)
         let evidenceSDRHash = json.string(["assets", "sdr", "sha256"])?.lowercased()
@@ -455,15 +611,85 @@ public enum V4VirginPairEvidenceValidator {
         try require(evidenceSDRHash == reference.sdrSHA256.lowercased(), "evidence SDR SHA-256 mismatch")
         try require(evidenceHDRHash == reference.hdrSHA256.lowercased(), "evidence HDR SHA-256 mismatch")
         if let evidenceSDRPath = json.string(["assets", "sdr", "path"]) {
-            try require(URL(fileURLWithPath: evidenceSDRPath).lastPathComponent == urls.sdr.lastPathComponent, "evidence SDR asset path mismatch")
+            try require(filename(evidenceSDRPath) == urls.sdr.lastPathComponent, "evidence SDR asset path mismatch")
         } else {
             try require(false, "evidence SDR asset path missing")
         }
         if let evidenceHDRPath = json.string(["assets", "hdr", "path"]) {
-            try require(URL(fileURLWithPath: evidenceHDRPath).lastPathComponent == urls.hdr.lastPathComponent, "evidence HDR asset path mismatch")
+            try require(filename(evidenceHDRPath) == urls.hdr.lastPathComponent, "evidence HDR asset path mismatch")
         } else {
             try require(false, "evidence HDR asset path missing")
         }
+
+        return CommonEvidence(
+            reference: reference,
+            evidenceHash: evidenceHash,
+            json: json,
+            schemaVersion: schemaVersion
+        )
+    }
+
+    private static func schemaVersion(json: JSONView, pairID: String) throws -> String {
+        guard let raw = json.value(["schemaVersion"]) else {
+            // The first v1 synthetic evidence and some early committed
+            // artifacts omitted the discriminator; their shape is legacy v1.
+            return legacySchemaVersion
+        }
+        if let string = raw as? String, string == genericSchemaVersion {
+            return genericSchemaVersion
+        }
+        if let string = raw as? String, string == legacySchemaVersion {
+            return legacySchemaVersion
+        }
+        if let number = raw as? NSNumber,
+           CFGetTypeID(number) != CFBooleanGetTypeID(),
+           number.doubleValue == 1, number.doubleValue.isFinite {
+            return legacySchemaVersion
+        }
+        throw CalibrationError.invalidManifest(
+            "Virgin evidence rejected for \(pairID): unsupported evidence schemaVersion"
+        )
+    }
+
+    private static func isEscapingRelativePath(_ path: String) -> Bool {
+        path.isEmpty || path.hasPrefix("/") || path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).contains("..")
+    }
+
+    private static func isEscapingMediaPath(_ path: String) -> Bool {
+        isEscapingRelativePath(path) || path.contains("\0")
+    }
+
+    private static func filename(_ path: String) -> String {
+        path.replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .last.map(String.init) ?? ""
+    }
+
+    private static func validateLegacyV1(
+        pair: V4PairRecord,
+        common: CommonEvidence
+    ) throws -> V4VirginPairEvidenceValidation {
+        let json = common.json
+        func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            guard condition() else {
+                throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): \(message)")
+            }
+        }
+
+        let declaredTransfer = (pair.referenceTransfer ?? "").lowercased()
+        try require(
+            declaredTransfer == "arib-std-b67" || declaredTransfer == "hlg",
+            "declared HDR transfer is not HLG/ARIB STD-B67"
+        )
+        try require((pair.referencePrimaries ?? "").lowercased() == "bt2020", "declared HDR primaries are not BT.2020")
+        try require(pair.contentFamily == "DVB Live-Linear", "content family is not DVB Live-Linear")
+        try require(pair.source == "DVB Project", "provider is not DVB Project")
+        try require(
+            json.string(["temporalReadiness"]) == "CONTIGUOUS_TEMPORAL_READY",
+            "temporal readiness is not CONTIGUOUS_TEMPORAL_READY"
+        )
+        try require(json.string(["pair", "provider"]) == "DVB Project", "evidence provider mismatch")
+        try require(json.string(["pair", "family"]) == "DVB Live-Linear", "evidence family mismatch")
 
         let segmentCount = json.int(["contiguousRun", "segmentCount"]) ?? -1
         let duration = json.double(["contiguousRun", "durationSeconds"]) ?? -.infinity
@@ -534,15 +760,542 @@ public enum V4VirginPairEvidenceValidator {
         try require(spatialMedian >= spatialMedianMinimum && spatialP10 >= spatialP10Minimum, "spatial alignment is below its frozen thresholds")
 
         return V4VirginPairEvidenceValidation(
-            validationManifestSHA256: evidenceHash,
-            sdrSHA256: auditedSDRSHA256,
-            hdrSHA256: auditedHDRSHA256,
+            schemaVersion: legacySchemaVersion,
+            hdrTransferFamily: "HLG",
+            validationManifestSHA256: common.evidenceHash,
+            sdrSHA256: common.reference.sdrSHA256,
+            hdrSHA256: common.reference.hdrSHA256,
             segmentIdentities: sdrSegments,
             segmentCount: segmentCount,
             durationSeconds: duration,
-            decodedFrameCount: sdrFrames
+            decodedFrameCount: sdrFrames,
+            decodedHDRFrameCount: hdrFrames
         )
     }
+
+    private static func validateGenericV2(
+        pair: V4PairRecord,
+        common: CommonEvidence
+    ) throws -> V4VirginPairEvidenceValidation {
+        let json = common.json
+        func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            guard condition() else {
+                throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): \(message)")
+            }
+        }
+
+        let declaredTransferFamily = normalizedMetadataValue(pair.referenceTransfer ?? "")
+        try require(
+            declaredTransferFamily == "hlg" || declaredTransferFamily == "pq",
+            "declared HDR transfer is not ARIB STD-B67/HLG or SMPTE ST 2084/PQ"
+        )
+        try require(normalizedMetadataValue(pair.referencePrimaries ?? "") == "bt2020", "declared HDR primaries are not BT.2020")
+
+        try require(json.finiteNumbersOnly(["fullDecodeEvidence"]), "full-decode evidence is missing or contains a non-finite numeric value")
+        try require(json.finiteNumbersOnly(["alignmentEvidence"]), "alignment evidence is missing or contains a non-finite numeric value")
+
+        let decodeErrorLists = presentArrays(
+            json,
+            paths: [
+                ["fullDecodeEvidence", "errors"],
+                ["fullDecodeEvidence", "decodeErrors"],
+                ["fullDecodeEvidence", "sdrErrors"],
+                ["fullDecodeEvidence", "hdrErrors"],
+                ["fullDecodeEvidence", "sdr_errors"],
+                ["fullDecodeEvidence", "hdr_errors"],
+                ["fullDecodeEvidence", "sdr", "errors"],
+                ["fullDecodeEvidence", "hdr", "errors"]
+            ]
+        )
+        try require(decodeErrorLists?.allSatisfy { $0.isEmpty } == true, "full decode recorded errors or omitted its error list")
+
+        let sdrFrameValues = presentIntValues(
+            json,
+            paths: [
+                ["fullDecodeEvidence", "sdrDecodedFrames"],
+                ["fullDecodeEvidence", "sdrDecodedFrameCount"],
+                ["fullDecodeEvidence", "sdr_decoded_frames"],
+                ["fullDecodeEvidence", "sdr_decoded_frame_count"],
+                ["fullDecodeEvidence", "sdr", "decodedFrames"],
+                ["fullDecodeEvidence", "sdr", "decoded_frames"],
+                ["fullDecodeEvidence", "sdr", "decodedFrameCount"],
+                ["fullDecodeEvidence", "sdr", "decoded_frame_count"],
+                ["fullDecodeEvidence", "sdrFrames"]
+            ]
+        )
+        let hdrFrameValues = presentIntValues(
+            json,
+            paths: [
+                ["fullDecodeEvidence", "hdrDecodedFrames"],
+                ["fullDecodeEvidence", "hdrDecodedFrameCount"],
+                ["fullDecodeEvidence", "hdr_decoded_frames"],
+                ["fullDecodeEvidence", "hdr_decoded_frame_count"],
+                ["fullDecodeEvidence", "hdr", "decodedFrames"],
+                ["fullDecodeEvidence", "hdr", "decoded_frames"],
+                ["fullDecodeEvidence", "hdr", "decodedFrameCount"],
+                ["fullDecodeEvidence", "hdr", "decoded_frame_count"],
+                ["fullDecodeEvidence", "hdrFrames"]
+            ]
+        )
+        try require(singleIntValue(sdrFrameValues, satisfying: { $0 > 0 }), "full-file SDR decoded frame count is missing, non-integral, or not positive")
+        try require(singleIntValue(hdrFrameValues, satisfying: { $0 > 0 }), "full-file HDR decoded frame count is missing, non-integral, or not positive")
+        guard let sdrFrames = sdrFrameValues?.first, let hdrFrames = hdrFrameValues?.first else {
+            throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): full-file decoded frame counts are missing")
+        }
+        try require(sdrFrames == hdrFrames, "full-file decoded frame counts are unequal")
+
+        for path in [
+            ["fullDecodeEvidence", "decodedFrameCountsExactlyEqual"],
+            ["fullDecodeEvidence", "decoded_frame_counts_exactly_equal"]
+        ] where json.value(path) != nil {
+            try require(json.strictBool(path) == true, "full-decode evidence does not assert equal frame counts")
+        }
+
+        for path in [
+            ["fullDecodeEvidence", "fullFile"],
+            ["fullDecodeEvidence", "full_file"],
+            ["fullDecodeEvidence", "isFullFile"]
+        ] where json.value(path) != nil {
+            try require(json.strictBool(path) == true, "full-decode evidence does not assert full-file coverage")
+        }
+
+        let sdrPrimaries = presentStrings(
+            json,
+            paths: metadataPaths(role: "sdr", camel: "colorPrimaries", snake: "color_primaries", short: "primaries")
+        )
+        let sdrTransfer = presentStrings(
+            json,
+            paths: metadataPaths(role: "sdr", camel: "colorTransfer", snake: "color_transfer", short: "transfer")
+        )
+        let sdrMatrix = presentStrings(
+            json,
+            paths: metadataPaths(role: "sdr", camel: "colorSpace", snake: "color_space", short: "matrix")
+        )
+        let hdrPrimaries = presentStrings(
+            json,
+            paths: metadataPaths(role: "hdr", camel: "colorPrimaries", snake: "color_primaries", short: "primaries")
+        )
+        let hdrTransfer = presentStrings(
+            json,
+            paths: metadataPaths(role: "hdr", camel: "colorTransfer", snake: "color_transfer", short: "transfer")
+        )
+        let hdrMatrix = presentStrings(
+            json,
+            paths: metadataPaths(role: "hdr", camel: "colorSpace", snake: "color_space", short: "matrix")
+        )
+        try require(metadataMatches(sdrPrimaries, expected: ["bt709"]), "v2 SDR primaries are not BT.709")
+        try require(metadataMatches(sdrTransfer, expected: ["bt709"]), "v2 SDR transfer is not BT.709")
+        try require(metadataMatches(sdrMatrix, expected: ["bt709"]), "v2 SDR matrix is not BT.709")
+        try require(metadataMatches(hdrPrimaries, expected: ["bt2020"]), "v2 HDR primaries are not BT.2020")
+        let expectedHDRTransferDescription = declaredTransferFamily == "pq"
+            ? "SMPTE ST 2084/PQ"
+            : "ARIB STD-B67/HLG"
+        try require(
+            metadataMatches(hdrTransfer, expected: [declaredTransferFamily]),
+            "v2 HDR transfer is not \(expectedHDRTransferDescription)"
+        )
+        try require(metadataMatches(hdrMatrix, expected: ["bt2020nc"]), "v2 HDR matrix is not BT.2020nc")
+
+        let hdrBitDepthPaths = metadataPaths(role: "hdr", camel: "bitDepth", snake: "bit_depth", short: "bits_per_raw_sample")
+        let hdrBitDepth = presentIntValues(json, paths: hdrBitDepthPaths)
+        if hdrBitDepthPaths.contains(where: { json.value($0) != nil }) {
+            try require(singleIntValue(hdrBitDepth, satisfying: { $0 >= 10 }), "v2 HDR bit depth is missing or below 10 bits")
+        } else {
+            let hdrPixelFormats = presentStrings(
+                json,
+                paths: pixelFormatPaths(role: "hdr")
+            )
+            try require(pixelFormatsIndicateAtLeast10Bits(hdrPixelFormats), "v2 HDR bit depth is missing or below 10 bits")
+        }
+
+        let sdrRates = presentFrameRateValues(json, role: "sdr")
+        let hdrRates = presentFrameRateValues(json, role: "hdr")
+        try require(positiveFiniteFrameRates(sdrRates), "v2 SDR frame rate is missing or not positive")
+        try require(positiveFiniteFrameRates(hdrRates), "v2 HDR frame rate is missing or not positive")
+        try require(frameRatesAgree(sdrRates, hdrRates), "v2 SDR/HDR frame rates differ")
+
+        let status = json.string(["alignmentEvidence", "status"])
+        let sampledFrames = presentIntValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "sampledFrames"],
+                ["alignmentEvidence", "sampled_frames"]
+            ]
+        )
+        let matchedFrames = presentIntValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "matchedFrames"],
+                ["alignmentEvidence", "matched_frames"]
+            ]
+        )
+        let matchRatio = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "matchRatio"],
+                ["alignmentEvidence", "match_ratio"]
+            ]
+        )
+        let p10Confidence = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "p10Confidence"],
+                ["alignmentEvidence", "p10_confidence"]
+            ]
+        )
+        let medianConfidence = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "medianConfidence"],
+                ["alignmentEvidence", "median_confidence"]
+            ]
+        )
+        let windowCount = presentIntValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "windowCount"],
+                ["alignmentEvidence", "window_count"]
+            ]
+        )
+        let framesPerWindow = presentIntValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "framesPerWindow"],
+                ["alignmentEvidence", "frames_per_window"]
+            ]
+        )
+        let maxAbsoluteOffsetSeconds = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "maxAbsoluteOffsetSeconds"],
+                ["alignmentEvidence", "max_absolute_offset_seconds"]
+            ]
+        )
+        let offsetSpreadSeconds = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "offsetSpreadSeconds"],
+                ["alignmentEvidence", "offset_spread_seconds"]
+            ]
+        )
+        let durationSeconds = presentDoubleValues(
+            json,
+            paths: [
+                ["alignmentEvidence", "durationSeconds"],
+                ["alignmentEvidence", "duration_seconds"]
+            ]
+        )
+
+        try require(status == "ALIGNED", "v2 structural alignment status is not ALIGNED")
+        try require(singleIntValue(sampledFrames, satisfying: { $0 >= 40 }), "v2 sampled frame count is below 40")
+        try require(singleIntValue(matchedFrames, satisfying: { $0 >= V4AlignmentPolicy.minimumMatchedFrames }), "v2 matched frame count is below the V4 minimum")
+        try require(singleDoubleValue(matchRatio, satisfying: { $0 >= V4AlignmentPolicy.minimumMatchRatio }), "v2 match ratio is below the V4 minimum")
+        try require(singleDoubleValue(p10Confidence, satisfying: { $0 >= V4AlignmentPolicy.minimumP10Confidence }), "v2 p10 confidence is below the V4 minimum")
+        try require(singleDoubleValue(medianConfidence, satisfying: { $0 >= V4AlignmentPolicy.alignedMedianConfidence }), "v2 median confidence is below the V4 minimum")
+        try require(singleIntValue(windowCount, satisfying: { $0 >= 5 }), "v2 alignment window count is below 5")
+        try require(singleIntValue(framesPerWindow, satisfying: { $0 >= 8 }), "v2 frames per alignment window is below 8")
+        try require(singleDoubleValue(maxAbsoluteOffsetSeconds, satisfying: { $0 >= 0 && $0 <= 0.05 }), "v2 absolute offset exceeds 0.05 seconds")
+        try require(singleDoubleValue(offsetSpreadSeconds, satisfying: { $0 >= 0 && $0 <= 0.05 }), "v2 offset spread exceeds 0.05 seconds")
+        // The original generic v2 contract was introduced for the 201-second
+        // HLG candidate and required a 50-second run. PQ LIVE clips are
+        // intentionally short (8.008 seconds), so keep the HLG duration gate
+        // while requiring every PQ evidence duration to be finite and
+        // positive. The 5x8/40-frame V4 alignment gates remain unchanged for
+        // both transfer families.
+        let durationIsValid: (Double) -> Bool = { duration in
+            duration > 0 && (declaredTransferFamily == "pq" || duration >= 50)
+        }
+        try require(singleDoubleValue(durationSeconds, satisfying: durationIsValid), "v2 evidence duration is invalid for the declared HDR transfer")
+
+        if json.value(["alignmentEvidence", "errors"]) != nil {
+            try require(json.array(["alignmentEvidence", "errors"])?.isEmpty == true, "v2 alignment recorded errors")
+        }
+
+        guard let selectionRoot = firstObject(
+            json,
+            paths: [
+                ["selectionEvidence"],
+                ["selectionProvenanceEvidence"],
+                ["selectionProvenance"],
+                ["provenanceEvidence"],
+                ["selection"],
+                ["provenance"]
+            ]
+        ) else {
+            throw CalibrationError.invalidManifest("Virgin evidence rejected for \(pair.id): v2 selection/provenance evidence is missing")
+        }
+        let selection = JSONView(root: selectionRoot)
+        try require(selection.finiteNumbersOnly(), "v2 selection/provenance evidence contains a non-finite numeric value")
+        try require(
+            singleIntValue(
+                presentIntValues(
+                    selection,
+                    paths: [["objectiveEvaluationCount"], ["objective_evaluation_count"]]
+                ),
+                satisfying: { $0 == 0 }
+            ),
+            "v2 selection objectiveEvaluationCount must be explicitly 0"
+        )
+        try require(
+            singleBoolValue(
+                presentBoolValues(
+                    selection,
+                    paths: [["frameInspectionBeforeSelection"], ["frame_inspection_before_selection"]]
+                ),
+                satisfying: { !$0 }
+            ),
+            "v2 frameInspectionBeforeSelection must be explicitly false"
+        )
+        try require(isPreregisteredSourceIdentity(selection), "v2 source identity was not explicitly preregistered")
+        try require(hasSingleNonEmptySourceID(selection), "v2 sourceID is missing or empty")
+
+        return V4VirginPairEvidenceValidation(
+            schemaVersion: genericSchemaVersion,
+            hdrTransferFamily: declaredTransferFamily.uppercased(),
+            validationManifestSHA256: common.evidenceHash,
+            sdrSHA256: common.reference.sdrSHA256,
+            hdrSHA256: common.reference.hdrSHA256,
+            durationSeconds: durationSeconds?.first ?? 0,
+            decodedFrameCount: sdrFrames,
+            decodedHDRFrameCount: hdrFrames
+        )
+    }
+
+    private static func firstObject(_ json: JSONView, paths: [[String]]) -> [String: Any]? {
+        for path in paths where json.value(path) != nil {
+            return json.value(path) as? [String: Any]
+        }
+        return nil
+    }
+
+    private static func presentArrays(_ json: JSONView, paths: [[String]]) -> [[Any]]? {
+        var result: [[Any]] = []
+        for path in paths where json.value(path) != nil {
+            guard let values = json.array(path) else { return nil }
+            result.append(values)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func presentStrings(_ json: JSONView, paths: [[String]]) -> [[String]]? {
+        var result: [[String]] = []
+        for path in paths where json.value(path) != nil {
+            guard let values = json.stringsOrSingle(path) else { return nil }
+            result.append(values)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func presentIntValues(_ json: JSONView, paths: [[String]]) -> [Int]? {
+        var result: [Int] = []
+        for path in paths where json.value(path) != nil {
+            guard let value = json.strictInt(path) else { return nil }
+            result.append(value)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func presentDoubleValues(_ json: JSONView, paths: [[String]]) -> [Double]? {
+        var result: [Double] = []
+        for path in paths where json.value(path) != nil {
+            guard let value = json.strictDouble(path) else { return nil }
+            result.append(value)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func presentBoolValues(_ json: JSONView, paths: [[String]]) -> [Bool]? {
+        var result: [Bool] = []
+        for path in paths where json.value(path) != nil {
+            guard let value = json.strictBool(path) else { return nil }
+            result.append(value)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func frameRateValue(_ json: JSONView, path: [String]) -> Double? {
+        if let value = json.strictDouble(path) { return value }
+        guard let raw = json.value(path) as? String else { return nil }
+        let parts = raw.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 2,
+              let numerator = Double(parts[0]),
+              let denominator = Double(parts[1]),
+              numerator.isFinite, denominator.isFinite,
+              numerator > 0, denominator > 0 else { return nil }
+        let value = numerator / denominator
+        return value.isFinite ? value : nil
+    }
+
+    private static func presentFrameRateValues(_ json: JSONView, role: String) -> [Double]? {
+        var result: [Double] = []
+        for path in frameRatePaths(role: role) where json.value(path) != nil {
+            guard let value = frameRateValue(json, path: path) else { return nil }
+            result.append(value)
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    private static func singleIntValue(_ values: [Int]?, satisfying predicate: (Int) -> Bool) -> Bool {
+        guard let values, !values.isEmpty, Set(values).count == 1 else { return false }
+        return values.allSatisfy(predicate)
+    }
+
+    private static func singleBoolValue(_ values: [Bool]?, satisfying predicate: (Bool) -> Bool) -> Bool {
+        guard let values, !values.isEmpty, Set(values).count == 1 else { return false }
+        return values.allSatisfy(predicate)
+    }
+
+    private static func singleDoubleValue(_ values: [Double]?, satisfying predicate: (Double) -> Bool) -> Bool {
+        guard let values, !values.isEmpty, values.allSatisfy(\.isFinite) else { return false }
+        guard let first = values.first else { return false }
+        let tolerance = v2NumericTolerance
+        guard values.allSatisfy({ abs($0 - first) <= tolerance * max(1, abs($0), abs(first)) }) else { return false }
+        return values.allSatisfy(predicate)
+    }
+
+    private static func positiveFiniteFrameRates(_ values: [Double]?) -> Bool {
+        guard let values, !values.isEmpty else { return false }
+        return values.allSatisfy { $0.isFinite && $0 > 0 }
+    }
+
+    private static func frameRatesAgree(_ lhs: [Double]?, _ rhs: [Double]?) -> Bool {
+        guard positiveFiniteFrameRates(lhs), positiveFiniteFrameRates(rhs),
+              let lhs = lhs, let rhs = rhs,
+              let left = lhs.first, let right = rhs.first else { return false }
+        let tolerance = v2NumericTolerance
+        return lhs.allSatisfy { abs($0 - left) <= tolerance * max(1, abs($0), abs(left)) } &&
+            rhs.allSatisfy { abs($0 - right) <= tolerance * max(1, abs($0), abs(right)) } &&
+            abs(left - right) <= tolerance * max(1, abs(left), abs(right))
+    }
+
+    private static func metadataMatches(_ groups: [[String]]?, expected: Set<String>) -> Bool {
+        guard let groups else { return false }
+        let values = groups.flatMap { $0 }
+        guard !values.isEmpty else { return false }
+        return Set(values.map(normalizedMetadataValue)) == expected
+    }
+
+    private static func normalizedMetadataValue(_ value: String) -> String {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let compact = lower.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ".", with: "")
+        switch compact {
+        case "bt709", "bt-709": return "bt709"
+        case "bt2020", "bt-2020": return "bt2020"
+        case "bt2020nc", "bt2020-nc", "bt-2020nc", "bt-2020-nc": return "bt2020nc"
+        case "hlg", "arib-stdb67", "aribstd-b67", "aribstdb67", "arib-std-b67", "aribstd-b67/hlg", "arib-std-b67/hlg", "hlg/aribstd-b67", "hlg/arib-std-b67": return "hlg"
+        case "smpte2084", "smpte-2084", "smpte-st2084", "smpte-st-2084", "smptest2084", "smptest-2084": return "pq"
+        default: return lower
+        }
+    }
+
+    private static func metadataPaths(
+        role: String,
+        camel: String,
+        snake: String,
+        short: String
+    ) -> [[String]] {
+        var paths: [[String]] = []
+        for root in ["metadataEvidence", "metadata", "streamEvidence"] {
+            paths.append([root, role, camel])
+            paths.append([root, role, snake])
+            paths.append([root, role, short])
+        }
+        for root in ["metadataEvidence", "metadata", "streamEvidence"] {
+            for vui in ["decoded_keyframe_vui", "decodedKeyframeVUI"] {
+                paths.append([root, vui, role, "values", snake])
+                paths.append([root, vui, role, "values", camel])
+                paths.append([root, vui, role, "values", short])
+            }
+        }
+        return paths
+    }
+
+    private static func frameRatePaths(role: String) -> [[String]] {
+        let prefix = role == "sdr" ? "sdr" : "hdr"
+        let upperPrefix = prefix == "sdr" ? "SDR" : "HDR"
+        var paths: [[String]] = [
+            ["streamEvidence", "\(prefix)_fps"],
+            ["streamEvidence", "\(prefix)FPS"],
+            ["streamEvidence", "\(prefix)FrameRate"],
+            ["metadataEvidence", "\(prefix)FPS"],
+            ["metadataEvidence", "\(prefix)_fps"],
+            ["metadataEvidence", "\(prefix)FrameRate"]
+        ]
+        for root in ["metadataEvidence", "metadata", "streamEvidence"] {
+            for key in ["frameRate", "frame_rate", "fps", "avgFrameRate", "avg_frame_rate", "rFrameRate", "r_frame_rate"] {
+                paths.append([root, role, key])
+            }
+        }
+        paths.append(["metadataEvidence", "\(upperPrefix)FrameRate"])
+        paths.append(["streamEvidence", "\(upperPrefix)FrameRate"])
+        return paths
+    }
+
+    private static func pixelFormatPaths(role: String) -> [[String]] {
+        var paths: [[String]] = []
+        for root in ["metadataEvidence", "metadata", "streamEvidence"] {
+            for key in ["pixelFormat", "pixel_format", "pixFmt", "pix_fmt"] {
+                paths.append([root, role, key])
+            }
+        }
+        return paths
+    }
+
+    private static func pixelFormatsIndicateAtLeast10Bits(_ groups: [[String]]?) -> Bool {
+        guard let groups else { return false }
+        let values = groups.flatMap { $0 }
+        guard !values.isEmpty else { return false }
+        return values.allSatisfy { value in
+            let lower = value.lowercased()
+            return [16, 12, 10].contains { lower.contains(String($0)) }
+        }
+    }
+
+    private static func isPreregisteredSourceIdentity(_ json: JSONView) -> Bool {
+        var assertions: [Bool] = []
+        for path in [
+            ["sourceIdentityWasPreregistered"],
+            ["sourceIdentityPreregistered"],
+            ["sourceIdentityPreRegistered"],
+            ["source_identity_preregistered"],
+            ["sourceIdentity", "preregistered"],
+            ["sourceIdentity", "wasPreregistered"],
+            ["sourceIdentity", "preRegistered"],
+            ["sourceIdentity", "pre_registered"],
+            ["sourceIdentity", "statusPreregistered"],
+            ["preregistered"],
+            ["sourceIdentity"]
+        ] where json.value(path) != nil {
+            guard let value = json.strictBool(path) else { continue }
+            assertions.append(value)
+        }
+        for path in [["sourceIdentity"], ["sourceIdentityStatus"], ["sourceIdentity", "status"]] where json.value(path) != nil {
+            guard let value = json.string(path) else { continue }
+            let normalized = value
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+                .replacingOccurrences(of: "-", with: "")
+                .replacingOccurrences(of: "_", with: "")
+                .replacingOccurrences(of: " ", with: "")
+            assertions.append(normalized == "preregistered")
+        }
+        return !assertions.isEmpty && assertions.allSatisfy { $0 }
+    }
+
+    private static func hasSingleNonEmptySourceID(_ json: JSONView) -> Bool {
+        var values: [String] = []
+        for path in [
+            ["sourceID"], ["sourceId"], ["source_id"],
+            ["sourceIdentity", "sourceID"], ["sourceIdentity", "sourceId"], ["sourceIdentity", "source_id"]
+        ]
+            where json.value(path) != nil {
+            guard let value = json.string(path) else { return false }
+            values.append(value.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        return !values.isEmpty && values.allSatisfy { !$0.isEmpty } && Set(values).count == 1
+    }
+
+    private static let v2NumericTolerance = 1e-9
 }
 
 public struct V4NewHLGCandidateAudit: Codable, Sendable, Equatable {
@@ -842,6 +1595,20 @@ public enum V4NewHLGHoldoutAuditor {
         if objectivelyConsumed { reasons.append("objectiveUse is not virgin") }
 
         let accepted = reasons.isEmpty
+        let decodeStatus: String
+        let provenanceStatus: String
+        if accepted {
+            if validation.isLegacyDASHEvidence {
+                decodeStatus = "PASS_SDR=\(datasetPair.sdrDecode.decodedSampleCount);HDR=\(datasetPair.hdrDecode.decodedSampleCount);FULL=\(validation.decodedFrameCount)"
+                provenanceStatus = "PASS_MANIFEST_SHA=\(validation.validationManifestSHA256);ASSET_SHA_MATCH;CONTIGUOUS=\(validation.segmentCount);DURATION=\(String(format: "%.2f", validation.durationSeconds))"
+            } else {
+                decodeStatus = "PASS_SDR=\(datasetPair.sdrDecode.decodedSampleCount);HDR=\(datasetPair.hdrDecode.decodedSampleCount);FULL_FILE_SDR=\(validation.decodedFrameCount);FULL_FILE_HDR=\(validation.decodedHDRFrameCount)"
+                provenanceStatus = "PASS_MANIFEST_SHA=\(validation.validationManifestSHA256);ASSET_SHA_MATCH;FULL_FILE_FRAMES=\(validation.decodedFrameCount);DURATION=\(String(format: "%.2f", validation.durationSeconds))"
+            }
+        } else {
+            decodeStatus = "SDR=\(datasetPair.sdrDecode.passed);HDR=\(datasetPair.hdrDecode.passed)"
+            provenanceStatus = "EVIDENCE_REJECTED"
+        }
         return V4NewHLGCandidateAudit(
             id: manifestPair.id, source: "manifest-v4-virgin-evidence",
             sdrPath: sdrPath, hdrPath: hdrPath,
@@ -854,12 +1621,8 @@ public enum V4NewHLGHoldoutAuditor {
                 datasetPair.alignment.p10Confidence,
                 datasetPair.alignment.matchRatio
             ),
-            decodeStatus: accepted
-                ? "PASS_SDR=\(datasetPair.sdrDecode.decodedSampleCount);HDR=\(datasetPair.hdrDecode.decodedSampleCount);FULL=\(validation.decodedFrameCount)"
-                : "SDR=\(datasetPair.sdrDecode.passed);HDR=\(datasetPair.hdrDecode.passed)",
-            provenanceStatus: accepted
-                ? "PASS_MANIFEST_SHA=\(validation.validationManifestSHA256);ASSET_SHA_MATCH;CONTIGUOUS=\(validation.segmentCount);DURATION=\(String(format: "%.2f", validation.durationSeconds))"
-                : "EVIDENCE_REJECTED",
+            decodeStatus: decodeStatus,
+            provenanceStatus: provenanceStatus,
             accepted: accepted,
             rejectionReasons: reasons
         )

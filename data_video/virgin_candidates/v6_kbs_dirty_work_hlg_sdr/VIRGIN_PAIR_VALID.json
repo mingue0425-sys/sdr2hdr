@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "v4-virgin-pair-evidence-v2",
+  "verdict": "PAIR_VALID_VIRGIN",
+  "pair": {
+    "provider": "KBS Kpop",
+    "family": "K-Choreo",
+    "expectedRelation": "same-master"
+  },
+  "assets": {
+    "sdr": {
+      "path": "virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_SDR.mp4",
+      "sha256": "8d86b7911463b60b4538b3a44ebc093f44aec534685091b1cbdd530d26a9de23"
+    },
+    "hdr": {
+      "path": "virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_HLG.mp4",
+      "sha256": "c6ad60310e208f46e2fe4e520fadad5bfa0b0ba2af1108f1c425ef10d82028a8"
+    }
+  },
+  "metadataEvidence": {
+    "sdr": {
+      "codec": "vp9",
+      "profile": "Profile 0",
+      "width": 3840,
+      "height": 2026,
+      "pixelFormat": "yuv420p",
+      "colorPrimaries": "bt709",
+      "transfer": "bt709",
+      "matrix": "bt709",
+      "bitDepth": 8,
+      "frameRate": "60000/1001",
+      "durationSeconds": 201.4,
+      "ffprobe": {
+        "codec_name": "vp9",
+        "profile": "Profile 0",
+        "width": 3840,
+        "height": 2026,
+        "pix_fmt": "yuv420p",
+        "color_primaries": "bt709",
+        "color_transfer": "bt709",
+        "color_space": "bt709",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "6036000/100693",
+        "duration": "201.400000"
+      }
+    },
+    "hdr": {
+      "codec": "vp9",
+      "profile": "Profile 2",
+      "width": 3840,
+      "height": 2026,
+      "pixelFormat": "yuv420p10le",
+      "colorPrimaries": "bt2020",
+      "transfer": "arib-std-b67",
+      "matrix": "bt2020nc",
+      "bitDepth": 10,
+      "frameRate": "60000/1001",
+      "durationSeconds": 201.4,
+      "ffprobe": {
+        "codec_name": "vp9",
+        "profile": "Profile 2",
+        "width": 3840,
+        "height": 2026,
+        "pix_fmt": "yuv420p10le",
+        "color_primaries": "bt2020",
+        "color_transfer": "arib-std-b67",
+        "color_space": "bt2020nc",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "6036000/100693",
+        "duration": "201.400000"
+      }
+    }
+  },
+  "fullDecodeEvidence": {
+    "fullFile": true,
+    "errors": [],
+    "sdrDecodedFrames": 12072,
+    "hdrDecodedFrames": 12072,
+    "decodedFrameCountsExactlyEqual": true,
+    "sdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i data_video/virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_SDR.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 data_video/virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_SDR.mp4",
+      "countExitStatus": 0,
+      "countStdout": "12072\n",
+      "countStderr": "",
+      "decodedFrames": 12072,
+      "errors": []
+    },
+    "hdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i data_video/virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_HLG.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 data_video/virgin_candidates/v6_kbs_dirty_work_hlg_sdr/KBS_DirtyWork_HLG.mp4",
+      "countExitStatus": 0,
+      "countStdout": "12072\n",
+      "countStderr": "",
+      "decodedFrames": 12072,
+      "errors": []
+    }
+  },
+  "alignmentEvidence": {
+    "status": "ALIGNED",
+    "sampledFrames": 40,
+    "matchedFrames": 40,
+    "matchRatio": 1.0,
+    "p10Confidence": 0.974292,
+    "medianConfidence": 0.977728,
+    "windowCount": 5,
+    "framesPerWindow": 8,
+    "maxAbsoluteOffsetSeconds": 0.0,
+    "offsetSpreadSeconds": 0.0,
+    "durationSeconds": 201.4,
+    "errors": []
+  },
+  "selectionEvidence": {
+    "objectiveEvaluationCount": 0,
+    "frameInspectionBeforeSelection": false,
+    "sourceIdentityPreregistered": true,
+    "sourceIdentity": "preregistered",
+    "sourceID": "iSEvfuJO0hQ",
+    "selectionMode": "metadata-only-before-frame-inspection"
+  },
+  "objectiveUse": {
+    "consumed": false,
+    "evaluationCount": 0
+  }
+}

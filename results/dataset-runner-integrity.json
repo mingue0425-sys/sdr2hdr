@@ -1,6 +1,6 @@
 {
-  "auditConfigHash" : "d5cd18a25eadf3bfa8057f2d99dacb30a0668e3b3e926f8bd29202b4916a2b99",
-  "auditHash" : "7b31f600b6f3cc3df4b3ac538d7b8da5a4075b0d46915489092778b8bd0518ef",
+  "auditConfigHash" : "1b3162e53d632c26b4281deeb9e63b2ae1932657d8f7d3659d56ffd8336fe638",
+  "auditHash" : "da845ad23de32e08a184ae6de5ee576037a110164d5ce288368257a0a9eeede2",
   "eligiblePairIDs" : [
     "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
     "live_13_interview_3840x2160_15000k",
@@ -10,14 +10,17 @@
     "live_8_drawing_3840x2160_15000k",
     "live_9_face_close_3840x2160_15000k",
     "solemates_unh0400_0010",
+    "v6_kbs_dirty_work_hlg",
+    "v6_live_2_basketball_evening_pq",
+    "v6_live_3_cafe_pq",
     "video1_ive_blackhole",
     "video2_newjeans_new_jeans",
     "video3_newjeans_how_sweet",
     "video4_aespa_lemonade",
     "video6_le_sserafim_hot"
   ],
-  "lockHash" : "e9a815b610f765c12c92c5b447595b5922281506ed1f4d50617fc58f5be4675e",
-  "manifestHash" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
+  "lockHash" : "72e7ef5101ede484ac681e93e5a235ae5b2769cc750854dad8c7ce1edabc19a7",
+  "manifestHash" : "50fb0bc20f3f0d78b9d2d3ff6cf400fbb3d1c37aba48013aaf45b6e107f23243",
   "objectiveEvaluated" : false,
   "relationByPairID" : {
     "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg" : "same-master",
@@ -28,6 +31,9 @@
     "live_8_drawing_3840x2160_15000k" : "same-source",
     "live_9_face_close_3840x2160_15000k" : "same-source",
     "solemates_unh0400_0010" : "same-master",
+    "v6_kbs_dirty_work_hlg" : "same-master",
+    "v6_live_2_basketball_evening_pq" : "same-source",
+    "v6_live_3_cafe_pq" : "same-source",
     "video1_ive_blackhole" : "same-master",
     "video2_newjeans_new_jeans" : "same-master",
     "video3_newjeans_how_sweet" : "same-master",

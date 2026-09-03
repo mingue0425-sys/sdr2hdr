@@ -1,11 +1,11 @@
-# Pre-V5 Frozen Coverage Policy
+# Pre-V6 Frozen Coverage Policy
 
 - Required transfers: HLG, PQ
 - Current required family names:  (none; diversity policy is used)
 - Minimum virgin Frozen pairs: 3
 - Minimum distinct virgin Frozen families: 2
 - Actual transfers: HLG, PQ
-- Actual families: DVB Live-Linear, LIVE, SoleMates
+- Actual families: K-Choreo, LIVE
 - Actual virgin pair count: 3
 - Transfer status: PASS
 - Family status: PASS

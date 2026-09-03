@@ -1952,6 +1952,167 @@ final class CalibrationTests: XCTestCase {
         XCTAssertFalse(rejected.rejectionReasons.isEmpty)
     }
 
+    func testExistingDVBVirginEvidenceV1RemainsAccepted() throws {
+        let manifestURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("data_video/manifest-v4.json")
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let pair = try XCTUnwrap(manifest.pairs.first { $0.id == "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg" })
+        let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+        let sdrSHA256 = try V4DatasetIntegrity.sha256(url: urls.sdr)
+        let hdrSHA256 = try V4DatasetIntegrity.sha256(url: urls.hdr)
+        let validation = try V4VirginPairEvidenceValidator.validate(
+            pair: pair,
+            manifestURL: manifestURL,
+            auditedSDRSHA256: sdrSHA256,
+            auditedHDRSHA256: hdrSHA256
+        )
+        XCTAssertEqual(validation.schemaVersion, V4VirginPairEvidenceValidator.legacySchemaVersion)
+        XCTAssertTrue(validation.isLegacyDASHEvidence)
+        XCTAssertEqual(validation.segmentCount, 16)
+        XCTAssertEqual(validation.decodedFrameCount, 3_072)
+        XCTAssertEqual(validation.decodedHDRFrameCount, 3_072)
+    }
+
+    func testGenericVirginEvidenceV2Accepts60000Over1001HLG() throws {
+        let fixture = try makeGenericV2EvidenceFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let validation = try V4VirginPairEvidenceValidator.validate(
+            pair: fixture.pair,
+            manifestURL: fixture.manifestURL,
+            auditedSDRSHA256: fixture.sdrSHA256,
+            auditedHDRSHA256: fixture.hdrSHA256
+        )
+        XCTAssertEqual(validation.schemaVersion, V4VirginPairEvidenceValidator.genericSchemaVersion)
+        XCTAssertFalse(validation.isLegacyDASHEvidence)
+        XCTAssertEqual(validation.hdrTransferFamily, "HLG")
+        XCTAssertEqual(validation.segmentCount, 0)
+        XCTAssertEqual(validation.segmentIdentities, [])
+        XCTAssertEqual(validation.decodedFrameCount, 12_072)
+        XCTAssertEqual(validation.decodedHDRFrameCount, 12_072)
+        XCTAssertEqual(validation.durationSeconds, 201.4, accuracy: 0.000_001)
+    }
+
+    func testGenericVirginEvidenceV2AcceptsPQ() throws {
+        let fixture = try makeGenericV2EvidenceFixture(
+            evidenceProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            evidenceFamily: "LIVE",
+            pairProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            pairFamily: "LIVE",
+            referenceTransfer: "smpte2084",
+            hdrTransfer: "smpte2084",
+            durationSeconds: 8.008
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let validation = try validateGenericV2Fixture(fixture)
+        XCTAssertEqual(validation.hdrTransferFamily, "PQ")
+        XCTAssertEqual(validation.decodedFrameCount, 12_072)
+        XCTAssertEqual(validation.decodedHDRFrameCount, 12_072)
+    }
+
+    func testGenericVirginEvidenceV2RejectsProviderMismatch() throws {
+        let fixture = try makeGenericV2EvidenceFixture(evidenceProvider: "Other Provider")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsFamilyMismatch() throws {
+        let fixture = try makeGenericV2EvidenceFixture(evidenceFamily: "Other Family")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsConsumedEvidence() throws {
+        let fixture = try makeGenericV2EvidenceFixture(objectiveUseConsumed: true)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsObjectiveEvaluationCount() throws {
+        let fixture = try makeGenericV2EvidenceFixture(objectiveEvaluationCount: 1)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsPQPretendingToBeHLG() throws {
+        let fixture = try makeGenericV2EvidenceFixture(hdrTransfer: "smpte2084")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsHLGForPQReference() throws {
+        let fixture = try makeGenericV2EvidenceFixture(
+            evidenceProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            evidenceFamily: "LIVE",
+            pairProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            pairFamily: "LIVE",
+            referenceTransfer: "smpte2084"
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2KeepsHLGDurationGate() throws {
+        let fixture = try makeGenericV2EvidenceFixture(durationSeconds: 8.008)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsPQWithNonBT2020NCMatrix() throws {
+        let fixture = try makeGenericV2EvidenceFixture(
+            evidenceProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            evidenceFamily: "LIVE",
+            pairProvider: "LIVE Paired Comparison HDR vs. SDR Database (local)",
+            pairFamily: "LIVE",
+            referenceTransfer: "smpte2084",
+            hdrTransfer: "smpte2084",
+            hdrMatrix: "bt709"
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsBT709HDR() throws {
+        let fixture = try makeGenericV2EvidenceFixture(hdrPrimaries: "bt709")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsUnequalFullDecodeFrameCounts() throws {
+        let fixture = try makeGenericV2EvidenceFixture(hdrDecodedFrames: 12_071)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsP10BelowV4Minimum() throws {
+        let fixture = try makeGenericV2EvidenceFixture(p10Confidence: V4AlignmentPolicy.minimumP10Confidence - 0.001)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsMedianBelowV4Minimum() throws {
+        let fixture = try makeGenericV2EvidenceFixture(medianConfidence: V4AlignmentPolicy.alignedMedianConfidence - 0.001)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsExcessiveOffsetOrDrift() throws {
+        let fixture = try makeGenericV2EvidenceFixture(maxAbsoluteOffsetSeconds: 0.050001)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+
+        let driftFixture = try makeGenericV2EvidenceFixture(offsetSpreadSeconds: 0.050001)
+        defer { try? FileManager.default.removeItem(at: driftFixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(driftFixture))
+    }
+
+    func testGenericVirginEvidenceV2RejectsMediaEvidenceSHAMismatch() throws {
+        let fixture = try makeGenericV2EvidenceFixture(evidenceSDRSHA256: String(repeating: "0", count: 64))
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        XCTAssertThrowsError(try validateGenericV2Fixture(fixture))
+    }
+
     func testFrozenCoverageEligibilityRejectsNonAcceptedAuditEvidence() {
         let smoke = V4DecodeSmoke(
             attempted: true, firstFrame: true, middleFrame: true, lastFrame: true, decodedSampleCount: 3
@@ -2407,6 +2568,140 @@ final class CalibrationTests: XCTestCase {
         )
         XCTAssertFalse(report.objectiveEvaluated)
         XCTAssertTrue(report.frozenObjectiveEvaluated.isEmpty)
+    }
+
+    private func makeGenericV2EvidenceFixture(
+        evidenceProvider: String = "KBS",
+        evidenceFamily: String = "K-Choreo",
+        pairProvider: String = "KBS",
+        pairFamily: String = "K-Choreo",
+        objectiveUseConsumed: Bool = false,
+        objectiveEvaluationCount: Int = 0,
+        referenceTransfer: String = "arib-std-b67",
+        hdrTransfer: String = "arib-std-b67",
+        hdrPrimaries: String = "bt2020",
+        hdrMatrix: String = "bt2020nc",
+        durationSeconds: Double = 201.4,
+        hdrDecodedFrames: Int = 12_072,
+        p10Confidence: Double = 0.974292,
+        medianConfidence: Double = 0.977728,
+        maxAbsoluteOffsetSeconds: Double = 0,
+        offsetSpreadSeconds: Double = 0,
+        sdrFrameRate: Double = 60000.0 / 1001.0,
+        hdrFrameRate: Double = 60000.0 / 1001.0,
+        evidenceSDRSHA256: String? = nil,
+        evidenceHDRSHA256: String? = nil
+    ) throws -> (root: URL, manifestURL: URL, pair: V4PairRecord, sdrSHA256: String, hdrSHA256: String) {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sdr2hdr-generic-virgin-\(UUID().uuidString)")
+        let candidate = root.appendingPathComponent("candidate")
+        try FileManager.default.createDirectory(at: candidate, withIntermediateDirectories: true)
+
+        let manifestURL = root.appendingPathComponent("manifest-v4.json")
+        let sdrURL = candidate.appendingPathComponent("sdr.webm")
+        let hdrURL = candidate.appendingPathComponent("hdr.webm")
+        try Data("synthetic-generic-sdr".utf8).write(to: sdrURL)
+        try Data("synthetic-generic-hdr".utf8).write(to: hdrURL)
+        let sdrSHA256 = try V4DatasetIntegrity.sha256(url: sdrURL)
+        let hdrSHA256 = try V4DatasetIntegrity.sha256(url: hdrURL)
+
+        let evidence: [String: Any] = [
+            "schemaVersion": V4VirginPairEvidenceValidator.genericSchemaVersion,
+            "verdict": "PAIR_VALID_VIRGIN",
+            "pair": ["provider": evidenceProvider, "family": evidenceFamily],
+            "assets": [
+                "sdr": [
+                    "path": sdrURL.path,
+                    "sha256": evidenceSDRSHA256 ?? sdrSHA256
+                ],
+                "hdr": [
+                    "path": hdrURL.path,
+                    "sha256": evidenceHDRSHA256 ?? hdrSHA256
+                ]
+            ],
+            "metadataEvidence": [
+                "sdr": [
+                    "colorPrimaries": "bt709",
+                    "transfer": "bt709",
+                    "matrix": "bt709",
+                    "bitDepth": 8,
+                    "frameRate": sdrFrameRate
+                ],
+                "hdr": [
+                    "colorPrimaries": hdrPrimaries,
+                    "transfer": hdrTransfer,
+                    "matrix": hdrMatrix,
+                    "bitDepth": 10,
+                    "frameRate": hdrFrameRate
+                ]
+            ],
+            "fullDecodeEvidence": [
+                "errors": [],
+                "sdrDecodedFrames": 12_072,
+                "hdrDecodedFrames": hdrDecodedFrames
+            ],
+            "alignmentEvidence": [
+                "status": "ALIGNED",
+                "sampledFrames": 40,
+                "matchedFrames": 40,
+                "matchRatio": 1.0,
+                "p10Confidence": p10Confidence,
+                "medianConfidence": medianConfidence,
+                "windowCount": 5,
+                "framesPerWindow": 8,
+                "maxAbsoluteOffsetSeconds": maxAbsoluteOffsetSeconds,
+                "offsetSpreadSeconds": offsetSpreadSeconds,
+                "durationSeconds": durationSeconds,
+                "errors": []
+            ],
+            "selectionEvidence": [
+                "objectiveEvaluationCount": objectiveEvaluationCount,
+                "frameInspectionBeforeSelection": false,
+                "sourceIdentity": "preregistered",
+                "sourceID": "iSEvfuJO0hQ"
+            ],
+            "objectiveUse": [
+                "consumed": objectiveUseConsumed,
+                "evaluationCount": 0
+            ]
+        ]
+        let evidenceURL = candidate.appendingPathComponent("VIRGIN_PAIR_VALID.json")
+        try JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]).write(to: evidenceURL)
+        let evidenceHash = try V4DatasetIntegrity.sha256(url: evidenceURL)
+        let pair = V4PairRecord(
+            id: "kbs-kchoreo-test",
+            sdr: "candidate/sdr.webm",
+            hdr: "candidate/hdr.webm",
+            source: pairProvider,
+            license: "test",
+            expectedRelation: .sameMaster,
+            contentCategory: ["dance"],
+            contentFamily: pairFamily,
+            referenceTransfer: referenceTransfer,
+            referencePrimaries: "bt2020",
+            split: .frozen,
+            virginFrozen: true,
+            objectiveEvaluated: false,
+            consumed: false,
+            virginEvidence: V4VirginEvidenceReference(
+                validationManifest: "candidate/VIRGIN_PAIR_VALID.json",
+                validationManifestSHA256: evidenceHash,
+                sdrSHA256: sdrSHA256,
+                hdrSHA256: hdrSHA256
+            )
+        )
+        return (root, manifestURL, pair, sdrSHA256, hdrSHA256)
+    }
+
+    private func validateGenericV2Fixture(
+        _ fixture: (root: URL, manifestURL: URL, pair: V4PairRecord, sdrSHA256: String, hdrSHA256: String)
+    ) throws -> V4VirginPairEvidenceValidation {
+        try V4VirginPairEvidenceValidator.validate(
+            pair: fixture.pair,
+            manifestURL: fixture.manifestURL,
+            auditedSDRSHA256: fixture.sdrSHA256,
+            auditedHDRSHA256: fixture.hdrSHA256
+        )
     }
 
     private func makeV4Metadata(primaries: String, transfer: String, bitDepth: Int) -> V4StreamMetadata {

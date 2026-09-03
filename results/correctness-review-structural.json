@@ -1,6 +1,26 @@
 {
-  "auditArtifactHash" : "7b31f600b6f3cc3df4b3ac538d7b8da5a4075b0d46915489092778b8bd0518ef",
+  "auditArtifactHash" : "da845ad23de32e08a184ae6de5ee576037a110164d5ce288368257a0a9eeede2",
   "checks" : [
+    {
+      "evidence" : {
+        "booleans" : {
+          "canonicalSerialization" : true,
+          "matcherConfigurationHashBound" : true
+        },
+        "counts" : {
+          "pairCount" : 8,
+          "plannedAcceptedFrames" : 210
+        },
+        "numerical" : {
+
+        },
+        "summary" : "one canonical V6 preparation plan is shared by preflight and read-only evaluator-entry materialization; sha256=787030fc7ac64a3795881c5cf2e9fc2114d30f2c0a50078496def64427ad6ffd; matcherConfigurationHash=af4e7b3bc2aa24bc1cf178fea16cb8b6c0fc032a1fb9759dd6d0a28b3c426a52"
+      },
+      "executed" : true,
+      "id" : "v6PreparedEvaluationPlan",
+      "required" : true,
+      "status" : "PASS"
+    },
     {
       "evidence" : {
         "booleans" : {
@@ -8,15 +28,35 @@
           "virginFrozenObjectiveEvaluated" : false
         },
         "counts" : {
-          "eligiblePairs" : 13
+          "eligiblePairs" : 16
         },
         "numerical" : {
 
         },
-        "summary" : "validator consumed READY audit + manifest\/lock\/media digests for 13 eligible pairs in this run"
+        "summary" : "validator consumed READY audit + manifest\/lock evidence; Tune\/Validation media digests were checked and Frozen media remained sealed"
       },
       "executed" : true,
       "id" : "dataset-audit-lock",
+      "required" : true,
+      "status" : "PASS"
+    },
+    {
+      "evidence" : {
+        "booleans" : {
+          "frozenMediaOpened" : false,
+          "planValidated" : true
+        },
+        "counts" : {
+          "acceptedFrameCount" : 123,
+          "eligiblePairCount" : 3
+        },
+        "numerical" : {
+
+        },
+        "summary" : "metadata-only admission validated the exact Frozen plan used by evaluator entry; sha256=8ee1d463e7e108e54983b0252f10c5dec53c780beae69e08c8ecf451ae9fb10b"
+      },
+      "executed" : true,
+      "id" : "v6FrozenPreparedEvaluationPlan",
       "required" : true,
       "status" : "PASS"
     },
@@ -31,7 +71,7 @@
         "numerical" : {
 
         },
-        "summary" : "this run prepared Tune\/Validation proxies and checked exact requested\/evaluated IDs using sequencePosition"
+        "summary" : "V6 PreparedEvaluationPlan checked exact requested\/evaluated IDs using sequencePosition"
       },
       "executed" : true,
       "id" : "sparse-index-domain",
@@ -67,7 +107,7 @@
         "numerical" : {
 
         },
-        "summary" : "decoded 234 paired contiguous frames across 15 valid windows"
+        "summary" : "decoded 656 paired contiguous frames across 41 valid windows"
       },
       "executed" : true,
       "id" : "realTemporalWindowPreparation",
@@ -95,17 +135,20 @@
     {
       "evidence" : {
         "booleans" : {
+          "attemptOneExclusionApplied" : true,
           "contaminationDetected" : false
         },
         "counts" : {
-          "declaredVirginPairs" : 3,
-          "historicalArtifactsScanned" : 5,
+          "declaredVirginPairs" : 6,
+          "eligibleVirginPairs" : 3,
+          "excludedAttemptOnePairs" : 3,
+          "historicalArtifactsScanned" : 1,
           "historicallyConsumedVirginPairs" : 0
         },
         "numerical" : {
 
         },
-        "summary" : "no manifest-declared Virgin Frozen pair appears in prior frozen objective artifacts"
+        "summary" : "no eligible V6 Virgin Frozen pair appears in prior frozen objective artifacts; attempt-1 IDs\/assets are explicitly excluded"
       },
       "executed" : true,
       "id" : "holdoutProvenance",
@@ -180,7 +223,7 @@
           "required" : true
         },
         "counts" : {
-          "candidateCount" : 1,
+          "candidateCount" : 2,
           "consumedHLGPairCount" : 2,
           "objectiveEvaluationCount" : 0
         },
@@ -462,16 +505,16 @@
           "framesTested" : 300
         },
         "numerical" : {
-          "baselineCPUP95Milliseconds" : 0.031499977922067046,
-          "baselineGPUP50Milliseconds" : 0.4101666563656181,
-          "baselineGPUP95Milliseconds" : 0.5893750058021396,
-          "candidateCPUP95Milliseconds" : 0.030416675144806504,
-          "candidateGPUP50Milliseconds" : 0.4086666740477085,
-          "candidateGPUP95Milliseconds" : 0.5962499999441206,
+          "baselineCPUP95Milliseconds" : 0.06354169454425573,
+          "baselineGPUP50Milliseconds" : 0.7046250393614173,
+          "baselineGPUP95Milliseconds" : 1.9809583318419755,
+          "candidateCPUP95Milliseconds" : 0.07091666338965297,
+          "candidateGPUP50Milliseconds" : 0.7018750184215605,
+          "candidateGPUP95Milliseconds" : 1.838749973103404,
           "framesTested" : 300,
           "warmupFrames" : 30
         },
-        "summary" : "runtime within tolerance: GPU p50 0.410→0.409 ms, GPU p95 0.589→0.596 ms, CPU p95 0.031→0.030 ms"
+        "summary" : "runtime within tolerance: GPU p50 0.705→0.702 ms, GPU p95 1.981→1.839 ms, CPU p95 0.064→0.071 ms"
       },
       "executed" : true,
       "id" : "runtime-measurement",
@@ -497,9 +540,9 @@
       "status" : "PASS"
     }
   ],
-  "datasetLockHash" : "e9a815b610f765c12c92c5b447595b5922281506ed1f4d50617fc58f5be4675e",
-  "generatedAt" : "2026-08-30T10:31:37Z",
-  "manifestHash" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
+  "datasetLockHash" : "72e7ef5101ede484ac681e93e5a235ae5b2769cc750854dad8c7ce1edabc19a7",
+  "generatedAt" : "2026-09-03T13:54:51Z",
+  "manifestHash" : "50fb0bc20f3f0d78b9d2d3ff6cf400fbb3d1c37aba48013aaf45b6e107f23243",
   "manifestPath" : "repo:data_video\/manifest-v4.json",
   "tune" : {
     "complete" : true,
@@ -513,100 +556,18 @@
     "evaluatedVideoCount" : 5,
     "pairs" : [
       {
-        "coveredSceneCount" : 4,
-        "decodedTemporalFrameCount" : 64,
-        "matchedFrameCount" : 40,
+        "coveredSceneCount" : 22,
+        "decodedTemporalFrameCount" : 352,
+        "matchedFrameCount" : 95,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video1_ive_blackhole",
         "prepared" : true,
-        "preparedTemporalWindowCount" : 4,
+        "preparedTemporalWindowCount" : 22,
         "requested" : true,
-        "requestedTemporalWindowCount" : 4,
-        "sceneCount" : 4,
-        "split" : "tune",
-        "temporalWindows" : [
-          {
-            "acceptanceReason" : "FULL_TARGET_LENGTH",
-            "accepted" : true,
-            "actualDecodedFrameCount" : 16,
-            "fullLength" : true,
-            "measuredFrameCount" : 15,
-            "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 16,
-            "preparedSDRFrameCount" : 16,
-            "requestedFrameCount" : 16,
-            "sceneID" : "scene_0001",
-            "startSeconds" : 0.033,
-            "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 16,
-            "warmupFrameCount" : 1
-          },
-          {
-            "acceptanceReason" : "FULL_TARGET_LENGTH",
-            "accepted" : true,
-            "actualDecodedFrameCount" : 16,
-            "fullLength" : true,
-            "measuredFrameCount" : 15,
-            "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 16,
-            "preparedSDRFrameCount" : 16,
-            "requestedFrameCount" : 16,
-            "sceneID" : "scene_0002",
-            "startSeconds" : 52.911,
-            "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 16,
-            "warmupFrameCount" : 1
-          },
-          {
-            "acceptanceReason" : "FULL_TARGET_LENGTH",
-            "accepted" : true,
-            "actualDecodedFrameCount" : 16,
-            "fullLength" : true,
-            "measuredFrameCount" : 15,
-            "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 16,
-            "preparedSDRFrameCount" : 16,
-            "requestedFrameCount" : 16,
-            "sceneID" : "scene_0003",
-            "startSeconds" : 159.016,
-            "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 16,
-            "warmupFrameCount" : 1
-          },
-          {
-            "acceptanceReason" : "FULL_TARGET_LENGTH",
-            "accepted" : true,
-            "actualDecodedFrameCount" : 16,
-            "fullLength" : true,
-            "measuredFrameCount" : 15,
-            "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 16,
-            "preparedSDRFrameCount" : 16,
-            "requestedFrameCount" : 16,
-            "sceneID" : "scene_0004",
-            "startSeconds" : 207.779,
-            "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 16,
-            "warmupFrameCount" : 1
-          }
-        ],
-        "validTemporalWindowCount" : 4
-      },
-      {
-        "coveredSceneCount" : 2,
-        "decodedTemporalFrameCount" : 32,
-        "matchedFrameCount" : 40,
-        "missingSceneIDs" : [
-
-        ],
-        "pairID" : "video2_newjeans_new_jeans",
-        "prepared" : true,
-        "preparedTemporalWindowCount" : 2,
-        "requested" : true,
-        "requestedTemporalWindowCount" : 2,
-        "sceneCount" : 2,
+        "requestedTemporalWindowCount" : 22,
+        "sceneCount" : 22,
         "split" : "tune",
         "temporalWindows" : [
           {
@@ -636,27 +597,347 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0002",
-            "startSeconds" : 130.868,
+            "startSeconds" : 14.854999999999999,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0003",
+            "startSeconds" : 23.134999999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0004",
+            "startSeconds" : 36.384,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0005",
+            "startSeconds" : 43.009,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0006",
+            "startSeconds" : 44.665000000000006,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0007",
+            "startSeconds" : 72.819,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0008",
+            "startSeconds" : 86.068,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0009",
+            "startSeconds" : 109.254,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0010",
+            "startSeconds" : 115.879,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0011",
+            "startSeconds" : 117.535,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0012",
+            "startSeconds" : 119.191,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0013",
+            "startSeconds" : 127.47200000000001,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0014",
+            "startSeconds" : 140.72099999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0015",
+            "startSeconds" : 142.37699999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0016",
+            "startSeconds" : 150.658,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0017",
+            "startSeconds" : 157.28199999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0018",
+            "startSeconds" : 158.938,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0019",
+            "startSeconds" : 168.875,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0020",
+            "startSeconds" : 190.405,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0021",
+            "startSeconds" : 195.373,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0022",
+            "startSeconds" : 200.34199999999998,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
           }
         ],
-        "validTemporalWindowCount" : 2
+        "validTemporalWindowCount" : 22
       },
       {
-        "coveredSceneCount" : 2,
-        "decodedTemporalFrameCount" : 32,
-        "matchedFrameCount" : 40,
+        "coveredSceneCount" : 5,
+        "decodedTemporalFrameCount" : 80,
+        "matchedFrameCount" : 23,
         "missingSceneIDs" : [
 
         ],
-        "pairID" : "video3_newjeans_how_sweet",
+        "pairID" : "video2_newjeans_new_jeans",
         "prepared" : true,
-        "preparedTemporalWindowCount" : 2,
+        "preparedTemporalWindowCount" : 5,
         "requested" : true,
-        "requestedTemporalWindowCount" : 2,
-        "sceneCount" : 2,
+        "requestedTemporalWindowCount" : 5,
+        "sceneCount" : 5,
         "split" : "tune",
         "temporalWindows" : [
           {
@@ -670,7 +951,7 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 120.253,
+            "startSeconds" : 93.88000000000001,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
@@ -686,18 +967,132 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0002",
-            "startSeconds" : 235.636,
+            "startSeconds" : 116.84100000000001,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0003",
+            "startSeconds" : 118.928,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0004",
+            "startSeconds" : 119.97200000000001,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0005",
+            "startSeconds" : 130.408,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
           }
         ],
-        "validTemporalWindowCount" : 2
+        "validTemporalWindowCount" : 5
+      },
+      {
+        "coveredSceneCount" : 3,
+        "decodedTemporalFrameCount" : 48,
+        "matchedFrameCount" : 18,
+        "missingSceneIDs" : [
+
+        ],
+        "pairID" : "video3_newjeans_how_sweet",
+        "prepared" : true,
+        "preparedTemporalWindowCount" : 3,
+        "requested" : true,
+        "requestedTemporalWindowCount" : 3,
+        "sceneCount" : 3,
+        "split" : "tune",
+        "temporalWindows" : [
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0001",
+            "startSeconds" : 208.542,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0002",
+            "startSeconds" : 225.45499999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0003",
+            "startSeconds" : 232.97199999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          }
+        ],
+        "validTemporalWindowCount" : 3
       },
       {
         "coveredSceneCount" : 1,
         "decodedTemporalFrameCount" : 16,
-        "matchedFrameCount" : 40,
+        "matchedFrameCount" : 8,
         "missingSceneIDs" : [
 
         ],
@@ -720,7 +1115,7 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 0.05,
+            "startSeconds" : 1.889,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
@@ -730,8 +1125,8 @@
       },
       {
         "coveredSceneCount" : 1,
-        "decodedTemporalFrameCount" : 11,
-        "matchedFrameCount" : 40,
+        "decodedTemporalFrameCount" : 16,
+        "matchedFrameCount" : 8,
         "missingSceneIDs" : [
 
         ],
@@ -744,19 +1139,19 @@
         "split" : "tune",
         "temporalWindows" : [
           {
-            "acceptanceReason" : "VALID_SHORT_WINDOW_ABOVE_MINIMUM",
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
             "accepted" : true,
-            "actualDecodedFrameCount" : 11,
-            "fullLength" : false,
-            "measuredFrameCount" : 10,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
             "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 11,
-            "preparedSDRFrameCount" : 11,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 7.839,
+            "startSeconds" : 1.388,
             "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 11,
+            "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
           }
         ],
@@ -783,18 +1178,18 @@
     "evaluatedVideoCount" : 3,
     "pairs" : [
       {
-        "coveredSceneCount" : 3,
-        "decodedTemporalFrameCount" : 48,
-        "matchedFrameCount" : 40,
+        "coveredSceneCount" : 7,
+        "decodedTemporalFrameCount" : 112,
+        "matchedFrameCount" : 42,
         "missingSceneIDs" : [
 
         ],
         "pairID" : "video4_aespa_lemonade",
         "prepared" : true,
-        "preparedTemporalWindowCount" : 3,
+        "preparedTemporalWindowCount" : 7,
         "requested" : true,
-        "requestedTemporalWindowCount" : 3,
-        "sceneCount" : 3,
+        "requestedTemporalWindowCount" : 7,
+        "sceneCount" : 7,
         "split" : "validation",
         "temporalWindows" : [
           {
@@ -808,7 +1203,7 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 0,
+            "startSeconds" : 27.797,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
@@ -824,7 +1219,7 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0002",
-            "startSeconds" : 157.22699999999998,
+            "startSeconds" : 119.531,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
@@ -840,18 +1235,82 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0003",
-            "startSeconds" : 205.456,
+            "startSeconds" : 153.93099999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0004",
+            "startSeconds" : 165.398,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0005",
+            "startSeconds" : 170.31199999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0006",
+            "startSeconds" : 186.69299999999998,
+            "targetFrameCount" : 16,
+            "validContiguousFrameCount" : 16,
+            "warmupFrameCount" : 1
+          },
+          {
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
+            "accepted" : true,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
+            "minimumRequiredFrameCount" : 8,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
+            "requestedFrameCount" : 16,
+            "sceneID" : "scene_0007",
+            "startSeconds" : 206.35,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
           }
         ],
-        "validTemporalWindowCount" : 3
+        "validTemporalWindowCount" : 7
       },
       {
         "coveredSceneCount" : 1,
         "decodedTemporalFrameCount" : 16,
-        "matchedFrameCount" : 40,
+        "matchedFrameCount" : 8,
         "missingSceneIDs" : [
 
         ],
@@ -874,7 +1333,7 @@
             "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 5.981,
+            "startSeconds" : 6.393,
             "targetFrameCount" : 16,
             "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
@@ -884,8 +1343,8 @@
       },
       {
         "coveredSceneCount" : 1,
-        "decodedTemporalFrameCount" : 15,
-        "matchedFrameCount" : 40,
+        "decodedTemporalFrameCount" : 16,
+        "matchedFrameCount" : 8,
         "missingSceneIDs" : [
 
         ],
@@ -898,19 +1357,19 @@
         "split" : "validation",
         "temporalWindows" : [
           {
-            "acceptanceReason" : "VALID_SHORT_WINDOW_ABOVE_MINIMUM",
+            "acceptanceReason" : "FULL_TARGET_LENGTH",
             "accepted" : true,
-            "actualDecodedFrameCount" : 15,
-            "fullLength" : false,
-            "measuredFrameCount" : 14,
+            "actualDecodedFrameCount" : 16,
+            "fullLength" : true,
+            "measuredFrameCount" : 15,
             "minimumRequiredFrameCount" : 8,
-            "preparedHDRFrameCount" : 15,
-            "preparedSDRFrameCount" : 15,
+            "preparedHDRFrameCount" : 16,
+            "preparedSDRFrameCount" : 16,
             "requestedFrameCount" : 16,
             "sceneID" : "scene_0001",
-            "startSeconds" : 7.772,
+            "startSeconds" : 5.205,
             "targetFrameCount" : 16,
-            "validContiguousFrameCount" : 15,
+            "validContiguousFrameCount" : 16,
             "warmupFrameCount" : 1
           }
         ],
@@ -925,7 +1384,7 @@
     "requestedVideoCount" : 3,
     "split" : "validation"
   },
-  "verdict" : "CORRECTNESS_READY_FOR_V5",
-  "version" : "correctness-review-v3",
+  "verdict" : "CORRECTNESS_READY_FOR_V6",
+  "version" : "correctness-review-v6",
   "virginFrozenObjectiveEvaluated" : false
 }

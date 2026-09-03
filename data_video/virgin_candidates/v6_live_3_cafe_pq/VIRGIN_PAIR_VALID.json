@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "v4-virgin-pair-evidence-v2",
+  "verdict": "PAIR_VALID_VIRGIN",
+  "pair": {
+    "provider": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+    "family": "LIVE",
+    "expectedRelation": "same-source"
+  },
+  "assets": {
+    "sdr": {
+      "path": "live:open-sourced_SDR/3_Cafe_SDR_3840x2160_15000k.mp4",
+      "sha256": "075ccf2c046bd6a182be5f7a64df73459c6bcaf1e33b691fb656e9b2df83c198"
+    },
+    "hdr": {
+      "path": "live:open-sourced_HDR10/3_Cafe_HDR10_3840x2160_15000k.mp4",
+      "sha256": "162dc1955a0199738e55380bfae866c227deb60163d8ec3e4ee59e899da3b0ab"
+    }
+  },
+  "metadataEvidence": {
+    "sdr": {
+      "codec": "hevc",
+      "profile": "Main",
+      "width": 3840,
+      "height": 2160,
+      "pixelFormat": "yuv420p",
+      "colorRange": "tv",
+      "colorPrimaries": "bt709",
+      "transfer": "bt709",
+      "matrix": "bt709",
+      "bitDepth": 8,
+      "frameRate": "60000/1001",
+      "durationSeconds": 8.008,
+      "ffprobe": {
+        "codec_name": "hevc",
+        "profile": "Main",
+        "width": 3840,
+        "height": 2160,
+        "pix_fmt": "yuv420p",
+        "color_range": "tv",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "duration": "8.008000",
+        "nb_frames": "480"
+      }
+    },
+    "hdr": {
+      "codec": "hevc",
+      "profile": "Main 10",
+      "width": 3840,
+      "height": 2160,
+      "pixelFormat": "yuv420p10le",
+      "colorRange": "tv",
+      "colorPrimaries": "bt2020",
+      "transfer": "smpte2084",
+      "matrix": "bt2020nc",
+      "bitDepth": 10,
+      "frameRate": "60000/1001",
+      "durationSeconds": 8.008,
+      "ffprobe": {
+        "codec_name": "hevc",
+        "profile": "Main 10",
+        "width": 3840,
+        "height": 2160,
+        "pix_fmt": "yuv420p10le",
+        "color_range": "tv",
+        "color_space": "bt2020nc",
+        "color_transfer": "smpte2084",
+        "color_primaries": "bt2020",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "duration": "8.008000",
+        "nb_frames": "480"
+      }
+    }
+  },
+  "fullDecodeEvidence": {
+    "fullFile": true,
+    "errors": [],
+    "sdrDecodedFrames": 480,
+    "hdrDecodedFrames": 480,
+    "decodedFrameCountsExactlyEqual": true,
+    "sdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i live:open-sourced_SDR/3_Cafe_SDR_3840x2160_15000k.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 live:open-sourced_SDR/3_Cafe_SDR_3840x2160_15000k.mp4",
+      "countExitStatus": 0,
+      "countStdout": "480\n",
+      "countStderr": "",
+      "decodedFrames": 480,
+      "errors": []
+    },
+    "hdr": {
+      "command": "ffmpeg -hide_banner -loglevel error -xerror -nostdin -i live:open-sourced_HDR10/3_Cafe_HDR10_3840x2160_15000k.mp4 -map 0:v:0 -an -sn -dn -f null -",
+      "exitStatus": 0,
+      "stdout": "",
+      "stderr": "",
+      "countCommand": "ffprobe -hide_banner -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 live:open-sourced_HDR10/3_Cafe_HDR10_3840x2160_15000k.mp4",
+      "countExitStatus": 0,
+      "countStdout": "480\n",
+      "countStderr": "",
+      "decodedFrames": 480,
+      "errors": []
+    }
+  },
+  "alignmentEvidence": {
+    "status": "ALIGNED",
+    "sampledFrames": 40,
+    "matchedFrames": 40,
+    "matchRatio": 1.0,
+    "p10Confidence": 0.8351331903634159,
+    "medianConfidence": 0.8393592638405961,
+    "windowCount": 5,
+    "framesPerWindow": 8,
+    "maxAbsoluteOffsetSeconds": 0.0,
+    "offsetSpreadSeconds": 0.0,
+    "driftFrames": 0,
+    "durationSeconds": 8.008,
+    "errors": []
+  },
+  "selectionEvidence": {
+    "objectiveEvaluationCount": 0,
+    "frameInspectionBeforeSelection": false,
+    "sourceIdentityPreregistered": true,
+    "sourceIdentity": "preregistered",
+    "sourceID": "3_Cafe",
+    "selectionMode": "metadata-and-structural-screen-before-objective-evaluation"
+  },
+  "objectiveUse": {
+    "consumed": false,
+    "evaluationCount": 0
+  }
+}

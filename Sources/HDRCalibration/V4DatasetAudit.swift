@@ -481,7 +481,7 @@ public enum V4DatasetAuditor {
     hdr:explicit-pq-or-hlg-v2
     decode:first-middle-last-v3-bounded-proxy
     alignment:temporal-spatial-v5-monotonic-max-cardinality
-    virgin-evidence:manifest-bound-sha-vui-contiguous-decode-alignment-v1
+    virgin-evidence:manifest-bound-sha-vui-contiguous-decode-alignment-v1-and-generic-v2
     eligibility:main-calibration-only-v2
     diversity:eligible-records-only-v2
     """
@@ -565,16 +565,16 @@ public enum V4DatasetAuditor {
                     hdr.colorPrimaries = hdrPrimaries
                     notes.append("HDR primaries supplied by manifest because container omitted them")
                 }
-                if virginEvidence != nil {
+                if let virginEvidence {
                     // The evidence validator has already bound exact media
                     // hashes to decoded keyframe VUI and all continuity,
                     // decode, and alignment gates. This is stronger evidence
                     // than a conflicting container transfer summary and is
                     // deliberately limited to evidence-bound Virgin Frozen.
-                    hdr.transfer = "arib-std-b67"
+                    hdr.transfer = virginEvidence.hdrTransferFamily == "PQ" ? "smpte2084" : "arib-std-b67"
                     hdr.colorPrimaries = "bt2020"
                     hdr.matrix = "bt2020nc"
-                    notes.append("HDR colour identity verified from hash-bound decoded-keyframe Virgin evidence")
+                    notes.append("HDR colour identity (\(virginEvidence.hdrTransferFamily)) verified from hash-bound decoded-keyframe Virgin evidence")
                 }
                 audit.sdrMetadata = sdr
                 audit.hdrMetadata = hdr

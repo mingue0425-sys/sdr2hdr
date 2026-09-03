@@ -16,6 +16,16 @@
       "sizeBytes" : 15221863
     },
     {
+      "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "177b54d2fa2925d2e747c491ac4d9af9bd4f107651d0277f7a6c8f2efc854a1b",
+      "sizeBytes" : 15103201
+    },
+    {
+      "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/3_Cafe_HDR10_3840x2160_15000k.mp4",
+      "sha256" : "162dc1955a0199738e55380bfae866c227deb60163d8ec3e4ee59e899da3b0ab",
+      "sizeBytes" : 14993780
+    },
+    {
       "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_HDR10\/4_Campfire_HDR10_3840x2160_15000k.mp4",
       "sha256" : "f6438393f7242402bc6a8bdc1008a36a52c97693c81239dfe28d04fc4b3939e1",
       "sizeBytes" : 15004817
@@ -44,6 +54,16 @@
       "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/22_Programming_Night_SDR_3840x2160_15000k.mp4",
       "sha256" : "dff9653bdddbbb851607a3d12b52c8e368291de6a8c4f86e84bd935f3ecc1c8d",
       "sizeBytes" : 15161007
+    },
+    {
+      "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+      "sha256" : "489fa3813d1ef9fbae3dedc9c161f438e0b294a4ce4a683c5d8ddc015b6b96be",
+      "sizeBytes" : 15044176
+    },
+    {
+      "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/3_Cafe_SDR_3840x2160_15000k.mp4",
+      "sha256" : "075ccf2c046bd6a182be5f7a64df73459c6bcaf1e33b691fb656e9b2df83c198",
+      "sizeBytes" : 14869487
     },
     {
       "path" : "repo:data_video\/LIVE Paired Comparison HDR vs. SDR Database\/open-sourced_SDR\/4_Campfire_SDR_3840x2160_15000k.mp4",
@@ -129,9 +149,19 @@
       "path" : "repo:data_video\/virgin_candidates\/dvb_live_linear_caminandes_hevc_uhd_sdr_hlg\/DVB_LiveLinear_05_HEVC_UHD_HLG.mp4",
       "sha256" : "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
       "sizeBytes" : 12237168
+    },
+    {
+      "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_HLG.mp4",
+      "sha256" : "c6ad60310e208f46e2fe4e520fadad5bfa0b0ba2af1108f1c425ef10d82028a8",
+      "sizeBytes" : 662872851
+    },
+    {
+      "path" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
+      "sha256" : "8d86b7911463b60b4538b3a44ebc093f44aec534685091b1cbdd530d26a9de23",
+      "sizeBytes" : 587353131
     }
   ],
-  "generatedAt" : "2026-09-02T11:45:39Z",
-  "manifestSHA256" : "0dd4a9b84796effb10f708a572d400559523a0524b6407b45047aaa3767b39be",
+  "generatedAt" : "2026-09-03T12:27:17Z",
+  "manifestSHA256" : "50fb0bc20f3f0d78b9d2d3ff6cf400fbb3d1c37aba48013aaf45b6e107f23243",
   "version" : 1
 }
