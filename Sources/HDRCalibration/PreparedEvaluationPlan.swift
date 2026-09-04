@@ -407,6 +407,24 @@ public struct V6PreparedEvaluationPlanArtifact: Codable, Hashable, Sendable {
     }
 }
 
+/// Canonical record ordering shared by plan production and evaluator entry.
+/// Tune/Validation is a stable partition: Tune first, then Validation. Other
+/// scopes, especially Virgin Frozen, retain their supplied manifest order.
+enum V6PreparedEvaluationPlanOrdering {
+    static let tuneValidationScope = "TUNE_VALIDATION"
+
+    static func canonical<T>(
+        _ values: [T],
+        scope: String,
+        split: (T) -> DatasetSplit
+    ) -> [T] {
+        guard scope == tuneValidationScope else { return values }
+        return values.filter { split($0) == .tune } +
+            values.filter { split($0) == .validation } +
+            values.filter { split($0) != .tune && split($0) != .validation }
+    }
+}
+
 public enum V6PreparedEvaluationPlanLoader {
     /// Load one explicit artifact and its adjacent `.sha256` sidecar.  There is
     /// deliberately no search path, output-directory fallback, or regeneration
@@ -439,6 +457,9 @@ private enum V6PreparedEvaluationPlanSemantics {
               !plan.pairOrder.isEmpty,
               Set(plan.pairOrder).count == plan.pairOrder.count,
               plan.pairOrder == plan.pairs.map(\.pairID),
+              plan.pairOrder == V6PreparedEvaluationPlanOrdering.canonical(
+                  plan.pairs, scope: plan.scope, split: { $0.split }
+              ).map(\.pairID),
               plan.preparation.validationFailure() == nil else {
             throw CalibrationError.incompleteEvaluation(
                 "PreparedEvaluationPlan has invalid schema, scope, order, or configuration"
@@ -752,6 +773,10 @@ public enum V6PreparedEvaluationPlanHasher {
 /// V4/V6 runner use this builder, so accepted frame identities cannot drift
 /// between preflight and evaluator entry.
 enum V6PreparedEvaluationPlanBuilder {
+    static func validateCanonicalContract(_ plan: PreparedEvaluationPlan) throws {
+        try V6PreparedEvaluationPlanSemantics.validate(plan)
+    }
+
     /// Validate the immutable contract without opening either media input.
     /// Holdout admission and evaluator entry both call this exact function so
     /// their pair/order/path/hash/config semantics cannot diverge.
@@ -838,14 +863,16 @@ enum V6PreparedEvaluationPlanBuilder {
         repositoryRoot: URL,
         configuration: V6PreparationConfiguration = .v6,
         inputHashes: [String: V6InputHashes],
-        scope: String = "TUNE_VALIDATION"
+        scope: String = V6PreparedEvaluationPlanOrdering.tuneValidationScope
     ) throws -> PreparedEvaluationPlan {
         if let failure = configuration.validationFailure() {
             throw CalibrationError.incompleteEvaluation(
                 "cannot build PreparedEvaluationPlan: \(failure)"
             )
         }
-        let ordered = preparedPairs
+        let ordered = V6PreparedEvaluationPlanOrdering.canonical(
+            preparedPairs, scope: scope, split: { $0.record.split }
+        )
         let pairPlans = try ordered.map { prepared in
             try makePairPlan(
                 prepared: prepared,

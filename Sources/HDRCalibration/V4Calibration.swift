@@ -930,8 +930,13 @@ public final class CalibrationV4Runner {
 
         let transferByPair = try await probeTransfers(manifest, includeVirginFrozen: false)
         let records = makeLegacyRecords(manifest)
-        let tuneV4 = records.filter { $0.split == .tune }
-        let validationV4 = records.filter { $0.split == .validation }
+        let tuneValidationV4 = V6PreparedEvaluationPlanOrdering.canonical(
+            records.filter { $0.split == .tune || $0.split == .validation },
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
+            split: { $0.split }
+        )
+        let tuneV4 = tuneValidationV4.filter { $0.split == .tune }
+        let validationV4 = tuneValidationV4.filter { $0.split == .validation }
         let virginIDs = Set(manifest.pairs
             .filter { $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id) }
             .map(\.id))
@@ -969,7 +974,7 @@ public final class CalibrationV4Runner {
             from: preparedEvaluationPlanURL
         )
         let allPrepared = try await repository.materialize(
-            records: tuneV4 + validationV4,
+            records: tuneValidationV4,
             using: artifact.plan,
             inputHashes: inputHashesForPlan
         )

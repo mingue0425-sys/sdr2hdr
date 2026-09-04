@@ -61,7 +61,7 @@
 
 ## J. Executable Evidence
 
-- v6PreparedEvaluationPlan: required=true, executed=true, status=PASS, evidence=one canonical V6 preparation plan is shared by preflight and read-only evaluator-entry materialization; sha256=787030fc7ac64a3795881c5cf2e9fc2114d30f2c0a50078496def64427ad6ffd; matcherConfigurationHash=af4e7b3bc2aa24bc1cf178fea16cb8b6c0fc032a1fb9759dd6d0a28b3c426a52
+- v6PreparedEvaluationPlan: required=true, executed=true, status=PASS, evidence=one canonical V6 preparation plan is shared by preflight and read-only evaluator-entry materialization; sha256=9dd374d3b2cfbed8b1f95d882f80e6b1fa11ff7a989ffca84faf7b0db823abeb; matcherConfigurationHash=af4e7b3bc2aa24bc1cf178fea16cb8b6c0fc032a1fb9759dd6d0a28b3c426a52
 - dataset-audit-lock: required=true, executed=true, status=PASS, evidence=validator consumed READY audit + manifest/lock evidence; Tune/Validation media digests were checked and Frozen media remained sealed
 - v6FrozenPreparedEvaluationPlan: required=true, executed=true, status=PASS, evidence=metadata-only admission validated the exact Frozen plan used by evaluator entry; sha256=8ee1d463e7e108e54983b0252f10c5dec53c780beae69e08c8ecf451ae9fb10b
 - sparse-index-domain: required=true, executed=true, status=PASS, evidence=V6 PreparedEvaluationPlan checked exact requested/evaluated IDs using sequencePosition

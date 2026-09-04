@@ -354,7 +354,11 @@ public enum V6MatcherDiagnostics {
                 )
             }
         }
-        return records
+        return V6PreparedEvaluationPlanOrdering.canonical(
+            records,
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
+            split: { $0.split }
+        )
     }
 
     private static func preflight(
@@ -592,7 +596,7 @@ public enum V6MatcherDiagnostics {
         let preparedPlan = try repository.sealPreparedEvaluationPlan(
             records: productionRecords,
             inputHashes: context.inputHashes,
-            scope: "TUNE_VALIDATION"
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
         )
         try V6PreparedEvaluationPlanBuilder.validate(
             plan: preparedPlan, preparedPairs: prepared

@@ -91,10 +91,13 @@ final class V2PreparedRepository {
     func sealPreparedEvaluationPlan(
         records: [PairRecord],
         inputHashes: [String: V6InputHashes],
-        scope: String = "TUNE_VALIDATION"
+        scope: String = V6PreparedEvaluationPlanOrdering.tuneValidationScope
     ) throws -> PreparedEvaluationPlan {
-        let prepared = records.compactMap { cache[$0.id] }
-        guard prepared.count == records.count else {
+        let orderedRecords = V6PreparedEvaluationPlanOrdering.canonical(
+            records, scope: scope, split: { $0.split }
+        )
+        let prepared = orderedRecords.compactMap { cache[$0.id] }
+        guard prepared.count == orderedRecords.count else {
             throw CalibrationError.incompleteEvaluation(
                 "cannot seal PreparedEvaluationPlan before every pair is prepared"
             )
@@ -133,6 +136,7 @@ final class V2PreparedRepository {
         records: [PairRecord],
         inputHashes: [String: V6InputHashes]
     ) throws -> PreparedEvaluationPlan {
+        try V6PreparedEvaluationPlanBuilder.validateCanonicalContract(plan)
         guard plan.preparation.matcherConfigurationHash ==
                 (try plan.preparation.matcherConfiguration.canonicalSHA256()),
               plan.pairs.allSatisfy({

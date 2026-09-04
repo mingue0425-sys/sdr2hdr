@@ -413,27 +413,31 @@ public enum V4CorrectnessReview {
             configuration: preparationConfiguration,
             acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
         )
-        let structuralRecords = manifest.pairs
-            .filter { $0.split == .tune || $0.split == .validation }
-            .map { pair -> PairRecord in
-                let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
-                return PairRecord(
-                    id: pair.id,
-                    sdr: urls.sdr.path,
-                    hdr: urls.hdr.path,
-                    license: pair.license,
-                    source: pair.source,
-                    expectedRelation: pair.expectedRelation.legacyRelation(),
-                    notes: pair.notes,
-                    split: pair.split
-                )
-            }
+        let structuralRecords = V6PreparedEvaluationPlanOrdering.canonical(
+            manifest.pairs
+                .filter { $0.split == .tune || $0.split == .validation }
+                .map { pair -> PairRecord in
+                    let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+                    return PairRecord(
+                        id: pair.id,
+                        sdr: urls.sdr.path,
+                        hdr: urls.hdr.path,
+                        license: pair.license,
+                        source: pair.source,
+                        expectedRelation: pair.expectedRelation.legacyRelation(),
+                        notes: pair.notes,
+                        split: pair.split
+                    )
+                },
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
+            split: { $0.split }
+        )
         let preparedStructural = try await repository.prepare(records: structuralRecords)
         let inputHashesForPlan = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit)
         let preparedPlan = try repository.sealPreparedEvaluationPlan(
             records: structuralRecords,
             inputHashes: inputHashesForPlan,
-            scope: "TUNE_VALIDATION"
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
         )
         try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
         // Exercise the same read-only evaluator-entry materialization used by

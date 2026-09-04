@@ -659,6 +659,137 @@ final class CalibrationTests: XCTestCase {
         XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [drifted]))
     }
 
+    func testPreparedEvaluationPlanTuneValidationUsesStableSplitOrdering() throws {
+        let prepared = [
+            try makePreparedDiagnosticPair(values: [0.10], id: "tuneA", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.20], id: "validationA", split: .validation),
+            try makePreparedDiagnosticPair(values: [0.30], id: "tuneB", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.40], id: "validationB", split: .validation)
+        ]
+        let hashes = Dictionary(uniqueKeysWithValues: prepared.map {
+            ($0.record.id, V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            ))
+        })
+
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: prepared,
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: hashes,
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+
+        XCTAssertEqual(plan.pairOrder, ["tuneA", "tuneB", "validationA", "validationB"])
+        XCTAssertEqual(plan.pairs.map(\.pairID), plan.pairOrder)
+        XCTAssertEqual(
+            plan.pairs.filter { $0.split == .tune }.map(\.pairID),
+            ["tuneA", "tuneB"]
+        )
+        XCTAssertEqual(
+            plan.pairs.filter { $0.split == .validation }.map(\.pairID),
+            ["validationA", "validationB"]
+        )
+    }
+
+    func testPreparedEvaluationPlanVirginFrozenPreservesManifestOrder() throws {
+        let prepared = [
+            try makePreparedDiagnosticPair(values: [0.10], id: "frozenB", split: .frozen),
+            try makePreparedDiagnosticPair(values: [0.20], id: "frozenA", split: .frozen)
+        ]
+        let hashes = Dictionary(uniqueKeysWithValues: prepared.map {
+            ($0.record.id, V6InputHashes(
+                sdrSHA256: String(repeating: "c", count: 64),
+                hdrSHA256: String(repeating: "d", count: 64)
+            ))
+        })
+
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: prepared,
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: hashes,
+            scope: "VIRGIN_FROZEN"
+        )
+
+        XCTAssertEqual(plan.pairOrder, ["frozenB", "frozenA"])
+        XCTAssertEqual(plan.pairs.map(\.pairID), plan.pairOrder)
+    }
+
+    func testPreparedEvaluationPlanProductionOrderInstallsAndLegacyInterleavingFailsClosed() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let manifestInterleaved = [
+            try makePreparedDiagnosticPair(values: [0.10], id: "video1_ive_blackhole", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.20], id: "video2_newjeans_new_jeans", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.30], id: "video3_newjeans_how_sweet", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.40], id: "video4_aespa_lemonade", split: .validation),
+            try makePreparedDiagnosticPair(values: [0.50], id: "live_22_programming_night_3840x2160_15000k", split: .validation),
+            try makePreparedDiagnosticPair(values: [0.60], id: "live_4_campfire_3840x2160_15000k", split: .validation),
+            try makePreparedDiagnosticPair(values: [0.70], id: "live_9_face_close_3840x2160_15000k", split: .tune),
+            try makePreparedDiagnosticPair(values: [0.80], id: "live_13_interview_3840x2160_15000k", split: .tune)
+        ]
+        let hashes = Dictionary(uniqueKeysWithValues: manifestInterleaved.map {
+            ($0.record.id, V6InputHashes(
+                sdrSHA256: String(repeating: "e", count: 64),
+                hdrSHA256: String(repeating: "f", count: 64)
+            ))
+        })
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: manifestInterleaved,
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: hashes,
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+        let evaluatorRecords = V6PreparedEvaluationPlanOrdering.canonical(
+            manifestInterleaved.map(\.record),
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
+            split: { $0.split }
+        )
+        let expectedEvaluatorOrder = [
+            "video1_ive_blackhole",
+            "video2_newjeans_new_jeans",
+            "video3_newjeans_how_sweet",
+            "live_9_face_close_3840x2160_15000k",
+            "live_13_interview_3840x2160_15000k",
+            "video4_aespa_lemonade",
+            "live_22_programming_night_3840x2160_15000k",
+            "live_4_campfire_3840x2160_15000k"
+        ]
+        XCTAssertEqual(plan.pairOrder, expectedEvaluatorOrder)
+        XCTAssertEqual(evaluatorRecords.map(\.id), expectedEvaluatorOrder)
+
+        let repository = V2PreparedRepository(
+            manifestURL: URL(fileURLWithPath: "/tmp/not-opened.json"),
+            device: device,
+            configuration: V2SearchConfiguration(),
+            acceptedConfidenceThreshold: 0.60
+        )
+        XCTAssertNoThrow(try repository.installPreparedEvaluationPlan(
+            plan,
+            records: evaluatorRecords,
+            inputHashes: hashes
+        ))
+
+        let legacyOrder = manifestInterleaved.map(\.record.id)
+        let pairPlansByID = Dictionary(uniqueKeysWithValues: plan.pairs.map { ($0.pairID, $0) })
+        let legacyPlan = PreparedEvaluationPlan(
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
+            pairOrder: legacyOrder,
+            preparation: plan.preparation,
+            pairs: legacyOrder.compactMap { pairPlansByID[$0] }
+        )
+        let legacyRepository = V2PreparedRepository(
+            manifestURL: URL(fileURLWithPath: "/tmp/not-opened.json"),
+            device: device,
+            configuration: V2SearchConfiguration(),
+            acceptedConfidenceThreshold: 0.60
+        )
+        XCTAssertThrowsError(try legacyRepository.installPreparedEvaluationPlan(
+            legacyPlan,
+            records: manifestInterleaved.map(\.record),
+            inputHashes: hashes
+        ))
+    }
+
     func testV6MatcherConfigurationHashIsCanonicalAndEvaluatorBound() throws {
         let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.70, 0.90])
         let configuration = V6PreparationConfiguration(
@@ -2766,7 +2897,8 @@ final class CalibrationTests: XCTestCase {
 
     private func makePreparedDiagnosticPair(
         values: [Float],
-        id: String = "diagnostic"
+        id: String = "diagnostic",
+        split: DatasetSplit = .tune
     ) throws -> PreparedPair {
         var samples: [FrameSample] = []
         var matches: [PreparedMatch] = []
@@ -2816,7 +2948,7 @@ final class CalibrationTests: XCTestCase {
         return PreparedPair(
             record: PairRecord(
                 id: id, sdr: "sdr", hdr: "hdr",
-                license: "test", source: "test", split: .tune
+                license: "test", source: "test", split: split
             ),
             sdrSequence: sdrSequence,
             hdrSequence: hdrSequence,

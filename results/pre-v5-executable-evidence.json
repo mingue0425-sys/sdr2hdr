@@ -1,6 +1,6 @@
 {
-  "artifactRole" : "review-finding-verification",
-  "findings" : [
+  "allRequiredChecksPass" : true,
+  "checks" : [
     {
       "evidence" : {
         "booleans" : {
@@ -505,16 +505,16 @@
           "framesTested" : 300
         },
         "numerical" : {
-          "baselineCPUP95Milliseconds" : 0.06354169454425573,
-          "baselineGPUP50Milliseconds" : 0.7046250393614173,
-          "baselineGPUP95Milliseconds" : 1.9809583318419755,
-          "candidateCPUP95Milliseconds" : 0.07091666338965297,
-          "candidateGPUP50Milliseconds" : 0.7018750184215605,
-          "candidateGPUP95Milliseconds" : 1.838749973103404,
+          "baselineCPUP95Milliseconds" : 0.05512504139915109,
+          "baselineGPUP50Milliseconds" : 0.41199999395757914,
+          "baselineGPUP95Milliseconds" : 0.4194166394881904,
+          "candidateCPUP95Milliseconds" : 0.052708317525684834,
+          "candidateGPUP50Milliseconds" : 0.41158334352076054,
+          "candidateGPUP95Milliseconds" : 0.41995831998065114,
           "framesTested" : 300,
           "warmupFrames" : 30
         },
-        "summary" : "runtime within tolerance: GPU p50 0.705→0.702 ms, GPU p95 1.981→1.839 ms, CPU p95 0.064→0.071 ms"
+        "summary" : "runtime within tolerance: GPU p50 0.412→0.412 ms, GPU p95 0.419→0.420 ms, CPU p95 0.055→0.053 ms"
       },
       "executed" : true,
       "id" : "runtime-measurement",
@@ -540,7 +540,5 @@
       "status" : "PASS"
     }
   ],
-  "generatedAt" : "2026-09-03T13:54:51Z",
-  "verdict" : "CORRECTNESS_READY_FOR_V6",
-  "version" : "correctness-review-fixes-v3"
+  "version" : "pre-v5-executable-evidence-v1"
 }
