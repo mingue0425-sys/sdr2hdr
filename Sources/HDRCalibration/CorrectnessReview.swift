@@ -1200,7 +1200,11 @@ public enum V4CorrectnessReview {
                 }
                 return auditRecord
             }
-            let observed = Set(eligiblePairs.compactMap { $0.hdrTransferFamily?.uppercased() })
+            let observed: Set<String> = Set(eligiblePairs.compactMap {
+                let transfer = ReferenceTransfer.parse($0.hdrTransferFamily)
+                guard transfer != .unknown else { return nil }
+                return transfer.canonicalName
+            })
             let required = split == .frozen
                 ? configuration.requiredFrozenTransfers
                 : (configuration.requiredTransfersBySplit[split] ?? [])
@@ -1924,8 +1928,9 @@ public enum V4CorrectnessReview {
         let configuration = V4CalibrationConfiguration()
         let eligibleAuditByID = eligibleCoverageAuditRecords(audit)
         let transferByID = Dictionary(uniqueKeysWithValues: eligibleAuditByID.values.compactMap { pair -> (String, String)? in
-            guard let transfer = pair.hdrTransferFamily else { return nil }
-            return (pair.id, transfer)
+            let transfer = ReferenceTransfer.parse(pair.hdrTransferFamily)
+            guard transfer != .unknown else { return nil }
+            return (pair.id, transfer.canonicalName)
         })
         let requestedVirginPairs = manifest.pairs.filter { $0.split == .frozen && $0.virginFrozen }
         let virginPairs = requestedVirginPairs.filter {

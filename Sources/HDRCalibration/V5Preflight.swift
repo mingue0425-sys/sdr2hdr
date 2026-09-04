@@ -676,9 +676,9 @@ public enum V4VirginPairEvidenceValidator {
             }
         }
 
-        let declaredTransfer = (pair.referenceTransfer ?? "").lowercased()
+        let declaredTransfer = ReferenceTransfer.parse(pair.referenceTransfer)
         try require(
-            declaredTransfer == "arib-std-b67" || declaredTransfer == "hlg",
+            declaredTransfer == .hlg,
             "declared HDR transfer is not HLG/ARIB STD-B67"
         )
         try require((pair.referencePrimaries ?? "").lowercased() == "bt2020", "declared HDR primaries are not BT.2020")
@@ -784,9 +784,10 @@ public enum V4VirginPairEvidenceValidator {
             }
         }
 
-        let declaredTransferFamily = normalizedMetadataValue(pair.referenceTransfer ?? "")
+        let declaredTransfer = ReferenceTransfer.parse(pair.referenceTransfer)
+        let declaredTransferFamily = declaredTransfer.rawValue
         try require(
-            declaredTransferFamily == "hlg" || declaredTransferFamily == "pq",
+            declaredTransfer != .unknown,
             "declared HDR transfer is not ARIB STD-B67/HLG or SMPTE ST 2084/PQ"
         )
         try require(normalizedMetadataValue(pair.referencePrimaries ?? "") == "bt2020", "declared HDR primaries are not BT.2020")
@@ -891,7 +892,7 @@ public enum V4VirginPairEvidenceValidator {
             ? "SMPTE ST 2084/PQ"
             : "ARIB STD-B67/HLG"
         try require(
-            metadataMatches(hdrTransfer, expected: [declaredTransferFamily]),
+            transferMetadataMatches(hdrTransfer, expected: declaredTransfer),
             "v2 HDR transfer is not \(expectedHDRTransferDescription)"
         )
         try require(metadataMatches(hdrMatrix, expected: ["bt2020nc"]), "v2 HDR matrix is not BT.2020nc")
@@ -1175,15 +1176,27 @@ public enum V4VirginPairEvidenceValidator {
         return Set(values.map(normalizedMetadataValue)) == expected
     }
 
+    private static func transferMetadataMatches(
+        _ groups: [[String]]?,
+        expected: ReferenceTransfer
+    ) -> Bool {
+        guard expected != .unknown, let groups else { return false }
+        let values = groups.flatMap { $0 }
+        guard !values.isEmpty else { return false }
+        return Set(values.map { ReferenceTransfer.parse($0) }) == [expected]
+    }
+
     private static func normalizedMetadataValue(_ value: String) -> String {
+        let canonicalTransfer = ReferenceTransfer.parse(value)
+        if canonicalTransfer != .unknown {
+            return canonicalTransfer.rawValue
+        }
         let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let compact = lower.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ".", with: "")
         switch compact {
         case "bt709", "bt-709": return "bt709"
         case "bt2020", "bt-2020": return "bt2020"
         case "bt2020nc", "bt2020-nc", "bt-2020nc", "bt-2020-nc": return "bt2020nc"
-        case "hlg", "arib-stdb67", "aribstd-b67", "aribstdb67", "arib-std-b67", "aribstd-b67/hlg", "arib-std-b67/hlg", "hlg/aribstd-b67", "hlg/arib-std-b67": return "hlg"
-        case "smpte2084", "smpte-2084", "smpte-st2084", "smpte-st-2084", "smptest2084", "smptest-2084": return "pq"
         default: return lower
         }
     }
@@ -1406,7 +1419,7 @@ public enum V4NewHLGHoldoutAuditor {
                     let urls = pair.resolvedURLs(relativeTo: path, roots: historical.roots)
                     consumedPaths.insert(urls.sdr.standardizedFileURL.path)
                     consumedPaths.insert(urls.hdr.standardizedFileURL.path)
-                    if pair.referenceTransfer?.uppercased() == "HLG" || pair.id.lowercased().contains("choreo") {
+                    if ReferenceTransfer.parse(pair.referenceTransfer) == .hlg || pair.id.lowercased().contains("choreo") {
                         consumedHLGIDs.insert(pair.id)
                     }
                 }
@@ -1427,15 +1440,14 @@ public enum V4NewHLGHoldoutAuditor {
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: currentManifest.roots)
             consumedPaths.insert(urls.sdr.standardizedFileURL.path)
             consumedPaths.insert(urls.hdr.standardizedFileURL.path)
-            if pair.referenceTransfer?.lowercased() == "hlg" || pair.referenceTransfer?.lowercased() == "arib-std-b67" {
+            if ReferenceTransfer.parse(pair.referenceTransfer) == .hlg {
                 consumedHLGIDs.insert(pair.id)
             }
         }
         let datasetAuditByID = Dictionary(uniqueKeysWithValues: datasetAudit.pairs.map { ($0.id, $0) })
         var existingVirginCandidates: [V4NewHLGCandidateAudit] = []
         for manifestPair in currentManifest.pairs where manifestPair.virginFrozen && manifestPair.virginEvidence != nil {
-            let declaredTransfer = (manifestPair.referenceTransfer ?? "").lowercased()
-            guard declaredTransfer == "hlg" || declaredTransfer == "arib-std-b67" else { continue }
+            guard ReferenceTransfer.parse(manifestPair.referenceTransfer) == .hlg else { continue }
             consumedHLGIDs.insert(manifestPair.id)
             let auditedPair = datasetAuditByID[manifestPair.id]
             let consumedByIdentity = V6VirginHoldoutPolicy.isExcluded(
@@ -1451,7 +1463,7 @@ public enum V4NewHLGHoldoutAuditor {
             ))
         }
 
-        for pair in datasetAudit.pairs where objectivelyConsumed.contains(pair.id) && pair.hdrTransferFamily?.uppercased() == "HLG" {
+        for pair in datasetAudit.pairs where objectivelyConsumed.contains(pair.id) && ReferenceTransfer.parse(pair.hdrTransferFamily) == .hlg {
             consumedHLGIDs.insert(pair.id)
         }
 
@@ -1589,7 +1601,7 @@ public enum V4NewHLGHoldoutAuditor {
                 "sdrDecode=\(datasetPair.sdrDecode.passed);hdrDecode=\(datasetPair.hdrDecode.passed)"
             )
         }
-        if datasetPair.hdrTransferFamily?.uppercased() != "HLG" { reasons.append("dataset audit HDR transfer is not HLG") }
+        if ReferenceTransfer.parse(datasetPair.hdrTransferFamily) != .hlg { reasons.append("dataset audit HDR transfer is not HLG") }
         if datasetPair.sdrReferenceValid != true { reasons.append("dataset audit SDR reference is not explicit BT.709") }
         if datasetPair.hdrReferenceValid != true { reasons.append("dataset audit HDR reference is not BT.2020 HLG") }
         if objectivelyConsumed { reasons.append("objectiveUse is not virgin") }
@@ -1645,10 +1657,9 @@ public enum V4NewHLGHoldoutAuditor {
     }
 
     static func isHLGReference(_ metadata: V4StreamMetadata) -> Bool {
-        let transfer = (metadata.transfer ?? "").lowercased()
         let primaries = (metadata.colorPrimaries ?? "").lowercased()
-        let hlg = transfer.contains("arib") || transfer.contains("hlg") || transfer.contains("b67")
-        return hlg && primaries.contains("2020") && (metadata.bitDepth ?? 0) >= 10
+        return ReferenceTransfer.parse(metadata.transfer) == .hlg &&
+            primaries.contains("2020") && (metadata.bitDepth ?? 0) >= 10
     }
 
     private static func discoverSearchRoots(repositoryRoot: URL) -> [URL] {

@@ -402,10 +402,14 @@ public struct V4StreamMetadata: Codable, Sendable {
     }
 
     public var transferFamily: String {
+        let canonical = ReferenceTransfer.parse(transfer)
+        if canonical != .unknown { return canonical.canonicalName }
+
         let value = (transfer ?? "").lowercased()
-        if value.contains("2084") || value.contains("pq") { return "PQ" }
-        if value.contains("hlg") || value.contains("2100") || value.contains("arib") { return "HLG" }
-        if value.contains("709") || value.contains("1886") || value.contains("srgb") || value.contains("gamma") {
+        if [
+            "bt709", "bt.709", "bt1886", "bt.1886", "gamma22", "gamma28",
+            "srgb", "iec61966-2-1"
+        ].contains(value) {
             return "SDR"
         }
         return "UNKNOWN"

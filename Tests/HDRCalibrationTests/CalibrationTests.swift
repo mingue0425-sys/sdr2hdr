@@ -1529,6 +1529,102 @@ final class CalibrationTests: XCTestCase {
         XCTAssertFalse(sdr.isHDRReference)
     }
 
+    func testCanonicalHDRTransferParserAcceptsRequiredPQAliases() {
+        let aliases = [
+            "smpte2084", "SMPTE2084", "smpte-2084", "smpte 2084", "smpte st2084",
+            "smpte st 2084", "smpte-st2084", "smpte-st-2084", "smpte_st_2084",
+            "SMPTE_ST_2084_PQ", "st2084", "st-2084", "st 2084", "pq", "PQ"
+        ]
+        for alias in aliases {
+            XCTAssertEqual(ReferenceTransfer.parse(alias), .pq, alias)
+            XCTAssertEqual(ReferenceTransfer.parse(alias).canonicalName, "PQ", alias)
+        }
+    }
+
+    func testCanonicalHDRTransferParserAcceptsRequiredHLGAliases() {
+        let aliases = ["arib-std-b67", "arib std-b67", "arib std b67", "aribstdb67", "arib_std_b67", "HLG", "hlg", "b67", "ITU_R_2100_HLG"]
+        for alias in aliases {
+            XCTAssertEqual(ReferenceTransfer.parse(alias), .hlg, alias)
+            XCTAssertEqual(ReferenceTransfer.parse(alias).canonicalName, "HLG", alias)
+        }
+    }
+
+    func testCanonicalHDRTransferParserFailsClosedForUnknownAndMisleadingStrings() {
+        let values = [
+            "", "unknown", "bt709", "gamma22", "pqrst", "xpqx", "b670",
+            "foo2084bar", "not-hlg-transfer", "smpte20840"
+        ]
+        for value in values {
+            XCTAssertEqual(ReferenceTransfer.parse(value), .unknown, value)
+            XCTAssertEqual(ReferenceTransfer.parse(value).canonicalName, "UNKNOWN", value)
+        }
+    }
+
+    func testV6VirginCoverageCanonicalizesRegisteredTransfersWithoutMediaAccess() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
+        let manifestURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("data_video/manifest-v4.json")
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let virginIDs = [
+            "v6_kbs_dirty_work_hlg",
+            "v6_live_2_basketball_evening_pq",
+            "v6_live_3_cafe_pq"
+        ]
+        let virginPairs = virginIDs.compactMap { id in manifest.pairs.first { $0.id == id } }
+        let canonicalTransfers = virginPairs.map { ReferenceTransfer.parse($0.referenceTransfer).canonicalName }
+        XCTAssertEqual(virginPairs.count, 3)
+        XCTAssertEqual(canonicalTransfers, ["HLG", "PQ", "PQ"])
+        XCTAssertEqual(Set(canonicalTransfers), Set(["HLG", "PQ"]))
+
+        let declaredNonVirginTransfers: [String: String] = [
+            "video1_ive_blackhole": "HLG",
+            "video2_newjeans_new_jeans": "HLG",
+            "video3_newjeans_how_sweet": "HLG",
+            "video4_aespa_lemonade": "HLG",
+            "live_9_face_close_3840x2160_15000k": "PQ",
+            "live_13_interview_3840x2160_15000k": "PQ",
+            "live_22_programming_night_3840x2160_15000k": "PQ",
+            "live_4_campfire_3840x2160_15000k": "PQ"
+        ]
+        let runner = try CalibrationV4Runner(
+            manifestURL: manifestURL,
+            outputDirectory: FileManager.default.temporaryDirectory,
+            device: device
+        )
+
+        func coverage(for manifest: V4Manifest, unknownVirginTransfers: Bool = false) throws -> V4PreFrozenGateResult {
+            let transferByPair = Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
+                if unknownVirginTransfers && virginIDs.contains(pair.id) { return (pair.id, "unknown") }
+                if let declared = pair.referenceTransfer { return (pair.id, declared) }
+                if let nonVirgin = declaredNonVirginTransfers[pair.id] { return (pair.id, nonVirgin) }
+                return nil
+            })
+            return try runner.validateRequiredCoverage(manifest: manifest, transferByPair: transferByPair)
+        }
+
+        let allPass = try coverage(for: manifest)
+        XCTAssertEqual(allPass.transferCoverage, .pass)
+        XCTAssertEqual(allPass.pairCoverage, .pass)
+        XCTAssertEqual(allPass.familyCoverage, .pass)
+
+        var withoutPQ = manifest
+        withoutPQ.pairs.removeAll { $0.id == "v6_live_2_basketball_evening_pq" || $0.id == "v6_live_3_cafe_pq" }
+        XCTAssertEqual(try coverage(for: withoutPQ).transferCoverage, .fail)
+
+        var withoutHLG = manifest
+        withoutHLG.pairs.removeAll { $0.id == "v6_kbs_dirty_work_hlg" }
+        XCTAssertEqual(try coverage(for: withoutHLG).transferCoverage, .fail)
+
+        XCTAssertEqual(try coverage(for: manifest, unknownVirginTransfers: true).transferCoverage, .fail)
+
+        let configuration = V4CalibrationConfiguration()
+        XCTAssertEqual(configuration.requiredFrozenTransfers, ["HLG", "PQ"])
+        XCTAssertEqual(configuration.minimumVirginFrozenPairs, 3)
+        XCTAssertEqual(configuration.minimumDistinctFrozenFamilies, 2)
+        XCTAssertEqual(configuration.frozenCoveragePolicy.pairStatus(count: 3), .pass)
+        XCTAssertEqual(configuration.frozenCoveragePolicy.familyStatus(observed: ["K-Choreo", "LIVE"]), .pass)
+    }
+
     func testFrozenImprovementUsesRatioUnitsAtFivePercentBoundary() {
         XCTAssertFalse(V4PromotionMath.passesMinimumImprovement(baseline: 1.0, candidate: 0.999, minimumRatio: 0.05))
         XCTAssertFalse(V4PromotionMath.passesMinimumImprovement(baseline: 1.0, candidate: 0.96, minimumRatio: 0.05))

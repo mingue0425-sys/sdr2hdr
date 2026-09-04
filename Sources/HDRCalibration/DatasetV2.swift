@@ -31,7 +31,7 @@ public enum DatasetV2Discovery {
             }
             if !hdrMetadata.isEmpty {
                 let transfer = hdrMetadata["color_transfer"] ?? "unknown"
-                if transfer != "arib-std-b67" && transfer != "smpte2084" {
+                if ReferenceTransfer.parse(transfer) == .unknown {
                     status = "UNKNOWN_HDR_TRANSFER"
                     warnings.append("unsupported HDR transfer: \(transfer)")
                 }
@@ -161,7 +161,7 @@ private enum FFProbeV2 {
                 result["duration"] = String(describing: duration)
             }
             let transfer = result["color_transfer"] ?? "unknown"
-            result["hdr_type"] = transfer == "arib-std-b67" ? "HLG" : transfer == "smpte2084" ? "PQ" : "unknown"
+            result["hdr_type"] = ReferenceTransfer.parse(transfer).canonicalName
             result["bit_depth"] = (result["pix_fmt"] ?? "").contains("10") ? "10" : "8"
             return result
         } catch {

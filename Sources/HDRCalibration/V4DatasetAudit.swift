@@ -571,7 +571,16 @@ public enum V4DatasetAuditor {
                     // decode, and alignment gates. This is stronger evidence
                     // than a conflicting container transfer summary and is
                     // deliberately limited to evidence-bound Virgin Frozen.
-                    hdr.transfer = virginEvidence.hdrTransferFamily == "PQ" ? "smpte2084" : "arib-std-b67"
+                    switch ReferenceTransfer.parse(virginEvidence.hdrTransferFamily) {
+                    case .pq:
+                        hdr.transfer = "smpte2084"
+                    case .hlg:
+                        hdr.transfer = "arib-std-b67"
+                    case .unknown:
+                        throw CalibrationError.invalidManifest(
+                            "Virgin evidence has an unknown HDR transfer family for \(pair.id)"
+                        )
+                    }
                     hdr.colorPrimaries = "bt2020"
                     hdr.matrix = "bt2020nc"
                     notes.append("HDR colour identity (\(virginEvidence.hdrTransferFamily)) verified from hash-bound decoded-keyframe Virgin evidence")

@@ -1401,15 +1401,12 @@ public final class CalibrationV4Runner {
                 // Preflight uses only manifest-declared source evidence for
                 // Frozen coverage. No Frozen URL is resolved or opened until
                 // the explicit guard has opened the holdout.
-                let declared = (pair.referenceTransfer ?? "").lowercased()
-                result[pair.id] = declared.contains("hlg") || declared.contains("b67") ? "HLG" :
-                    declared.contains("pq") || declared.contains("st2084") ? "PQ" : "UNKNOWN"
+                result[pair.id] = ReferenceTransfer.parse(pair.referenceTransfer).canonicalName
                 continue
             }
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
             let metadata = try await MetadataProbe.probe(url: urls.hdr)
-            result[pair.id] = metadata.color.referenceTransfer == .pq ? "PQ" :
-                metadata.color.referenceTransfer == .hlg ? "HLG" : "UNKNOWN"
+            result[pair.id] = metadata.color.referenceTransfer.canonicalName
         }
         return result
     }
@@ -1940,7 +1937,7 @@ public final class CalibrationV4Runner {
         return V4EvidencePath.portable(manifestURL, repositoryRoot: root)
     }
 
-    private func validateRequiredCoverage(
+    func validateRequiredCoverage(
         manifest: V4Manifest,
         transferByPair: [String: String]
     ) throws -> V4PreFrozenGateResult {
@@ -1956,7 +1953,11 @@ public final class CalibrationV4Runner {
                         ? ($0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id))
                         : !$0.virginFrozen)
             }
-            let observedTransfers = Set(pairs.compactMap { transferByPair[$0.id] })
+            let observedTransfers: Set<String> = Set(pairs.compactMap {
+                let transfer = ReferenceTransfer.parse(transferByPair[$0.id])
+                guard transfer != .unknown else { return nil }
+                return transfer.canonicalName
+            })
             let observedFamilies = Set(pairs.compactMap { $0.contentFamily })
             let requiredTransfers = split == .frozen
                 ? configuration.frozenCoveragePolicy.requiredTransfers

@@ -85,6 +85,42 @@ public enum ReferenceTransfer: String, Codable, Hashable, Sendable {
     case pq
     case hlg
     case unknown
+
+    /// Parse a raw transfer label into the one canonical HDR semantic
+    /// category used by calibration, coverage, and metadata validation.
+    ///
+    /// The raw label is deliberately reduced only by case and benign
+    /// separators.  Classification is then an exact-token match so a value
+    /// such as `pqrst` or `foo2084bar` remains unknown.
+    public static func parse(_ rawValue: String?) -> Self {
+        let normalized = normalizedTransferToken(rawValue)
+        switch normalized {
+        case "pq", "st2084", "smpte2084", "smptest2084", "smptest2084pq", "itur2100pq":
+            return .pq
+        case "hlg", "aribstdb67", "b67", "itur2100hlg", "aribstdb67/hlg", "hlg/aribstdb67":
+            return .hlg
+        default:
+            return .unknown
+        }
+    }
+
+    /// Stable display/coverage spelling for the canonical semantic category.
+    public var canonicalName: String {
+        switch self {
+        case .pq: return "PQ"
+        case .hlg: return "HLG"
+        case .unknown: return "UNKNOWN"
+        }
+    }
+
+    private static func normalizedTransferToken(_ rawValue: String?) -> String {
+        let separators = CharacterSet.whitespacesAndNewlines
+            .union(CharacterSet(charactersIn: "-_"))
+        return (rawValue ?? "").lowercased().unicodeScalars
+            .filter { !separators.contains($0) }
+            .map(String.init)
+            .joined()
+    }
 }
 
 public struct ColorMetadataSummary: Codable, Equatable, Sendable {
@@ -118,10 +154,7 @@ public struct ColorMetadataSummary: Codable, Equatable, Sendable {
     }
 
     public var referenceTransfer: ReferenceTransfer {
-        let value = (transfer ?? "").lowercased()
-        if value.contains("2084") || value.contains("pq") { return .pq }
-        if value.contains("hlg") || value.contains("2100") { return .hlg }
-        return .unknown
+        ReferenceTransfer.parse(transfer)
     }
 
     public var isHDRLike: Bool {
