@@ -1944,6 +1944,54 @@ final class CalibrationTests: XCTestCase {
         XCTAssertTrue(allPass.canOpenVirginFrozen)
     }
 
+    func testPreFrozenCoverageReadyAllowsOnlyCoverageGatesBeforeFullGateMeasurement() {
+        let coverageOnly = V4PreFrozenGateResult(
+            transferCoverage: .pass, pairCoverage: .pass, familyCoverage: .pass
+        )
+
+        XCTAssertEqual(coverageOnly.datasetIntegrity, .notMeasured)
+        XCTAssertEqual(coverageOnly.identifiability, .notMeasured)
+        XCTAssertEqual(coverageOnly.validationOverall, .notMeasured)
+        XCTAssertEqual(coverageOnly.validationShadow, .notMeasured)
+        XCTAssertEqual(coverageOnly.validationTemporal, .notMeasured)
+        XCTAssertEqual(coverageOnly.runtime, .notMeasured)
+        XCTAssertTrue(coverageOnly.coverageReady)
+        XCTAssertFalse(coverageOnly.canOpenVirginFrozen)
+    }
+
+    func testPreFrozenCoverageReadyFailsClosedForAnyIncompleteOrFailedCoverageGate() {
+        let coverageKeyPaths: [(String, WritableKeyPath<V4PreFrozenGateResult, V4GateStatus>)] = [
+            ("transferCoverage", \V4PreFrozenGateResult.transferCoverage),
+            ("pairCoverage", \V4PreFrozenGateResult.pairCoverage),
+            ("familyCoverage", \V4PreFrozenGateResult.familyCoverage)
+        ]
+
+        for (name, keyPath) in coverageKeyPaths {
+            var failed = V4PreFrozenGateResult(
+                transferCoverage: .pass, pairCoverage: .pass, familyCoverage: .pass
+            )
+            failed[keyPath: keyPath] = .fail
+            XCTAssertFalse(failed.coverageReady, "\(name)=FAIL must block coverage readiness")
+
+            var unmeasured = V4PreFrozenGateResult(
+                transferCoverage: .pass, pairCoverage: .pass, familyCoverage: .pass
+            )
+            unmeasured[keyPath: keyPath] = .notMeasured
+            XCTAssertFalse(unmeasured.coverageReady, "\(name)=NOT_MEASURED must block coverage readiness")
+        }
+    }
+
+    func testPreFrozenFullyPassingGatesStillOpenVirginFrozen() {
+        let allPass = V4PreFrozenGateResult(
+            datasetIntegrity: .pass, identifiability: .pass, validationOverall: .pass,
+            validationShadow: .pass, validationTemporal: .pass,
+            transferCoverage: .pass, pairCoverage: .pass, familyCoverage: .pass, runtime: .pass
+        )
+
+        XCTAssertTrue(allPass.coverageReady)
+        XCTAssertTrue(allPass.canOpenVirginFrozen)
+    }
+
     func testPreFrozenGateDecodesLegacyArtifactsWithoutPairCoverageFailClosed() throws {
         let legacy = """
         {

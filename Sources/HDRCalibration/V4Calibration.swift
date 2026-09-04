@@ -198,6 +198,12 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         try container.encode(runtime, forKey: .runtime)
     }
 
+    public var coverageReady: Bool {
+        transferCoverage == .pass &&
+        pairCoverage == .pass &&
+        familyCoverage == .pass
+    }
+
     public var failures: [String] {
         [
             ("datasetIntegrity", datasetIntegrity),
@@ -1129,7 +1135,7 @@ public final class CalibrationV4Runner {
         let selectedTune = selected.tune
         let candidate = selected.parameters
         let requiredCoverage = try validateRequiredCoverage(manifest: manifest, transferByPair: transferByPair)
-        guard requiredCoverage.canOpenVirginFrozen else {
+        guard requiredCoverage.coverageReady else {
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
                 shadowAudit: shadowAudit, sensitivity: sensitivity,
