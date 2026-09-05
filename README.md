@@ -176,7 +176,8 @@ then opens Frozen exactly once. Reproduce the recorded experiment with:
   --output results/data-video-v2-final.json
 ```
 
-The promoted V2 preset remains A/B selectable alongside V1:
+The historical V2 preset remains A/B selectable alongside V1 and the promoted
+V4 preset:
 
 ```bash
 ./.build/release/HDRPlayer test.mp4 --preset calibrated-v2
@@ -195,8 +196,9 @@ with sequential scene windows. Reproduce it with:
 
 V3 improved the aggregate Tune and Validation objectives but regressed the
 legacy Frozen video's shadow error and shadow-lift occupancy. It therefore was
-not promoted. `calibrated-v2` remains the latest production preset; the rejected
-candidate is retained for diagnostics only:
+not promoted. The validated V4 candidate is now the production default;
+`calibrated-v2` remains available for A/B and historical reproduction, and the
+rejected V3 candidate is retained for diagnostics only:
 
 ```bash
 ./.build/release/HDRPlayer test.mp4 --preset calibrated-v3-candidate

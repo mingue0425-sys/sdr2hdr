@@ -18,14 +18,15 @@ public enum HDRInputFallbackPolicy: String, CaseIterable, Sendable {
     case requireMetadata
 }
 
-/// Selects the analytical tone-expansion revision. Existing presets remain on
-/// the frozen V2 curve; V3 candidates explicitly opt into repaired shadow
-/// control so historical A/B comparisons stay meaningful.
+/// Selects the analytical tone-expansion revision. Historical V1/V2 presets
+/// remain on the frozen V2 curve; the rejected V3 candidate explicitly opts
+/// into repaired shadow control, while the promoted V4 preset uses
+/// scene-relative coordinates.
 public enum HDRToneCurveRevision: UInt32, Sendable {
     case legacyV2 = 0
     case shadowProtectedV3 = 1
     /// V4 uses scene-relative percentile coordinates supplied by the causal
-    /// runtime estimator. Existing presets intentionally remain on legacyV2.
+    /// runtime estimator.
     case sceneRelativeV4 = 2
 }
 
@@ -429,8 +430,8 @@ public struct HDRConfiguration: Sendable, Equatable {
         displayHeadroom: 7.0
     )
 
-    /// Offline-calibrated candidate promoted from the local data_video
-    /// experiment. Its headroom is mastering intent, not display capability.
+    /// Offline-calibrated V1 preset retained for historical A/B comparison.
+    /// Its headroom is mastering intent, not display capability.
     public static let calibratedV1 = HDRConfiguration(
         paperWhiteNits: 203,
         peakNits: 1_000,
@@ -443,10 +444,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         displayHeadroom: 4.9261084
     )
 
-    /// Video-level calibrated preset promoted by the data_video V2 experiment.
-    /// Selection used Tune and Validation only; the guarded Frozen video was
-    /// decoded after these values were final. Runtime display mapping is a
-    /// separate presentation operation and never mutates this signal curve.
+    /// Historical video-level calibrated V2 preset retained for A/B comparison
+    /// and reproduction. Runtime display mapping is a separate presentation
+    /// operation and never mutates this signal curve.
     public static let calibratedV2 = HDRConfiguration(
         paperWhiteNits: 222.02173,
         peakNits: 1_080.554,
@@ -461,7 +461,7 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     /// Rejected V3 experiment candidate retained for reproducible A/B and
     /// runtime measurements. It is intentionally not named `calibratedV3` and
-    /// must not replace the promoted calibratedV2 preset.
+    /// must not replace the promoted calibratedV4 preset.
     public static let calibratedV3Candidate = HDRConfiguration(
         paperWhiteNits: 235,
         peakNits: 1_203.3646,
@@ -473,6 +473,21 @@ public struct HDRConfiguration: Sendable, Equatable {
         outputMode: .edr,
         displayHeadroom: 5.1207004,
         toneCurveRevision: .shadowProtectedV3
+    )
+
+    /// Production HDR preset promoted from the successfully validated V4
+    /// candidate. Its headroom is mastering intent, not display capability.
+    public static let calibratedV4 = HDRConfiguration(
+        paperWhiteNits: 190,
+        peakNits: 1008.6863,
+        highlightStrength: 0.6208221,
+        contrastStrength: 0.90542316,
+        saturationCompensation: 0.43140942,
+        shadowProtection: 0.4755874,
+        temporalStability: 0.7308984,
+        outputMode: .edr,
+        displayHeadroom: 5.308875,
+        toneCurveRevision: .sceneRelativeV4
     )
 
     public func validated() throws -> HDRConfiguration {

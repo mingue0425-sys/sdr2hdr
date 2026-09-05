@@ -151,7 +151,38 @@ final class PlayerLogicTests: XCTestCase {
         )
     }
 
-    func testRejectedV3CandidateIsExplicitlySelectableButDoesNotReplaceV2() throws {
+    func testCalibratedV4PresetIsSelectableWithExactProductionValues() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v4"
+        ])
+        let configuration = try options.baseConfiguration()
+
+        XCTAssertEqual(options.preset, "calibrated-v4")
+        XCTAssertTrue(PlayerOptions.usage.contains("calibrated-v4"))
+        XCTAssertEqual(configuration.paperWhiteNits, 190)
+        XCTAssertEqual(configuration.peakNits, 1008.6863)
+        XCTAssertEqual(configuration.highlightStrength, 0.6208221)
+        XCTAssertEqual(configuration.contrastStrength, 0.90542316)
+        XCTAssertEqual(configuration.saturationCompensation, 0.43140942)
+        XCTAssertEqual(configuration.shadowProtection, 0.4755874)
+        XCTAssertEqual(configuration.temporalStability, 0.7308984)
+        XCTAssertEqual(configuration.outputMode, .edr)
+        XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
+        XCTAssertEqual(configuration.masteringHeadroom, 5.308875)
+        XCTAssertEqual(configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(try configuration.validated(), configuration)
+    }
+
+    func testPlayerOptionsDefaultsToCalibratedV4() throws {
+        let options = PlayerOptions()
+        XCTAssertEqual(options.preset, "calibrated-v4")
+
+        let parsed = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
+        XCTAssertEqual(parsed.preset, "calibrated-v4")
+        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV4)
+    }
+
+    func testRejectedV3CandidateIsExplicitlySelectableButDoesNotReplaceV4() throws {
         let options = try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v3-candidate"
         ])
@@ -159,6 +190,7 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(configuration, HDRConfiguration.calibratedV3Candidate)
         XCTAssertEqual(configuration.toneCurveRevision, .shadowProtectedV3)
         XCTAssertNotEqual(configuration, HDRConfiguration.calibratedV2)
+        XCTAssertNotEqual(configuration, HDRConfiguration.calibratedV4)
     }
 
     func testMasteringAndPhysicalDisplayHeadroomStaySeparated() throws {

@@ -42,7 +42,7 @@ public struct PlayerOptions: Equatable, Sendable {
 
     public init(
         inputURL: URL? = nil,
-        preset: String = "hdr",
+        preset: String = "calibrated-v4",
         paperWhiteNits: Float? = nil,
         peakNits: Float? = nil,
         debug: Bool = false,
@@ -62,7 +62,7 @@ public struct PlayerOptions: Equatable, Sendable {
 
     public static let usage = """
     Usage:
-      HDRPlayer <video-file> [--preset natural|hdr|vivid|calibrated-v1|calibrated-v2|calibrated-v3-candidate] [--debug]
+      HDRPlayer <video-file> [--preset natural|hdr|vivid|calibrated-v1|calibrated-v2|calibrated-v4|calibrated-v3-candidate] [--debug]
       HDRPlayer <video-file> --paper-white 203 --peak 1000
       HDRPlayer --edr-test-pattern [--play-for 5]
 
@@ -91,7 +91,7 @@ public struct PlayerOptions: Equatable, Sendable {
                 index += 1
             case "--preset":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
-                guard ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v3-candidate"].contains(value.lowercased()) else {
+                guard ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"].contains(value.lowercased()) else {
                     throw HDRPlayerCLIError.unsupportedPreset(value)
                 }
                 options.preset = value.lowercased()
@@ -145,6 +145,7 @@ public struct PlayerOptions: Equatable, Sendable {
         case "vivid": configuration = .vivid
         case "calibrated-v1": configuration = .calibratedV1
         case "calibrated-v2": configuration = .calibratedV2
+        case "calibrated-v4": configuration = .calibratedV4
         case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
         default: throw HDRPlayerCLIError.unsupportedPreset(preset)
         }
