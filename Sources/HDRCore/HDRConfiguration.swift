@@ -28,6 +28,12 @@ public enum HDRToneCurveRevision: UInt32, Sendable {
     /// V4 uses scene-relative percentile coordinates supplied by the causal
     /// runtime estimator.
     case sceneRelativeV4 = 2
+    /// Development-only V6 candidate revision. This is never a production
+    /// preset; it keeps the V4 parameters while bounding the low-mid term.
+    case sceneRelativeV6Candidate = 3
+    /// Development-only V6.2 candidate revision. It keeps the V4 tone curve
+    /// and applies a bounded, source-statistics-only low-mid budget.
+    case sceneAdaptiveV62Candidate = 4
 }
 
 /// Low-cost source-luminance statistics used by the V4 scene-relative shadow
@@ -173,6 +179,30 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
 
     public var averageLuminance: Float {
         min(max(p50, 0.001), 1)
+    }
+
+    /// Causal percentile smoothing shared by the V4 scene state and the
+    /// development-only V6.2 budget. It has no look-ahead and mirrors the
+    /// scene-anchor transition's stability factor.
+    public static func causalBlend(
+        previous: HDRSceneStatistics,
+        target: HDRSceneStatistics,
+        stability: Float,
+        sceneCut: Bool
+    ) -> HDRSceneStatistics {
+        let alpha = sceneCut ? 1 : 1 - min(max(stability, 0), 1)
+        func blend(_ lhs: Float, _ rhs: Float) -> Float {
+            lhs + alpha * (rhs - lhs)
+        }
+        return HDRSceneStatistics(
+            p01: blend(previous.p01, target.p01),
+            p05: blend(previous.p05, target.p05),
+            p10: blend(previous.p10, target.p10),
+            p25: blend(previous.p25, target.p25),
+            p50: blend(previous.p50, target.p50),
+            p90: blend(previous.p90, target.p90),
+            p99: blend(previous.p99, target.p99)
+        )
     }
 
     public var isFinite: Bool {
@@ -368,6 +398,27 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// Development-only V6 structural controls. They are ignored by every
+    /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
+    /// its exact production arithmetic and output.
+    public var developmentLowMidFadePosition: Float
+    public var developmentLowMidStrength: Float
+
+    /// Development-only V6.2 scene-adaptive expansion controls. They are
+    /// ignored by every revision except `sceneAdaptiveV62Candidate`; the
+    /// production V4 branch never reads them.
+    public var developmentExpansionController: HDRV62ExpansionController
+    public var developmentExpansionMinimumBudget: Float
+    public var developmentExpansionHighlightLow: Float
+    public var developmentExpansionHighlightHigh: Float
+    public var developmentExpansionRangeLow: Float
+    public var developmentExpansionRangeHigh: Float
+    public var developmentExpansionMidtoneLow: Float
+    public var developmentExpansionMidtoneHigh: Float
+    public var developmentExpansionCombinedHighlightWeight: Float
+    public var developmentExpansionCombinedRangeWeight: Float
+    public var developmentExpansionCombinedMidtoneWeight: Float
+
     public init(
         paperWhiteNits: Float = 203,
         peakNits: Float = 1_000,
@@ -379,7 +430,20 @@ public struct HDRConfiguration: Sendable, Equatable {
         outputMode: HDROutputMode = .edr,
         displayHeadroom: Float = 4.0,
         toneCurveRevision: HDRToneCurveRevision = .legacyV2,
-        inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange
+        inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        developmentLowMidFadePosition: Float = 0.55,
+        developmentLowMidStrength: Float = 0.08,
+        developmentExpansionController: HDRV62ExpansionController = .compactCombined,
+        developmentExpansionMinimumBudget: Float = 0.35,
+        developmentExpansionHighlightLow: Float = 0.05,
+        developmentExpansionHighlightHigh: Float = 0.35,
+        developmentExpansionRangeLow: Float = 1.0,
+        developmentExpansionRangeHigh: Float = 3.5,
+        developmentExpansionMidtoneLow: Float = 0.15,
+        developmentExpansionMidtoneHigh: Float = 0.55,
+        developmentExpansionCombinedHighlightWeight: Float = 0.40,
+        developmentExpansionCombinedRangeWeight: Float = 0.35,
+        developmentExpansionCombinedMidtoneWeight: Float = 0.25
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -392,6 +456,19 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.masteringHeadroom = displayHeadroom
         self.toneCurveRevision = toneCurveRevision
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.developmentLowMidFadePosition = developmentLowMidFadePosition
+        self.developmentLowMidStrength = developmentLowMidStrength
+        self.developmentExpansionController = developmentExpansionController
+        self.developmentExpansionMinimumBudget = developmentExpansionMinimumBudget
+        self.developmentExpansionHighlightLow = developmentExpansionHighlightLow
+        self.developmentExpansionHighlightHigh = developmentExpansionHighlightHigh
+        self.developmentExpansionRangeLow = developmentExpansionRangeLow
+        self.developmentExpansionRangeHigh = developmentExpansionRangeHigh
+        self.developmentExpansionMidtoneLow = developmentExpansionMidtoneLow
+        self.developmentExpansionMidtoneHigh = developmentExpansionMidtoneHigh
+        self.developmentExpansionCombinedHighlightWeight = developmentExpansionCombinedHighlightWeight
+        self.developmentExpansionCombinedRangeWeight = developmentExpansionCombinedRangeWeight
+        self.developmentExpansionCombinedMidtoneWeight = developmentExpansionCombinedMidtoneWeight
     }
 
     public static let natural = HDRConfiguration(
@@ -499,7 +576,19 @@ public struct HDRConfiguration: Sendable, Equatable {
             ("saturationCompensation", saturationCompensation),
             ("shadowProtection", shadowProtection),
             ("temporalStability", temporalStability),
-            ("masteringHeadroom", masteringHeadroom)
+            ("masteringHeadroom", masteringHeadroom),
+            ("developmentLowMidFadePosition", developmentLowMidFadePosition),
+            ("developmentLowMidStrength", developmentLowMidStrength),
+            ("developmentExpansionMinimumBudget", developmentExpansionMinimumBudget),
+            ("developmentExpansionHighlightLow", developmentExpansionHighlightLow),
+            ("developmentExpansionHighlightHigh", developmentExpansionHighlightHigh),
+            ("developmentExpansionRangeLow", developmentExpansionRangeLow),
+            ("developmentExpansionRangeHigh", developmentExpansionRangeHigh),
+            ("developmentExpansionMidtoneLow", developmentExpansionMidtoneLow),
+            ("developmentExpansionMidtoneHigh", developmentExpansionMidtoneHigh),
+            ("developmentExpansionCombinedHighlightWeight", developmentExpansionCombinedHighlightWeight),
+            ("developmentExpansionCombinedRangeWeight", developmentExpansionCombinedRangeWeight),
+            ("developmentExpansionCombinedMidtoneWeight", developmentExpansionCombinedMidtoneWeight)
         ]
         for (name, value) in finiteValues where !value.isFinite {
             throw HDRConfigurationError.nonFinite(name)
@@ -533,6 +622,39 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard masteringHeadroom >= 1, masteringHeadroom <= 64 else {
             throw HDRConfigurationError.valueOutOfRange("masteringHeadroom (1...64)")
+        }
+        guard (0...1).contains(developmentLowMidFadePosition) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentLowMidFadePosition (0...1)")
+        }
+        guard (0...1).contains(developmentLowMidStrength) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentLowMidStrength (0...1)")
+        }
+        guard (0...1).contains(developmentExpansionMinimumBudget) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansionMinimumBudget (0...1)")
+        }
+        guard (0...1).contains(developmentExpansionHighlightLow),
+              (0...1).contains(developmentExpansionHighlightHigh),
+              developmentExpansionHighlightHigh >= developmentExpansionHighlightLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion highlight range")
+        }
+        guard developmentExpansionRangeLow.isFinite,
+              developmentExpansionRangeHigh.isFinite,
+              developmentExpansionRangeLow >= 0,
+              developmentExpansionRangeHigh >= developmentExpansionRangeLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion dynamic-range range")
+        }
+        guard (0...1).contains(developmentExpansionMidtoneLow),
+              (0...1).contains(developmentExpansionMidtoneHigh),
+              developmentExpansionMidtoneHigh >= developmentExpansionMidtoneLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion midtone range")
+        }
+        guard developmentExpansionCombinedHighlightWeight >= 0,
+              developmentExpansionCombinedRangeWeight >= 0,
+              developmentExpansionCombinedMidtoneWeight >= 0,
+              developmentExpansionCombinedHighlightWeight +
+                developmentExpansionCombinedRangeWeight +
+                developmentExpansionCombinedMidtoneWeight > 0 else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion combined weights")
         }
         return self
     }

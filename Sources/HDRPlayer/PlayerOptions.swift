@@ -7,6 +7,7 @@ public enum HDRPlayerCLIError: Error, LocalizedError, Equatable {
     case tooManyInputs
     case invalidOption(String)
     case invalidNumber(String)
+    case invalidROI(String)
     case unsupportedPreset(String)
     case unsupportedMode(String)
 
@@ -22,6 +23,8 @@ public enum HDRPlayerCLIError: Error, LocalizedError, Equatable {
             return "unknown option: \(option)"
         case .invalidNumber(let value):
             return "invalid numeric value: \(value)"
+        case .invalidROI(let value):
+            return "invalid diagnostic ROI: \(value); expected normalized x,y,width,height within 0...1"
         case .unsupportedPreset(let preset):
             return "unsupported preset: \(preset)"
         case .unsupportedMode(let mode):
@@ -39,6 +42,12 @@ public struct PlayerOptions: Equatable, Sendable {
     public var playFor: TimeInterval?
     public var edrTestPattern: Bool
     public var startFullscreen: Bool
+    public var controlledAB: Bool
+    public var controlledV6: Bool
+    public var diagnosticJSON: Bool
+    public var diagnosticROI: HDRDiagnosticROI?
+    public var v6Candidate: HDRV6ToneCurveCandidate
+    public var v62Candidate: HDRV62ToneCurveCandidate
 
     public init(
         inputURL: URL? = nil,
@@ -48,7 +57,13 @@ public struct PlayerOptions: Equatable, Sendable {
         debug: Bool = false,
         playFor: TimeInterval? = nil,
         edrTestPattern: Bool = false,
-        startFullscreen: Bool = false
+        startFullscreen: Bool = false,
+        controlledAB: Bool = false,
+        controlledV6: Bool = false,
+        diagnosticJSON: Bool = false,
+        diagnosticROI: HDRDiagnosticROI? = nil,
+        v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
+        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined
     ) {
         self.inputURL = inputURL
         self.preset = preset
@@ -58,16 +73,27 @@ public struct PlayerOptions: Equatable, Sendable {
         self.playFor = playFor
         self.edrTestPattern = edrTestPattern
         self.startFullscreen = startFullscreen
+        self.controlledAB = controlledAB
+        self.controlledV6 = controlledV6
+        self.diagnosticJSON = diagnosticJSON
+        self.diagnosticROI = diagnosticROI
+        self.v6Candidate = v6Candidate
+        self.v62Candidate = v62Candidate
     }
 
     public static let usage = """
     Usage:
-      HDRPlayer <video-file> [--preset natural|hdr|vivid|calibrated-v1|calibrated-v2|calibrated-v4|calibrated-v3-candidate] [--debug]
+      HDRPlayer <video-file> [--preset natural|hdr|vivid|calibrated-v1|calibrated-v2|calibrated-v4|calibrated-v3-candidate|v6-candidate-bandlimited-035|v6-candidate-bandlimited-045|v6-candidate-bandlimited-055|v6-candidate-bandlimited-065|v6-candidate-bandlimited-075|v6-candidate-no-lowmid|v6.2-candidate-adaptive-highlight|v6.2-candidate-adaptive-dynamic-range|v6.2-candidate-adaptive-combined] [--debug]
+      HDRPlayer <video-file> --controlled-ab --debug
+      HDRPlayer <video-file> --controlled-v6 --debug
+      HDRPlayer <video-file> --debug --diagnostic-json
+      HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
       HDRPlayer <video-file> --paper-white 203 --peak 1000
       HDRPlayer --edr-test-pattern [--play-for 5]
 
     Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen,
-    Up/Down volume, Command-Q quit.
+    B quick V2/V4 A/B toggle, 6 quick V4/V6 candidate toggle, 7 quick V4/V6.2 candidate toggle, D diagnostic dump, Shift-drag generic ROI, Up/Down volume,
+    Command-Q quit.
     """
 
     public static func parse(arguments: [String]) throws -> PlayerOptions {
@@ -89,12 +115,36 @@ public struct PlayerOptions: Equatable, Sendable {
             case "--fullscreen":
                 options.startFullscreen = true
                 index += 1
+            case "--controlled-ab":
+                options.controlledAB = true
+                index += 1
+            case "--controlled-v6":
+                options.controlledV6 = true
+                index += 1
+            case "--diagnostic-json":
+                options.diagnosticJSON = true
+                options.debug = true
+                index += 1
+            case "--diagnostic-roi":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                options.diagnosticROI = try parseROI(value)
+                options.debug = true
+                index += 2
             case "--preset":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
-                guard ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"].contains(value.lowercased()) else {
+                let normalized = value.lowercased()
+                let supported = ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"] +
+                    HDRV6ToneCurveCandidate.allCases.map(\.rawValue) +
+                    HDRV62ToneCurveCandidate.allCases.map(\.rawValue)
+                guard supported.contains(normalized) else {
                     throw HDRPlayerCLIError.unsupportedPreset(value)
                 }
-                options.preset = value.lowercased()
+                options.preset = normalized
+                if let candidate = HDRV62ToneCurveCandidate(rawValue: normalized) {
+                    options.v62Candidate = candidate
+                } else if let candidate = HDRV6ToneCurveCandidate(rawValue: normalized) {
+                    options.v6Candidate = candidate
+                }
                 index += 2
             case "--paper-white":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
@@ -139,15 +189,21 @@ public struct PlayerOptions: Equatable, Sendable {
 
     public func baseConfiguration() throws -> HDRConfiguration {
         var configuration: HDRConfiguration
-        switch preset {
-        case "natural": configuration = .natural
-        case "hdr": configuration = .hdr
-        case "vivid": configuration = .vivid
-        case "calibrated-v1": configuration = .calibratedV1
-        case "calibrated-v2": configuration = .calibratedV2
-        case "calibrated-v4": configuration = .calibratedV4
-        case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
-        default: throw HDRPlayerCLIError.unsupportedPreset(preset)
+        if let candidate = HDRV62ToneCurveCandidate(rawValue: preset) {
+            configuration = candidate.configuration()
+        } else if let candidate = HDRV6ToneCurveCandidate(rawValue: preset) {
+            configuration = candidate.configuration()
+        } else {
+            switch preset {
+            case "natural": configuration = .natural
+            case "hdr": configuration = .hdr
+            case "vivid": configuration = .vivid
+            case "calibrated-v1": configuration = .calibratedV1
+            case "calibrated-v2": configuration = .calibratedV2
+            case "calibrated-v4": configuration = .calibratedV4
+            case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
+            default: throw HDRPlayerCLIError.unsupportedPreset(preset)
+            }
         }
         configuration.outputMode = .edr
         if let paperWhiteNits { configuration.paperWhiteNits = paperWhiteNits }
@@ -168,5 +224,20 @@ public struct PlayerOptions: Equatable, Sendable {
             throw HDRPlayerCLIError.invalidNumber(value)
         }
         return number
+    }
+
+    private static func parseROI(_ value: String) throws -> HDRDiagnosticROI {
+        let components = value.split(separator: ",", omittingEmptySubsequences: false)
+        guard components.count == 4,
+              let x = Float(components[0]),
+              let y = Float(components[1]),
+              let width = Float(components[2]),
+              let height = Float(components[3]),
+              x.isFinite, y.isFinite, width.isFinite, height.isFinite,
+              x >= 0, y >= 0, width > 0, height > 0,
+              x + width <= 1, y + height <= 1 else {
+            throw HDRPlayerCLIError.invalidROI(value)
+        }
+        return HDRDiagnosticROI(x: x, y: y, width: width, height: height)
     }
 }

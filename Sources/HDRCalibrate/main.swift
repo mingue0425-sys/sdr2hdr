@@ -1,5 +1,6 @@
 import Foundation
 import HDRCalibration
+import HDRCore
 import Metal
 
 private struct CLI {
@@ -150,6 +151,10 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 --output results/data-video-v4-final.json
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
+      HDRCalibrate v6-curve-audit --output /tmp/v6-tone-curve-audit.json
+      HDRCalibrate v6-evaluate --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6-development-evaluation.json
+      HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
+      HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
       HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -234,6 +239,50 @@ private func run(arguments: [String]) async throws {
         try encoder.encode(audit).write(to: cli.output)
         try encoder.encode(split).write(to: cli.output.deletingLastPathComponent().appendingPathComponent("data-video-v2-split.json"))
         print("V2 audit: valid=\(audit.validPairCount), rejected=\(audit.rejectedGroupCount)")
+        return
+    }
+
+    if cli.command == "v6-curve-audit" {
+        let audit = HDRV6ToneCurveDevelopment.audit()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(at: cli.output.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try encoder.encode(audit).write(to: cli.output, options: .atomic)
+        print("V6 curve audit: candidates=\(audit.candidates.count), dense samples=\(audit.denseSampleCount)")
+        print("V6 curve audit: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "v6-evaluate" {
+        let report = try await V6ToneCurveDevelopmentRunner.run(
+            manifestURL: try cli.requiredManifest(),
+            outputURL: cli.output
+        )
+        print("V6 development evaluation: Tune pairs=\(report.tunePairCount), Validation pairs=\(report.validationPairCount)")
+        print("V6 development evaluation: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "v6-1-attribution" {
+        let report = try await V61ErrorAttributionRunner.run(
+            manifestURL: try cli.requiredManifest(),
+            outputURL: cli.output
+        )
+        print("V6.1 attribution: Tune/Validation pairs=\(report.preparedPairIDs.count), scenes=\(report.sceneBreakdown.count)")
+        print("V6.1 attribution: Frozen objective evaluations=\(report.frozenObjectiveEvaluations)")
+        print("V6.1 attribution report: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "v6-2-adaptive" {
+        let report = try await V62SceneAdaptiveExpansionRunner.run(
+            manifestURL: try cli.requiredManifest(),
+            outputURL: cli.output
+        )
+        print("V6.2 scene-adaptive evaluation: scenes=\(report.demandScenes.count), candidates=\(report.candidates.count)")
+        print("V6.2 verdict: \(report.verdict)")
+        print("V6.2 protected objective evaluations=\(report.frozenObjectiveEvaluations + report.virginFrozenObjectiveEvaluations)")
+        print("V6.2 report: \(cli.output.path)")
         return
     }
 

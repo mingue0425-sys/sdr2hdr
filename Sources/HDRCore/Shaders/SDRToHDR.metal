@@ -24,6 +24,29 @@ struct SDRToHDRParameters {
     float sceneShadowTop;
     uint sceneStatisticsValid;
     uint sceneStatisticsReserved;
+    float sceneP01;
+    float sceneP05;
+    float sceneP50;
+    float sceneP90;
+    float sceneP99;
+    float diagnosticROIX;
+    float diagnosticROIY;
+    float diagnosticROIWidth;
+    float diagnosticROIHeight;
+    uint diagnosticROIEnabled;
+    float developmentLowMidFadePosition;
+    float developmentLowMidStrength;
+    uint developmentExpansionController;
+    float developmentExpansionMinimumBudget;
+    float developmentExpansionHighlightLow;
+    float developmentExpansionHighlightHigh;
+    float developmentExpansionRangeLow;
+    float developmentExpansionRangeHigh;
+    float developmentExpansionMidtoneLow;
+    float developmentExpansionMidtoneHigh;
+    float developmentExpansionCombinedHighlightWeight;
+    float developmentExpansionCombinedRangeWeight;
+    float developmentExpansionCombinedMidtoneWeight;
 };
 
 struct HDRDebugStats {
@@ -34,6 +57,13 @@ struct HDRDebugStats {
     atomic_uint highlightPixelCount;
     atomic_uint clippedPixelCount;
     atomic_uint pixelCount;
+    atomic_uint toneExpandedLuminanceSum;
+    atomic_uint toneExpandedLuminanceMax;
+    atomic_uint coreLuminanceSum;
+    atomic_uint coreLuminanceMax;
+    atomic_uint lowMidContributionSum;
+    atomic_uint shoulderContributionSum;
+    atomic_uint shadowProtectionSum;
 };
 
 struct TemporalLumaStats {
@@ -99,6 +129,30 @@ inline float3 ycbcrToRGB(float y, float2 chroma, constant SDRToHDRParameters& p)
     );
 }
 
+struct HDRToneExpansionBreakdown {
+    float expandedLuminance;
+    float lowMidContribution;
+    float shoulderContribution;
+    float shadowProtectionFactor;
+    float effectiveStrength;
+};
+
+inline HDRToneExpansionBreakdown makeToneExpansionBreakdown(
+    float expandedLuminance,
+    float lowMidContribution,
+    float shoulderContribution,
+    float shadowProtectionFactor,
+    float effectiveStrength
+) {
+    HDRToneExpansionBreakdown value;
+    value.expandedLuminance = expandedLuminance;
+    value.lowMidContribution = lowMidContribution;
+    value.shoulderContribution = shoulderContribution;
+    value.shadowProtectionFactor = shadowProtectionFactor;
+    value.effectiveStrength = effectiveStrength;
+    return value;
+}
+
 inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
     float y = clamp(luminance, 0.0f, 1.0f);
     float shoulderStart = 0.68f - 0.20f * clamp(p.contrastStrength, 0.0f, 1.0f);
@@ -132,6 +186,101 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
         return clamp(expanded, y, p.peakRatio);
     }
 
+    if (p.toneCurveRevision == 3) {
+        // V6 development candidate: retain the V4 shoulder and shadow
+        // protection, but bound low-mid support so it fades to zero before
+        // the shoulder. If a scene anchor crosses the shoulder, clip only
+        // the low-mid support endpoint; the shadow protection transition
+        // remains on the original scene-relative anchor.
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowTop = p.sceneStatisticsValid != 0
+            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
+            : 0.1125f;
+        shadowTop = min(shadowTop, 0.60f);
+        float shadowTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float supportTop = min(shadowTop, shoulderStart - 0.0001f);
+        float lowMidRise = smoothStepSafe(shadowFloor, supportTop, y);
+        float fadePosition = clamp(p.developmentLowMidFadePosition, 0.0f, 1.0f);
+        float lowMidFadeStart = mix(supportTop, shoulderStart, fadePosition);
+        float lowMidFall = 1.0f - smoothStepSafe(lowMidFadeStart, shoulderStart, y);
+        float lowMidBand = lowMidRise * lowMidFall;
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength *
+            clamp(p.developmentLowMidStrength, 0.0f, 1.0f) * lowMidBand * y;
+        float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) *
+            (1.0f - shadowTransition);
+        float expanded = y + (lowMidExpansion + shoulderExpansion) * protection;
+        return clamp(expanded, y, p.peakRatio);
+    }
+
+    if (p.toneCurveRevision == 4) {
+        // V6.2 keeps the exact V4 shoulder/protection arithmetic and applies
+        // a bounded budget only to the broad low-mid term.  All controller
+        // inputs are causal SDR statistics; no HDR-reference label exists in
+        // this path.
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowTop = p.sceneStatisticsValid != 0
+            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
+            : 0.1125f;
+        shadowTop = min(shadowTop, 0.60f);
+        float shadowTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float shadowWeight = 1.0f - shadowTransition;
+        float highlightOccupancy = clamp(
+            (p.sceneP99 - p.sceneP90) / max(1.0f - p.sceneP90, 0.05f), 0.0f, 1.0f
+        );
+        float dynamicRangeStops = log2(
+            (max(p.sceneP99, 0.0f) + 0.005f) /
+            (max(p.sceneP50, 0.0f) + 0.005f)
+        );
+        float midtoneSpan = max(p.sceneP99 - p.sceneP01, 0.0001f);
+        float midtoneOccupancy = clamp(
+            (min(p.sceneP90, 0.75f) - max(p.sceneP50, 0.10f)) / midtoneSpan,
+            0.0f, 1.0f
+        );
+        float highlightDemand = smoothStepSafe(
+            p.developmentExpansionHighlightLow,
+            p.developmentExpansionHighlightHigh,
+            highlightOccupancy
+        );
+        float dynamicDemand = smoothStepSafe(
+            p.developmentExpansionRangeLow,
+            p.developmentExpansionRangeHigh,
+            dynamicRangeStops
+        );
+        float midtoneDemand = 1.0f - smoothStepSafe(
+            p.developmentExpansionMidtoneLow,
+            p.developmentExpansionMidtoneHigh,
+            midtoneOccupancy
+        );
+        float budgetSignal;
+        if (p.developmentExpansionController == 0) {
+            budgetSignal = highlightDemand;
+        } else if (p.developmentExpansionController == 1) {
+            budgetSignal = dynamicDemand;
+        } else {
+            float weightSum = max(
+                p.developmentExpansionCombinedHighlightWeight +
+                p.developmentExpansionCombinedRangeWeight +
+                p.developmentExpansionCombinedMidtoneWeight,
+                0.000001f
+            );
+            budgetSignal = (
+                p.developmentExpansionCombinedHighlightWeight * highlightDemand +
+                p.developmentExpansionCombinedRangeWeight * dynamicDemand +
+                p.developmentExpansionCombinedMidtoneWeight * midtoneDemand
+            ) / weightSum;
+        }
+        float minimumBudget = clamp(p.developmentExpansionMinimumBudget, 0.0f, 1.0f);
+        float expansionBudget = clamp(minimumBudget + (1.0f - minimumBudget) * budgetSignal, 0.0f, 1.0f);
+        float lowMidTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * 0.08f *
+            lowMidTransition * y * expansionBudget;
+        float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
+        float expanded = y + (lowMidExpansion + shoulderExpansion) * protection;
+        return clamp(expanded, y, p.peakRatio);
+    }
+
     // V1/V2 multiplied highlight expansion by a shadow gate. The shoulder was
     // exactly zero below ~0.5 while that gate was already one above 0.48, so
     // shadowProtection was mathematically dead. V3 gives it an independent,
@@ -144,6 +293,158 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
     float protectedBase = y * (1.0f - shadowAttenuation);
     float expansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
     return clamp(protectedBase + max(expansion, 0.0f), 0.0f, p.peakRatio);
+}
+
+// Observation-only decomposition. The production toneExpand() above remains
+// the sole function used to produce output pixels.
+inline HDRToneExpansionBreakdown toneExpandBreakdown(float luminance, constant SDRToHDRParameters& p) {
+    float y = clamp(luminance, 0.0f, 1.0f);
+    float shoulderStart = 0.68f - 0.20f * clamp(p.contrastStrength, 0.0f, 1.0f);
+    float t = smoothStepSafe(shoulderStart, 1.0f, y);
+    float shoulder = t * t * (3.0f - 2.0f * t);
+    float strength = clamp(p.highlightStrength * p.temporalAdaptation, 0.0f, 1.0f);
+
+    if (p.toneCurveRevision == 0) {
+        float legacyShadowGate = smoothStepSafe(0.035f, 0.48f, y);
+        float legacyProtection = 1.0f - clamp(p.shadowProtection, 0.0f, 1.0f) *
+            (1.0f - legacyShadowGate);
+        float legacyExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y * legacyProtection;
+        return makeToneExpansionBreakdown(
+            toneExpand(luminance, p),
+            0.0f,
+            max(legacyExpansion, 0.0f),
+            legacyProtection,
+            strength
+        );
+    }
+
+    if (p.toneCurveRevision == 2) {
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowTop = p.sceneStatisticsValid != 0
+            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
+            : 0.1125f;
+        shadowTop = min(shadowTop, 0.60f);
+        float shadowWeight = 1.0f - smoothStepSafe(shadowFloor, shadowTop, y);
+        float lowMidTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * 0.08f * lowMidTransition * y;
+        float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
+        return makeToneExpansionBreakdown(
+            toneExpand(luminance, p),
+            max(lowMidExpansion * protection, 0.0f),
+            max(shoulderExpansion * protection, 0.0f),
+            protection,
+            strength
+        );
+    }
+
+    if (p.toneCurveRevision == 3) {
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowTop = p.sceneStatisticsValid != 0
+            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
+            : 0.1125f;
+        shadowTop = min(shadowTop, 0.60f);
+        float shadowTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float supportTop = min(shadowTop, shoulderStart - 0.0001f);
+        float lowMidRise = smoothStepSafe(shadowFloor, supportTop, y);
+        float fadePosition = clamp(p.developmentLowMidFadePosition, 0.0f, 1.0f);
+        float lowMidFadeStart = mix(supportTop, shoulderStart, fadePosition);
+        float lowMidFall = 1.0f - smoothStepSafe(lowMidFadeStart, shoulderStart, y);
+        float lowMidBand = lowMidRise * lowMidFall;
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength *
+            clamp(p.developmentLowMidStrength, 0.0f, 1.0f) * lowMidBand * y;
+        float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) *
+            (1.0f - shadowTransition);
+        return makeToneExpansionBreakdown(
+            toneExpand(luminance, p),
+            max(lowMidExpansion * protection, 0.0f),
+            max(shoulderExpansion * protection, 0.0f),
+            protection,
+            strength
+        );
+    }
+
+    if (p.toneCurveRevision == 4) {
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowTop = p.sceneStatisticsValid != 0
+            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
+            : 0.1125f;
+        shadowTop = min(shadowTop, 0.60f);
+        float shadowTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float shadowWeight = 1.0f - shadowTransition;
+        float highlightOccupancy = clamp(
+            (p.sceneP99 - p.sceneP90) / max(1.0f - p.sceneP90, 0.05f), 0.0f, 1.0f
+        );
+        float dynamicRangeStops = log2(
+            (max(p.sceneP99, 0.0f) + 0.005f) /
+            (max(p.sceneP50, 0.0f) + 0.005f)
+        );
+        float midtoneSpan = max(p.sceneP99 - p.sceneP01, 0.0001f);
+        float midtoneOccupancy = clamp(
+            (min(p.sceneP90, 0.75f) - max(p.sceneP50, 0.10f)) / midtoneSpan,
+            0.0f, 1.0f
+        );
+        float highlightDemand = smoothStepSafe(
+            p.developmentExpansionHighlightLow,
+            p.developmentExpansionHighlightHigh,
+            highlightOccupancy
+        );
+        float dynamicDemand = smoothStepSafe(
+            p.developmentExpansionRangeLow,
+            p.developmentExpansionRangeHigh,
+            dynamicRangeStops
+        );
+        float midtoneDemand = 1.0f - smoothStepSafe(
+            p.developmentExpansionMidtoneLow,
+            p.developmentExpansionMidtoneHigh,
+            midtoneOccupancy
+        );
+        float budgetSignal;
+        if (p.developmentExpansionController == 0) {
+            budgetSignal = highlightDemand;
+        } else if (p.developmentExpansionController == 1) {
+            budgetSignal = dynamicDemand;
+        } else {
+            float weightSum = max(
+                p.developmentExpansionCombinedHighlightWeight +
+                p.developmentExpansionCombinedRangeWeight +
+                p.developmentExpansionCombinedMidtoneWeight,
+                0.000001f
+            );
+            budgetSignal = (
+                p.developmentExpansionCombinedHighlightWeight * highlightDemand +
+                p.developmentExpansionCombinedRangeWeight * dynamicDemand +
+                p.developmentExpansionCombinedMidtoneWeight * midtoneDemand
+            ) / weightSum;
+        }
+        float minimumBudget = clamp(p.developmentExpansionMinimumBudget, 0.0f, 1.0f);
+        float expansionBudget = clamp(minimumBudget + (1.0f - minimumBudget) * budgetSignal, 0.0f, 1.0f);
+        float lowMidTransition = smoothStepSafe(shadowFloor, shadowTop, y);
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * 0.08f *
+            lowMidTransition * y * expansionBudget;
+        float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
+        return makeToneExpansionBreakdown(
+            toneExpand(luminance, p),
+            max(lowMidExpansion * protection, 0.0f),
+            max(shoulderExpansion * protection, 0.0f),
+            protection,
+            strength
+        );
+    }
+
+    float shadowPresence = smoothStepSafe(0.002f, 0.025f, y) *
+        (1.0f - smoothStepSafe(0.12f, 0.48f, y));
+    float shadowAttenuation = 0.18f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowPresence;
+    float expansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
+    return makeToneExpansionBreakdown(
+        toneExpand(luminance, p),
+        0.0f,
+        max(expansion, 0.0f),
+        1.0f - shadowAttenuation,
+        strength
+    );
 }
 
 inline float3 gamutCompress(float3 rgb, float luminance, float peakRatio) {
@@ -191,30 +492,94 @@ inline float3 linearizeSignal(float3 signal, constant SDRToHDRParameters& p) {
     ), 0.0f);
 }
 
+constant uint kDiagnosticBinCount = 64;
+constant float kDiagnosticLuminanceRange = 8.0f;
+constant float kDiagnosticSumScale = 16.0f;
+constant float kDiagnosticContributionSumScale = 64.0f;
+constant float kDiagnosticRGBSumScale = 32.0f;
+constant float kDiagnosticChromaSumScale = 256.0f;
+constant float kNearBlackSumScale = 32.0f;
+
+inline uint diagnosticBin(float value, float range) {
+    return min(uint(clamp(value, 0.0f, range - 1e-6f) / range * float(kDiagnosticBinCount)), kDiagnosticBinCount - 1);
+}
+
+inline void addDiagnosticHistogram(
+    device atomic_uint* histograms,
+    uint group,
+    float value,
+    float range
+) {
+    atomic_fetch_add_explicit(
+        &histograms[group * kDiagnosticBinCount + diagnosticBin(value, range)],
+        1u,
+        memory_order_relaxed
+    );
+}
+
+inline float3 coreRelativeRGB(float3 encodedOutput, constant SDRToHDRParameters& p) {
+    if (p.outputMode == 0) return encodedOutput;
+    return float3(
+        pqDecode(encodedOutput.x),
+        pqDecode(encodedOutput.y),
+        pqDecode(encodedOutput.z)
+    ) * (10000.0f / max(p.paperWhiteNits, 1e-6f));
+}
+
+inline bool diagnosticROIContains(
+    uint2 gid,
+    uint width,
+    uint height,
+    constant SDRToHDRParameters& p
+) {
+    if (p.diagnosticROIEnabled == 0) return false;
+    float2 uv = (float2(gid) + 0.5f) / float2(max(width, 1u), max(height, 1u));
+    return uv.x >= p.diagnosticROIX && uv.y >= p.diagnosticROIY &&
+        uv.x < p.diagnosticROIX + p.diagnosticROIWidth &&
+        uv.y < p.diagnosticROIY + p.diagnosticROIHeight;
+}
+
+inline void accumulateNearBlack(
+    uint band,
+    float inputLuminance,
+    float toneLuminance,
+    float coreLuminance,
+    device atomic_uint* details
+) {
+    uint start = 16u + band * 9u;
+    float coreGain = clamp(coreLuminance / max(inputLuminance, 1e-6f), 0.0f, 4.0f);
+    float toneGain = clamp(toneLuminance / max(inputLuminance, 1e-6f), 0.0f, 4.0f);
+    atomic_fetch_add_explicit(&details[start + 0u], 1u, memory_order_relaxed);
+    atomic_fetch_add_explicit(&details[start + 1u], uint(coreGain * kNearBlackSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&details[start + 2u], uint(toneGain * kNearBlackSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&details[start + 3u], toneLuminance > inputLuminance + 1e-4f ? 1u : 0u, memory_order_relaxed);
+    atomic_fetch_add_explicit(&details[start + 4u], coreLuminance < inputLuminance - 1e-4f ? 1u : 0u, memory_order_relaxed);
+    uint inputQuantized = uint(clamp(inputLuminance, 0.0f, 8.0f) * 256.0f + 0.5f);
+    uint coreQuantized = uint(clamp(coreLuminance, 0.0f, 8.0f) * 256.0f + 0.5f);
+    atomic_fetch_min_explicit(&details[start + 5u], inputQuantized, memory_order_relaxed);
+    atomic_fetch_max_explicit(&details[start + 6u], inputQuantized, memory_order_relaxed);
+    atomic_fetch_min_explicit(&details[start + 7u], coreQuantized, memory_order_relaxed);
+    atomic_fetch_max_explicit(&details[start + 8u], coreQuantized, memory_order_relaxed);
+}
+
 inline void accumulateDebug(
     float3 inputSignal,
     float3 encodedOutput,
     constant SDRToHDRParameters& p,
-    device HDRDebugStats* stats
+    device HDRDebugStats* stats,
+    device atomic_uint* histograms,
+    device atomic_uint* details,
+    uint2 gid,
+    uint width,
+    uint height
 ) {
     float3 inputLinear = linearizeSignal(inputSignal, p);
     float inputLuminance = clamp(dot(inputLinear, kBT709Luma), 0.0f, 1.0f);
+    HDRToneExpansionBreakdown tone = toneExpandBreakdown(inputLuminance, p);
+    float3 coreRGB = max(coreRelativeRGB(encodedOutput, p), 0.0f);
+    float coreLuminance = max(dot(coreRGB, kBT2020Luma), 0.0f);
     float outputPeakRatio = p.outputMode == 0 ? min(p.peakRatio, p.masteringHeadroom) : p.peakRatio;
-    float outputLuminance;
-    if (p.outputMode == 0) {
-        outputLuminance = clamp(dot(encodedOutput, kBT2020Luma) / max(outputPeakRatio, 1e-6f), 0.0f, 1.0f);
-    } else {
-        float3 normalizedLuminance = float3(
-            pqDecode(encodedOutput.x),
-            pqDecode(encodedOutput.y),
-            pqDecode(encodedOutput.z)
-        );
-        outputLuminance = clamp(
-            dot(normalizedLuminance, kBT2020Luma) * 10000.0f / max(p.paperWhiteNits * outputPeakRatio, 1e-6f),
-            0.0f,
-            1.0f
-        );
-    }
+    float outputLuminance = clamp(coreLuminance / max(outputPeakRatio, 1e-6f), 0.0f, 1.0f);
     // The 256 scale keeps the uint32 sums bounded through 4K frames while
     // retaining useful DEBUG-build trend information.
     uint inputQuantized = uint(inputLuminance * 256.0f + 0.5f);
@@ -223,10 +588,53 @@ inline void accumulateDebug(
     atomic_fetch_max_explicit(&stats->inputLuminanceMax, inputQuantized, memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->outputLuminanceSum, outputQuantized, memory_order_relaxed);
     atomic_fetch_max_explicit(&stats->outputLuminanceMax, outputQuantized, memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->toneExpandedLuminanceSum, uint(tone.expandedLuminance * kDiagnosticSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_max_explicit(&stats->toneExpandedLuminanceMax, uint(tone.expandedLuminance * 256.0f + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->coreLuminanceSum, uint(coreLuminance * kDiagnosticSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_max_explicit(&stats->coreLuminanceMax, uint(coreLuminance * 256.0f + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->lowMidContributionSum, uint(tone.lowMidContribution * kDiagnosticContributionSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->shoulderContributionSum, uint(tone.shoulderContribution * kDiagnosticContributionSumScale + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->shadowProtectionSum, uint(clamp(tone.shadowProtectionFactor, 0.0f, 1.0f) * kDiagnosticContributionSumScale + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->highlightPixelCount, inputLuminance >= 0.75f ? 1u : 0u, memory_order_relaxed);
     float peakSignal = p.outputMode == 0 ? outputPeakRatio : pqEncode(p.peakNits / 10000.0f);
     atomic_fetch_add_explicit(&stats->clippedPixelCount, max(encodedOutput.x, max(encodedOutput.y, encodedOutput.z)) >= peakSignal - 0.0005f ? 1u : 0u, memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->pixelCount, 1u, memory_order_relaxed);
+
+    addDiagnosticHistogram(histograms, 0u, inputLuminance, kDiagnosticLuminanceRange);
+    addDiagnosticHistogram(histograms, 1u, tone.expandedLuminance, kDiagnosticLuminanceRange);
+    addDiagnosticHistogram(histograms, 2u, coreLuminance, kDiagnosticLuminanceRange);
+    addDiagnosticHistogram(histograms, 3u, tone.lowMidContribution, 1.0f);
+    addDiagnosticHistogram(histograms, 4u, tone.shoulderContribution, 1.0f);
+    addDiagnosticHistogram(histograms, 5u, tone.shadowProtectionFactor, 1.0f);
+
+    if (inputLuminance < 0.01f) accumulateNearBlack(0u, inputLuminance, tone.expandedLuminance, coreLuminance, details);
+    if (inputLuminance < 0.02f) accumulateNearBlack(1u, inputLuminance, tone.expandedLuminance, coreLuminance, details);
+    if (inputLuminance < 0.05f) accumulateNearBlack(2u, inputLuminance, tone.expandedLuminance, coreLuminance, details);
+
+    if (diagnosticROIContains(gid, width, height, p)) {
+        addDiagnosticHistogram(histograms, 6u, inputLuminance, kDiagnosticLuminanceRange);
+        addDiagnosticHistogram(histograms, 7u, tone.expandedLuminance, kDiagnosticLuminanceRange);
+        addDiagnosticHistogram(histograms, 8u, coreLuminance, kDiagnosticLuminanceRange);
+        addDiagnosticHistogram(histograms, 9u, tone.lowMidContribution, 1.0f);
+        addDiagnosticHistogram(histograms, 10u, tone.shoulderContribution, 1.0f);
+        addDiagnosticHistogram(histograms, 11u, tone.shadowProtectionFactor, 1.0f);
+        float inputMinimum = min(inputLinear.x, min(inputLinear.y, inputLinear.z));
+        float inputMaximum = max(inputLinear.x, max(inputLinear.y, inputLinear.z));
+        float coreMinimum = min(coreRGB.x, min(coreRGB.y, coreRGB.z));
+        float coreMaximum = max(coreRGB.x, max(coreRGB.y, coreRGB.z));
+        float inputSaturation = clamp((inputMaximum - inputMinimum) / max(inputLuminance, 1e-6f), 0.0f, 1.0f);
+        float coreSaturation = clamp((coreMaximum - coreMinimum) / max(coreLuminance, 1e-6f), 0.0f, 1.0f);
+        float saturationDelta = clamp(coreSaturation - inputSaturation, -0.5f, 0.5f);
+        atomic_fetch_add_explicit(&details[0], 1u, memory_order_relaxed);
+        atomic_fetch_add_explicit(&details[1], uint(clamp(coreRGB.x, 0.0f, 8.0f) * kDiagnosticRGBSumScale + 0.5f), memory_order_relaxed);
+        atomic_fetch_add_explicit(&details[2], uint(clamp(coreRGB.y, 0.0f, 8.0f) * kDiagnosticRGBSumScale + 0.5f), memory_order_relaxed);
+        atomic_fetch_add_explicit(&details[3], uint(clamp(coreRGB.z, 0.0f, 8.0f) * kDiagnosticRGBSumScale + 0.5f), memory_order_relaxed);
+        atomic_fetch_add_explicit(&details[4], uint(clamp(coreSaturation, 0.0f, 1.0f) * kDiagnosticChromaSumScale + 0.5f), memory_order_relaxed);
+        atomic_fetch_add_explicit(&details[5], uint((saturationDelta + 0.5f) * kDiagnosticChromaSumScale + 0.5f), memory_order_relaxed);
+        atomic_fetch_max_explicit(&details[6], uint(inputLuminance * 256.0f + 0.5f), memory_order_relaxed);
+        atomic_fetch_max_explicit(&details[7], uint(tone.expandedLuminance * 256.0f + 0.5f), memory_order_relaxed);
+        atomic_fetch_max_explicit(&details[8], uint(coreLuminance * 256.0f + 0.5f), memory_order_relaxed);
+    }
 }
 
 inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) {
@@ -299,6 +707,8 @@ kernel void sdrNV12ToHDRDebug(
     texture2d<half, access::write> outputTexture [[texture(2)]],
     constant SDRToHDRParameters& p [[buffer(0)]],
     device HDRDebugStats* stats [[buffer(1)]],
+    device atomic_uint* histograms [[buffer(2)]],
+    device atomic_uint* details [[buffer(3)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
@@ -312,7 +722,8 @@ kernel void sdrNV12ToHDRDebug(
     float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
     float3 output = transformSignalRGB(signalRGB, p);
     outputTexture.write(half4(float4(output, 1.0f)), gid);
-    accumulateDebug(signalRGB, output, p, stats);
+    accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
+                    outputTexture.get_width(), outputTexture.get_height());
 }
 
 kernel void sdrBGRA8ToHDRDebug(
@@ -320,6 +731,8 @@ kernel void sdrBGRA8ToHDRDebug(
     texture2d<half, access::write> outputTexture [[texture(1)]],
     constant SDRToHDRParameters& p [[buffer(0)]],
     device HDRDebugStats* stats [[buffer(1)]],
+    device atomic_uint* histograms [[buffer(2)]],
+    device atomic_uint* details [[buffer(3)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
@@ -328,7 +741,8 @@ kernel void sdrBGRA8ToHDRDebug(
     float3 signalRGB = inputTexture.read(gid).rgb;
     float3 output = transformSignalRGB(signalRGB, p);
     outputTexture.write(half4(float4(output, 1.0f)), gid);
-    accumulateDebug(signalRGB, output, p, stats);
+    accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
+                    outputTexture.get_width(), outputTexture.get_height());
 }
 
 // A 16x9 sparse proxy (144 reads) estimates source luminance asynchronously.

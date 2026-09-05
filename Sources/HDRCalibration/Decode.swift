@@ -287,7 +287,8 @@ public final class HDRCoreOfflineEvaluator {
     public func evaluateSpatiallyIndependent(
         pixelBuffer: CVPixelBuffer,
         timestampSeconds: Double,
-        configuration: HDRConfiguration
+        configuration: HDRConfiguration,
+        sceneStatistics: HDRSceneStatistics? = nil
     ) throws -> GeneratedFrame {
         let previousAutomatic = automaticTemporalEstimationEnabled
         automaticTemporalEstimationEnabled = false
@@ -295,6 +296,9 @@ public final class HDRCoreOfflineEvaluator {
         defer {
             clearTemporalHistory()
             automaticTemporalEstimationEnabled = previousAutomatic
+        }
+        if let sceneStatistics {
+            processor.updateSceneStatistics(sceneStatistics)
         }
         return try evaluate(
             pixelBuffer: pixelBuffer,

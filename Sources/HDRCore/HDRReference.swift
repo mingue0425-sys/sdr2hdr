@@ -39,6 +39,22 @@ public enum HDRReference {
             let expanded = y + (lowMidExpansion + shoulderExpansion) * protection
             return min(max(expanded, y), peakRatio)
         }
+        if configuration.toneCurveRevision == .sceneRelativeV6Candidate {
+            return HDRV6ToneCurveMath.toneExpand(
+                y,
+                configuration: configuration,
+                temporalAdaptation: temporalAdaptation,
+                sceneStatistics: sceneStatistics
+            )
+        }
+        if configuration.toneCurveRevision == .sceneAdaptiveV62Candidate {
+            return HDRV62ToneCurveMath.toneExpand(
+                y,
+                configuration: configuration,
+                temporalAdaptation: temporalAdaptation,
+                sceneStatistics: sceneStatistics
+            )
+        }
 
         let shadowPresence = smoothstep(0.002, 0.025, y) * (1 - smoothstep(0.12, 0.48, y))
         let shadowAttenuation = 0.18 * configuration.shadowProtection * shadowPresence

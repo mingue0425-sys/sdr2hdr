@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import HDRCore
 import Metal
 import QuartzCore
 
@@ -11,6 +12,44 @@ public struct PresentationUniforms {
     var hasTexture: UInt32
     var masteringHeadroom: Float
     var displayHeadroom: Float
+    var diagnosticROIX: Float
+    var diagnosticROIY: Float
+    var diagnosticROIWidth: Float
+    var diagnosticROIHeight: Float
+    var diagnosticEnabled: UInt32
+}
+
+public struct HDRPresentationDiagnosticSnapshot: Equatable, Sendable {
+    public let frameIndex: UInt64
+    public let fullFrame: HDRPresentationDiagnostic
+    public let roi: HDRPresentationDiagnostic?
+
+    public init(
+        frameIndex: UInt64,
+        fullFrame: HDRPresentationDiagnostic,
+        roi: HDRPresentationDiagnostic?
+    ) {
+        self.frameIndex = frameIndex
+        self.fullFrame = fullFrame
+        self.roi = roi
+    }
+}
+
+private struct HDRPresentationDebugStatsStorage {
+    var mappedLuminanceSum: UInt32 = 0
+    var mappedLuminanceMax: UInt32 = 0
+    var pixelCount: UInt32 = 0
+    var roiMappedLuminanceSum: UInt32 = 0
+    var roiMappedLuminanceMax: UInt32 = 0
+    var roiPixelCount: UInt32 = 0
+}
+
+private final class PresentationDebugBufferLifetime: @unchecked Sendable {
+    let buffer: MTLBuffer
+
+    init(_ buffer: MTLBuffer) {
+        self.buffer = buffer
+    }
 }
 
 public final class HDRPresentationRenderer: @unchecked Sendable {
@@ -18,6 +57,44 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
     public let pipelineState: MTLRenderPipelineState
 
     private let samplerState: MTLSamplerState
+    private let diagnosticLock = NSLock()
+    private var diagnosticsEnabledStorage = false
+    private var lastPresentationDiagnosticStorage: HDRPresentationDiagnosticSnapshot?
+    private var onNonBlackPresentedStorage: (@Sendable () -> Void)?
+
+    public var diagnosticsEnabled: Bool {
+        get {
+            diagnosticLock.lock()
+            defer { diagnosticLock.unlock() }
+            return diagnosticsEnabledStorage
+        }
+        set {
+            diagnosticLock.lock()
+            diagnosticsEnabledStorage = newValue
+            diagnosticLock.unlock()
+        }
+    }
+
+    public var lastPresentationDiagnostic: HDRPresentationDiagnosticSnapshot? {
+        diagnosticLock.lock()
+        defer { diagnosticLock.unlock() }
+        return lastPresentationDiagnosticStorage
+    }
+
+    /// Called from the command-buffer completion handler when measured mapped
+    /// luminance is non-black. Callers should keep the callback thread-safe.
+    public var onNonBlackPresented: (@Sendable () -> Void)? {
+        get {
+            diagnosticLock.lock()
+            defer { diagnosticLock.unlock() }
+            return onNonBlackPresentedStorage
+        }
+        set {
+            diagnosticLock.lock()
+            onNonBlackPresentedStorage = newValue
+            diagnosticLock.unlock()
+        }
+    }
 
     public init(device: MTLDevice, colorPixelFormat: MTLPixelFormat = .rgba16Float) throws {
         self.device = device
@@ -74,7 +151,9 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         fallbackToSDR: Bool,
         testPattern: Bool,
         masteringHeadroom: Float,
-        displayHeadroom: Float
+        displayHeadroom: Float,
+        diagnosticFrameIndex: UInt64 = 0,
+        diagnosticROI: HDRDiagnosticROI? = nil
     ) -> Bool {
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
@@ -87,6 +166,20 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
 
         let geometry = AspectFitGeometry(sourceSize: sourceSize, drawableSize: drawableSize)
         let rect = geometry.normalizedRect
+        let diagnosticsEnabled = self.diagnosticsEnabled
+        let diagnosticLifetime = diagnosticsEnabled ? device.makeBuffer(
+            length: MemoryLayout<HDRPresentationDebugStatsStorage>.stride,
+            options: .storageModeShared
+        ).map(PresentationDebugBufferLifetime.init) : nil
+        if let diagnosticLifetime {
+            diagnosticLifetime.buffer.contents().assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self)
+                .initialize(to: HDRPresentationDebugStatsStorage())
+        }
+        // The UI stores ROI coordinates with a top-left origin; the vertex
+        // shader's local UV has a bottom-left origin.
+        let shaderROI = diagnosticROI.map {
+            HDRDiagnosticROI(x: $0.x, y: 1 - $0.y - $0.height, width: $0.width, height: $0.height)
+        }
         var uniforms = PresentationUniforms(
             destinationRect: SIMD4(
                 Float(rect.origin.x),
@@ -99,7 +192,12 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
             testPattern: testPattern ? 1 : 0,
             hasTexture: texture == nil ? 0 : 1,
             masteringHeadroom: masteringHeadroom,
-            displayHeadroom: displayHeadroom
+            displayHeadroom: displayHeadroom,
+            diagnosticROIX: shaderROI?.x ?? 0,
+            diagnosticROIY: shaderROI?.y ?? 0,
+            diagnosticROIWidth: shaderROI?.width ?? 0,
+            diagnosticROIHeight: shaderROI?.height ?? 0,
+            diagnosticEnabled: diagnosticLifetime == nil ? 0 : 1
         )
         encoder.setRenderPipelineState(pipelineState)
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
@@ -108,9 +206,24 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
             encoder.setFragmentTexture(texture, index: 0)
             encoder.setFragmentSamplerState(samplerState, index: 0)
         }
+        if let diagnosticLifetime {
+            encoder.setFragmentBuffer(diagnosticLifetime.buffer, offset: 0, index: 1)
+        }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
         commandBuffer.present(drawable)
+        if let diagnosticLifetime {
+            commandBuffer.addCompletedHandler { [weak self, diagnosticLifetime] commandBuffer in
+                guard commandBuffer.status == .completed else { return }
+                self?.updatePresentationDiagnostic(
+                    from: diagnosticLifetime.buffer,
+                    frameIndex: diagnosticFrameIndex,
+                    masteringHeadroom: masteringHeadroom,
+                    displayHeadroom: displayHeadroom,
+                    roi: diagnosticROI
+                )
+            }
+        }
         return true
     }
 
@@ -137,12 +250,57 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
             testPattern: 1,
             hasTexture: 0,
             masteringHeadroom: masteringHeadroom,
-            displayHeadroom: displayHeadroom
+            displayHeadroom: displayHeadroom,
+            diagnosticROIX: 0,
+            diagnosticROIY: 0,
+            diagnosticROIWidth: 0,
+            diagnosticROIHeight: 0,
+            diagnosticEnabled: 0
         )
         encoder.setRenderPipelineState(pipelineState)
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
+    }
+
+    private func updatePresentationDiagnostic(
+        from buffer: MTLBuffer,
+        frameIndex: UInt64,
+        masteringHeadroom: Float,
+        displayHeadroom: Float,
+        roi: HDRDiagnosticROI?
+    ) {
+        let storage = buffer.contents().assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self).pointee
+        let count = max(storage.pixelCount, 1)
+        let full = HDRPresentationDiagnostic(
+            masteringHeadroom: masteringHeadroom,
+            physicalDisplayHeadroom: displayHeadroom,
+            mappedEDRAverage: Float(storage.mappedLuminanceSum) / Float(count) / 256,
+            mappedEDRMax: Float(storage.mappedLuminanceMax) / 256
+        )
+        let roiDiagnostic: HDRPresentationDiagnostic?
+        if let roi, !roi.isEmpty, storage.roiPixelCount > 0 {
+            roiDiagnostic = HDRPresentationDiagnostic(
+                masteringHeadroom: masteringHeadroom,
+                physicalDisplayHeadroom: displayHeadroom,
+                mappedEDRAverage: Float(storage.roiMappedLuminanceSum) / Float(storage.roiPixelCount) / 256,
+                mappedEDRMax: Float(storage.roiMappedLuminanceMax) / 256
+            )
+        } else {
+            roiDiagnostic = nil
+        }
+        let snapshot = HDRPresentationDiagnosticSnapshot(
+            frameIndex: frameIndex,
+            fullFrame: full,
+            roi: roiDiagnostic
+        )
+        diagnosticLock.lock()
+        lastPresentationDiagnosticStorage = snapshot
+        diagnosticLock.unlock()
+        let callback = diagnosticLock.withLock { onNonBlackPresentedStorage }
+        if let mappedAverage = full.mappedEDRAverage, mappedAverage > 0.001 {
+            callback?()
+        }
     }
 }

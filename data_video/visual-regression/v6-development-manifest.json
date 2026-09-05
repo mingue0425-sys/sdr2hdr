@@ -1,0 +1,284 @@
+{
+  "version": 4,
+  "pairs": [
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-master",
+      "group": "kchoreo_video1",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/video1/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+      "id": "video1_ive_blackhole",
+      "license": "user-provided-local",
+      "notes": "Legacy pair retained from manifest-v2; calibrated before V4 and not a virgin holdout.",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/video1/[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+      "source": "user-provided-local",
+      "split": "tune",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-master",
+      "group": "kchoreo_video2",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/video2/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+      "id": "video2_newjeans_new_jeans",
+      "license": "user-provided-local",
+      "notes": "Legacy pair retained from manifest-v2; calibrated before V4 and not a virgin holdout.",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/video2/[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+      "source": "user-provided-local",
+      "split": "tune",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-master",
+      "group": "kchoreo_video3",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "id": "video3_newjeans_how_sweet",
+      "license": "user-provided-local",
+      "notes": "Legacy pair retained from manifest-v2; calibrated before V4 and not a virgin holdout.",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "source": "user-provided-local",
+      "split": "tune",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-master",
+      "group": "kchoreo_video4",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "id": "video4_aespa_lemonade",
+      "license": "user-provided-local",
+      "notes": "Legacy validation pair retained from manifest-v2; prior validation makes it non-virgin.",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "source": "user-provided-local",
+      "split": "validation",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "indoor",
+        "low-contrast",
+        "low-key",
+        "night",
+        "shadow-rich"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_22_Programming_Night",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+      "id": "live_22_programming_night_3840x2160_15000k",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "metadataSummary": {
+        "hdr": {
+          "bitDepth": 10,
+          "codec": "hevc",
+          "colorPrimaries": "bt2020",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt2020nc",
+          "pixelFormat": "yuv420p10le",
+          "transfer": "smpte2084",
+          "width": 3840
+        },
+        "sdr": {
+          "bitDepth": 8,
+          "codec": "hevc",
+          "colorPrimaries": "bt709",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt709",
+          "pixelFormat": "yuv420p",
+          "transfer": "bt709",
+          "width": 3840
+        }
+      },
+      "notes": "selected for indoor, low-contrast, low-key, night, shadow-rich, quality A, alignment median 0.922. Local source was supplied by the user; redistribution/license status requires review. No objective evaluation is permitted for virgin frozen pairs.",
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "validation",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "highlight-rich",
+        "low-contrast",
+        "low-key",
+        "night",
+        "shadow-rich"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_4_Campfire",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_3840x2160_15000k.mp4",
+      "id": "live_4_campfire_3840x2160_15000k",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "metadataSummary": {
+        "hdr": {
+          "bitDepth": 10,
+          "codec": "hevc",
+          "colorPrimaries": "bt2020",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt2020nc",
+          "pixelFormat": "yuv420p10le",
+          "transfer": "smpte2084",
+          "width": 3840
+        },
+        "sdr": {
+          "bitDepth": 8,
+          "codec": "hevc",
+          "colorPrimaries": "bt709",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt709",
+          "pixelFormat": "yuv420p",
+          "transfer": "bt709",
+          "width": 3840
+        }
+      },
+      "notes": "selected for highlight-rich, low-contrast, low-key, night, shadow-rich, quality A, alignment median 0.874. Local source was supplied by the user; redistribution/license status requires review. No objective evaluation is permitted for virgin frozen pairs.",
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "validation",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "high-contrast",
+        "indoor",
+        "low-contrast",
+        "skin"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_9_Face_Close",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+      "id": "live_9_face_close_3840x2160_15000k",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "metadataSummary": {
+        "hdr": {
+          "bitDepth": 10,
+          "codec": "hevc",
+          "colorPrimaries": "bt2020",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt2020nc",
+          "pixelFormat": "yuv420p10le",
+          "transfer": "smpte2084",
+          "width": 3840
+        },
+        "sdr": {
+          "bitDepth": 8,
+          "codec": "hevc",
+          "colorPrimaries": "bt709",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt709",
+          "pixelFormat": "yuv420p",
+          "transfer": "bt709",
+          "width": 3840
+        }
+      },
+      "notes": "selected for high-contrast, indoor, low-contrast, skin, quality A, alignment median 0.813. Local source was supplied by the user; redistribution/license status requires review. No objective evaluation is permitted for virgin frozen pairs.",
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "tune",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "indoor",
+        "low-contrast",
+        "low-key",
+        "skin"
+      ],
+      "contentFamily": "LIVE",
+      "expectedRelation": "same-source",
+      "group": "live_13_Interview",
+      "hdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_3840x2160_15000k.mp4",
+      "id": "live_13_interview_3840x2160_15000k",
+      "license": "LICENSE_REVIEW_REQUIRED",
+      "licenseURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "metadataSummary": {
+        "hdr": {
+          "bitDepth": 10,
+          "codec": "hevc",
+          "colorPrimaries": "bt2020",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt2020nc",
+          "pixelFormat": "yuv420p10le",
+          "transfer": "smpte2084",
+          "width": 3840
+        },
+        "sdr": {
+          "bitDepth": 8,
+          "codec": "hevc",
+          "colorPrimaries": "bt709",
+          "colorRange": "tv",
+          "frameRate": 59.94005994005994,
+          "height": 2160,
+          "matrix": "bt709",
+          "pixelFormat": "yuv420p",
+          "transfer": "bt709",
+          "width": 3840
+        }
+      },
+      "notes": "selected for indoor, low-contrast, low-key, skin, quality A, alignment median 0.867. Local source was supplied by the user; redistribution/license status requires review. No objective evaluation is permitted for virgin frozen pairs.",
+      "referencePrimaries": "bt2020",
+      "referenceTransfer": "smpte2084",
+      "sdr": "/Volumes/game/sdr2hdr/data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_3840x2160_15000k.mp4",
+      "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+      "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "split": "tune",
+      "virginFrozen": false
+    }
+  ],
+  "roots": {}
+}

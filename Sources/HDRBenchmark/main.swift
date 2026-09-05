@@ -190,13 +190,20 @@ private func run(options: BenchmarkOptions) throws {
     case "vivid": configuration = .vivid
     case "calibrated-v1": configuration = .calibratedV1
     case "calibrated-v2": configuration = .calibratedV2
+    case "calibrated-v4": configuration = .calibratedV4
     case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
     default:
-        throw NSError(
-            domain: "HDRBenchmark",
-            code: 3,
-            userInfo: [NSLocalizedDescriptionKey: "unsupported preset: \(options.preset)"]
-        )
+        if let candidate = HDRV62ToneCurveCandidate(rawValue: options.preset) {
+            configuration = candidate.configuration()
+        } else if let candidate = HDRV6ToneCurveCandidate(rawValue: options.preset) {
+            configuration = candidate.configuration()
+        } else {
+            throw NSError(
+                domain: "HDRBenchmark",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "unsupported preset: \(options.preset)"]
+            )
+        }
     }
     configuration.outputMode = options.mode
     let processor = try HDRProcessor(device: device, configuration: configuration)

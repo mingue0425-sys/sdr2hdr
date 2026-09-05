@@ -551,6 +551,11 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
     /// nil/0 preserves the frozen V2 analytical curve; 1 selects the repaired
     /// V3 shadow architecture. Optional keeps V1/V2 JSON artifacts decodable.
     public var toneCurveRevision: UInt32?
+    /// Development-only V6 structural controls. Optional keeps existing
+    /// calibration artifacts stable and prevents V4 reports from acquiring a
+    /// candidate-specific parameter.
+    public var v6LowMidFadePosition: Float?
+    public var v6LowMidStrength: Float?
 
     public init(
         paperWhiteNits: Float,
@@ -561,7 +566,9 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         shadowProtection: Float,
         temporalStability: Float,
         displayHeadroom: Float,
-        toneCurveRevision: UInt32? = nil
+        toneCurveRevision: UInt32? = nil,
+        v6LowMidFadePosition: Float? = nil,
+        v6LowMidStrength: Float? = nil
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -572,6 +579,8 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         self.temporalStability = temporalStability
         self.displayHeadroom = displayHeadroom
         self.toneCurveRevision = toneCurveRevision
+        self.v6LowMidFadePosition = v6LowMidFadePosition
+        self.v6LowMidStrength = v6LowMidStrength
     }
 
     public init(configuration: HDRConfiguration) {
@@ -584,6 +593,13 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         temporalStability = configuration.temporalStability
         displayHeadroom = configuration.masteringHeadroom
         toneCurveRevision = configuration.toneCurveRevision.rawValue
+        if configuration.toneCurveRevision == .sceneRelativeV6Candidate {
+            v6LowMidFadePosition = configuration.developmentLowMidFadePosition
+            v6LowMidStrength = configuration.developmentLowMidStrength
+        } else {
+            v6LowMidFadePosition = nil
+            v6LowMidStrength = nil
+        }
     }
 
     public func configuration() throws -> HDRConfiguration {
@@ -601,6 +617,10 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         )
         value.toneCurveRevision = HDRToneCurveRevision(rawValue: toneCurveRevision ?? 0) ?? .legacyV2
         value.masteringHeadroom = displayHeadroom
+        if value.toneCurveRevision == .sceneRelativeV6Candidate {
+            value.developmentLowMidFadePosition = v6LowMidFadePosition ?? 0.55
+            value.developmentLowMidStrength = v6LowMidStrength ?? HDRV6ToneCurveMath.defaultLowMidStrength
+        }
         return try value.validated()
     }
 }

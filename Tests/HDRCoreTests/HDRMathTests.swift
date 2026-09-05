@@ -1,3 +1,4 @@
+import CoreMedia
 import CoreVideo
 import XCTest
 @testable import HDRCore
@@ -518,6 +519,137 @@ final class HDRMetalReferenceTests: XCTestCase {
         XCTAssertNotNil(statistics.gpuDurationMilliseconds)
     }
 
+    func testFrameDiagnosticsExposeStagePercentilesROIAndNearBlackBands() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let processor = try HDRProcessor(device: device, configuration: .calibratedV4)
+        processor.diagnosticPresetLabel = "calibrated-v4"
+        processor.debugInstrumentationEnabled = true
+        let pixelBuffer = try makeBGRA(width: 8, height: 8, rgb: SIMD3(repeating: 0.9))
+        let commandBuffer = try processor.makeCommandBuffer()
+        _ = try processor.process(
+            pixelBuffer: pixelBuffer,
+            timestamp: CMTime(value: 15, timescale: 30),
+            commandBuffer: commandBuffer,
+            diagnosticFrameIndex: 7,
+            diagnosticROI: HDRDiagnosticROI(x: 0, y: 0, width: 1, height: 1)
+        )
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        guard let snapshot = processor.lastFrameDiagnostic else {
+            return XCTFail("Expected completed frame diagnostic")
+        }
+        XCTAssertEqual(snapshot.frameIndex, 7)
+        XCTAssertEqual(snapshot.preset, "calibrated-v4")
+        XCTAssertEqual(snapshot.configurationGeneration, 0)
+        XCTAssertLessThanOrEqual(snapshot.input.p01, snapshot.input.p05)
+        XCTAssertLessThanOrEqual(snapshot.input.p05, snapshot.input.p50)
+        XCTAssertLessThanOrEqual(snapshot.input.p50, snapshot.input.p90)
+        XCTAssertLessThanOrEqual(snapshot.input.p90, snapshot.input.p95)
+        XCTAssertLessThanOrEqual(snapshot.input.p95, snapshot.input.p99)
+        XCTAssertGreaterThan(snapshot.toneCurve.lowMidExpansionContribution, 0)
+        XCTAssertGreaterThanOrEqual(snapshot.toneExpanded.average, snapshot.input.average)
+        XCTAssertNotNil(snapshot.roi)
+        XCTAssertGreaterThan(snapshot.roi?.lowMidExpansionContribution ?? 0, 0)
+        XCTAssertGreaterThanOrEqual(snapshot.roi?.shoulderExpansionContribution ?? 0, 0)
+        XCTAssertEqual(snapshot.nearBlack.count, 3)
+        XCTAssertEqual(snapshot.sceneCut?.sceneCutDecision, false)
+        XCTAssertEqual(processor.lastCompletedTemporalSequence, snapshot.temporalSubmissionSequence)
+    }
+
+    func testDebugInstrumentationHasProductionOutputParity() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let configuration = HDRConfiguration.calibratedV4
+        let production = try HDRProcessor(device: device, configuration: configuration)
+        let diagnostic = try HDRProcessor(device: device, configuration: configuration)
+        diagnostic.debugInstrumentationEnabled = true
+        let pixelBuffer = try makeBGRA(width: 8, height: 8, rgb: SIMD3(0.73, 0.31, 0.12))
+        guard let commandQueue = device.makeCommandQueue(),
+              let commandBuffer = commandQueue.makeCommandBuffer() else {
+            XCTFail("Unable to create command buffer")
+            return
+        }
+        let productionFrame = try production.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+        let diagnosticFrame = try diagnostic.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertNil(commandBuffer.error)
+
+        let count = 8 * 8 * 4
+        var productionOutput = [Float16](repeating: 0, count: count)
+        var diagnosticOutput = [Float16](repeating: 0, count: count)
+        let region = MTLRegionMake2D(0, 0, 8, 8)
+        productionFrame.texture.getBytes(
+            &productionOutput,
+            bytesPerRow: 8 * MemoryLayout<Float16>.size * 4,
+            from: region,
+            mipmapLevel: 0
+        )
+        diagnosticFrame.texture.getBytes(
+            &diagnosticOutput,
+            bytesPerRow: 8 * MemoryLayout<Float16>.size * 4,
+            from: region,
+            mipmapLevel: 0
+        )
+        let maximumDifference = zip(productionOutput, diagnosticOutput)
+            .map { abs(Float($0.0) - Float($0.1)) }
+            .max() ?? 0
+        XCTAssertLessThanOrEqual(maximumDifference, 1e-6)
+    }
+
+    func testControlledABProcessorsKeepIndependentTemporalState() throws {
+        guard let device = MTLCreateSystemDefaultDevice(),
+              let commandQueue = device.makeCommandQueue() else {
+            throw XCTSkip("Metal device or command queue unavailable")
+        }
+        let v2 = try HDRProcessor(device: device, configuration: .calibratedV2, commandQueue: commandQueue)
+        let v4 = try HDRProcessor(device: device, configuration: .calibratedV4, commandQueue: commandQueue)
+        v2.temporalTraceEnabled = true
+        v4.temporalTraceEnabled = true
+        let pixelBuffer = try makeBGRA(width: 8, height: 8, rgb: SIMD3(repeating: 0.5))
+
+        guard let firstCommand = commandQueue.makeCommandBuffer() else {
+            XCTFail("Unable to create first command buffer")
+            return
+        }
+        _ = try v2.process(
+            pixelBuffer: pixelBuffer,
+            timestamp: CMTime(value: 0, timescale: 30),
+            commandBuffer: firstCommand,
+            diagnosticFrameIndex: 1
+        )
+        _ = try v4.process(
+            pixelBuffer: pixelBuffer,
+            timestamp: CMTime(value: 0, timescale: 30),
+            commandBuffer: firstCommand,
+            diagnosticFrameIndex: 1
+        )
+        firstCommand.commit()
+        firstCommand.waitUntilCompleted()
+
+        guard let secondCommand = commandQueue.makeCommandBuffer() else {
+            XCTFail("Unable to create second command buffer")
+            return
+        }
+        _ = try v4.process(
+            pixelBuffer: pixelBuffer,
+            timestamp: CMTime(value: 1, timescale: 30),
+            commandBuffer: secondCommand,
+            diagnosticFrameIndex: 2
+        )
+        secondCommand.commit()
+        secondCommand.waitUntilCompleted()
+
+        XCTAssertEqual(v2.temporalSubmissionTrace.map(\.submissionSequence), [1])
+        XCTAssertEqual(v4.temporalSubmissionTrace.map(\.submissionSequence), [1, 2])
+        XCTAssertEqual(v2.temporalSubmissionSequence, 1)
+        XCTAssertEqual(v4.temporalSubmissionSequence, 2)
+    }
+
     func testOutputPoolPrewarmsAndReusesThreeRGBA16FloatTextures() throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device unavailable")
@@ -678,6 +810,45 @@ final class HDRMetalReferenceTests: XCTestCase {
                 base[offset] = blue
                 base[offset + 1] = green
                 base[offset + 2] = red
+                base[offset + 3] = 255
+            }
+        }
+        return pixelBuffer
+    }
+
+    private func makeBGRA(width: Int, height: Int, rgbValues: [SIMD3<Float>]) throws -> CVPixelBuffer {
+        guard rgbValues.count == width * height else {
+            throw NSError(domain: "HDRCoreTests", code: 11)
+        }
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: CFDictionary = [
+            kCVPixelBufferMetalCompatibilityKey as String: true,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+        ] as CFDictionary
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            attributes,
+            &pixelBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw NSError(domain: "HDRCoreTests", code: Int(status))
+        }
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let base = CVPixelBufferGetBaseAddress(pixelBuffer)?.assumingMemoryBound(to: UInt8.self) else {
+            throw NSError(domain: "HDRCoreTests", code: 12)
+        }
+        let rowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        for row in 0..<height {
+            for column in 0..<width {
+                let rgb = rgbValues[row * width + column]
+                let offset = row * rowBytes + column * 4
+                base[offset] = UInt8(min(max(Int(rgb.z * 255), 0), 255))
+                base[offset + 1] = UInt8(min(max(Int(rgb.y * 255), 0), 255))
+                base[offset + 2] = UInt8(min(max(Int(rgb.x * 255), 0), 255))
                 base[offset + 3] = 255
             }
         }

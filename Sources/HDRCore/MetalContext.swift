@@ -24,6 +24,29 @@ internal struct HDRShaderParameters {
     var sceneShadowTop: Float
     var sceneStatisticsValid: UInt32
     var sceneStatisticsReserved: UInt32
+    var sceneP01: Float
+    var sceneP05: Float
+    var sceneP50: Float
+    var sceneP90: Float
+    var sceneP99: Float
+    var diagnosticROIX: Float
+    var diagnosticROIY: Float
+    var diagnosticROIWidth: Float
+    var diagnosticROIHeight: Float
+    var diagnosticROIEnabled: UInt32
+    var developmentLowMidFadePosition: Float
+    var developmentLowMidStrength: Float
+    var developmentExpansionController: UInt32
+    var developmentExpansionMinimumBudget: Float
+    var developmentExpansionHighlightLow: Float
+    var developmentExpansionHighlightHigh: Float
+    var developmentExpansionRangeLow: Float
+    var developmentExpansionRangeHigh: Float
+    var developmentExpansionMidtoneLow: Float
+    var developmentExpansionMidtoneHigh: Float
+    var developmentExpansionCombinedHighlightWeight: Float
+    var developmentExpansionCombinedRangeWeight: Float
+    var developmentExpansionCombinedMidtoneWeight: Float
 }
 
 internal final class MetalContext {
@@ -37,9 +60,9 @@ internal final class MetalContext {
     let nv12TemporalPipeline: MTLComputePipelineState
     let bgraTemporalPipeline: MTLComputePipelineState
 
-    init(device: MTLDevice) throws {
+    init(device: MTLDevice, commandQueue suppliedQueue: MTLCommandQueue? = nil) throws {
         self.device = device
-        guard let commandQueue = device.makeCommandQueue() else {
+        guard let commandQueue = suppliedQueue ?? device.makeCommandQueue() else {
             throw HDRProcessorError.commandQueueCreationFailed
         }
         self.commandQueue = commandQueue

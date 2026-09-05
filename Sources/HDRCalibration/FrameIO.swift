@@ -2,6 +2,8 @@
 import CoreMedia
 import CoreVideo
 import Foundation
+import HDRCore
+import simd
 
 public enum CalibrationPixelFormat {
     public static let sdrNV12 = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
@@ -599,6 +601,137 @@ public enum OfflinePixelSampler {
             }
         }
         return result
+    }
+
+    /// Returns the same linear BT.709 luminance domain consumed by the SDR to
+    /// HDR shader. `lumaGrid` is intentionally an encoded Y proxy for frame
+    /// matching; diagnostic attribution must use this method instead so its
+    /// bins and scalar tone-curve contributions are in the shader's domain.
+    public static func linearLumaGrid(
+        pixelBuffer: CVPixelBuffer,
+        width: Int,
+        height: Int
+    ) throws -> [Float] {
+        guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
+        let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        let isP010 = pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange ||
+            pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+        let isNV12 = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
+            pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+        let isFullRange = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange ||
+            pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+        let matrix = yCbCrMatrix(for: pixelBuffer)
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        let sourceWidth = max(1, CVPixelBufferGetWidth(pixelBuffer))
+        let sourceHeight = max(1, CVPixelBufferGetHeight(pixelBuffer))
+        var result = [Float](repeating: 0, count: width * height)
+
+        func inverse(_ value: Float) -> Float {
+            HDRColorMath.inverseBT709(min(max(value, 0), 1))
+        }
+
+        func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {
+            let rgb: SIMD3<Float>
+            switch matrix {
+            case .bt601:
+                rgb = SIMD3(
+                    y + 1.402000 * cr,
+                    y - 0.344136 * cb - 0.714136 * cr,
+                    y + 1.772000 * cb
+                )
+            case .bt2020:
+                rgb = SIMD3(
+                    y + 1.474600 * cr,
+                    y - 0.164553 * cb - 0.571353 * cr,
+                    y + 1.881400 * cb
+                )
+            case .bt709:
+                rgb = SIMD3(
+                    y + 1.574800 * cr,
+                    y - 0.187324 * cb - 0.468124 * cr,
+                    y + 1.855600 * cb
+                )
+            }
+            let linear = SIMD3(inverse(rgb.x), inverse(rgb.y), inverse(rgb.z))
+            return max(simd_dot(linear, HDRColorMath.bt709Luminance), 0)
+        }
+
+        if isNV12 || isP010 {
+            guard let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0),
+                  let uvBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) else {
+                throw CalibrationError.decodeFailed("missing YUV plane")
+            }
+            let yRowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+            let uvRowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1)
+            let uvWidth = max(1, CVPixelBufferGetWidthOfPlane(pixelBuffer, 1))
+            let uvHeight = max(1, CVPixelBufferGetHeightOfPlane(pixelBuffer, 1))
+            for y in 0..<height {
+                let sourceY = min(sourceHeight - 1, y * sourceHeight / height)
+                let uvY = min(uvHeight - 1, sourceY / 2)
+                for x in 0..<width {
+                    let sourceX = min(sourceWidth - 1, x * sourceWidth / width)
+                    let uvX = min(uvWidth - 1, sourceX / 2)
+                    let ySignal: Float
+                    let cbSignal: Float
+                    let crSignal: Float
+                    if isP010 {
+                        let yRow = yBase.advanced(by: sourceY * yRowBytes).assumingMemoryBound(to: UInt16.self)
+                        let uvRow = uvBase.advanced(by: uvY * uvRowBytes).assumingMemoryBound(to: UInt16.self)
+                        let yCode = Float(yRow[sourceX] >> 6)
+                        let cbCode = Float(uvRow[uvX * 2] >> 6)
+                        let crCode = Float(uvRow[uvX * 2 + 1] >> 6)
+                        ySignal = isFullRange ? yCode / 1023 : min(max((yCode - 64) / 876, 0), 1)
+                        let chromaScale: Float = isFullRange ? 1 : 1023 / 896
+                        cbSignal = (cbCode / 1023 - 512 / 1023) * chromaScale
+                        crSignal = (crCode / 1023 - 512 / 1023) * chromaScale
+                    } else {
+                        let yRow = yBase.advanced(by: sourceY * yRowBytes).assumingMemoryBound(to: UInt8.self)
+                        let uvRow = uvBase.advanced(by: uvY * uvRowBytes).assumingMemoryBound(to: UInt8.self)
+                        let yCode = Float(yRow[sourceX])
+                        let cbCode = Float(uvRow[uvX * 2])
+                        let crCode = Float(uvRow[uvX * 2 + 1])
+                        ySignal = isFullRange ? yCode / 255 : min(max((yCode - 16) / 219, 0), 1)
+                        let chromaScale: Float = isFullRange ? 1 : 255 / 224
+                        cbSignal = (cbCode / 255 - 128 / 255) * chromaScale
+                        crSignal = (crCode / 255 - 128 / 255) * chromaScale
+                    }
+                    result[y * width + x] = linearLuminance(y: ySignal, cb: cbSignal, cr: crSignal)
+                }
+            }
+            return result
+        }
+
+        guard pixelFormat == kCVPixelFormatType_32BGRA,
+              let base = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw CalibrationError.decodeFailed("unsupported proxy pixel format \(pixelFormat)")
+        }
+        let rowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        for y in 0..<height {
+            let sourceY = min(sourceHeight - 1, y * sourceHeight / height)
+            let row = base.advanced(by: sourceY * rowBytes).assumingMemoryBound(to: UInt8.self)
+            for x in 0..<width {
+                let sourceX = min(sourceWidth - 1, x * sourceWidth / width)
+                let offset = sourceX * 4
+                let rgb = SIMD3(
+                    inverse(Float(row[offset + 2]) / 255),
+                    inverse(Float(row[offset + 1]) / 255),
+                    inverse(Float(row[offset]) / 255)
+                )
+                result[y * width + x] = max(simd_dot(rgb, HDRColorMath.bt709Luminance), 0)
+            }
+        }
+        return result
+    }
+
+    private static func yCbCrMatrix(for pixelBuffer: CVPixelBuffer) -> HDRYCbCrMatrix {
+        guard let value = CVBufferCopyAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, nil) else {
+            return .bt709
+        }
+        if CFEqual(value, kCVImageBufferYCbCrMatrix_ITU_R_601_4) { return .bt601 }
+        if CFEqual(value, kCVImageBufferYCbCrMatrix_ITU_R_2020) { return .bt2020 }
+        return .bt709
     }
 
     public static func chromaMagnitude(pixelBuffer: CVPixelBuffer) -> Float {

@@ -406,6 +406,60 @@ final class CalibrationTests: XCTestCase {
         XCTAssertFalse(metrics.weightedContributions.isEmpty)
     }
 
+    func testDiffuseMidtoneDiagnosticUsesSourceRangeAndIsExcludedFromWeightedObjective() {
+        let reference = ReferenceFrame(
+            timestampSeconds: 0,
+            width: 3,
+            height: 1,
+            rgbNits: [SIMD3(repeating: 100), SIMD3(repeating: 200), SIMD3(repeating: 300)]
+        )
+        let generated = GeneratedFrame(
+            timestampSeconds: 0,
+            width: 3,
+            height: 1,
+            rgbNits: [SIMD3(repeating: 110), SIMD3(repeating: 180), SIMD3(repeating: 350)]
+        )
+        let scene = SceneRange(id: "diagnostic", startSample: 0, endSample: 0, tags: [])
+        let parameters = CalibrationParameters(configuration: .calibratedV4)
+        let weights = V2ObjectiveWeights()
+        let inRange = V2FrameData(
+            reference: reference,
+            generated: generated,
+            sourceLuma: [0.20, 0.30, 0.60],
+            confidence: 1
+        )
+        let outOfRange = V2FrameData(
+            reference: reference,
+            generated: generated,
+            sourceLuma: [0.60, 0.70, 0.80],
+            confidence: 1
+        )
+
+        let inRangeMetrics = V2MetricsEvaluator.evaluateScene(
+            pairID: "diagnostic",
+            scene: scene,
+            frames: [inRange],
+            configuration: parameters,
+            weights: weights
+        ).metrics
+        let outOfRangeMetrics = V2MetricsEvaluator.evaluateScene(
+            pairID: "diagnostic",
+            scene: scene,
+            frames: [outOfRange],
+            configuration: parameters,
+            weights: weights
+        ).metrics
+
+        XCTAssertGreaterThan(inRangeMetrics.diffuseMidtoneError, 0)
+        XCTAssertGreaterThan(inRangeMetrics.diffuseMidtoneOvershoot, 0)
+        XCTAssertGreaterThanOrEqual(inRangeMetrics.diffuseMidtoneOvershootP95, 0)
+        XCTAssertEqual(inRangeMetrics.diffuseMidtoneSampleCount, 2, accuracy: 0.000001)
+        XCTAssertEqual(outOfRangeMetrics.diffuseMidtoneError, 1, accuracy: 0.000001)
+        XCTAssertEqual(outOfRangeMetrics.diffuseMidtoneSampleCount, 0, accuracy: 0.000001)
+        XCTAssertFalse(inRangeMetrics.weightedContributions.keys.contains("diffuse_midtone"))
+        XCTAssertFalse(inRangeMetrics.weightedContributions.keys.contains("diffuse_midtone_overshoot"))
+    }
+
     func testV2CandidateSerializationRoundTrip() throws {
         let candidate = V2CandidateEvaluation(
             id: "candidate", stage: "test", parameters: CalibrationParameters(configuration: .calibratedV1),

@@ -126,6 +126,160 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertNil(pattern.inputURL)
     }
 
+    func testCLIParserAcceptsNormalizedDiagnosticROI() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--diagnostic-roi", "0.40,0.18,0.22,0.31"
+        ])
+        XCTAssertTrue(options.debug)
+        XCTAssertEqual(options.diagnosticROI, HDRDiagnosticROI(x: 0.40, y: 0.18, width: 0.22, height: 0.31))
+    }
+
+    func testCLIParserAcceptsV6DevelopmentCandidateAndControlledMode() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset", "v6-candidate-bandlimited-045", "--controlled-v6", "--debug"
+        ])
+        XCTAssertEqual(options.v6Candidate, .bandLimited045)
+        XCTAssertEqual(options.preset, "v6-candidate-bandlimited-045")
+        XCTAssertTrue(options.controlledV6)
+        let configuration = try options.baseConfiguration()
+        XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV6Candidate)
+        XCTAssertEqual(configuration.developmentLowMidFadePosition, 0.45, accuracy: 0)
+        XCTAssertEqual(configuration.developmentLowMidStrength, 0.08, accuracy: 0)
+    }
+
+    func testCLIParserRejectsOutOfBoundsDiagnosticROI() {
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--diagnostic-roi", "0.90,0.10,0.20,0.20"
+        ])) { error in
+            XCTAssertEqual(error as? HDRPlayerCLIError, .invalidROI("0.90,0.10,0.20,0.20"))
+        }
+    }
+
+    func testQuickABPresetConfigurationsAreExact() {
+        XCTAssertEqual(HDRABPreset.calibratedV2.configuration, HDRConfiguration.calibratedV2)
+        XCTAssertEqual(HDRABPreset.calibratedV4.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertNotEqual(HDRABPreset.calibratedV2.configuration, HDRABPreset.calibratedV4.configuration)
+    }
+
+    @MainActor
+    func testQuickABToggleSwitchesV2AndV4WithoutReplacingThePlayer() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activeABPreset, .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV2)
+        XCTAssertEqual(controller.activeABPreset, .calibratedV2)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV2)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV4)
+        XCTAssertEqual(controller.activeABPreset, .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+    }
+
+    @MainActor
+    func testControlledABToggleChangesPresentationSourceOnly() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            controlledAB: true
+        )
+        XCTAssertTrue(controller.controlledComparisonEnabled)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV2)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+    }
+
+    @MainActor
+    func testQuickV6ToggleKeepsPlayerAndV4ProductionProcessor() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            v6Candidate: .bandLimited045
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activePresetName, "calibrated-v4")
+        XCTAssertEqual(controller.toggleV6Preset(), "v6-candidate-bandlimited-045")
+        XCTAssertEqual(controller.processor.configuration.toneCurveRevision, .sceneRelativeV6Candidate)
+        XCTAssertTrue(controller.activeV6PresetIsOn)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleV6Preset(), "calibrated-v4")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertFalse(controller.activeV6PresetIsOn)
+    }
+
+    func testV62CandidatePresetIsSelectableWithoutCreatingProductionPreset() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset",
+            HDRV62ToneCurveCandidate.adaptiveCombined.rawValue
+        ])
+        let configuration = try options.baseConfiguration()
+        XCTAssertEqual(options.v62Candidate, HDRV62ToneCurveCandidate.adaptiveCombined)
+        XCTAssertEqual(configuration.toneCurveRevision, HDRToneCurveRevision.sceneAdaptiveV62Candidate)
+        XCTAssertEqual(configuration.paperWhiteNits, HDRConfiguration.calibratedV4.paperWhiteNits)
+        XCTAssertEqual(configuration.highlightStrength, HDRConfiguration.calibratedV4.highlightStrength)
+        XCTAssertTrue(PlayerOptions.usage.contains(HDRV62ToneCurveCandidate.adaptiveCombined.rawValue))
+    }
+
+    @MainActor
+    func testQuickV62ToggleKeepsPlayerAndV4AsTheOffEndpoint() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            v62Candidate: .adaptiveHighlight
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activePresetName, HDRABPreset.calibratedV4.rawValue)
+        XCTAssertEqual(controller.toggleV62Preset(), HDRV62ToneCurveCandidate.adaptiveHighlight.rawValue)
+        XCTAssertEqual(controller.processor.configuration.toneCurveRevision, .sceneAdaptiveV62Candidate)
+        XCTAssertTrue(controller.activeV62PresetIsOn)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleV62Preset(), HDRABPreset.calibratedV4.rawValue)
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertFalse(controller.activeV62PresetIsOn)
+    }
+
+    @MainActor
+    func testControlledV6ToggleChangesPresentationSourceOnly() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            controlledV6: true,
+            v6Candidate: .bandLimited035
+        )
+        XCTAssertTrue(controller.controlledComparisonEnabled)
+        XCTAssertTrue(controller.controlledV6ComparisonEnabled)
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(controller.toggleV6Preset(), "v6-candidate-bandlimited-035")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(controller.toggleV6Preset(), "calibrated-v4")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+    }
+
     func testCalibratedV1PresetIsSelectableAndValid() throws {
         let options = try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v1"
@@ -202,6 +356,48 @@ final class PlayerLogicTests: XCTestCase {
         let runtime = capabilities.configuration(for: base)
         XCTAssertEqual(runtime.masteringHeadroom, 4.8668838, accuracy: 0.000_01)
         XCTAssertEqual(capabilities.displayState.usableHeadroom, 1.44, accuracy: 0.000_01)
+    }
+
+    func testEDRMapperDoesNotIncreaseLuminanceAtOrBelowReferenceWhite() {
+        for input: Float in [0, 0.01, 0.25, 0.5, 0.99, 1] {
+            XCTAssertEqual(
+                EDRDisplayMapper.mapLuminance(
+                    input,
+                    masteringHeadroom: HDRConfiguration.calibratedV4.masteringHeadroom,
+                    displayHeadroom: 1.5
+                ),
+                input,
+                accuracy: 0
+            )
+        }
+    }
+
+    func testStartupMetricsAndSourceUnavailableReasonsAreOrderedAndAggregated() {
+        let metrics = PlayerMetrics()
+        metrics.markAppLaunch()
+        metrics.markPlayerCreated()
+        metrics.markPrepareCalled()
+        metrics.markReadyToPlay()
+        metrics.markPlaybackStarted()
+        metrics.recordDisplayCallback()
+        metrics.markFirstPixelBufferAvailable()
+        metrics.markFirstPixelBufferCopied()
+        metrics.recordProcessedFrame()
+        metrics.markFirstHDRProcessedFrame()
+        metrics.recordPresentedFrame()
+        metrics.markFirstDrawablePresented()
+        metrics.markFirstNonBlackPresentedFrame()
+        metrics.recordSourceUnavailable(reason: .noNewPixelBuffer)
+        metrics.recordSourceUnavailable(reason: .copyPixelBufferFailed)
+        let snapshot = metrics.snapshot()
+
+        XCTAssertTrue(snapshot.startup.timestampsAreOrdered)
+        XCTAssertNotNil(snapshot.startup.playToFirstPixelBuffer)
+        XCTAssertNotNil(snapshot.startup.playToFirstProcessedFrame)
+        XCTAssertNotNil(snapshot.startup.playToFirstPresentedFrame)
+        XCTAssertEqual(snapshot.sourceUnavailableFrames, 2)
+        XCTAssertEqual(snapshot.sourceUnavailableBreakdown.noNewPixelBuffer, 1)
+        XCTAssertEqual(snapshot.sourceUnavailableBreakdown.copyPixelBufferFailed, 1)
     }
 
     func testEDRMapperIsFiniteMonotonicAndPreservesReferenceWhite() {
