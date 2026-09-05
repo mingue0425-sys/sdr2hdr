@@ -70,6 +70,7 @@ ST.2084 10,000-nit reference.
 ```bash
 swift build -c release
 swift test
+python3 -m unittest discover -s Tests/VerificationTests -p 'test_*.py'
 swift run -c release HDRBenchmark --width 1920 --height 1080 --frames 300 --warmup 30
 swift run -c release HDRBenchmark --width 3840 --height 2160 --frames 300 --warmup 30
 swift run -c release HDRBenchmark --presentation-only --width 3840 --height 2160 --frames 300 --warmup 30
