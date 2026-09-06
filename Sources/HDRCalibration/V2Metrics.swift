@@ -40,6 +40,12 @@ public enum PerceptualColorV2 {
 }
 
 enum V2MetricsEvaluator {
+    /// Generic linear SDR source range used by the V6 development diagnostic.
+    /// It starts above the observed scene-relative shadow anchors and ends
+    /// below the calibrated V4 shoulder start, leaving margin on both sides.
+    /// The range is signal-defined and contains no face/skin classification.
+    static let diffuseMidtoneSourceRange: ClosedRange<Double> = 0.15...0.45
+
     static func evaluateScene(
         pairID: String,
         scene: SceneRange,
@@ -47,11 +53,9 @@ enum V2MetricsEvaluator {
         configuration: CalibrationParameters,
         weights: V2ObjectiveWeights
     ) -> V2SceneEvaluation {
-        let referenceLuma = frames.flatMap { $0.reference.lumaNits.map(Double.init) }.filter(\.isFinite)
-        let generatedLuma = frames.flatMap { $0.generated.lumaNits.map(Double.init) }.filter(\.isFinite)
-        let count = min(referenceLuma.count, generatedLuma.count)
-        let pairedReference = Array(referenceLuma.prefix(count))
-        let pairedGenerated = Array(generatedLuma.prefix(count))
+        let lumaPairs = pairedFiniteLuminance(frames)
+        let pairedReference = lumaPairs.reference
+        let pairedGenerated = lumaPairs.generated
         let refPercentiles = percentiles(pairedReference)
         let genPercentiles = percentiles(pairedGenerated)
 
@@ -61,43 +65,51 @@ enum V2MetricsEvaluator {
         let diffuseWhiteError = regionError(pairedReference, pairedGenerated, lower: 0.75, upper: 0.95)
         let highlightError = regionError(pairedReference, pairedGenerated, lower: 0.90, upper: 1.0)
         let shadowError = regionError(pairedReference, pairedGenerated, lower: 0.0, upper: 0.10)
+        let diffuseMidtone = diffuseMidtoneMetrics(frames)
         let regionErrors = [
             "p0_p1": regionError(pairedReference, pairedGenerated, lower: 0, upper: 0.01),
             "p1_p10": regionError(pairedReference, pairedGenerated, lower: 0.01, upper: 0.10),
             "p10_p50": regionError(pairedReference, pairedGenerated, lower: 0.10, upper: 0.50),
             "p50_p90": regionError(pairedReference, pairedGenerated, lower: 0.50, upper: 0.90),
             "p90_p99": regionError(pairedReference, pairedGenerated, lower: 0.90, upper: 0.99),
-            "p99_p100": regionError(pairedReference, pairedGenerated, lower: 0.99, upper: 1.0)
+            "p99_p100": regionError(pairedReference, pairedGenerated, lower: 0.99, upper: 1.0),
+            "diffuse_midtone": diffuseMidtone.error,
+            "diffuse_midtone_signed": diffuseMidtone.signed,
+            "diffuse_midtone_positive_overshoot": diffuseMidtone.positive,
+            "diffuse_midtone_negative_undershoot": diffuseMidtone.negative,
+            "diffuse_midtone_mae": diffuseMidtone.mae,
+            "diffuse_midtone_overshoot": diffuseMidtone.overshoot,
+            "diffuse_midtone_overshoot_p95": diffuseMidtone.overshootP95,
+            "diffuse_midtone_sample_count": Double(diffuseMidtone.sampleCount)
         ]
 
-        let highlightThreshold = percentile(pairedReference, 0.90)
+        // Reuse the scene percentiles computed above.  In particular, do not
+        // calculate a percentile from inside a per-pixel filter: that turns a
+        // diagnostic-only observation into an accidental O(n^2 log n) path.
+        let highlightThreshold = refPercentiles.p90
         let highlightPairs = zip(pairedReference, pairedGenerated).filter { $0.0 >= highlightThreshold }
         let highlightUnderReach = fraction(highlightPairs) { $0.1 < $0.0 * 0.80 }
         let highlightOvershoot = fraction(highlightPairs) { $0.1 > max($0.0 * 1.25, $0.0 + 20) }
-        let specularReference = percentile(pairedReference, 0.999)
-        let specularGenerated = percentile(pairedGenerated, 0.999)
+        let specularReference = refPercentiles.p999
+        let specularGenerated = genPercentiles.p999
         let specularUnder = max(specularReference - specularGenerated, 0) / max(specularReference, 1)
         let specularOver = max(specularGenerated - specularReference, 0) / max(specularReference, 1)
-        let referenceSlope = max(percentile(pairedReference, 0.99) - percentile(pairedReference, 0.90), 1)
-        let generatedSlope = max(percentile(pairedGenerated, 0.99) - percentile(pairedGenerated, 0.90), 0)
+        let referenceSlope = max(refPercentiles.p99 - refPercentiles.p90, 1)
+        let generatedSlope = max(genPercentiles.p99 - genPercentiles.p90, 0)
         let compressionError = abs(generatedSlope / referenceSlope - 1)
         let clipping = pairedGenerated.isEmpty ? 0 : Double(pairedGenerated.filter { $0 >= Double(configuration.peakNits) * 0.999 }.count) / Double(pairedGenerated.count)
 
-        let shadowPairs = zip(pairedReference, pairedGenerated).filter { $0.0 <= percentile(pairedReference, 0.10) }
+        let shadowPairs = zip(pairedReference, pairedGenerated).filter { $0.0 <= refPercentiles.p10 }
         let blackCrush = fraction(shadowPairs) { $0.0 > 1 && $0.1 < min(0.5, $0.0 * 0.25) }
         let shadowLift = fraction(shadowPairs) { $0.1 > max($0.0 * 1.5, $0.0 + 2) }
-        let referenceNearBlackRange = max(percentile(pairedReference, 0.10) - percentile(pairedReference, 0.01), 1)
-        let generatedNearBlackRange = max(percentile(pairedGenerated, 0.10) - percentile(pairedGenerated, 0.01), 0)
+        let referenceNearBlackRange = max(refPercentiles.p10 - refPercentiles.p1, 1)
+        let generatedNearBlackRange = max(genPercentiles.p10 - genPercentiles.p1, 0)
         let nearBlackContrastLoss = max(1 - generatedNearBlackRange / referenceNearBlackRange, 0)
 
         let color = colorMetrics(frames)
         let temporal = temporalMetrics(frames)
         let structure = structureError(frames)
-        let invalidCount = frames.reduce(0) { total, frame in
-            total + zip(frame.reference.rgbNits, frame.generated.rgbNits).filter { ref, gen in
-                !(ref.x.isFinite && ref.y.isFinite && ref.z.isFinite && gen.x.isFinite && gen.y.isFinite && gen.z.isFinite)
-            }.count
-        }
+        let invalidCount = invalidPairedPixelCount(frames)
 
         var contributions: [String: Double] = [
             "luminance": weights.luminance * finite(luminanceError),
@@ -294,6 +306,10 @@ enum V2MetricsEvaluator {
         var count = 0
         for frame in frames {
             for (reference, generated) in zip(frame.reference.rgbNits, frame.generated.rgbNits) {
+                guard reference.x.isFinite, reference.y.isFinite, reference.z.isFinite,
+                      generated.x.isFinite, generated.y.isFinite, generated.z.isFinite else {
+                    continue
+                }
                 let ref = PerceptualColorV2.ictcp(rgbNits: reference)
                 let gen = PerceptualColorV2.ictcp(rgbNits: generated)
                 let refChroma = hypot(ref.y, ref.z)
@@ -323,10 +339,16 @@ enum V2MetricsEvaluator {
     static func temporalMetrics(_ frames: [V2FrameData]) -> (luminance: Double, highlight: Double, flicker: Double) {
         let sorted = frames.sorted { $0.generated.timestampSeconds < $1.generated.timestampSeconds }
         guard sorted.count > 1 else { return (0, 0, 0) }
-        let referenceMeans = sorted.map { average($0.reference.lumaNits.map(Double.init)) }
-        let generatedMeans = sorted.map { average($0.generated.lumaNits.map(Double.init)) }
-        let referenceHighlights = sorted.map { percentile($0.reference.lumaNits.map(Double.init), 0.95) }
-        let generatedHighlights = sorted.map { percentile($0.generated.lumaNits.map(Double.init), 0.95) }
+        let framePairs = sorted.compactMap { frame -> (reference: [Double], generated: [Double])? in
+            let pairs = pairedFiniteLuminance([frame])
+            guard !pairs.reference.isEmpty else { return nil }
+            return (pairs.reference, pairs.generated)
+        }
+        guard framePairs.count > 1 else { return (0, 0, 0) }
+        let referenceMeans = framePairs.map { average($0.reference) }
+        let generatedMeans = framePairs.map { average($0.generated) }
+        let referenceHighlights = framePairs.map { percentile($0.reference, 0.95) }
+        let generatedHighlights = framePairs.map { percentile($0.generated, 0.95) }
         let luma = deltaError(referenceMeans, generatedMeans)
         let highlight = deltaError(referenceHighlights, generatedHighlights)
         var second: [Double] = []
@@ -342,12 +364,75 @@ enum V2MetricsEvaluator {
 
     private static func structureError(_ frames: [V2FrameData]) -> Double {
         let errors = frames.compactMap { frame -> Double? in
-            let source = frame.sourceLuma.map(Double.init)
-            let generated = frame.generated.lumaNits.map(Double.init)
-            guard source.count == generated.count, let correlation = correlation(source, generated) else { return nil }
+            let count = min(frame.sourceLuma.count, frame.generated.lumaNits.count)
+            var source: [Double] = []
+            var generated: [Double] = []
+            for index in 0..<count {
+                let lhs = Double(frame.sourceLuma[index])
+                let rhs = Double(frame.generated.lumaNits[index])
+                guard lhs.isFinite, rhs.isFinite else { continue }
+                source.append(lhs)
+                generated.append(rhs)
+            }
+            guard let correlation = correlation(source, generated) else { return nil }
             return 1 - correlation
         }
         return average(errors)
+    }
+
+    /// Builds paired luminance vectors without independently compacting either
+    /// side.  Removing invalid values from each array separately changes pixel
+    /// correspondence and can compare two different pixels.
+    private static func pairedFiniteLuminance(_ frames: [V2FrameData]) -> (
+        reference: [Double], generated: [Double], invalid: Int
+    ) {
+        var reference: [Double] = []
+        var generated: [Double] = []
+        var invalid = 0
+        for frame in frames {
+            let count = max(frame.reference.lumaNits.count, frame.generated.lumaNits.count)
+            for index in 0..<count {
+                guard index < frame.reference.lumaNits.count,
+                      index < frame.generated.lumaNits.count else {
+                    invalid += 1
+                    continue
+                }
+                let lhs = Double(frame.reference.lumaNits[index])
+                let rhs = Double(frame.generated.lumaNits[index])
+                guard lhs.isFinite, rhs.isFinite else {
+                    invalid += 1
+                    continue
+                }
+                reference.append(lhs)
+                generated.append(rhs)
+            }
+        }
+        return (reference, generated, invalid)
+    }
+
+    private static func invalidPairedPixelCount(_ frames: [V2FrameData]) -> Int {
+        frames.reduce(0) { total, frame in
+            let count = max(
+                max(frame.reference.lumaNits.count, frame.generated.lumaNits.count),
+                max(frame.reference.rgbNits.count, frame.generated.rgbNits.count)
+            )
+            let invalid = (0..<count).reduce(0) { count, index in
+                guard index < frame.reference.lumaNits.count,
+                      index < frame.generated.lumaNits.count,
+                      index < frame.reference.rgbNits.count,
+                      index < frame.generated.rgbNits.count else {
+                    return count + 1
+                }
+                let referenceLuma = frame.reference.lumaNits[index]
+                let generatedLuma = frame.generated.lumaNits[index]
+                let reference = frame.reference.rgbNits[index]
+                let generated = frame.generated.rgbNits[index]
+                let vectorFinite = reference.x.isFinite && reference.y.isFinite && reference.z.isFinite &&
+                    generated.x.isFinite && generated.y.isFinite && generated.z.isFinite
+                return count + (referenceLuma.isFinite && generatedLuma.isFinite && vectorFinite ? 0 : 1)
+            }
+            return total + invalid
+        }
     }
 
     private static func isSkinLike(_ rgb: SIMD3<Float>) -> Bool {
@@ -355,6 +440,55 @@ enum V2MetricsEvaluator {
         guard maxValue > 1 else { return false }
         let normalized = rgb / maxValue
         return normalized.x > normalized.y && normalized.y > normalized.z && normalized.x - normalized.z > 0.12
+    }
+
+    private static func diffuseMidtoneMetrics(_ frames: [V2FrameData]) -> (
+        error: Double,
+        signed: Double,
+        positive: Double,
+        negative: Double,
+        mae: Double,
+        overshoot: Double,
+        overshootP95: Double,
+        sampleCount: Int
+    ) {
+        var absoluteErrors: [Double] = []
+        var signedErrors: [Double] = []
+        var positiveOvershoots: [Double] = []
+        var negativeUndershoots: [Double] = []
+        for frame in frames {
+            let count = min(frame.sourceLuma.count, frame.reference.lumaNits.count, frame.generated.lumaNits.count)
+            guard count > 0 else { continue }
+            for index in 0..<count {
+                let source = Double(frame.sourceLuma[index])
+                let reference = Double(frame.reference.lumaNits[index])
+                let generated = Double(frame.generated.lumaNits[index])
+                guard source.isFinite, diffuseMidtoneSourceRange.contains(source),
+                      reference.isFinite, generated.isFinite else { continue }
+                let signedError = log((generated + 1) / (reference + 1))
+                guard signedError.isFinite else { continue }
+                absoluteErrors.append(abs(signedError))
+                signedErrors.append(signedError)
+                positiveOvershoots.append(max(signedError, 0))
+                negativeUndershoots.append(max(-signedError, 0))
+            }
+        }
+        guard !absoluteErrors.isEmpty else { return (1, 0, 0, 0, 1, 0, 0, 0) }
+        let error = absoluteErrors.reduce(0, +) / Double(absoluteErrors.count)
+        let signed = signedErrors.reduce(0, +) / Double(signedErrors.count)
+        let positive = positiveOvershoots.reduce(0, +) / Double(positiveOvershoots.count)
+        let negative = negativeUndershoots.reduce(0, +) / Double(negativeUndershoots.count)
+        let overshoot = positiveOvershoots.reduce(0, +) / Double(positiveOvershoots.count)
+        return (
+            error,
+            signed,
+            positive,
+            negative,
+            error,
+            overshoot,
+            percentile(positiveOvershoots, 0.95),
+            absoluteErrors.count
+        )
     }
 
     private static func regionError(_ reference: [Double], _ generated: [Double], lower: Double, upper: Double) -> Double {

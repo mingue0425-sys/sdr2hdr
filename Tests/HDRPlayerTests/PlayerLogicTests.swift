@@ -28,6 +28,52 @@ final class PlayerLogicTests: XCTestCase {
         )
     }
 
+    func testTrackTransformPreservesHorizontalVerticalAndRotatedMirrors() {
+        XCTAssertEqual(
+            VideoTransformResolver.orientation(for: CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 1920, ty: 0)),
+            .mirrorX
+        )
+        XCTAssertEqual(
+            VideoTransformResolver.orientation(for: CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 1080)),
+            .mirrorY
+        )
+        let rotatedMirror = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+        let resolved = VideoTransformResolver.orientation(for: rotatedMirror)
+        XCTAssertTrue(resolved.mirroredX || resolved.mirroredY)
+        XCTAssertTrue(resolved.swapsDimensions)
+
+        let point = VideoOrientation.mirrorX.sourcePoint(forDisplayPoint: CGPoint(x: 0.2, y: 0.3))
+        XCTAssertEqual(point.x, 0.8, accuracy: 0.000_001)
+        XCTAssertEqual(point.y, 0.3, accuracy: 0.000_001)
+    }
+
+    func testTrackTransformResolvesEveryRotationAndReflectionBasis() {
+        func matrix(_ a: CGFloat, _ b: CGFloat, _ c: CGFloat, _ d: CGFloat) -> CGAffineTransform {
+            CGAffineTransform(a: a, b: b, c: c, d: d, tx: 0, ty: 0)
+        }
+        let cases: [(VideoOrientation, CGAffineTransform)] = [
+            (.identity, matrix(1, 0, 0, 1)),
+            (.rotate90, matrix(0, 1, -1, 0)),
+            (.rotate180, matrix(-1, 0, 0, -1)),
+            (.rotate270, matrix(0, -1, 1, 0)),
+            (.mirrorX, matrix(-1, 0, 0, 1)),
+            (.mirrorY, matrix(1, 0, 0, -1)),
+            (.rotate90MirrorX, matrix(0, 1, 1, 0)),
+            (.rotate90MirrorY, matrix(0, -1, -1, 0)),
+            // These four affine matrices are equivalent to an earlier
+            // canonical basis element; the resolver intentionally returns
+            // that canonical decomposition because tx/ty are not orientation
+            // bits.
+            (.mirrorY, matrix(1, 0, 0, -1)),
+            (.mirrorX, matrix(-1, 0, 0, 1)),
+            (.rotate90MirrorY, matrix(0, -1, -1, 0)),
+            (.rotate90MirrorX, matrix(0, 1, 1, 0))
+        ]
+        for (expected, transform) in cases {
+            XCTAssertEqual(VideoTransformResolver.orientation(for: transform), expected)
+        }
+    }
+
     func testFrameSelectorSuppressesDuplicatesAndResetsAfterSeek() {
         var selector = FrameTimestampSelector()
         let target = CMTime(value: 0, timescale: 120)
@@ -43,6 +89,52 @@ final class PlayerLogicTests: XCTestCase {
         let target = CMTime(value: 120, timescale: 30)
         let late = CMTime(value: 0, timescale: 30)
         XCTAssertEqual(selector.decide(frameTime: late, targetTime: target, dropIfLate: true), .lateDrop)
+    }
+
+    func testPausedSeekRedrawGateRejectsLateCompletions() {
+        var gate = PlaybackSeekRedrawGate()
+        let seekA = gate.begin()
+        let seekB = gate.begin()
+        let seekC = gate.begin()
+        XCTAssertFalse(gate.accepts(completionFor: seekA))
+        XCTAssertFalse(gate.accepts(completionFor: seekB))
+        XCTAssertTrue(gate.accepts(completionFor: seekC))
+    }
+
+    func testPausedSeekCoordinatorPresentsOnlyTheLatestCompletedSeek() {
+        var coordinator = PlaybackSeekRedrawCoordinator()
+        let seekA = coordinator.begin(wasPlaying: false)
+        let seekB = coordinator.begin(wasPlaying: false)
+
+        XCTAssertNil(coordinator.complete(token: seekA, succeeded: true))
+        let action = coordinator.complete(token: seekB, succeeded: true)
+        XCTAssertEqual(
+            action,
+            PlaybackSeekRedrawAction(
+                generation: seekB,
+                requestMediaDataChange: true,
+                requestRedraw: true,
+                resumePlayback: false
+            )
+        )
+        XCTAssertNil(coordinator.complete(token: seekB, succeeded: true))
+    }
+
+    func testPlayingSeekResumesOnlyAfterOneFreshFrameRedrawRequest() {
+        var coordinator = PlaybackSeekRedrawCoordinator()
+        let seek = coordinator.begin(wasPlaying: true)
+        XCTAssertNil(coordinator.complete(token: seek, succeeded: false))
+        XCTAssertNil(coordinator.complete(token: seek, succeeded: true))
+
+        let retry = coordinator.begin(wasPlaying: true)
+        let action = coordinator.complete(token: retry, succeeded: true)
+        XCTAssertEqual(action?.generation, retry)
+        XCTAssertTrue(action?.requestMediaDataChange == true)
+        XCTAssertTrue(action?.requestRedraw == true)
+        XCTAssertTrue(action?.resumePlayback == true)
+
+        coordinator.invalidate()
+        XCTAssertNil(coordinator.complete(token: retry, succeeded: true))
     }
 
     func testTwentyFourFPSSourceIsNotProcessedAtOneHundTwentyHz() {
@@ -126,6 +218,160 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertNil(pattern.inputURL)
     }
 
+    func testCLIParserAcceptsNormalizedDiagnosticROI() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--diagnostic-roi", "0.40,0.18,0.22,0.31"
+        ])
+        XCTAssertTrue(options.debug)
+        XCTAssertEqual(options.diagnosticROI, HDRDiagnosticROI(x: 0.40, y: 0.18, width: 0.22, height: 0.31))
+    }
+
+    func testCLIParserAcceptsV6DevelopmentCandidateAndControlledMode() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset", "v6-candidate-bandlimited-045", "--controlled-v6", "--debug"
+        ])
+        XCTAssertEqual(options.v6Candidate, .bandLimited045)
+        XCTAssertEqual(options.preset, "v6-candidate-bandlimited-045")
+        XCTAssertTrue(options.controlledV6)
+        let configuration = try options.baseConfiguration()
+        XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV6Candidate)
+        XCTAssertEqual(configuration.developmentLowMidFadePosition, 0.45, accuracy: 0)
+        XCTAssertEqual(configuration.developmentLowMidStrength, 0.08, accuracy: 0)
+    }
+
+    func testCLIParserRejectsOutOfBoundsDiagnosticROI() {
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--diagnostic-roi", "0.90,0.10,0.20,0.20"
+        ])) { error in
+            XCTAssertEqual(error as? HDRPlayerCLIError, .invalidROI("0.90,0.10,0.20,0.20"))
+        }
+    }
+
+    func testQuickABPresetConfigurationsAreExact() {
+        XCTAssertEqual(HDRABPreset.calibratedV2.configuration, HDRConfiguration.calibratedV2)
+        XCTAssertEqual(HDRABPreset.calibratedV4.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertNotEqual(HDRABPreset.calibratedV2.configuration, HDRABPreset.calibratedV4.configuration)
+    }
+
+    @MainActor
+    func testQuickABToggleSwitchesV2AndV4WithoutReplacingThePlayer() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activeABPreset, .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV2)
+        XCTAssertEqual(controller.activeABPreset, .calibratedV2)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV2)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV4)
+        XCTAssertEqual(controller.activeABPreset, .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+    }
+
+    @MainActor
+    func testControlledABToggleChangesPresentationSourceOnly() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            controlledAB: true
+        )
+        XCTAssertTrue(controller.controlledComparisonEnabled)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV2)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+        XCTAssertEqual(controller.toggleABPreset(), .calibratedV4)
+        XCTAssertEqual(controller.processor.configuration, .calibratedV4)
+    }
+
+    @MainActor
+    func testQuickV6ToggleKeepsPlayerAndV4ProductionProcessor() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            v6Candidate: .bandLimited045
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activePresetName, "calibrated-v4")
+        XCTAssertEqual(controller.toggleV6Preset(), "v6-candidate-bandlimited-045")
+        XCTAssertEqual(controller.processor.configuration.toneCurveRevision, .sceneRelativeV6Candidate)
+        XCTAssertTrue(controller.activeV6PresetIsOn)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleV6Preset(), "calibrated-v4")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertFalse(controller.activeV6PresetIsOn)
+    }
+
+    func testV62CandidatePresetIsSelectableWithoutCreatingProductionPreset() throws {
+        let options = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset",
+            HDRV62ToneCurveCandidate.adaptiveCombined.rawValue
+        ])
+        let configuration = try options.baseConfiguration()
+        XCTAssertEqual(options.v62Candidate, HDRV62ToneCurveCandidate.adaptiveCombined)
+        XCTAssertEqual(configuration.toneCurveRevision, HDRToneCurveRevision.sceneAdaptiveV62Candidate)
+        XCTAssertEqual(configuration.paperWhiteNits, HDRConfiguration.calibratedV4.paperWhiteNits)
+        XCTAssertEqual(configuration.highlightStrength, HDRConfiguration.calibratedV4.highlightStrength)
+        XCTAssertTrue(PlayerOptions.usage.contains(HDRV62ToneCurveCandidate.adaptiveCombined.rawValue))
+    }
+
+    @MainActor
+    func testQuickV62ToggleKeepsPlayerAndV4AsTheOffEndpoint() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            v62Candidate: .adaptiveHighlight
+        )
+        let player = controller.player
+        XCTAssertEqual(controller.activePresetName, HDRABPreset.calibratedV4.rawValue)
+        XCTAssertEqual(controller.toggleV62Preset(), HDRV62ToneCurveCandidate.adaptiveHighlight.rawValue)
+        XCTAssertEqual(controller.processor.configuration.toneCurveRevision, .sceneAdaptiveV62Candidate)
+        XCTAssertTrue(controller.activeV62PresetIsOn)
+        XCTAssertTrue(player === controller.player)
+        XCTAssertEqual(controller.toggleV62Preset(), HDRABPreset.calibratedV4.rawValue)
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertFalse(controller.activeV62PresetIsOn)
+    }
+
+    @MainActor
+    func testControlledV6ToggleChangesPresentationSourceOnly() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let controller = try PlaybackController(
+            url: nil,
+            configuration: .calibratedV4,
+            device: device,
+            controlledV6: true,
+            v6Candidate: .bandLimited035
+        )
+        XCTAssertTrue(controller.controlledComparisonEnabled)
+        XCTAssertTrue(controller.controlledV6ComparisonEnabled)
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(controller.toggleV6Preset(), "v6-candidate-bandlimited-035")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(controller.toggleV6Preset(), "calibrated-v4")
+        XCTAssertEqual(controller.processor.configuration, HDRConfiguration.calibratedV4)
+    }
+
     func testCalibratedV1PresetIsSelectableAndValid() throws {
         let options = try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v1"
@@ -168,6 +414,7 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(configuration.temporalStability, 0.7308984)
         XCTAssertEqual(configuration.outputMode, .edr)
         XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
+        XCTAssertEqual(configuration.sceneHistogramStrategy, .linear64)
         XCTAssertEqual(configuration.masteringHeadroom, 5.308875)
         XCTAssertEqual(configuration, HDRConfiguration.calibratedV4)
         XCTAssertEqual(try configuration.validated(), configuration)
@@ -204,6 +451,48 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(capabilities.displayState.usableHeadroom, 1.44, accuracy: 0.000_01)
     }
 
+    func testEDRMapperDoesNotIncreaseLuminanceAtOrBelowReferenceWhite() {
+        for input: Float in [0, 0.01, 0.25, 0.5, 0.99, 1] {
+            XCTAssertEqual(
+                EDRDisplayMapper.mapLuminance(
+                    input,
+                    masteringHeadroom: HDRConfiguration.calibratedV4.masteringHeadroom,
+                    displayHeadroom: 1.5
+                ),
+                input,
+                accuracy: 0
+            )
+        }
+    }
+
+    func testStartupMetricsAndSourceUnavailableReasonsAreOrderedAndAggregated() {
+        let metrics = PlayerMetrics()
+        metrics.markAppLaunch()
+        metrics.markPlayerCreated()
+        metrics.markPrepareCalled()
+        metrics.markReadyToPlay()
+        metrics.markPlaybackStarted()
+        metrics.recordDisplayCallback()
+        metrics.markFirstPixelBufferAvailable()
+        metrics.markFirstPixelBufferCopied()
+        metrics.recordProcessedFrame()
+        metrics.markFirstHDRProcessedFrame()
+        metrics.recordPresentedFrame()
+        metrics.markFirstDrawablePresented()
+        metrics.markFirstNonBlackPresentedFrame()
+        metrics.recordSourceUnavailable(reason: .noNewPixelBuffer)
+        metrics.recordSourceUnavailable(reason: .copyPixelBufferFailed)
+        let snapshot = metrics.snapshot()
+
+        XCTAssertTrue(snapshot.startup.timestampsAreOrdered)
+        XCTAssertNotNil(snapshot.startup.playToFirstPixelBuffer)
+        XCTAssertNotNil(snapshot.startup.playToFirstProcessedFrame)
+        XCTAssertNotNil(snapshot.startup.playToFirstPresentedFrame)
+        XCTAssertEqual(snapshot.sourceUnavailableFrames, 2)
+        XCTAssertEqual(snapshot.sourceUnavailableBreakdown.noNewPixelBuffer, 1)
+        XCTAssertEqual(snapshot.sourceUnavailableBreakdown.copyPixelBufferFailed, 1)
+    }
+
     func testEDRMapperIsFiniteMonotonicAndPreservesReferenceWhite() {
         let mastering: Float = 4.8668838
         let inputs: [Float] = [0.25, 0.5, 1, 1.5, 2, 3, 4, mastering]
@@ -235,6 +524,63 @@ final class PlayerLogicTests: XCTestCase {
             previous = current
         }
         XCTAssertEqual(previous, 2, accuracy: 0.01)
+    }
+
+    func testDisplayHeadroomNeverExceedsCurrentOrPotentialCapability() {
+        let limited = HDRDisplayState(currentEDRHeadroom: 4, potentialEDRHeadroom: 1.5)
+        XCTAssertLessThanOrEqual(limited.usableHeadroom, limited.currentEDRHeadroom)
+        XCTAssertLessThanOrEqual(limited.usableHeadroom, limited.potentialEDRHeadroom)
+        XCTAssertLessThanOrEqual(limited.currentEDRHeadroom, limited.potentialEDRHeadroom)
+
+        let invalid = HDRDisplayState(currentEDRHeadroom: .nan, potentialEDRHeadroom: .infinity)
+        XCTAssertEqual(invalid.usableHeadroom, 1, accuracy: 0.000_001)
+    }
+
+    func testPresentationCallSiteClampsSmoothedHeadroomToCurrentCapability() {
+        let capabilityDrop = HDRDisplayState(currentEDRHeadroom: 1.5, potentialEDRHeadroom: 4)
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(4, to: capabilityDrop),
+            1.5,
+            accuracy: 0.000_001
+        )
+
+        let potentialMismatch = HDRDisplayState(currentEDRHeadroom: 6, potentialEDRHeadroom: 2)
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(6, to: potentialMismatch),
+            2,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(.nan, to: .sdr),
+            1,
+            accuracy: 0.000_001
+        )
+    }
+
+    func testEDRHeadroomDecreaseClampsImmediatelyAndIncreaseRamps() {
+        var smoother = EDRHeadroomSmoother(initial: 4, timeConstantSeconds: 0.18)
+        _ = smoother.step(timestamp: 0)
+        smoother.setTarget(1.5)
+        XCTAssertLessThanOrEqual(smoother.value, 1.5)
+        XCTAssertEqual(smoother.step(timestamp: 1.0 / 60.0), 1.5, accuracy: 0.000_001)
+
+        smoother.setTarget(4)
+        let first = smoother.step(timestamp: 2.0 / 60.0)
+        XCTAssertGreaterThan(first, 1.5)
+        XCTAssertLessThan(first, 4)
+
+        smoother.setTarget(.nan)
+        XCTAssertEqual(smoother.step(timestamp: 3.0 / 60.0), 1, accuracy: 0.000_001)
+        smoother.setTarget(.infinity)
+        let longGap = smoother.step(timestamp: 10)
+        XCTAssertLessThanOrEqual(longGap, 64)
+        XCTAssertTrue(longGap.isFinite)
+        XCTAssertEqual(smoother.step(timestamp: 9), longGap, accuracy: 0.000_001)
+
+        var firstObservation = EDRHeadroomSmoother(initial: 1)
+        firstObservation.setTarget(4)
+        XCTAssertEqual(firstObservation.step(timestamp: 0), 1, accuracy: 0.000_001)
+        XCTAssertLessThan(firstObservation.step(timestamp: 1.0 / 60.0), 4)
     }
 
     func testPresentationPatternPreservesValuesAboveOneInEDRPath() throws {

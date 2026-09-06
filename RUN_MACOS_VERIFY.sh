@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime) ;;
+  fast|full|prime|self-contained) ;;
   *)
-    echo "usage: $0 [fast|full|prime] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -579,6 +579,28 @@ print_summary() {
 # touching correctness artifacts.
 if [ "${VERIFY_SCRIPT_LIBRARY_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
+fi
+
+if [ "$MODE" = "self-contained" ]; then
+  FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-tiny-e2e.XXXXXX")"
+  FIXTURE_PATH="$FIXTURE_DIR/tiny-sdr.mp4"
+  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  command -v ffmpeg >/dev/null 2>&1 || {
+    echo 'SELF-CONTAINED REAL-MEDIA VERIFY: FAIL (ffmpeg is required)' >&2
+    exit 2
+  }
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'SELF-CONTAINED REAL-MEDIA VERIFY: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  stage 'self-contained tiny media fixture' bash Tests/verify_tiny_media_fixture.sh "$FIXTURE_PATH"
+  stage 'real-media AVFoundation HDR/Metal integration' env \
+    HDR_SELF_CONTAINED_FIXTURE="$FIXTURE_PATH" \
+    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests
+  echo 'SELF-CONTAINED REAL-MEDIA VERIFY: PASS'
+  echo 'AVFoundation decode, CVPixelBuffer metadata, HDRProcessor Metal, and offscreen presentation were exercised.'
+  echo 'No dataset audit, correctness review, objective evaluation, or holdout media access was performed.'
+  exit 0
 fi
 
 TOTAL_START=$SECONDS

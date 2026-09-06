@@ -174,126 +174,261 @@ private final class OutputLeaseLifetime: @unchecked Sendable {
     }
 }
 
-private final class TemporalState: @unchecked Sendable {
-    private let lock = NSLock()
-    private var control = HDRTemporalControlState()
-    private var generation: UInt64 = 0
-
-    func value() -> Float {
-        lock.lock()
-        defer { lock.unlock() }
-        return control.adaptation
-    }
-
-    func snapshot() -> (adaptation: Float, sequence: UInt64) {
-        lock.lock()
-        defer { lock.unlock() }
-        return (control.adaptation, control.automaticSequence)
-    }
-
-    func advanceGeneration(to generation: UInt64, reset: Bool) {
-        lock.lock()
-        self.generation = generation
-        if reset { control.reset() }
-        lock.unlock()
-    }
-
-    func update(averageLuminance: Float, stability: Float, sceneCut: Bool) {
-        lock.lock()
-        control.updateAverage(averageLuminance: averageLuminance, stability: stability, sceneCut: sceneCut)
-        lock.unlock()
-    }
-
-    @discardableResult
-    func updateAutomatic(
-        averageLuminance: Float,
-        stability: Float,
+struct HDRAdaptiveStateSnapshot: Sendable {
+    let temporal: (adaptation: Float, sequence: UInt64)
+    let scene: (
+        floor: Float,
+        top: Float,
+        valid: Bool,
         sequence: UInt64,
-        generation: UInt64
-    ) -> (applied: Bool, adaptation: Float, sequence: UInt64) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard generation == self.generation else {
-            return (false, control.adaptation, control.automaticSequence)
+        statistics: HDRSceneStatistics
+    )
+    let generation: UInt64
+    /// One transaction sequence for all adaptive parameters.  The legacy
+    /// per-component sequence fields remain available for diagnostics, but a
+    /// frame consumes this common commit boundary.
+    let committedSequence: UInt64
+    let lastGPUCompletedSequence: UInt64
+    let lastAdaptiveCommittedSequence: UInt64
+
+    func transactionInvariantHolds(sceneRelativeEnabled: Bool) -> Bool {
+        guard committedSequence == temporal.sequence,
+              lastAdaptiveCommittedSequence == committedSequence else {
+            return false
         }
-        let previousSequence = control.automaticSequence
-        _ = control.updateAutomaticAverage(
-            averageLuminance: averageLuminance,
-            stability: stability,
-            sequence: sequence
-        )
-        return (
-            control.automaticSequence > previousSequence,
-            control.adaptation,
-            control.automaticSequence
+        return !sceneRelativeEnabled || scene.sequence == committedSequence
+    }
+}
+
+struct HDRAdaptiveCompletionUpdate: Sendable {
+    let applied: Bool
+    let temporal: (adaptation: Float, sequence: UInt64)
+    let scene: (floor: Float, top: Float, valid: Bool, sequence: UInt64)
+    let committedSequence: UInt64
+}
+
+private struct HDRAdaptiveState: Sendable {
+    var temporal = HDRTemporalControlState()
+    var scene = HDRTemporalControlState()
+    /// Causal scene statistics consumed by development controllers.
+    var smoothedStatistics = HDRSceneStatistics.neutral
+    var generation: UInt64 = 0
+    /// The last automatic sequence accepted by the required components.
+    /// Scene-relative mode requires this to equal both component sequences;
+    /// non-scene-relative mode only requires the temporal component.
+    var committedSequence: UInt64 = 0
+    var lastGPUCompletedSequence: UInt64 = 0
+    var lastAdaptiveCommittedSequence: UInt64 = 0
+
+    func transactionInvariantHolds(sceneRelativeEnabled: Bool) -> Bool {
+        snapshot().transactionInvariantHolds(sceneRelativeEnabled: sceneRelativeEnabled)
+    }
+
+    func snapshot() -> HDRAdaptiveStateSnapshot {
+        HDRAdaptiveStateSnapshot(
+            temporal: (temporal.adaptation, temporal.automaticSequence),
+            scene: (
+                scene.shadowFloor,
+                scene.shadowTop,
+                scene.shadowStatisticsValid,
+                scene.shadowSequence,
+                smoothedStatistics
+            ),
+            generation: generation,
+            committedSequence: committedSequence,
+            lastGPUCompletedSequence: lastGPUCompletedSequence,
+            lastAdaptiveCommittedSequence: lastAdaptiveCommittedSequence
         )
     }
 }
 
-private final class SceneShadowState: @unchecked Sendable {
+/// Owns every causal state used to encode one frame. Automatic completion
+/// updates are calculated in a value-semantic candidate and published only
+/// after every required component has accepted the sequence.
+final class HDRAdaptiveStateStore: @unchecked Sendable {
     private let lock = NSLock()
-    private var control = HDRTemporalControlState()
-    private var generation: UInt64 = 0
+    private var state = HDRAdaptiveState()
 
-    func value() -> (floor: Float, top: Float, valid: Bool) {
-        lock.lock()
-        defer { lock.unlock() }
-        return (control.shadowFloor, control.shadowTop, control.shadowStatisticsValid)
+    var generation: UInt64 { lock.withLock { state.generation } }
+
+    func snapshot() -> HDRAdaptiveStateSnapshot {
+        lock.withLock { state.snapshot() }
     }
 
-    func snapshot() -> (floor: Float, top: Float, valid: Bool, sequence: UInt64) {
-        lock.lock()
-        defer { lock.unlock() }
-        return (control.shadowFloor, control.shadowTop, control.shadowStatisticsValid, control.shadowSequence)
+    func temporalAdaptation() -> Float {
+        lock.withLock { state.temporal.adaptation }
     }
 
-    func advanceGeneration(to generation: UInt64, reset: Bool) {
-        lock.lock()
-        self.generation = generation
-        if reset { control.reset() }
-        lock.unlock()
+    func sceneCoordinates() -> (floor: Float, top: Float, valid: Bool) {
+        lock.withLock {
+            (state.scene.shadowFloor, state.scene.shadowTop, state.scene.shadowStatisticsValid)
+        }
     }
 
-    func update(statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
-        lock.lock()
-        control.updateStatistics(statistics, stability: stability, sceneCut: sceneCut)
-        lock.unlock()
+    func sceneStatistics() -> HDRSceneStatistics {
+        lock.withLock { state.smoothedStatistics }
     }
 
-    /// Returns the exact state snapshot produced by this completion. The
-    /// sequence guard prevents an out-of-order completion from changing the
-    /// causal control state.
+    func advanceGeneration(to generation: UInt64, resetTemporal: Bool, resetScene: Bool) {
+        lock.withLock {
+            state.generation = generation
+            state.committedSequence = 0
+            state.lastGPUCompletedSequence = 0
+            state.lastAdaptiveCommittedSequence = 0
+            if resetTemporal { state.temporal.reset() }
+            if resetScene {
+                state.scene.reset()
+                state.smoothedStatistics = .neutral
+            }
+        }
+    }
+
+    func updateTemporal(averageLuminance: Float, stability: Float, sceneCut: Bool) {
+        lock.withLock {
+            state.temporal.updateAverage(
+                averageLuminance: averageLuminance,
+                stability: stability,
+                sceneCut: sceneCut
+            )
+        }
+    }
+
+    func updateScene(statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
+        lock.withLock {
+            guard statistics.isFinite else { return }
+            let shouldSnap = sceneCut || !state.scene.shadowStatisticsValid
+            state.scene.updateStatistics(statistics, stability: stability, sceneCut: sceneCut)
+            state.smoothedStatistics = HDRSceneStatistics.causalBlend(
+                previous: state.smoothedStatistics,
+                target: statistics,
+                stability: stability,
+                sceneCut: shouldSnap,
+                deltaSeconds: HDRTemporalControlState.referenceFrameDurationSeconds
+            )
+        }
+    }
+
+    /// Records a completed estimator command independently from whether its
+    /// causal state was accepted. The sequence is scoped to the current
+    /// generation, so a completion from before a reset cannot advance it.
+    @discardableResult
+    func recordGPUCompletion(sequence: UInt64, generation: UInt64) -> Bool {
+        lock.withLock {
+            guard generation == state.generation else { return false }
+            state.lastGPUCompletedSequence = max(state.lastGPUCompletedSequence, sequence)
+            return true
+        }
+    }
+
+    var lastGPUCompletedSequence: UInt64 {
+        lock.withLock { state.lastGPUCompletedSequence }
+    }
+
+    var lastAdaptiveCommittedSequence: UInt64 {
+        lock.withLock { state.lastAdaptiveCommittedSequence }
+    }
+
+    @discardableResult
     func updateAutomatic(
         statistics: HDRSceneStatistics,
         averageLuminance: Float,
         stability: Float,
         sequence: UInt64,
-        generation: UInt64
-    ) -> (applied: Bool, floor: Float, top: Float, valid: Bool, sequence: UInt64) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard generation == self.generation else {
-            return (
-                false,
-                control.shadowFloor,
-                control.shadowTop,
-                control.shadowStatisticsValid,
-                control.shadowSequence
+        generation: UInt64,
+        timestampSeconds: Double?,
+        sceneRelativeEnabled: Bool,
+        rejectSceneCommitForTesting: Bool = false
+    ) -> HDRAdaptiveCompletionUpdate {
+        lock.withLock {
+            let current = snapshotUnlocked()
+            let canApplyTemporal = generation == state.generation &&
+                averageLuminance.isFinite &&
+                sequence > state.committedSequence &&
+                sequence > current.temporal.sequence &&
+                sequence >= state.lastGPUCompletedSequence
+            let canApplyScene = !sceneRelativeEnabled ||
+                (statistics.isFinite && averageLuminance.isFinite && sequence > current.scene.sequence)
+            guard canApplyTemporal, canApplyScene else {
+                return rejectedUpdate(from: current)
+            }
+
+            var candidate = state
+            let previousTemporalSequence = candidate.temporal.automaticSequence
+            _ = candidate.temporal.updateAutomaticAverage(
+                averageLuminance: averageLuminance,
+                stability: stability,
+                sequence: sequence,
+                timestampSeconds: timestampSeconds
+            )
+            // updateAutomaticAverage returns scene-cut status. Its sequence
+            // transition is the acceptance proof for this candidate.
+            guard candidate.temporal.automaticSequence > previousTemporalSequence,
+                  candidate.temporal.automaticSequence == sequence else {
+                return rejectedUpdate(from: current)
+            }
+
+            if sceneRelativeEnabled {
+                let previousSceneSequence = candidate.scene.shadowSequence
+                let sceneCut = candidate.scene.updateAutomaticStatistics(
+                    statistics,
+                    averageLuminance: averageLuminance,
+                    stability: stability,
+                    sequence: sequence,
+                    timestampSeconds: timestampSeconds
+                )
+                // updateAutomaticStatistics returns scene-cut status. Its
+                // sequence transition is the acceptance proof for this
+                // value-semantic candidate; a failed update leaves the
+                // previous sequence untouched.
+                guard candidate.scene.shadowSequence > previousSceneSequence,
+                      candidate.scene.shadowSequence == sequence,
+                      !rejectSceneCommitForTesting else {
+                    return rejectedUpdate(from: current)
+                }
+                candidate.smoothedStatistics = HDRSceneStatistics.causalBlend(
+                    previous: candidate.smoothedStatistics,
+                    target: statistics,
+                    stability: stability,
+                    sceneCut: sceneCut,
+                    deltaSeconds: candidate.scene.lastShadowDeltaSeconds
+                )
+            }
+            candidate.committedSequence = sequence
+            candidate.lastAdaptiveCommittedSequence = sequence
+            guard candidate.transactionInvariantHolds(sceneRelativeEnabled: sceneRelativeEnabled) else {
+                return rejectedUpdate(from: current)
+            }
+            state = candidate
+            let committed = state.snapshot()
+            return HDRAdaptiveCompletionUpdate(
+                applied: true,
+                temporal: committed.temporal,
+                scene: (
+                    floor: committed.scene.floor,
+                    top: committed.scene.top,
+                    valid: committed.scene.valid,
+                    sequence: committed.scene.sequence
+                ),
+                committedSequence: committed.committedSequence
             )
         }
-        let previousSequence = control.shadowSequence
-        _ = control.updateAutomaticStatistics(
-            statistics,
-            averageLuminance: averageLuminance,
-            stability: stability,
-            sequence: sequence
-        )
-        return (
-            control.shadowSequence > previousSequence,
-            control.shadowFloor,
-            control.shadowTop,
-            control.shadowStatisticsValid,
-            control.shadowSequence
+    }
+
+    private func snapshotUnlocked() -> HDRAdaptiveStateSnapshot {
+        state.snapshot()
+    }
+
+    private func rejectedUpdate(from snapshot: HDRAdaptiveStateSnapshot) -> HDRAdaptiveCompletionUpdate {
+        HDRAdaptiveCompletionUpdate(
+            applied: false,
+            temporal: snapshot.temporal,
+            scene: (
+                floor: snapshot.scene.floor,
+                top: snapshot.scene.top,
+                valid: snapshot.scene.valid,
+                sequence: snapshot.scene.sequence
+            ),
+            committedSequence: snapshot.committedSequence
         )
     }
 }
@@ -317,10 +452,58 @@ private struct TemporalLumaStatsStorage {
     var histogram13: UInt32 = 0
     var histogram14: UInt32 = 0
     var histogram15: UInt32 = 0
+    var histogram16: UInt32 = 0
+    var histogram17: UInt32 = 0
+    var histogram18: UInt32 = 0
+    var histogram19: UInt32 = 0
+    var histogram20: UInt32 = 0
+    var histogram21: UInt32 = 0
+    var histogram22: UInt32 = 0
+    var histogram23: UInt32 = 0
+    var histogram24: UInt32 = 0
+    var histogram25: UInt32 = 0
+    var histogram26: UInt32 = 0
+    var histogram27: UInt32 = 0
+    var histogram28: UInt32 = 0
+    var histogram29: UInt32 = 0
+    var histogram30: UInt32 = 0
+    var histogram31: UInt32 = 0
+    var histogram32: UInt32 = 0
+    var histogram33: UInt32 = 0
+    var histogram34: UInt32 = 0
+    var histogram35: UInt32 = 0
+    var histogram36: UInt32 = 0
+    var histogram37: UInt32 = 0
+    var histogram38: UInt32 = 0
+    var histogram39: UInt32 = 0
+    var histogram40: UInt32 = 0
+    var histogram41: UInt32 = 0
+    var histogram42: UInt32 = 0
+    var histogram43: UInt32 = 0
+    var histogram44: UInt32 = 0
+    var histogram45: UInt32 = 0
+    var histogram46: UInt32 = 0
+    var histogram47: UInt32 = 0
+    var histogram48: UInt32 = 0
+    var histogram49: UInt32 = 0
+    var histogram50: UInt32 = 0
+    var histogram51: UInt32 = 0
+    var histogram52: UInt32 = 0
+    var histogram53: UInt32 = 0
+    var histogram54: UInt32 = 0
+    var histogram55: UInt32 = 0
+    var histogram56: UInt32 = 0
+    var histogram57: UInt32 = 0
+    var histogram58: UInt32 = 0
+    var histogram59: UInt32 = 0
+    var histogram60: UInt32 = 0
+    var histogram61: UInt32 = 0
+    var histogram62: UInt32 = 0
+    var histogram63: UInt32 = 0
 
     var histogram: [UInt32] {
-        [histogram0, histogram1, histogram2, histogram3, histogram4, histogram5, histogram6, histogram7,
-         histogram8, histogram9, histogram10, histogram11, histogram12, histogram13, histogram14, histogram15]
+        [histogram0, histogram1, histogram2, histogram3, histogram4, histogram5, histogram6, histogram7, histogram8, histogram9, histogram10, histogram11, histogram12, histogram13, histogram14, histogram15, histogram16, histogram17, histogram18, histogram19, histogram20, histogram21, histogram22, histogram23, histogram24, histogram25, histogram26, histogram27, histogram28, histogram29, histogram30, histogram31,
+         histogram32, histogram33, histogram34, histogram35, histogram36, histogram37, histogram38, histogram39, histogram40, histogram41, histogram42, histogram43, histogram44, histogram45, histogram46, histogram47, histogram48, histogram49, histogram50, histogram51, histogram52, histogram53, histogram54, histogram55, histogram56, histogram57, histogram58, histogram59, histogram60, histogram61, histogram62, histogram63]
     }
 }
 
@@ -354,6 +537,7 @@ private final class TemporalEstimateBufferLifetime: @unchecked Sendable {
 }
 
 public struct HDRTemporalSubmissionTrace: Equatable, Sendable {
+    public let generation: UInt64
     public let submissionSequence: UInt64
     public let temporalStateVersionConsumed: UInt64
     public let sceneStateVersionConsumed: UInt64
@@ -364,7 +548,14 @@ public struct HDRTemporalSubmissionTrace: Equatable, Sendable {
 }
 
 public struct HDRTemporalCompletionTrace: Equatable, Sendable {
+    public let generation: UInt64
     public let submissionSequence: UInt64
+    /// The command-buffer sequence observed as completed by the GPU.  A
+    /// completion trace is emitted only after the adaptive transaction below
+    /// has accepted the same sequence, but keeping both names explicit avoids
+    /// conflating GPU completion with causal-state publication.
+    public let gpuCompletionSequence: UInt64
+    public let adaptiveCommittedSequence: UInt64
     public let temporalStateVersionProduced: UInt64
     public let sceneStateVersionProduced: UInt64
     public let temporalAdaptationProduced: Float
@@ -374,43 +565,17 @@ public struct HDRTemporalCompletionTrace: Equatable, Sendable {
 }
 
 
-private final class TemporalCompletionBookkeeping: @unchecked Sendable {
+private final class TemporalTraceStore: @unchecked Sendable {
     private let lock = NSLock()
     private var generationStorage: UInt64 = 0
-    private var lastCompletedSequenceStorage: UInt64 = 0
     private var traceEnabledStorage = false
-
-    var lastCompletedSequence: UInt64 {
-        lock.withLock { lastCompletedSequenceStorage }
-    }
+    private var submissions: [HDRTemporalSubmissionTrace] = []
+    private var completions: [HDRTemporalCompletionTrace] = []
 
     var traceEnabled: Bool {
         get { lock.withLock { traceEnabledStorage } }
         set { lock.withLock { traceEnabledStorage = newValue } }
     }
-
-    func advanceGeneration(to generation: UInt64) {
-        lock.withLock {
-            generationStorage = generation
-            lastCompletedSequenceStorage = 0
-        }
-    }
-
-    @discardableResult
-    func recordCompleted(sequence: UInt64, generation: UInt64) -> Bool {
-        lock.withLock {
-            guard generation == generationStorage else { return false }
-            lastCompletedSequenceStorage = max(lastCompletedSequenceStorage, sequence)
-            return true
-        }
-    }
-}
-
-private final class TemporalTraceStore: @unchecked Sendable {
-    private let lock = NSLock()
-    private var generationStorage: UInt64 = 0
-    private var submissions: [HDRTemporalSubmissionTrace] = []
-    private var completions: [HDRTemporalCompletionTrace] = []
 
     func advanceGeneration(to generation: UInt64) {
         lock.withLock { generationStorage = generation }
@@ -459,21 +624,26 @@ public final class HDRProcessor {
     private let outputPool: OutputTexturePool
     private let stateLock = NSLock()
     private var currentConfiguration: HDRConfiguration
-    private let temporalState = TemporalState()
-    private let sceneShadowState = SceneShadowState()
+    private let adaptiveState = HDRAdaptiveStateStore()
     private let temporalEstimateBuffers: TemporalEstimateBufferPool
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
+    private var debugPresetLabel = "configuration"
+    private var configurationGenerationStorage: UInt64 = 0
     private var automaticTemporalEnabled = true
     private var temporalSubmissionSequenceStorage: UInt64 = 0
     private var temporalGenerationStorage: UInt64 = 0
-    private let temporalCompletionBookkeeping = TemporalCompletionBookkeeping()
     private let temporalTraceStore = TemporalTraceStore()
 
     public var configuration: HDRConfiguration {
         stateLock.lock()
         defer { stateLock.unlock() }
         return currentConfiguration
+    }
+
+    /// Diagnostic metadata only. The shader never reads this generation.
+    public var configurationGeneration: UInt64 {
+        stateLock.withLock { configurationGenerationStorage }
     }
 
     /// Enables an additional atomic-statistics shader variant. Keep this off
@@ -494,6 +664,15 @@ public final class HDRProcessor {
 
     public var lastDebugStatistics: HDRDebugStatistics? {
         debugStore.value
+    }
+
+    public var lastFrameDiagnostic: HDRFrameDiagnosticSnapshot? {
+        debugStore.diagnosticValue
+    }
+
+    public var diagnosticPresetLabel: String {
+        get { stateLock.withLock { debugPresetLabel } }
+        set { stateLock.withLock { debugPresetLabel = newValue } }
     }
 
     /// Enables the 16x9 asynchronous source-luminance estimator. It adds 144
@@ -540,14 +719,18 @@ public final class HDRProcessor {
         )
     }
 
-    public init(device: MTLDevice, configuration: HDRConfiguration = .hdr) throws {
+    public init(
+        device: MTLDevice,
+        configuration: HDRConfiguration = .hdr,
+        commandQueue: MTLCommandQueue? = nil
+    ) throws {
         do {
             self.currentConfiguration = try configuration.validated()
         } catch let error as HDRConfigurationError {
             throw HDRProcessorError.configuration(error)
         }
         self.device = device
-        self.context = try MetalContext(device: device)
+        self.context = try MetalContext(device: device, commandQueue: commandQueue)
         self.outputPool = OutputTexturePool(device: device)
         self.temporalEstimateBuffers = TemporalEstimateBufferPool(device: device)
     }
@@ -558,6 +741,7 @@ public final class HDRProcessor {
             let validated = try configuration.validated()
             stateLock.withLock {
                 currentConfiguration = validated
+                configurationGenerationStorage &+= 1
                 // Frames already in flight captured the previous constants.
                 // Preserve the causal history, but reject their late updates.
                 advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
@@ -577,7 +761,7 @@ public final class HDRProcessor {
             // causal state. Reject automatic completions submitted before it
             // instead of allowing one to overwrite this update afterward.
             advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
-            temporalState.update(
+            adaptiveState.updateTemporal(
                 averageLuminance: averageLuminance,
                 stability: currentConfiguration.temporalStability,
                 sceneCut: sceneCut
@@ -594,7 +778,7 @@ public final class HDRProcessor {
             // Keep manual temporal/scene control atomic with respect to the
             // generation observed by asynchronous GPU completions.
             advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
-            sceneShadowState.update(
+            adaptiveState.updateScene(
                 statistics: statistics,
                 stability: currentConfiguration.temporalStability,
                 sceneCut: sceneCut
@@ -605,7 +789,15 @@ public final class HDRProcessor {
     /// Current causal scene-relative shadow coordinates, useful for the
     /// offline/runtime equivalence harness and DEBUG diagnostics.
     public var sceneShadowCoordinates: (floor: Float, top: Float, valid: Bool) {
-        sceneShadowState.value()
+        adaptiveState.sceneCoordinates()
+    }
+
+    /// The causal percentile state consumed by development controllers. It is
+    /// updated only from completed 16x9 estimator results and is smoothed with
+    /// the configured temporal stability. V4's production shader does not
+    /// read these percentile fields.
+    public var causalSceneStatistics: HDRSceneStatistics {
+        adaptiveState.sceneStatistics()
     }
 
     /// Resets temporal history at a seek/scene boundary. Offline calibration
@@ -614,7 +806,7 @@ public final class HDRProcessor {
         stateLock.withLock {
             let stability = currentConfiguration.temporalStability
             advanceTemporalGenerationLocked(resetTemporal: true, resetScene: false)
-            temporalState.update(
+            adaptiveState.updateTemporal(
                 averageLuminance: averageLuminance,
                 stability: stability,
                 sceneCut: true
@@ -629,9 +821,10 @@ public final class HDRProcessor {
         }
     }
 
-    /// Must be called with stateLock held.  State objects validate this
-    /// generation while holding their own locks, closing the reset/completion
-    /// race rather than relying on a check performed before the update.
+    /// Must be called with stateLock held.  HDRAdaptiveStateStore validates
+    /// this generation while holding its transaction lock, closing the
+    /// reset/completion race rather than relying on a check performed before
+    /// the update.
     @discardableResult
     private func advanceTemporalGenerationLocked(
         resetTemporal: Bool,
@@ -639,31 +832,50 @@ public final class HDRProcessor {
     ) -> UInt64 {
         temporalGenerationStorage &+= 1
         let generation = temporalGenerationStorage
-        temporalState.advanceGeneration(to: generation, reset: resetTemporal)
-        sceneShadowState.advanceGeneration(to: generation, reset: resetScene)
-        temporalCompletionBookkeeping.advanceGeneration(to: generation)
+        adaptiveState.advanceGeneration(
+            to: generation,
+            resetTemporal: resetTemporal,
+            resetScene: resetScene
+        )
         temporalTraceStore.advanceGeneration(to: generation)
         return generation
     }
 
     /// Exposed for calibration diagnostics; it does not synchronize with GPU.
-    public var temporalAdaptation: Float { temporalState.value() }
+    public var temporalAdaptation: Float { adaptiveState.temporalAdaptation() }
 
     public var temporalSubmissionSequence: UInt64 {
         stateLock.withLock { temporalSubmissionSequenceStorage }
     }
 
-    /// Highest temporal frame whose completion handler has updated causal state.
+    /// Current causal generation. A seek, reset, or configuration change
+    /// increments this value and invalidates older GPU completions.
+    public var temporalGeneration: UInt64 {
+        stateLock.withLock { temporalGenerationStorage }
+    }
+
+    /// Current-generation GPU estimator completion sequence. This can advance
+    /// even when the corresponding adaptive update is rejected.
+    public var lastGPUCompletedSequence: UInt64 {
+        adaptiveState.lastGPUCompletedSequence
+    }
+
+    /// Highest current-generation sequence whose adaptive state was accepted.
+    public var lastAdaptiveCommittedSequence: UInt64 {
+        adaptiveState.lastAdaptiveCommittedSequence
+    }
+
+    /// Compatibility alias for clients that used the old ambiguous name.
     public var lastCompletedTemporalSequence: UInt64 {
-        temporalCompletionBookkeeping.lastCompletedSequence
+        lastAdaptiveCommittedSequence
     }
 
     /// Test/debug-only temporal trace instrumentation. Disabled by default and
     /// never required by the realtime path. It records the exact causal state
     /// encoded into each submitted frame plus the state produced at completion.
     public var temporalTraceEnabled: Bool {
-        get { temporalCompletionBookkeeping.traceEnabled }
-        set { temporalCompletionBookkeeping.traceEnabled = newValue }
+        get { temporalTraceStore.traceEnabled }
+        set { temporalTraceStore.traceEnabled = newValue }
     }
 
     public func clearTemporalTrace() { temporalTraceStore.clear() }
@@ -675,15 +887,25 @@ public final class HDRProcessor {
     /// CVPixelBuffer alive and unmodified until that command buffer completes.
     public func process(
         pixelBuffer: CVPixelBuffer,
-        commandBuffer: MTLCommandBuffer? = nil
+        commandBuffer: MTLCommandBuffer? = nil,
+        diagnosticFrameIndex: UInt64 = 0,
+        diagnosticROI: HDRDiagnosticROI? = nil
     ) throws -> HDRFrame {
-        try process(pixelBuffer: pixelBuffer, timestamp: nil, commandBuffer: commandBuffer)
+        try process(
+            pixelBuffer: pixelBuffer,
+            timestamp: nil,
+            commandBuffer: commandBuffer,
+            diagnosticFrameIndex: diagnosticFrameIndex,
+            diagnosticROI: diagnosticROI
+        )
     }
 
     public func process(
         pixelBuffer: CVPixelBuffer,
         timestamp: CMTime?,
-        commandBuffer: MTLCommandBuffer? = nil
+        commandBuffer: MTLCommandBuffer? = nil,
+        diagnosticFrameIndex: UInt64 = 0,
+        diagnosticROI: HDRDiagnosticROI? = nil
     ) throws -> HDRFrame {
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
@@ -698,30 +920,52 @@ public final class HDRProcessor {
         let processState: (
             configuration: HDRConfiguration,
             debugEnabled: Bool,
-            temporalSubmission: (sequence: UInt64, generation: UInt64)?,
+            diagnosticPresetLabel: String,
+            configurationGeneration: UInt64,
+            temporalSubmission: (
+                sequence: UInt64,
+                generation: UInt64,
+                timestampSeconds: Double?
+            )?,
             temporalSnapshot: (adaptation: Float, sequence: UInt64),
-            sceneSnapshot: (floor: Float, top: Float, valid: Bool, sequence: UInt64)
+            sceneSnapshot: (
+                floor: Float,
+                top: Float,
+                valid: Bool,
+                sequence: UInt64,
+                statistics: HDRSceneStatistics
+            )
         ) = stateLock.withLock {
-            let submission: (sequence: UInt64, generation: UInt64)?
+            let submission: (
+                sequence: UInt64,
+                generation: UInt64,
+                timestampSeconds: Double?
+            )?
             if automaticTemporalEnabled {
                 temporalSubmissionSequenceStorage &+= 1
                 submission = (
                     sequence: temporalSubmissionSequenceStorage,
-                    generation: temporalGenerationStorage
+                    generation: temporalGenerationStorage,
+                    timestampSeconds: timestamp?.isNumeric == true ? timestamp?.seconds : nil
                 )
             } else {
                 submission = nil
             }
+            let adaptiveSnapshot = self.adaptiveState.snapshot()
             return (
                 currentConfiguration,
                 self.debugEnabled,
+                self.debugPresetLabel,
+                self.configurationGenerationStorage,
                 submission,
-                self.temporalState.snapshot(),
-                self.sceneShadowState.snapshot()
+                adaptiveSnapshot.temporal,
+                adaptiveSnapshot.scene
             )
         }
         let configuration = processState.configuration
         let debugEnabled = processState.debugEnabled
+        let diagnosticPresetLabel = processState.diagnosticPresetLabel
+        let configurationGeneration = processState.configurationGeneration
         let temporalSubmission = processState.temporalSubmission
         let resolvedColor: ResolvedColorDescription
         do {
@@ -750,20 +994,45 @@ public final class HDRProcessor {
             ownsCommandBuffer = true
         }
 
-        let debugBuffer: MTLBuffer?
+        let debugBuffers: DebugBufferLifetime?
         if debugEnabled {
-            guard let createdBuffer = device.makeBuffer(
+            guard let statsBuffer = device.makeBuffer(
                 length: MemoryLayout<HDRDebugStatsStorage>.stride,
                 options: .storageModeShared
             ) else {
                 throw HDRProcessorError.debugBufferCreationFailed
             }
-            createdBuffer.contents()
+            guard let histogramBuffer = device.makeBuffer(
+                length: MemoryLayout<UInt32>.stride * HDRDiagnosticHistogramLayout.valueCount,
+                options: .storageModeShared
+            ), let detailBuffer = device.makeBuffer(
+                length: MemoryLayout<UInt32>.stride * HDRDiagnosticDetailLayout.valueCount,
+                options: .storageModeShared
+            ) else {
+                throw HDRProcessorError.debugBufferCreationFailed
+            }
+            statsBuffer.contents()
                 .assumingMemoryBound(to: HDRDebugStatsStorage.self)
                 .initialize(to: HDRDebugStatsStorage())
-            debugBuffer = createdBuffer
+            histogramBuffer.contents()
+                .assumingMemoryBound(to: UInt32.self)
+                .initialize(repeating: 0, count: HDRDiagnosticHistogramLayout.valueCount)
+            let detailPointer = detailBuffer.contents()
+                .assumingMemoryBound(to: UInt32.self)
+            detailPointer.initialize(repeating: 0, count: HDRDiagnosticDetailLayout.valueCount)
+            for band in 0..<HDRDiagnosticDetailLayout.nearBlackBandCount {
+                let start = HDRDiagnosticDetailLayout.nearBlackBase +
+                    band * HDRDiagnosticDetailLayout.nearBlackStride
+                detailPointer[start + HDRDiagnosticDetailLayout.nearBlackInputMinOffset] = UInt32.max
+                detailPointer[start + HDRDiagnosticDetailLayout.nearBlackCoreMinOffset] = UInt32.max
+            }
+            debugBuffers = DebugBufferLifetime(
+                stats: statsBuffer,
+                histograms: histogramBuffer,
+                details: detailBuffer
+            )
         } else {
-            debugBuffer = nil
+            debugBuffers = nil
         }
 
         let isYUV = inputTextures.y != nil
@@ -777,11 +1046,28 @@ public final class HDRProcessor {
             configuration: configuration,
             color: resolvedColor,
             temporalSnapshot: processState.temporalSnapshot,
-            shadowCoordinates: processState.sceneSnapshot
+            shadowCoordinates: processState.sceneSnapshot,
+            diagnosticROI: diagnosticROI
         )
         var parameters = parameterSnapshot.parameters
+        let debugFrameContext = debugEnabled ? HDRDebugFrameContext(
+            frameIndex: diagnosticFrameIndex == 0
+                ? temporalSubmission?.sequence ?? 0
+                : diagnosticFrameIndex,
+            timestampSeconds: timestamp?.isNumeric == true ? timestamp?.seconds : nil,
+            preset: diagnosticPresetLabel,
+            configurationGeneration: configurationGeneration,
+            configuration: configuration,
+            temporalAdaptation: parameters.temporalAdaptation,
+            temporalSubmissionSequence: temporalSubmission?.sequence ?? 0,
+            sceneShadowFloor: parameters.sceneShadowFloor,
+            sceneShadowTop: parameters.sceneShadowTop,
+            sceneStatisticsValid: parameters.sceneStatisticsValid != 0,
+            roi: diagnosticROI
+        ) : nil
         if temporalTraceEnabled, let submission = temporalSubmission {
             temporalTraceStore.append(HDRTemporalSubmissionTrace(
+                generation: submission.generation,
                 submissionSequence: submission.sequence,
                 temporalStateVersionConsumed: parameterSnapshot.temporalVersion,
                 sceneStateVersionConsumed: parameterSnapshot.sceneVersion,
@@ -819,8 +1105,10 @@ public final class HDRProcessor {
             encoder.setTexture(lease.texture, index: 1)
         }
         encoder.setBytes(&parameters, length: MemoryLayout<HDRShaderParameters>.stride, index: 0)
-        if let debugBuffer {
-            encoder.setBuffer(debugBuffer, offset: 0, index: 1)
+        if let debugBuffers {
+            encoder.setBuffer(debugBuffers.stats, offset: 0, index: 1)
+            encoder.setBuffer(debugBuffers.histograms, offset: 0, index: 2)
+            encoder.setBuffer(debugBuffers.details, offset: 0, index: 3)
         }
         let threads = context.threadgroupSize(for: pipeline)
         encoder.dispatchThreads(
@@ -853,76 +1141,72 @@ public final class HDRProcessor {
         // Retain CVMetalTexture wrappers and the pixel buffer through GPU
         // completion. No CPU copy is introduced by this lifetime guarantee.
         let inputLifetime = GPUInputLifetime(pixelBuffer: pixelBuffer, metalTextures: inputTextures.retainedMetalTextures)
-        let debugLifetime = debugBuffer.map { DebugBufferLifetime(buffer: $0) }
+        let debugLifetime = debugBuffers
         let debugStore = self.debugStore
-        let temporalState = self.temporalState
-        let sceneShadowState = self.sceneShadowState
+        let adaptiveState = self.adaptiveState
         let temporalStability = configuration.temporalStability
-        let sceneRelativeEnabled = configuration.toneCurveRevision == .sceneRelativeV4
+        let histogramStrategy = configuration.sceneHistogramStrategy
+        let sceneRelativeEnabled = configuration.toneCurveRevision == .sceneRelativeV4 ||
+            configuration.toneCurveRevision == .sceneRelativeV6Candidate ||
+            configuration.toneCurveRevision == .sceneAdaptiveV62Candidate
         let temporalEstimateLifetime = temporalEstimateBuffer.map(TemporalEstimateBufferLifetime.init)
-        let temporalCompletionBookkeeping = self.temporalCompletionBookkeeping
         let temporalTraceStore = self.temporalTraceStore
-        metalCommandBuffer.addCompletedHandler { [outputLeaseLifetime, inputLifetime, debugLifetime, debugStore, temporalEstimateLifetime, temporalState, sceneShadowState, temporalCompletionBookkeeping, temporalTraceStore] commandBuffer in
+        metalCommandBuffer.addCompletedHandler { [outputLeaseLifetime, inputLifetime, debugLifetime, debugStore, debugFrameContext, temporalEstimateLifetime, adaptiveState, temporalTraceStore, histogramStrategy] commandBuffer in
             _ = outputLeaseLifetime
             _ = inputLifetime
-            if let debugLifetime {
-                debugStore.update(from: debugLifetime.buffer, width: width, height: height, commandBuffer: commandBuffer)
-            }
-            var temporalUpdate: (
-                applied: Bool, adaptation: Float, sequence: UInt64
-            )?
-            var sceneUpdate: (
-                applied: Bool, floor: Float, top: Float,
-                valid: Bool, sequence: UInt64
-            )?
-            var completionAccepted = false
+            var adaptiveUpdate: HDRAdaptiveCompletionUpdate?
+            var adaptiveCompletionAccepted = false
             if commandBuffer.status == .completed,
-               let temporalEstimateLifetime,
                let submission = temporalSubmission {
-                let stats = temporalEstimateLifetime.buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee
-                if stats.sampleCount > 0 {
-                    let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) / 65535
-                    let update = temporalState.updateAutomatic(
-                        averageLuminance: average, stability: temporalStability,
-                        sequence: submission.sequence,
-                        generation: submission.generation
-                    )
-                    if update.applied {
-                        temporalUpdate = update
-                    }
-                    if update.applied, sceneRelativeEnabled {
-                        sceneUpdate = sceneShadowState.updateAutomatic(
-                            statistics: HDRSceneStatistics(histogram: stats.histogram),
+                let gpuCompletionAccepted = adaptiveState.recordGPUCompletion(
+                    sequence: submission.sequence,
+                    generation: submission.generation
+                )
+                if gpuCompletionAccepted,
+                   let temporalEstimateLifetime {
+                    let stats = temporalEstimateLifetime.buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee
+                    if stats.sampleCount > 0 {
+                        let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) / 65535
+                        let update = adaptiveState.updateAutomatic(
+                            statistics: HDRSceneStatistics(histogram: stats.histogram, strategy: histogramStrategy),
                             averageLuminance: average,
                             stability: temporalStability,
                             sequence: submission.sequence,
-                            generation: submission.generation
+                            generation: submission.generation,
+                            timestampSeconds: submission.timestampSeconds,
+                            sceneRelativeEnabled: sceneRelativeEnabled
                         )
-                    }
-                    if update.applied {
-                        completionAccepted = temporalCompletionBookkeeping.recordCompleted(
-                            sequence: submission.sequence,
-                            generation: submission.generation
-                        )
+                        adaptiveUpdate = update
+                        adaptiveCompletionAccepted = update.applied
                     }
                 }
             }
-            if temporalCompletionBookkeeping.traceEnabled,
-               completionAccepted,
-               let temporalUpdate,
+            if temporalTraceStore.traceEnabled,
+               adaptiveCompletionAccepted,
+               let adaptiveUpdate,
                let submission = temporalSubmission {
-                let sceneSnapshot = sceneUpdate.map {
-                    (floor: $0.floor, top: $0.top, valid: $0.valid, sequence: $0.sequence)
-                } ?? sceneShadowState.snapshot()
                 temporalTraceStore.append(HDRTemporalCompletionTrace(
+                    generation: submission.generation,
                     submissionSequence: submission.sequence,
-                    temporalStateVersionProduced: temporalUpdate.sequence,
-                    sceneStateVersionProduced: sceneSnapshot.sequence,
-                    temporalAdaptationProduced: temporalUpdate.adaptation,
-                    sceneShadowFloorProduced: sceneSnapshot.floor,
-                    sceneShadowTopProduced: sceneSnapshot.top,
-                    sceneStatisticsValidProduced: sceneSnapshot.valid
+                    gpuCompletionSequence: submission.sequence,
+                    adaptiveCommittedSequence: adaptiveUpdate.committedSequence,
+                    temporalStateVersionProduced: adaptiveUpdate.temporal.sequence,
+                    sceneStateVersionProduced: adaptiveUpdate.scene.sequence,
+                    temporalAdaptationProduced: adaptiveUpdate.temporal.adaptation,
+                    sceneShadowFloorProduced: adaptiveUpdate.scene.floor,
+                    sceneShadowTopProduced: adaptiveUpdate.scene.top,
+                    sceneStatisticsValidProduced: adaptiveUpdate.scene.valid
                 ), generation: submission.generation)
+            }
+            if commandBuffer.status == .completed,
+               let debugLifetime,
+               let debugFrameContext {
+                debugStore.update(
+                    from: debugLifetime,
+                    context: debugFrameContext,
+                    commandBuffer: commandBuffer,
+                    lastCompletedTemporalSequence: adaptiveState.lastAdaptiveCommittedSequence
+                )
             }
         }
         if ownsCommandBuffer {
@@ -941,12 +1225,17 @@ public final class HDRProcessor {
         configuration: HDRConfiguration,
         color: ResolvedColorDescription,
         temporalSnapshot: (adaptation: Float, sequence: UInt64),
-        shadowCoordinates: (floor: Float, top: Float, valid: Bool, sequence: UInt64)
+        shadowCoordinates: (
+            floor: Float,
+            top: Float,
+            valid: Bool,
+            sequence: UInt64,
+            statistics: HDRSceneStatistics
+        ),
+        diagnosticROI: HDRDiagnosticROI?
     ) -> (parameters: HDRShaderParameters, temporalVersion: UInt64, sceneVersion: UInt64) {
         // Capture the exact causal values encoded into this frame. Temporal
-        // and scene statistics deliberately retain independent sequence IDs:
-        // under burst load one completion may advance one state before the
-        // other, and the parity harness must observe that rather than infer it.
+        // and scene statistics come from one atomic adaptive-state snapshot.
         let matrixKind: UInt32
         switch color.metadata.yCbCrMatrix {
         case .bt709: matrixKind = 0
@@ -990,8 +1279,36 @@ public final class HDRProcessor {
             masteringHeadroom: configuration.masteringHeadroom,
             sceneShadowFloor: shadowCoordinates.floor,
             sceneShadowTop: shadowCoordinates.top,
-            sceneStatisticsValid: configuration.toneCurveRevision == .sceneRelativeV4 && shadowCoordinates.valid ? 1 : 0,
-            sceneStatisticsReserved: 0
+            sceneStatisticsValid: (
+                configuration.toneCurveRevision == .sceneRelativeV4 ||
+                configuration.toneCurveRevision == .sceneRelativeV6Candidate ||
+                configuration.toneCurveRevision == .sceneAdaptiveV62Candidate
+            ) && shadowCoordinates.valid ? 1 : 0,
+            sceneStatisticsReserved: 0,
+            histogramStrategy: configuration.sceneHistogramStrategy.metalValue,
+            sceneP01: shadowCoordinates.statistics.p01,
+            sceneP05: shadowCoordinates.statistics.p05,
+            sceneP50: shadowCoordinates.statistics.p50,
+            sceneP90: shadowCoordinates.statistics.p90,
+            sceneP99: shadowCoordinates.statistics.p99,
+            diagnosticROIX: diagnosticROI?.x ?? 0,
+            diagnosticROIY: diagnosticROI?.y ?? 0,
+            diagnosticROIWidth: diagnosticROI?.width ?? 0,
+            diagnosticROIHeight: diagnosticROI?.height ?? 0,
+            diagnosticROIEnabled: diagnosticROI?.isEmpty == false ? 1 : 0,
+            developmentLowMidFadePosition: configuration.developmentLowMidFadePosition,
+            developmentLowMidStrength: configuration.developmentLowMidStrength,
+            developmentExpansionController: configuration.developmentExpansionController.rawValue,
+            developmentExpansionMinimumBudget: configuration.developmentExpansionMinimumBudget,
+            developmentExpansionHighlightLow: configuration.developmentExpansionHighlightLow,
+            developmentExpansionHighlightHigh: configuration.developmentExpansionHighlightHigh,
+            developmentExpansionRangeLow: configuration.developmentExpansionRangeLow,
+            developmentExpansionRangeHigh: configuration.developmentExpansionRangeHigh,
+            developmentExpansionMidtoneLow: configuration.developmentExpansionMidtoneLow,
+            developmentExpansionMidtoneHigh: configuration.developmentExpansionMidtoneHigh,
+            developmentExpansionCombinedHighlightWeight: configuration.developmentExpansionCombinedHighlightWeight,
+            developmentExpansionCombinedRangeWeight: configuration.developmentExpansionCombinedRangeWeight,
+            developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

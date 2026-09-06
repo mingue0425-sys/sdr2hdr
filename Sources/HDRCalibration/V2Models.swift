@@ -108,6 +108,45 @@ public struct V2MetricBreakdown: Codable, Sendable {
     public var weightedContributions: [String: Double]
 }
 
+public extension V2MetricBreakdown {
+    /// Generic source-luminance diagnostic for the V6 structural experiment.
+    /// It is deliberately outside the production objective weights.
+    var diffuseMidtoneError: Double {
+        luminanceRegionErrors["diffuse_midtone"] ?? 0
+    }
+
+    /// Mean signed log luminance error in the generic source-defined diffuse
+    /// midtone range. Positive values mean brighter than the paired HDR
+    /// reference; negative values mean darker.
+    var diffuseMidtoneSignedError: Double {
+        luminanceRegionErrors["diffuse_midtone_signed"] ?? 0
+    }
+
+    var diffuseMidtonePositiveOvershoot: Double {
+        luminanceRegionErrors["diffuse_midtone_positive_overshoot"] ?? 0
+    }
+
+    var diffuseMidtoneNegativeUndershoot: Double {
+        luminanceRegionErrors["diffuse_midtone_negative_undershoot"] ?? 0
+    }
+
+    var diffuseMidtoneMAE: Double {
+        luminanceRegionErrors["diffuse_midtone_mae"] ?? diffuseMidtoneError
+    }
+
+    var diffuseMidtoneOvershoot: Double {
+        luminanceRegionErrors["diffuse_midtone_overshoot"] ?? 0
+    }
+
+    var diffuseMidtoneOvershootP95: Double {
+        luminanceRegionErrors["diffuse_midtone_overshoot_p95"] ?? 0
+    }
+
+    var diffuseMidtoneSampleCount: Double {
+        luminanceRegionErrors["diffuse_midtone_sample_count"] ?? 0
+    }
+}
+
 public struct V2AlignmentStatistics: Codable, Sendable {
     public var sampledFrames: Int
     public var matchedFrames: Int

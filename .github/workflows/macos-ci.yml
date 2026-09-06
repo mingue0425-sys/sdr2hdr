@@ -23,13 +23,30 @@ jobs:
       - name: Verification script syntax and cache regressions
         run: |
           bash -n RUN_MACOS_VERIFY.sh
+          bash -n Tests/generate_tiny_media_fixture.sh
+          bash -n Tests/verify_tiny_media_fixture.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
+      - name: Check self-contained media tools
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            brew install ffmpeg
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+      - name: Self-contained real-media integration
+        run: ./RUN_MACOS_VERIFY.sh self-contained
       - name: Swift tests
-        run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
+        run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
       - name: V4 runtime Metal benchmark
         run: swift test -c debug --disable-index-store --filter CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
+
+      - name: V6.2 Metal CPU parity test
+        run: swift test -c debug --disable-index-store --filter HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference
+
+      - name: V6 Metal CPU parity test
+        run: swift test -c debug --disable-index-store --filter HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference
 
       - name: BGRA zero-copy Metal test
         run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests/testBGRAFallbackUsesZeroCopyTexturePathAndMatchesReference

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "purpose": "V4.1 visual development diagnostics only",
+  "entries": [
+    {
+      "id": "test6",
+      "path": "test6.mp4",
+      "categories": [
+        "skin",
+        "near-black",
+        "scene-cut",
+        "highlight",
+        "neon"
+      ],
+      "notes": "Optional user-provided local development asset. This manifest is separate from calibration and objective-evaluation manifests."
+    }
+  ]
+}

@@ -28,6 +28,39 @@ public enum HDRToneCurveRevision: UInt32, Sendable {
     /// V4 uses scene-relative percentile coordinates supplied by the causal
     /// runtime estimator.
     case sceneRelativeV4 = 2
+    /// Development-only V6 candidate revision. This is never a production
+    /// preset; it keeps the V4 parameters while bounding the low-mid term.
+    case sceneRelativeV6Candidate = 3
+    /// Development-only V6.2 candidate revision. It keeps the V4 tone curve
+    /// and applies a bounded, source-statistics-only low-mid budget.
+    case sceneAdaptiveV62Candidate = 4
+}
+
+/// Offline comparison strategies for the scene-statistics estimator. The
+/// runtime V4 path uses `linear64`; the other layouts remain diagnostic-only.
+public enum HDRSceneHistogramStrategy: String, CaseIterable, Codable, Sendable {
+    case linear16
+    case linear64
+    case log64
+    case shadowDense64
+
+    /// The strategy used by the current V4 runtime after 8395ee4. Keeping it
+    /// explicit lets diagnostics compare the old estimator and candidates
+    /// without silently changing the production path.
+    public static let production: HDRSceneHistogramStrategy = .linear64
+
+    public var metalValue: UInt32 {
+        switch self {
+        case .linear16: return 0
+        case .linear64: return 1
+        case .log64: return 2
+        case .shadowDense64: return 3
+        }
+    }
+
+    public var binCount: Int {
+        self == .linear16 ? 16 : 64
+    }
 }
 
 /// Low-cost source-luminance statistics used by the V4 scene-relative shadow
@@ -37,7 +70,10 @@ public enum HDRToneCurveRevision: UInt32, Sendable {
 public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     public static let productionProxyWidth = 16
     public static let productionProxyHeight = 9
-    public static let productionHistogramBinCount = 16
+    /// The production estimator retains the existing 16x9 sample count but
+    /// uses 64 linear bins so the shadow percentiles do not collapse every
+    /// value below 0.0625 into one bucket.
+    public static let productionHistogramBinCount = 64
     public var p01: Float
     public var p05: Float
     public var p10: Float
@@ -95,21 +131,40 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
         return min(max(values.reduce(0, +) / Float(values.count), 0.001), 1)
     }
 
-    /// Converts the fixed 16-bin GPU histogram into percentile estimates. The
-    /// estimator is deliberately coarse; its purpose is a stable control
-    /// signal, not a diagnostic-quality histogram.
+    /// Converts the fixed 64-bin GPU histogram into percentile estimates. The
+    /// sparse proxy remains intentionally low cost; the extra bins improve
+    /// shadow ordering without changing the 16x9 sampling pattern.
     public init(histogram: [UInt32]) {
-        let bins = Array(histogram.prefix(Self.productionHistogramBinCount)) +
+        self.init(histogram: histogram, strategy: .production)
+    }
+
+    /// Decodes the fixed storage layout using the strategy that encoded it.
+    /// Linear16 still uses the first 16 slots of the shared 64-slot buffer;
+    /// log and shadow-dense strategies use all 64 slots.
+    public init(histogram: [UInt32], strategy: HDRSceneHistogramStrategy) {
+        let storage = Array(histogram.prefix(Self.productionHistogramBinCount)) +
             Array(repeating: 0, count: max(0, Self.productionHistogramBinCount - histogram.count))
+        let bins = Array(storage.prefix(strategy.binCount))
         let total = bins.reduce(0, +)
         func quantile(_ fraction: Double) -> Float {
             guard total > 0 else { return 0 }
-            let target = UInt64(Double(total) * fraction)
+            let target = max(UInt64(1), UInt64(Double(total) * fraction))
             var cumulative: UInt64 = 0
             for (index, count) in bins.enumerated() {
                 cumulative += UInt64(count)
                 if cumulative >= target {
-                    return (Float(index) + 0.5) / Float(Self.productionHistogramBinCount)
+                    switch strategy {
+                    case .linear16, .linear64:
+                        return (Float(index) + 0.5) / Float(strategy.binCount)
+                    case .log64:
+                        let logCenter = -16 + (Float(index) + 0.5) * 16 / Float(strategy.binCount)
+                        return pow(2, logCenter)
+                    case .shadowDense64:
+                        if index < 32 {
+                            return (Float(index) + 0.5) / 32 * 0.125
+                        }
+                        return 0.125 + (Float(index - 32) + 0.5) / 32 * 0.875
+                    }
                 }
             }
             return 1
@@ -125,13 +180,69 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     /// caller must provide the same 16x9 linear-light samples that the Metal
     /// estimator reads; no exact-percentile fallback is permitted here.
     public init(productionLinearSamples: [Float]) {
-        var bins = Array(repeating: UInt32(0), count: Self.productionHistogramBinCount)
-        for value in productionLinearSamples where value.isFinite {
-            let clamped = min(max(value, 0), 0.999999)
-            let bin = min(Int(clamped * Float(Self.productionHistogramBinCount)), Self.productionHistogramBinCount - 1)
+        self.init(linearSamples: productionLinearSamples, strategy: .production)
+    }
+
+    /// Offline estimator comparison used by correctness diagnostics. It
+    /// mirrors bucketed percentile behavior while keeping alternative layouts
+    /// out of the production shader.
+    public init(linearSamples: [Float], strategy: HDRSceneHistogramStrategy) {
+        let binCount: Int
+        switch strategy {
+        case .linear16:
+            binCount = 16
+        case .linear64, .log64, .shadowDense64:
+            binCount = 64
+        }
+        var bins = Array(repeating: UInt32(0), count: binCount)
+        for value in linearSamples where value.isFinite {
+            let bin: Int
+            switch strategy {
+            case .linear16, .linear64:
+                let clamped = min(max(value, 0), 0.999999)
+                bin = min(Int(clamped * Float(binCount)), binCount - 1)
+            case .log64:
+                let clamped = min(max(value, pow(2, -16)), 1)
+                let normalized = (log2(clamped) + 16) / 16
+                bin = min(max(Int(normalized * Float(binCount)), 0), binCount - 1)
+            case .shadowDense64:
+                let clamped = min(max(value, 0), 0.999999)
+                if clamped < 0.125 {
+                    bin = min(Int(clamped / 0.125 * 32), 31)
+                } else {
+                    bin = min(32 + Int((clamped - 0.125) / 0.875 * 32), 63)
+                }
+            }
             bins[bin] &+= 1
         }
-        self.init(histogram: bins)
+        let total = bins.reduce(0, +)
+        func quantile(_ fraction: Double) -> Float {
+            guard total > 0 else { return 0 }
+            let target = max(UInt64(1), UInt64(Double(total) * fraction))
+            var cumulative: UInt64 = 0
+            for (index, count) in bins.enumerated() {
+                cumulative += UInt64(count)
+                guard cumulative >= target else { continue }
+                switch strategy {
+                case .linear16, .linear64:
+                    return (Float(index) + 0.5) / Float(binCount)
+                case .log64:
+                    let logCenter = -16 + (Float(index) + 0.5) * 16 / Float(binCount)
+                    return pow(2, logCenter)
+                case .shadowDense64:
+                    if index < 32 {
+                        return (Float(index) + 0.5) / 32 * 0.125
+                    }
+                    return 0.125 + (Float(index - 32) + 0.5) / 32 * 0.875
+                }
+            }
+            return 1
+        }
+        self.init(
+            p01: quantile(0.01), p05: quantile(0.05), p10: quantile(0.10),
+            p25: quantile(0.25), p50: quantile(0.50), p90: quantile(0.90),
+            p99: quantile(0.99)
+        )
     }
 
     /// Quantizes a linear sample exactly as the production atomic estimator
@@ -175,6 +286,38 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
         min(max(p50, 0.001), 1)
     }
 
+    /// Causal percentile smoothing shared by the V4 scene state and the
+    /// development-only V6.2 budget. It has no look-ahead and mirrors the
+    /// scene-anchor transition's stability factor.
+    public static func causalBlend(
+        previous: HDRSceneStatistics,
+        target: HDRSceneStatistics,
+        stability: Float,
+        sceneCut: Bool,
+        deltaSeconds: Double? = nil
+    ) -> HDRSceneStatistics {
+        let alpha = sceneCut
+            ? 1
+            : deltaSeconds.map {
+                HDRTemporalControlState.timeBasedAlpha(
+                    stability: stability,
+                    deltaSeconds: $0
+                )
+            } ?? (1 - min(max(stability, 0), 1))
+        func blend(_ lhs: Float, _ rhs: Float) -> Float {
+            lhs + alpha * (rhs - lhs)
+        }
+        return HDRSceneStatistics(
+            p01: blend(previous.p01, target.p01),
+            p05: blend(previous.p05, target.p05),
+            p10: blend(previous.p10, target.p10),
+            p25: blend(previous.p25, target.p25),
+            p50: blend(previous.p50, target.p50),
+            p90: blend(previous.p90, target.p90),
+            p99: blend(previous.p99, target.p99)
+        )
+    }
+
     public var isFinite: Bool {
         [p01, p05, p10, p25, p50, p90, p99].allSatisfy(\.isFinite)
     }
@@ -197,6 +340,10 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
     private var lastAutomaticSequence: UInt64
     private var previousShadowAverage: Float?
     private var lastShadowSequence: UInt64
+    private var previousAutomaticTimestamp: Double?
+    private var previousShadowTimestamp: Double?
+    private var lastAutomaticDelta: Double?
+    private var lastShadowDelta: Double?
 
     public init() {
         adaptation = 1
@@ -208,10 +355,37 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
         lastAutomaticSequence = 0
         previousShadowAverage = nil
         lastShadowSequence = 0
+        previousAutomaticTimestamp = nil
+        previousShadowTimestamp = nil
+        lastAutomaticDelta = nil
+        lastShadowDelta = nil
     }
 
     public var automaticSequence: UInt64 { lastAutomaticSequence }
     public var shadowSequence: UInt64 { lastShadowSequence }
+    public var lastAutomaticDeltaSeconds: Double? { lastAutomaticDelta }
+    public var lastShadowDeltaSeconds: Double? { lastShadowDelta }
+
+    /// The reference frame duration preserves the old 60 Hz response when a
+    /// caller has no media timestamp. Timestamped processing uses the same
+    /// time constant with a real content delta instead of a frame-count alpha.
+    public static let referenceFrameDurationSeconds = 1.0 / 60.0
+    public static let maximumContinuousDeltaSeconds = 0.5
+
+    public static func timeConstantSeconds(
+        stability: Float,
+        referenceFrameDurationSeconds: Double = Self.referenceFrameDurationSeconds
+    ) -> Double {
+        let oneMinusStability = min(max(1 - stability, 0), 1)
+        guard oneMinusStability > 0 else { return 1_000_000 }
+        return max(referenceFrameDurationSeconds / -log(Double(max(oneMinusStability, 1e-6))), 1e-6)
+    }
+
+    public static func timeBasedAlpha(stability: Float, deltaSeconds: Double) -> Float {
+        guard deltaSeconds.isFinite, deltaSeconds > 0 else { return 0 }
+        let tau = timeConstantSeconds(stability: stability)
+        return Float(1 - exp(-deltaSeconds / tau))
+    }
 
     public mutating func reset() {
         self = HDRTemporalControlState()
@@ -220,22 +394,38 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
     public mutating func updateAverage(averageLuminance: Float, stability: Float, sceneCut: Bool) {
         guard averageLuminance.isFinite else { return }
         let target = Self.clampAverage(averageLuminance)
-        applyAverage(target: target, stability: stability, sceneCut: sceneCut)
+        applyAverage(
+            target: target,
+            stability: stability,
+            sceneCut: sceneCut,
+            deltaSeconds: Self.referenceFrameDurationSeconds
+        )
     }
 
     @discardableResult
     public mutating func updateAutomaticAverage(
         averageLuminance: Float,
         stability: Float,
-        sequence: UInt64
+        sequence: UInt64,
+        timestampSeconds: Double? = nil
     ) -> Bool {
         guard averageLuminance.isFinite, sequence > lastAutomaticSequence else { return false }
         lastAutomaticSequence = sequence
         let target = Self.clampAverage(averageLuminance)
         let sceneCut = Self.isSceneCut(previous: previousAutomaticAverage, current: target)
         previousAutomaticAverage = target
-        applyAverage(target: target, stability: stability, sceneCut: sceneCut)
-        return sceneCut
+        let timing = Self.timing(
+            timestampSeconds: timestampSeconds,
+            previousTimestamp: &previousAutomaticTimestamp
+        )
+        lastAutomaticDelta = timing.deltaSeconds
+        applyAverage(
+            target: target,
+            stability: stability,
+            sceneCut: sceneCut || timing.discontinuity,
+            deltaSeconds: timing.deltaSeconds
+        )
+        return sceneCut || timing.discontinuity
     }
 
     public mutating func updateStatistics(
@@ -244,7 +434,12 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
         sceneCut: Bool
     ) {
         guard statistics.isFinite else { return }
-        applyStatistics(statistics, stability: stability, sceneCut: sceneCut || !shadowStatisticsValid)
+        applyStatistics(
+            statistics,
+            stability: stability,
+            sceneCut: sceneCut || !shadowStatisticsValid,
+            deltaSeconds: Self.referenceFrameDurationSeconds
+        )
     }
 
     @discardableResult
@@ -252,15 +447,26 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
         _ statistics: HDRSceneStatistics,
         averageLuminance: Float,
         stability: Float,
-        sequence: UInt64
+        sequence: UInt64,
+        timestampSeconds: Double? = nil
     ) -> Bool {
         guard statistics.isFinite, averageLuminance.isFinite, sequence > lastShadowSequence else { return false }
         lastShadowSequence = sequence
         let target = Self.clampAverage(averageLuminance)
         let sceneCut = Self.isSceneCut(previous: previousShadowAverage, current: target)
         previousShadowAverage = target
-        applyStatistics(statistics, stability: stability, sceneCut: sceneCut || !shadowStatisticsValid)
-        return sceneCut
+        let timing = Self.timing(
+            timestampSeconds: timestampSeconds,
+            previousTimestamp: &previousShadowTimestamp
+        )
+        lastShadowDelta = timing.deltaSeconds
+        applyStatistics(
+            statistics,
+            stability: stability,
+            sceneCut: sceneCut || timing.discontinuity || !shadowStatisticsValid,
+            deltaSeconds: timing.deltaSeconds
+        )
+        return sceneCut || timing.discontinuity
     }
 
     public static func isSceneCut(previous: Float?, current: Float) -> Bool {
@@ -268,20 +474,30 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
         return abs(log2(max(current, 0.001) / max(previous, 0.001))) > 1.25
     }
 
-    private mutating func applyAverage(target: Float, stability: Float, sceneCut: Bool) {
+    private mutating func applyAverage(
+        target: Float,
+        stability: Float,
+        sceneCut: Bool,
+        deltaSeconds: Double
+    ) {
         if sceneCut {
             smoothedEstimate = target
         } else {
-            let alpha = 1 - min(max(stability, 0), 1)
+            let alpha = Self.timeBasedAlpha(stability: stability, deltaSeconds: deltaSeconds)
             smoothedEstimate += alpha * (target - smoothedEstimate)
         }
         adaptation = Self.adaptation(for: smoothedEstimate)
     }
 
-    private mutating func applyStatistics(_ statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
+    private mutating func applyStatistics(
+        _ statistics: HDRSceneStatistics,
+        stability: Float,
+        sceneCut: Bool,
+        deltaSeconds: Double
+    ) {
         let targetFloor = statistics.shadowFloor
         let targetTop = statistics.shadowTop
-        let alpha = 1 - min(max(stability, 0), 1)
+        let alpha = Self.timeBasedAlpha(stability: stability, deltaSeconds: deltaSeconds)
         if sceneCut {
             shadowFloor = targetFloor
             shadowTop = targetTop
@@ -299,6 +515,30 @@ public struct HDRTemporalControlState: Equatable, Sendable, Codable {
 
     private static func clampAverage(_ value: Float) -> Float {
         min(max(value, 0.001), 1)
+    }
+
+    private static func timing(
+        timestampSeconds: Double?,
+        previousTimestamp: inout Double?
+    ) -> (deltaSeconds: Double, discontinuity: Bool) {
+        guard let timestampSeconds, timestampSeconds.isFinite else {
+            return (Self.referenceFrameDurationSeconds, false)
+        }
+        guard let previous = previousTimestamp else {
+            previousTimestamp = timestampSeconds
+            return (Self.referenceFrameDurationSeconds, false)
+        }
+        let delta = timestampSeconds - previous
+        previousTimestamp = timestampSeconds
+        guard delta > 0, delta.isFinite else {
+            // A repeated or reversed media timestamp is a discontinuity. The
+            // caller's seek/reset path also clears this state explicitly.
+            return (0, true)
+        }
+        if delta > Self.maximumContinuousDeltaSeconds {
+            return (delta, true)
+        }
+        return (delta, false)
     }
 }
 
@@ -350,12 +590,28 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var outputMode: HDROutputMode
     public var toneCurveRevision: HDRToneCurveRevision
+    /// Explicit strategy for the causal scene histogram. The calibrated V4
+    /// production preset uses `linear64`; other strategies are diagnostic
+    /// candidates unless a caller explicitly selects them.
+    public var sceneHistogramStrategy: HDRSceneHistogramStrategy
 
     /// Content/mastering-domain linear headroom. In EDR mode, 1.0 is diffuse
     /// SDR reference white and this value is the largest content signal the
     /// core may emit. Physical display headroom is presentation state and must
     /// not be written into this configuration.
     public var masteringHeadroom: Float
+
+    /// Content ceiling used by the EDR output contract. A preset may describe
+    /// a mastering peak above its requested EDR headroom; EDR output is
+    /// bounded by the smaller value. PQ output retains the configured peak.
+    public var effectiveOutputHeadroom: Float {
+        let peakRatio = peakNits / paperWhiteNits
+        return outputMode == .edr ? min(peakRatio, masteringHeadroom) : peakRatio
+    }
+
+    public var effectivePeakNits: Float {
+        paperWhiteNits * effectiveOutputHeadroom
+    }
 
     /// Source-compatible alias retained for clients built against V1/V2.
     /// Despite its legacy name this is content/mastering headroom, never the
@@ -368,6 +624,27 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// Development-only V6 structural controls. They are ignored by every
+    /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
+    /// its exact production arithmetic and output.
+    public var developmentLowMidFadePosition: Float
+    public var developmentLowMidStrength: Float
+
+    /// Development-only V6.2 scene-adaptive expansion controls. They are
+    /// ignored by every revision except `sceneAdaptiveV62Candidate`; the
+    /// production V4 branch never reads them.
+    public var developmentExpansionController: HDRV62ExpansionController
+    public var developmentExpansionMinimumBudget: Float
+    public var developmentExpansionHighlightLow: Float
+    public var developmentExpansionHighlightHigh: Float
+    public var developmentExpansionRangeLow: Float
+    public var developmentExpansionRangeHigh: Float
+    public var developmentExpansionMidtoneLow: Float
+    public var developmentExpansionMidtoneHigh: Float
+    public var developmentExpansionCombinedHighlightWeight: Float
+    public var developmentExpansionCombinedRangeWeight: Float
+    public var developmentExpansionCombinedMidtoneWeight: Float
+
     public init(
         paperWhiteNits: Float = 203,
         peakNits: Float = 1_000,
@@ -379,7 +656,21 @@ public struct HDRConfiguration: Sendable, Equatable {
         outputMode: HDROutputMode = .edr,
         displayHeadroom: Float = 4.0,
         toneCurveRevision: HDRToneCurveRevision = .legacyV2,
-        inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange
+        sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
+        inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        developmentLowMidFadePosition: Float = 0.55,
+        developmentLowMidStrength: Float = 0.08,
+        developmentExpansionController: HDRV62ExpansionController = .compactCombined,
+        developmentExpansionMinimumBudget: Float = 0.35,
+        developmentExpansionHighlightLow: Float = 0.05,
+        developmentExpansionHighlightHigh: Float = 0.35,
+        developmentExpansionRangeLow: Float = 1.0,
+        developmentExpansionRangeHigh: Float = 3.5,
+        developmentExpansionMidtoneLow: Float = 0.15,
+        developmentExpansionMidtoneHigh: Float = 0.55,
+        developmentExpansionCombinedHighlightWeight: Float = 0.40,
+        developmentExpansionCombinedRangeWeight: Float = 0.35,
+        developmentExpansionCombinedMidtoneWeight: Float = 0.25
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -391,7 +682,21 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.outputMode = outputMode
         self.masteringHeadroom = displayHeadroom
         self.toneCurveRevision = toneCurveRevision
+        self.sceneHistogramStrategy = sceneHistogramStrategy
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.developmentLowMidFadePosition = developmentLowMidFadePosition
+        self.developmentLowMidStrength = developmentLowMidStrength
+        self.developmentExpansionController = developmentExpansionController
+        self.developmentExpansionMinimumBudget = developmentExpansionMinimumBudget
+        self.developmentExpansionHighlightLow = developmentExpansionHighlightLow
+        self.developmentExpansionHighlightHigh = developmentExpansionHighlightHigh
+        self.developmentExpansionRangeLow = developmentExpansionRangeLow
+        self.developmentExpansionRangeHigh = developmentExpansionRangeHigh
+        self.developmentExpansionMidtoneLow = developmentExpansionMidtoneLow
+        self.developmentExpansionMidtoneHigh = developmentExpansionMidtoneHigh
+        self.developmentExpansionCombinedHighlightWeight = developmentExpansionCombinedHighlightWeight
+        self.developmentExpansionCombinedRangeWeight = developmentExpansionCombinedRangeWeight
+        self.developmentExpansionCombinedMidtoneWeight = developmentExpansionCombinedMidtoneWeight
     }
 
     public static let natural = HDRConfiguration(
@@ -487,7 +792,8 @@ public struct HDRConfiguration: Sendable, Equatable {
         temporalStability: 0.7308984,
         outputMode: .edr,
         displayHeadroom: 5.308875,
-        toneCurveRevision: .sceneRelativeV4
+        toneCurveRevision: .sceneRelativeV4,
+        sceneHistogramStrategy: .production
     )
 
     public func validated() throws -> HDRConfiguration {
@@ -499,7 +805,19 @@ public struct HDRConfiguration: Sendable, Equatable {
             ("saturationCompensation", saturationCompensation),
             ("shadowProtection", shadowProtection),
             ("temporalStability", temporalStability),
-            ("masteringHeadroom", masteringHeadroom)
+            ("masteringHeadroom", masteringHeadroom),
+            ("developmentLowMidFadePosition", developmentLowMidFadePosition),
+            ("developmentLowMidStrength", developmentLowMidStrength),
+            ("developmentExpansionMinimumBudget", developmentExpansionMinimumBudget),
+            ("developmentExpansionHighlightLow", developmentExpansionHighlightLow),
+            ("developmentExpansionHighlightHigh", developmentExpansionHighlightHigh),
+            ("developmentExpansionRangeLow", developmentExpansionRangeLow),
+            ("developmentExpansionRangeHigh", developmentExpansionRangeHigh),
+            ("developmentExpansionMidtoneLow", developmentExpansionMidtoneLow),
+            ("developmentExpansionMidtoneHigh", developmentExpansionMidtoneHigh),
+            ("developmentExpansionCombinedHighlightWeight", developmentExpansionCombinedHighlightWeight),
+            ("developmentExpansionCombinedRangeWeight", developmentExpansionCombinedRangeWeight),
+            ("developmentExpansionCombinedMidtoneWeight", developmentExpansionCombinedMidtoneWeight)
         ]
         for (name, value) in finiteValues where !value.isFinite {
             throw HDRConfigurationError.nonFinite(name)
@@ -533,6 +851,39 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard masteringHeadroom >= 1, masteringHeadroom <= 64 else {
             throw HDRConfigurationError.valueOutOfRange("masteringHeadroom (1...64)")
+        }
+        guard (0...1).contains(developmentLowMidFadePosition) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentLowMidFadePosition (0...1)")
+        }
+        guard (0...1).contains(developmentLowMidStrength) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentLowMidStrength (0...1)")
+        }
+        guard (0...1).contains(developmentExpansionMinimumBudget) else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansionMinimumBudget (0...1)")
+        }
+        guard (0...1).contains(developmentExpansionHighlightLow),
+              (0...1).contains(developmentExpansionHighlightHigh),
+              developmentExpansionHighlightHigh >= developmentExpansionHighlightLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion highlight range")
+        }
+        guard developmentExpansionRangeLow.isFinite,
+              developmentExpansionRangeHigh.isFinite,
+              developmentExpansionRangeLow >= 0,
+              developmentExpansionRangeHigh >= developmentExpansionRangeLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion dynamic-range range")
+        }
+        guard (0...1).contains(developmentExpansionMidtoneLow),
+              (0...1).contains(developmentExpansionMidtoneHigh),
+              developmentExpansionMidtoneHigh >= developmentExpansionMidtoneLow else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion midtone range")
+        }
+        guard developmentExpansionCombinedHighlightWeight >= 0,
+              developmentExpansionCombinedRangeWeight >= 0,
+              developmentExpansionCombinedMidtoneWeight >= 0,
+              developmentExpansionCombinedHighlightWeight +
+                developmentExpansionCombinedRangeWeight +
+                developmentExpansionCombinedMidtoneWeight > 0 else {
+            throw HDRConfigurationError.valueOutOfRange("developmentExpansion combined weights")
         }
         return self
     }

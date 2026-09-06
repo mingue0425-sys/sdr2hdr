@@ -58,7 +58,7 @@ let package = Package(
         ),
         .testTarget(
             name: "HDRPlayerTests",
-            dependencies: ["HDRPlayerKit"]
+            dependencies: ["HDRPlayerKit", "HDRCore"]
         ),
         .testTarget(
             name: "HDRCalibrationTests",

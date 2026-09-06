@@ -11,15 +11,27 @@ public struct FrameAnalysis {
 }
 
 public enum ErrorMetrics {
+    private struct PairedSample {
+        let reference: Double
+        let generated: Double
+        let source: Double
+    }
+
+    private struct PairedLuminanceResult {
+        let samples: [PairedSample]
+        let invalidCount: Int
+    }
+
     public static func evaluateScene(
         pairID: String,
         scene: SceneRange,
         analyses: [FrameAnalysis],
         parameters: CalibrationParameters
     ) -> SceneMetrics {
-        let referenceLuma = analyses.flatMap(\.reference.lumaNits).map(Double.init)
-        let generatedLuma = analyses.flatMap(\.generated.lumaNits).map(Double.init)
-        let generatedValues = Array(generatedLuma)
+        let paired = pairedLuminance(analyses)
+        let referenceLuma = paired.samples.map(\.reference)
+        let generatedLuma = paired.samples.map(\.generated)
+        let generatedValues = generatedLuma
         let lumaError = meanLogRatio(referenceLuma, generatedLuma)
         let referenceP90 = percentile(referenceLuma, 0.90)
         let referenceP50 = percentile(referenceLuma, 0.50)
@@ -68,6 +80,7 @@ public enum ErrorMetrics {
             temporalError: finiteOrLarge(temporalError),
             structureError: finiteOrLarge(structureError),
             clippedRatio: clippedRatio,
+            invalidPairedSampleCount: paired.invalidCount,
             errorFamilies: families
         )
     }
@@ -168,6 +181,10 @@ public enum ErrorMetrics {
         var count = 0
         for analysis in analyses {
             for (reference, generated) in zip(analysis.reference.rgbNits, analysis.generated.rgbNits) {
+                guard reference.x.isFinite, reference.y.isFinite, reference.z.isFinite,
+                      generated.x.isFinite, generated.y.isFinite, generated.z.isFinite else {
+                    continue
+                }
                 let referenceLuma = max(simd_dot(reference, HDRColorMath.bt2020Luminance), 1)
                 let generatedLuma = max(simd_dot(generated, HDRColorMath.bt2020Luminance), 1)
                 let referenceChroma = reference / referenceLuma
@@ -184,10 +201,16 @@ public enum ErrorMetrics {
         var total = 0.0
         var count = 0
         for index in 1..<analyses.count {
-            let previousReference = max(analyses[index - 1].reference.lumaNits.reduce(0, +) / Float(max(1, analyses[index - 1].reference.lumaNits.count)), 1)
-            let currentReference = max(analyses[index].reference.lumaNits.reduce(0, +) / Float(max(1, analyses[index].reference.lumaNits.count)), 1)
-            let previousGenerated = max(analyses[index - 1].generated.lumaNits.reduce(0, +) / Float(max(1, analyses[index - 1].generated.lumaNits.count)), 1)
-            let currentGenerated = max(analyses[index].generated.lumaNits.reduce(0, +) / Float(max(1, analyses[index].generated.lumaNits.count)), 1)
+            guard let previousReferenceMean = finiteMean(analyses[index - 1].reference.lumaNits),
+                  let currentReferenceMean = finiteMean(analyses[index].reference.lumaNits),
+                  let previousGeneratedMean = finiteMean(analyses[index - 1].generated.lumaNits),
+                  let currentGeneratedMean = finiteMean(analyses[index].generated.lumaNits) else {
+                continue
+            }
+            let previousReference = max(previousReferenceMean, 1)
+            let currentReference = max(currentReferenceMean, 1)
+            let previousGenerated = max(previousGeneratedMean, 1)
+            let currentGenerated = max(currentGeneratedMean, 1)
             let referenceDelta = log(Double(currentReference / previousReference))
             let generatedDelta = log(Double(currentGenerated / previousGenerated))
             total += abs(referenceDelta - generatedDelta)
@@ -200,9 +223,15 @@ public enum ErrorMetrics {
         var total = 0.0
         var count = 0
         for analysis in analyses {
-            let source = analysis.sourceLuma.map(Double.init)
-            let generated = analysis.generated.lumaNits.map(Double.init)
-            guard source.count == generated.count, source.count > 1,
+            let samples = zip(analysis.sourceLuma, analysis.generated.lumaNits).compactMap { source, generated -> (Double, Double)? in
+                let source = Double(source)
+                let generated = Double(generated)
+                guard source.isFinite, generated.isFinite else { return nil }
+                return (source, generated)
+            }
+            let source = samples.map(\.0)
+            let generated = samples.map(\.1)
+            guard source.count > 1,
                   let correlation = correlation(source, generated) else { continue }
             total += 1 - correlation
             count += 1
@@ -236,6 +265,53 @@ public enum ErrorMetrics {
 
     private static func finiteOrLarge(_ value: Double) -> Double {
         value.isFinite ? value : 1e6
+    }
+
+    private static func pairedLuminance(_ analyses: [FrameAnalysis]) -> PairedLuminanceResult {
+        var samples: [PairedSample] = []
+        var invalidCount = 0
+        for analysis in analyses {
+            let count = max(
+                analysis.reference.lumaNits.count,
+                max(analysis.generated.lumaNits.count, analysis.sourceLuma.count)
+            )
+            for index in 0..<count {
+                guard index < analysis.reference.lumaNits.count,
+                      index < analysis.generated.lumaNits.count,
+                      index < analysis.sourceLuma.count else {
+                    invalidCount += 1
+                    continue
+                }
+                let reference = Double(analysis.reference.lumaNits[index])
+                let generated = Double(analysis.generated.lumaNits[index])
+                let source = Double(analysis.sourceLuma[index])
+                let rgbIsAvailable = index < analysis.reference.rgbNits.count &&
+                    index < analysis.generated.rgbNits.count
+                let rgbIsFinite = !rgbIsAvailable || (
+                    analysis.reference.rgbNits[index].x.isFinite &&
+                    analysis.reference.rgbNits[index].y.isFinite &&
+                    analysis.reference.rgbNits[index].z.isFinite &&
+                    analysis.generated.rgbNits[index].x.isFinite &&
+                    analysis.generated.rgbNits[index].y.isFinite &&
+                    analysis.generated.rgbNits[index].z.isFinite
+                )
+                guard reference.isFinite, generated.isFinite, source.isFinite, rgbIsFinite else {
+                    invalidCount += 1
+                    continue
+                }
+                samples.append(PairedSample(reference: reference, generated: generated, source: source))
+            }
+        }
+        return PairedLuminanceResult(samples: samples, invalidCount: invalidCount)
+    }
+
+    private static func finiteMean(_ values: [Float]) -> Double? {
+        let finite = values.compactMap { value -> Double? in
+            let value = Double(value)
+            return value.isFinite ? value : nil
+        }
+        guard !finite.isEmpty else { return nil }
+        return finite.reduce(0, +) / Double(finite.count)
     }
 }
 

@@ -9,6 +9,20 @@ struct PresentationUniforms {
     uint hasTexture;
     float masteringHeadroom;
     float displayHeadroom;
+    float diagnosticROIX;
+    float diagnosticROIY;
+    float diagnosticROIWidth;
+    float diagnosticROIHeight;
+    uint diagnosticEnabled;
+};
+
+struct PresentationDebugStats {
+    atomic_uint mappedLuminanceSum;
+    atomic_uint mappedLuminanceMax;
+    atomic_uint pixelCount;
+    atomic_uint roiMappedLuminanceSum;
+    atomic_uint roiMappedLuminanceMax;
+    atomic_uint roiPixelCount;
 };
 
 struct PresentationVertexOut {
@@ -42,7 +56,9 @@ inline float2 orientedSourceUV(float2 displayUV, uint orientation) {
     // as top-left for the CVPixelBuffer-derived texture. The vertex UV is
     // bottom-left, so flip Y before applying track orientation.
     float2 topLeftUV = float2(displayUV.x, 1.0f - displayUV.y);
-    switch (orientation) {
+    if ((orientation & 4u) != 0u) topLeftUV.x = 1.0f - topLeftUV.x;
+    if ((orientation & 8u) != 0u) topLeftUV.y = 1.0f - topLeftUV.y;
+    switch (orientation & 3u) {
         case 1: return float2(topLeftUV.y, 1.0f - topLeftUV.x);
         case 2: return float2(1.0f - topLeftUV.x, 1.0f - topLeftUV.y);
         case 3: return float2(1.0f - topLeftUV.y, topLeftUV.x);
@@ -85,11 +101,33 @@ inline float3 mapDirectEDR(float3 rgb, float masteringHeadroom, float displayHea
     return clamp(mapped, 0.0f, ceiling);
 }
 
+inline void accumulatePresentationDebug(
+    float3 mapped,
+    float2 uv,
+    constant PresentationUniforms& uniforms,
+    device PresentationDebugStats* stats
+) {
+    float luminance = clamp(dot(mapped, float3(0.2627f, 0.6780f, 0.0593f)), 0.0f, 64.0f);
+    uint quantized = uint(luminance * 256.0f + 0.5f);
+    atomic_fetch_add_explicit(&stats->mappedLuminanceSum, quantized, memory_order_relaxed);
+    atomic_fetch_max_explicit(&stats->mappedLuminanceMax, quantized, memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->pixelCount, 1u, memory_order_relaxed);
+    if (uniforms.diagnosticROIWidth > 0.0f && uniforms.diagnosticROIHeight > 0.0f &&
+        uv.x >= uniforms.diagnosticROIX && uv.y >= uniforms.diagnosticROIY &&
+        uv.x < uniforms.diagnosticROIX + uniforms.diagnosticROIWidth &&
+        uv.y < uniforms.diagnosticROIY + uniforms.diagnosticROIHeight) {
+        atomic_fetch_add_explicit(&stats->roiMappedLuminanceSum, quantized, memory_order_relaxed);
+        atomic_fetch_max_explicit(&stats->roiMappedLuminanceMax, quantized, memory_order_relaxed);
+        atomic_fetch_add_explicit(&stats->roiPixelCount, 1u, memory_order_relaxed);
+    }
+}
+
 fragment float4 presentationFragment(
     PresentationVertexOut in [[stage_in]],
     texture2d<float, access::sample> sourceTexture [[texture(0)]],
     sampler sourceSampler [[sampler(0)]],
-    constant PresentationUniforms& uniforms [[buffer(0)]]) {
+    constant PresentationUniforms& uniforms [[buffer(0)]],
+    device PresentationDebugStats* debugStats [[buffer(1)]]) {
     float3 color;
     if (uniforms.testPattern != 0) {
         float x = in.uv.x;
@@ -115,6 +153,9 @@ fragment float4 presentationFragment(
         color = clamp(kBT2020ToBT709 * color, 0.0f, 1.0f);
     } else {
         color = mapDirectEDR(color, uniforms.masteringHeadroom, uniforms.displayHeadroom);
+    }
+    if (uniforms.diagnosticEnabled != 0) {
+        accumulatePresentationDebug(color, in.uv, uniforms, debugStats);
     }
     return float4(color, 1.0f);
 }
