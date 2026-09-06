@@ -2,8 +2,16 @@
 set -euo pipefail
 
 REPOSITORY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FIXTURE_PATH="$(mktemp -t sdr2hdr-tiny-fixture).mp4"
-trap 'rm -f "$FIXTURE_PATH"' EXIT
+GENERATED_TEMPORARY_FIXTURE=0
+if [ "$#" -gt 0 ]; then
+  FIXTURE_PATH="$1"
+else
+  FIXTURE_PATH="$(mktemp -t sdr2hdr-tiny-fixture).mp4"
+  GENERATED_TEMPORARY_FIXTURE=1
+fi
+if [ "$GENERATED_TEMPORARY_FIXTURE" -eq 1 ]; then
+  trap 'rm -f "$FIXTURE_PATH"' EXIT
+fi
 
 "$REPOSITORY_ROOT/Tests/generate_tiny_media_fixture.sh" "$FIXTURE_PATH"
 

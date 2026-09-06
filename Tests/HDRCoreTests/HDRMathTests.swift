@@ -496,6 +496,37 @@ final class HDRMathTests: XCTestCase {
         XCTAssertEqual(store.lastAdaptiveCommittedSequence, 0)
     }
 
+    func testOlderAdaptiveResultIsRejectedAfterNewerGPUCompletionWithoutCommit() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+        let before = store.snapshot()
+        let statistics = HDRSceneStatistics(samples: [0.01, 0.20, 0.80])
+
+        XCTAssertTrue(store.recordGPUCompletion(sequence: 3, generation: 1))
+        let rejected = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0.2,
+            sceneRelativeEnabled: true
+        )
+
+        XCTAssertFalse(rejected.applied)
+        XCTAssertEqual(store.lastGPUCompletedSequence, 3)
+        XCTAssertEqual(store.lastAdaptiveCommittedSequence, before.committedSequence)
+        let after = store.snapshot()
+        XCTAssertEqual(after.temporal.sequence, before.temporal.sequence)
+        XCTAssertEqual(after.temporal.adaptation, before.temporal.adaptation, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.floor, before.scene.floor, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.top, before.scene.top, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.valid, before.scene.valid)
+        XCTAssertEqual(after.scene.sequence, before.scene.sequence)
+        XCTAssertEqual(after.scene.statistics, before.scene.statistics)
+        XCTAssertEqual(after.committedSequence, before.committedSequence)
+    }
+
     func testAdaptiveStateDefinesNonSceneRelativeCommitSemantics() {
         let store = HDRAdaptiveStateStore()
         store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)

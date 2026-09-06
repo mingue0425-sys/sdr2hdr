@@ -16,7 +16,9 @@ ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i "testsrc2=size=64x36:rate=24" \
   -t 1 \
   -an \
-  -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
+  -c:v libx264 -pix_fmt yuv420p \
+  -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
+  -movflags +faststart \
   "$OUTPUT_PATH"
 
 echo "generated self-contained fixture: $OUTPUT_PATH"

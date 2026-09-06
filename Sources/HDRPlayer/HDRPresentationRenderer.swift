@@ -155,8 +155,76 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         diagnosticFrameIndex: UInt64 = 0,
         diagnosticROI: HDRDiagnosticROI? = nil
     ) -> Bool {
+        encode(
+            texture: texture,
+            targetTexture: drawable.texture,
+            commandBuffer: commandBuffer,
+            sourceSize: sourceSize,
+            drawableSize: drawableSize,
+            orientation: orientation,
+            fallbackToSDR: fallbackToSDR,
+            testPattern: testPattern,
+            masteringHeadroom: masteringHeadroom,
+            displayHeadroom: displayHeadroom,
+            diagnosticFrameIndex: diagnosticFrameIndex,
+            diagnosticROI: diagnosticROI,
+            present: { commandBuffer.present(drawable) }
+        )
+    }
+
+    /// Encodes the production presentation shader into an offscreen texture.
+    /// This is used by self-contained media verification so CI exercises the
+    /// same mapping pipeline without requiring a CAMetalLayer or NSScreen.
+    @discardableResult
+    public func encodeOffscreen(
+        texture: MTLTexture?,
+        to outputTexture: MTLTexture,
+        commandBuffer: MTLCommandBuffer,
+        sourceSize: CGSize,
+        drawableSize: CGSize,
+        orientation: VideoOrientation,
+        fallbackToSDR: Bool,
+        testPattern: Bool = false,
+        masteringHeadroom: Float,
+        displayHeadroom: Float,
+        diagnosticFrameIndex: UInt64 = 0,
+        diagnosticROI: HDRDiagnosticROI? = nil
+    ) -> Bool {
+        encode(
+            texture: texture,
+            targetTexture: outputTexture,
+            commandBuffer: commandBuffer,
+            sourceSize: sourceSize,
+            drawableSize: drawableSize,
+            orientation: orientation,
+            fallbackToSDR: fallbackToSDR,
+            testPattern: testPattern,
+            masteringHeadroom: masteringHeadroom,
+            displayHeadroom: displayHeadroom,
+            diagnosticFrameIndex: diagnosticFrameIndex,
+            diagnosticROI: diagnosticROI,
+            present: nil
+        )
+    }
+
+    @discardableResult
+    private func encode(
+        texture: MTLTexture?,
+        targetTexture: MTLTexture,
+        commandBuffer: MTLCommandBuffer,
+        sourceSize: CGSize,
+        drawableSize: CGSize,
+        orientation: VideoOrientation,
+        fallbackToSDR: Bool,
+        testPattern: Bool,
+        masteringHeadroom: Float,
+        displayHeadroom: Float,
+        diagnosticFrameIndex: UInt64,
+        diagnosticROI: HDRDiagnosticROI?,
+        present: (() -> Void)?
+    ) -> Bool {
         let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = drawable.texture
+        pass.colorAttachments[0].texture = targetTexture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -211,7 +279,7 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
-        commandBuffer.present(drawable)
+        present?()
         if let diagnosticLifetime {
             commandBuffer.addCompletedHandler { [weak self, diagnosticLifetime] commandBuffer in
                 guard commandBuffer.status == .completed else { return }

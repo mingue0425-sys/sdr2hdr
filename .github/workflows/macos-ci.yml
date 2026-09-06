@@ -23,8 +23,19 @@ jobs:
       - name: Verification script syntax and cache regressions
         run: |
           bash -n RUN_MACOS_VERIFY.sh
+          bash -n Tests/generate_tiny_media_fixture.sh
+          bash -n Tests/verify_tiny_media_fixture.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
+      - name: Check self-contained media tools
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            brew install ffmpeg
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+      - name: Self-contained real-media integration
+        run: ./RUN_MACOS_VERIFY.sh self-contained
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
