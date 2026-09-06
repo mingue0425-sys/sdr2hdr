@@ -658,5 +658,18 @@ final class PlayerLogicTests: XCTestCase {
             "HDRPlayer", "/tmp/video.mp4", "--decode-precision", "10bit"
         ])
         XCTAssertEqual(parsed.decodePrecision, .tenBitPreferred)
+
+        let reconstruction = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--chroma-reconstruction", "siting-aware-bilinear"
+        ])
+        XCTAssertEqual(reconstruction.chromaReconstructionMode, .sitingAwareBilinear)
+        XCTAssertEqual(
+            try reconstruction.baseConfiguration().chromaReconstructionMode,
+            .sitingAwareBilinear
+        )
+        let defaultConfiguration = try PlayerOptions.parse(
+            arguments: ["HDRPlayer", "/tmp/video.mp4"]
+        ).baseConfiguration()
+        XCTAssertEqual(defaultConfiguration.chromaReconstructionMode, .nearest)
     }
 }

@@ -12,6 +12,7 @@ private struct BenchmarkOptions {
     var mode: HDROutputMode = .edr
     var preset = HDRPresetResolver.productionDefault
     var precision: HDRDecodePrecision = .eightBit
+    var chromaReconstructionMode: HDRChromaReconstructionMode = .nearest
     var presentationOnly = false
 
     init(arguments: [String]) {
@@ -35,6 +36,13 @@ private struct BenchmarkOptions {
                     switch arguments[index + 1].lowercased() {
                     case "automatic", "8bit", "8-bit": precision = .eightBit
                     case "10bit", "10-bit", "p010": precision = .tenBitPreferred
+                    default: break
+                    }
+                case "--chroma-reconstruction":
+                    switch arguments[index + 1].lowercased() {
+                    case "nearest": chromaReconstructionMode = .nearest
+                    case "siting-aware-bilinear", "bilinear", "siting-aware":
+                        chromaReconstructionMode = .sitingAwareBilinear
                     default: break
                     }
                 default: break
@@ -255,6 +263,7 @@ private func run(options: BenchmarkOptions) throws {
         : makeSyntheticNV12(width: options.width, height: options.height)
     var configuration = resolvedConfiguration
     configuration.outputMode = options.mode
+    configuration.chromaReconstructionMode = options.chromaReconstructionMode
     let processor = try HDRProcessor(device: device, configuration: configuration)
     try processor.prepare(width: options.width, height: options.height)
     guard let queue = device.makeCommandQueue() else {
@@ -298,7 +307,10 @@ private func run(options: BenchmarkOptions) throws {
 
     print("HDRBenchmark")
     print("device: \(device.name)")
-    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), precision: \(precisionLabel), preset: \(options.preset), warmup: \(options.warmup), measured: \(options.frames)")
+    let reconstructionLabel = options.chromaReconstructionMode == .nearest
+        ? "nearest"
+        : "siting-aware-bilinear"
+    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), precision: \(precisionLabel), chroma: \(reconstructionLabel), preset: \(options.preset), warmup: \(options.warmup), measured: \(options.frames)")
     print(String(format: "GPU p50: %.3f ms", gpuP50))
     print(String(format: "GPU p95: %.3f ms", gpuP95))
     print(String(format: "GPU p99: %.3f ms", gpuP99))

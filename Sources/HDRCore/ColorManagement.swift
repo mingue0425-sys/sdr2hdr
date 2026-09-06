@@ -146,6 +146,7 @@ public enum HDRColorMath {
 internal struct ResolvedColorDescription: Equatable {
     let metadata: HDRInputMetadata
     let pixelFormat: HDRInputPixelFormat
+    let chromaGeometry: HDRChromaSamplingGeometry
     let yOffset: Float
     let yScale: Float
     let chromaOffset: Float
@@ -159,6 +160,7 @@ internal enum HDRColorMetadataResolver {
     ) throws -> ResolvedColorDescription {
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
         let inputFormat = HDRInputPixelFormat(coreVideoFormat: pixelFormat)
+        let chromaGeometry = HDRChromaSamplingGeometryResolver.resolve(pixelBuffer: pixelBuffer)
         let isYUV = inputFormat?.isYUV == true
         let isFullRange = inputFormat?.isFullRange == true
         let bitDepth = inputFormat?.bitDepth ?? 8
@@ -181,6 +183,7 @@ internal enum HDRColorMetadataResolver {
                 return ResolvedColorDescription(
                     metadata: HDRInputMetadata(isFullRange: false),
                     pixelFormat: inputFormat ?? .nv12VideoRange,
+                    chromaGeometry: chromaGeometry,
                     yOffset: yVideoOffset,
                     yScale: yVideoScale,
                     chromaOffset: chromaVideoOffset,
@@ -190,6 +193,7 @@ internal enum HDRColorMetadataResolver {
                 return ResolvedColorDescription(
                     metadata: HDRInputMetadata(isFullRange: true),
                     pixelFormat: inputFormat ?? .nv12FullRange,
+                    chromaGeometry: chromaGeometry,
                     yOffset: 0,
                     yScale: 1,
                     chromaOffset: chromaVideoOffset,
@@ -252,6 +256,7 @@ internal enum HDRColorMetadataResolver {
                 metadataWasExplicit: true
             ),
             pixelFormat: inputFormat ?? .bgra8,
+            chromaGeometry: chromaGeometry,
             yOffset: rangeIsFull ? 0 : (bitDepth == 10 ? 64 / 1023 : 16 / 255),
             yScale: rangeIsFull ? 1 : (bitDepth == 10 ? 1023 / 876 : 255 / 219),
             chromaOffset: bitDepth == 10 ? 512 / 1023 : 128 / 255,

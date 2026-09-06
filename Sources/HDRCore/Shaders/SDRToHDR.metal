@@ -48,6 +48,9 @@ struct SDRToHDRParameters {
     float developmentExpansionCombinedHighlightWeight;
     float developmentExpansionCombinedRangeWeight;
     float developmentExpansionCombinedMidtoneWeight;
+    uint chromaReconstructionMode;
+    float chromaSampleCenterX;
+    float chromaSampleCenterY;
 };
 
 struct HDRDebugStats {
@@ -689,6 +692,52 @@ inline float2 p010ChromaSignal(float2 stored, constant SDRToHDRParameters& p) {
     );
 }
 
+// The coordinate of a luma sample is expressed in luma pixel-edge units,
+// with the first luma pixel centered at (0.5, 0.5). The geometry resolver
+// supplies the first chroma sample center in the same units. A texture
+// coordinate of zero therefore addresses that first chroma sample, and each
+// following chroma sample is two luma pixels farther away.
+inline float2 reconstructedChroma(
+    texture2d<float, access::read> uvTexture,
+    uint2 lumaPosition,
+    constant SDRToHDRParameters& p
+) {
+    uint2 lastPosition = uint2(
+        uvTexture.get_width() - 1,
+        uvTexture.get_height() - 1
+    );
+
+    if (p.chromaReconstructionMode == 0u) {
+        uint2 nearestPosition = uint2(
+            min(lumaPosition.x / 2, lastPosition.x),
+            min(lumaPosition.y / 2, lastPosition.y)
+        );
+        return uvTexture.read(nearestPosition).rg;
+    }
+
+    float2 lumaCenter = float2(lumaPosition) + 0.5f;
+    float2 chromaCoordinate = (
+        lumaCenter - float2(p.chromaSampleCenterX, p.chromaSampleCenterY)
+    ) / 2.0f;
+    chromaCoordinate = clamp(chromaCoordinate, 0.0f, float2(lastPosition));
+
+    uint2 lowerPosition = uint2(floor(chromaCoordinate));
+    uint2 upperPosition = min(lowerPosition + uint2(1), lastPosition);
+    float2 fraction = chromaCoordinate - float2(lowerPosition);
+
+    float2 lowerRow = mix(
+        uvTexture.read(lowerPosition).rg,
+        uvTexture.read(uint2(upperPosition.x, lowerPosition.y)).rg,
+        fraction.x
+    );
+    float2 upperRow = mix(
+        uvTexture.read(uint2(lowerPosition.x, upperPosition.y)).rg,
+        uvTexture.read(upperPosition).rg,
+        fraction.x
+    );
+    return mix(lowerRow, upperRow, fraction.y);
+}
+
 kernel void sdrNV12ToHDR(
     texture2d<float, access::read> yTexture [[texture(0)]],
     texture2d<float, access::read> uvTexture [[texture(1)]],
@@ -699,12 +748,8 @@ kernel void sdrNV12ToHDR(
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    uint2 uvPosition = uint2(
-        min(gid.x / 2, uvTexture.get_width() - 1),
-        min(gid.y / 2, uvTexture.get_height() - 1)
-    );
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
-    float2 uv = uvTexture.read(uvPosition).rg;
+    float2 uv = reconstructedChroma(uvTexture, gid, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
     outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
 }
@@ -719,12 +764,8 @@ kernel void sdrP010ToHDR(
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    uint2 uvPosition = uint2(
-        min(gid.x / 2, uvTexture.get_width() - 1),
-        min(gid.y / 2, uvTexture.get_height() - 1)
-    );
     float y = p010LumaSignal(yTexture.read(gid).r, p);
-    float2 uv = p010ChromaSignal(uvTexture.read(uvPosition).rg, p);
+    float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
     outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
 }
@@ -755,12 +796,8 @@ kernel void sdrNV12ToHDRDebug(
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    uint2 uvPosition = uint2(
-        min(gid.x / 2, uvTexture.get_width() - 1),
-        min(gid.y / 2, uvTexture.get_height() - 1)
-    );
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
-    float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
+    float3 signalRGB = ycbcrToRGB(y, reconstructedChroma(uvTexture, gid, p), p);
     float3 output = transformSignalRGB(signalRGB, p);
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
@@ -780,12 +817,8 @@ kernel void sdrP010ToHDRDebug(
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    uint2 uvPosition = uint2(
-        min(gid.x / 2, uvTexture.get_width() - 1),
-        min(gid.y / 2, uvTexture.get_height() - 1)
-    );
     float y = p010LumaSignal(yTexture.read(gid).r, p);
-    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(uvTexture.read(uvPosition).rg, p), p);
+    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p), p);
     float3 output = transformSignalRGB(signalRGB, p);
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
@@ -843,12 +876,8 @@ kernel void estimateNV12TemporalLuminance(
         min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
         min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
     );
-    uint2 uvPosition = uint2(
-        min(position.x / 2, uvTexture.get_width() - 1),
-        min(position.y / 2, uvTexture.get_height() - 1)
-    );
     float y = (yTexture.read(position).r - p.yOffset) * p.yScale;
-    float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
+    float3 signalRGB = ycbcrToRGB(y, reconstructedChroma(uvTexture, position, p), p);
     float3 linearRGB = linearizeSignal(signalRGB, p);
     float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
@@ -870,12 +899,8 @@ kernel void estimateP010TemporalLuminance(
         min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
         min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
     );
-    uint2 uvPosition = uint2(
-        min(position.x / 2, uvTexture.get_width() - 1),
-        min(position.y / 2, uvTexture.get_height() - 1)
-    );
     float y = p010LumaSignal(yTexture.read(position).r, p);
-    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(uvTexture.read(uvPosition).rg, p), p);
+    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(reconstructedChroma(uvTexture, position, p), p), p);
     float3 linearRGB = linearizeSignal(signalRGB, p);
     float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);

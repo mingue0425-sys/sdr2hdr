@@ -223,6 +223,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
     public let inputPixelFormat: String
     public let inputBitDepth: Int
     public let inputRange: String
+    public let inputChromaLocation: String
+    public let resolvedChromaSiting: String
+    public let chromaReconstructionMode: String
     public let sceneShadowFloor: Float
     public let sceneShadowTop: Float
     public let sceneStatisticsValid: Bool
@@ -246,6 +249,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         inputPixelFormat: String = "unknown",
         inputBitDepth: Int = 0,
         inputRange: String = "unknown",
+        inputChromaLocation: String = "unknown",
+        resolvedChromaSiting: String = "unknown",
+        chromaReconstructionMode: String = "nearest",
         sceneShadowFloor: Float,
         sceneShadowTop: Float,
         sceneStatisticsValid: Bool,
@@ -268,6 +274,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         self.inputPixelFormat = inputPixelFormat
         self.inputBitDepth = inputBitDepth
         self.inputRange = inputRange
+        self.inputChromaLocation = inputChromaLocation
+        self.resolvedChromaSiting = resolvedChromaSiting
+        self.chromaReconstructionMode = chromaReconstructionMode
         self.sceneShadowFloor = sceneShadowFloor
         self.sceneShadowTop = sceneShadowTop
         self.sceneStatisticsValid = sceneStatisticsValid
@@ -317,6 +326,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
             inputPixelFormat: inputPixelFormat,
             inputBitDepth: inputBitDepth,
             inputRange: inputRange,
+            inputChromaLocation: inputChromaLocation,
+            resolvedChromaSiting: resolvedChromaSiting,
+            chromaReconstructionMode: chromaReconstructionMode,
             sceneShadowFloor: sceneShadowFloor,
             sceneShadowTop: sceneShadowTop,
             sceneStatisticsValid: sceneStatisticsValid,
@@ -343,7 +355,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         var lines = [
             "preset: \(preset)",
             "frame: \(frameIndex), timestamp: \(timestampSeconds.map { String(format: "%.6f", $0) } ?? "NOT_MEASURED"), configurationGeneration: \(configurationGeneration)",
-            "INPUT format=\(inputPixelFormat), bitDepth=\(inputBitDepth), range=\(inputRange), \(stats(input))",
+            "INPUT format=\(inputPixelFormat), bitDepth=\(inputBitDepth), range=\(inputRange), chromaLocation=\(inputChromaLocation), resolvedSiting=\(resolvedChromaSiting), reconstruction=\(chromaReconstructionMode), \(stats(input))",
             "SCENE shadowFloor=\(sceneShadowFloor), shadowTop=\(sceneShadowTop), valid=\(sceneStatisticsValid)",
             "TEMPORAL adaptation=\(temporalAdaptation), submission=\(temporalSubmissionSequence), lastCompleted=\(lastCompletedTemporalSequence)",
             "TONE shoulderStart=\(toneCurve.shoulderStart), effectiveStrength=\(toneCurve.highlightStrengthEffective), lowMidContribution=\(toneCurve.lowMidExpansionContribution), shoulderContribution=\(toneCurve.shoulderExpansionContribution), shadowProtectionFactor=\(toneCurve.shadowProtectionFactor), temporalStrength=\(toneCurve.temporalStrength)",
