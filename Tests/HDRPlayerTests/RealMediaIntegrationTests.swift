@@ -52,6 +52,10 @@ final class RealMediaIntegrationTests: XCTestCase {
         XCTAssertNotNil(attachment(kCVImageBufferColorPrimariesKey, from: firstPixelBuffer))
         XCTAssertNotNil(attachment(kCVImageBufferTransferFunctionKey, from: firstPixelBuffer))
         XCTAssertNotNil(attachment(kCVImageBufferYCbCrMatrixKey, from: firstPixelBuffer))
+        print(
+            "REAL_MEDIA_CHROMA_METADATA codec=h264 top=\(chromaAttachmentName(attachment(kCVImageBufferChromaLocationTopFieldKey, from: firstPixelBuffer))) " +
+                "bottom=\(chromaAttachmentName(attachment(kCVImageBufferChromaLocationBottomFieldKey, from: firstPixelBuffer)))"
+        )
 
         let metadata = try HDRColorMetadataResolver.resolve(
             pixelBuffer: firstPixelBuffer,
@@ -60,8 +64,11 @@ final class RealMediaIntegrationTests: XCTestCase {
         XCTAssertEqual(metadata.metadata.transferFunction, .bt709)
         XCTAssertEqual(metadata.metadata.yCbCrMatrix, .bt709)
         XCTAssertFalse(metadata.metadata.isFullRange)
+        XCTAssertNotEqual(metadata.chromaGeometry.resolvedSiting, .unspecified)
 
-        let processor = try HDRProcessor(device: device, configuration: .calibratedV4)
+        var candidateConfiguration = HDRConfiguration.calibratedV4
+        candidateConfiguration.chromaReconstructionMode = .sitingAwareBilinear
+        let processor = try HDRProcessor(device: device, configuration: candidateConfiguration)
         processor.temporalTraceEnabled = true
         let renderer = try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
@@ -88,7 +95,7 @@ final class RealMediaIntegrationTests: XCTestCase {
             ))
         }
 
-        XCTAssertEqual(processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(processor.configuration, candidateConfiguration)
         XCTAssertEqual(processor.configuration.sceneHistogramStrategy, .production)
         XCTAssertGreaterThanOrEqual(processor.lastGPUCompletedSequence, UInt64(frames.count))
         XCTAssertGreaterThanOrEqual(processor.lastAdaptiveCommittedSequence, UInt64(frames.count))
@@ -111,6 +118,7 @@ final class RealMediaIntegrationTests: XCTestCase {
         let lastTime = frames.last?.presentationTime.seconds ?? 0
         print(
             "REAL_MEDIA_E2E codec=h264 pixelFormat=\(pixelFormatString(pixelFormat)) " +
+                "chromaSiting=\(metadata.chromaGeometry.resolvedSiting.rawValue) " +
                 "resolution=\(width)x\(height) frames=\(frames.count) " +
                 "timestamps=\(firstTime)...\(lastTime) " +
                 "finiteSamples=\(observations.reduce(0) { $0 + $1.finiteSampleCount }) " +
@@ -156,6 +164,10 @@ final class RealMediaIntegrationTests: XCTestCase {
         XCTAssertNotNil(attachment(kCVImageBufferColorPrimariesKey, from: firstPixelBuffer))
         XCTAssertNotNil(attachment(kCVImageBufferTransferFunctionKey, from: firstPixelBuffer))
         XCTAssertNotNil(attachment(kCVImageBufferYCbCrMatrixKey, from: firstPixelBuffer))
+        print(
+            "REAL_MEDIA_CHROMA_METADATA codec=hevc-main10 top=\(chromaAttachmentName(attachment(kCVImageBufferChromaLocationTopFieldKey, from: firstPixelBuffer))) " +
+                "bottom=\(chromaAttachmentName(attachment(kCVImageBufferChromaLocationBottomFieldKey, from: firstPixelBuffer)))"
+        )
 
         let metadata = try HDRColorMetadataResolver.resolve(
             pixelBuffer: firstPixelBuffer,
@@ -169,12 +181,15 @@ final class RealMediaIntegrationTests: XCTestCase {
         XCTAssertEqual(metadata.yScale, 1023 / 876, accuracy: 1e-6)
         XCTAssertEqual(metadata.chromaOffset, 512 / 1023, accuracy: 1e-6)
         XCTAssertEqual(metadata.chromaScale, 1023 / 896, accuracy: 1e-6)
+        XCTAssertNotEqual(metadata.chromaGeometry.resolvedSiting, .unspecified)
         let codeSummary = try p010LumaCodeSummary(frames)
         XCTAssertGreaterThan(codeSummary.uniqueCodeCount, 32)
         XCTAssertGreaterThanOrEqual(codeSummary.minimumCode, 64)
         XCTAssertLessThanOrEqual(codeSummary.maximumCode, 940)
 
-        let processor = try HDRProcessor(device: device, configuration: .calibratedV4)
+        var candidateConfiguration = HDRConfiguration.calibratedV4
+        candidateConfiguration.chromaReconstructionMode = .sitingAwareBilinear
+        let processor = try HDRProcessor(device: device, configuration: candidateConfiguration)
         processor.temporalTraceEnabled = true
         let renderer = try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
@@ -200,7 +215,7 @@ final class RealMediaIntegrationTests: XCTestCase {
             ))
         }
 
-        XCTAssertEqual(processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(processor.configuration, candidateConfiguration)
         XCTAssertEqual(processor.configuration.sceneHistogramStrategy, .production)
         XCTAssertGreaterThanOrEqual(processor.lastGPUCompletedSequence, UInt64(frames.count))
         XCTAssertGreaterThanOrEqual(processor.lastAdaptiveCommittedSequence, UInt64(frames.count))
@@ -218,6 +233,7 @@ final class RealMediaIntegrationTests: XCTestCase {
         let lastTime = frames.last?.presentationTime.seconds ?? 0
         print(
             "REAL_MEDIA_P010_E2E codec=hevc pixelFormat=\(pixelFormatString(pixelFormat)) " +
+                "chromaSiting=\(metadata.chromaGeometry.resolvedSiting.rawValue) " +
                 "resolution=\(width)x\(height) frames=\(frames.count) " +
                 "uniqueYCodes=\(codeSummary.uniqueCodeCount) " +
                 "YCodeRange=\(codeSummary.minimumCode)...\(codeSummary.maximumCode) " +
@@ -380,6 +396,18 @@ final class RealMediaIntegrationTests: XCTestCase {
 
     private func attachment(_ key: CFString, from pixelBuffer: CVPixelBuffer) -> CFTypeRef? {
         CVBufferCopyAttachment(pixelBuffer, key, nil)
+    }
+
+    private func chromaAttachmentName(_ value: CFTypeRef?) -> String {
+        guard let value else { return "nil" }
+        if CFEqual(value, kCVImageBufferChromaLocation_Center) { return "center" }
+        if CFEqual(value, kCVImageBufferChromaLocation_Left) { return "left" }
+        if CFEqual(value, kCVImageBufferChromaLocation_TopLeft) { return "top-left" }
+        if CFEqual(value, kCVImageBufferChromaLocation_Top) { return "top" }
+        if CFEqual(value, kCVImageBufferChromaLocation_BottomLeft) { return "bottom-left" }
+        if CFEqual(value, kCVImageBufferChromaLocation_Bottom) { return "bottom" }
+        if CFEqual(value, kCVImageBufferChromaLocation_DV420) { return "dv420" }
+        return String(describing: value)
     }
 
     private func p010LumaCodeSummary(
