@@ -24,6 +24,7 @@ internal struct HDRShaderParameters {
     var sceneShadowTop: Float
     var sceneStatisticsValid: UInt32
     var sceneStatisticsReserved: UInt32
+    var histogramStrategy: UInt32
     var sceneP01: Float
     var sceneP05: Float
     var sceneP50: Float

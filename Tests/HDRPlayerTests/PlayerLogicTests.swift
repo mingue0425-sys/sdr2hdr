@@ -47,6 +47,33 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(point.y, 0.3, accuracy: 0.000_001)
     }
 
+    func testTrackTransformResolvesEveryRotationAndReflectionBasis() {
+        func matrix(_ a: CGFloat, _ b: CGFloat, _ c: CGFloat, _ d: CGFloat) -> CGAffineTransform {
+            CGAffineTransform(a: a, b: b, c: c, d: d, tx: 0, ty: 0)
+        }
+        let cases: [(VideoOrientation, CGAffineTransform)] = [
+            (.identity, matrix(1, 0, 0, 1)),
+            (.rotate90, matrix(0, 1, -1, 0)),
+            (.rotate180, matrix(-1, 0, 0, -1)),
+            (.rotate270, matrix(0, -1, 1, 0)),
+            (.mirrorX, matrix(-1, 0, 0, 1)),
+            (.mirrorY, matrix(1, 0, 0, -1)),
+            (.rotate90MirrorX, matrix(0, 1, 1, 0)),
+            (.rotate90MirrorY, matrix(0, -1, -1, 0)),
+            // These four affine matrices are equivalent to an earlier
+            // canonical basis element; the resolver intentionally returns
+            // that canonical decomposition because tx/ty are not orientation
+            // bits.
+            (.mirrorY, matrix(1, 0, 0, -1)),
+            (.mirrorX, matrix(-1, 0, 0, 1)),
+            (.rotate90MirrorY, matrix(0, -1, -1, 0)),
+            (.rotate90MirrorX, matrix(0, 1, 1, 0))
+        ]
+        for (expected, transform) in cases {
+            XCTAssertEqual(VideoTransformResolver.orientation(for: transform), expected)
+        }
+    }
+
     func testFrameSelectorSuppressesDuplicatesAndResetsAfterSeek() {
         var selector = FrameTimestampSelector()
         let target = CMTime(value: 0, timescale: 120)
@@ -72,6 +99,42 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertFalse(gate.accepts(completionFor: seekA))
         XCTAssertFalse(gate.accepts(completionFor: seekB))
         XCTAssertTrue(gate.accepts(completionFor: seekC))
+    }
+
+    func testPausedSeekCoordinatorPresentsOnlyTheLatestCompletedSeek() {
+        var coordinator = PlaybackSeekRedrawCoordinator()
+        let seekA = coordinator.begin(wasPlaying: false)
+        let seekB = coordinator.begin(wasPlaying: false)
+
+        XCTAssertNil(coordinator.complete(token: seekA, succeeded: true))
+        let action = coordinator.complete(token: seekB, succeeded: true)
+        XCTAssertEqual(
+            action,
+            PlaybackSeekRedrawAction(
+                generation: seekB,
+                requestMediaDataChange: true,
+                requestRedraw: true,
+                resumePlayback: false
+            )
+        )
+        XCTAssertNil(coordinator.complete(token: seekB, succeeded: true))
+    }
+
+    func testPlayingSeekResumesOnlyAfterOneFreshFrameRedrawRequest() {
+        var coordinator = PlaybackSeekRedrawCoordinator()
+        let seek = coordinator.begin(wasPlaying: true)
+        XCTAssertNil(coordinator.complete(token: seek, succeeded: false))
+        XCTAssertNil(coordinator.complete(token: seek, succeeded: true))
+
+        let retry = coordinator.begin(wasPlaying: true)
+        let action = coordinator.complete(token: retry, succeeded: true)
+        XCTAssertEqual(action?.generation, retry)
+        XCTAssertTrue(action?.requestMediaDataChange == true)
+        XCTAssertTrue(action?.requestRedraw == true)
+        XCTAssertTrue(action?.resumePlayback == true)
+
+        coordinator.invalidate()
+        XCTAssertNil(coordinator.complete(token: retry, succeeded: true))
     }
 
     func testTwentyFourFPSSourceIsNotProcessedAtOneHundTwentyHz() {
@@ -351,6 +414,7 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(configuration.temporalStability, 0.7308984)
         XCTAssertEqual(configuration.outputMode, .edr)
         XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
+        XCTAssertEqual(configuration.sceneHistogramStrategy, .linear64)
         XCTAssertEqual(configuration.masteringHeadroom, 5.308875)
         XCTAssertEqual(configuration, HDRConfiguration.calibratedV4)
         XCTAssertEqual(try configuration.validated(), configuration)
@@ -470,6 +534,27 @@ final class PlayerLogicTests: XCTestCase {
 
         let invalid = HDRDisplayState(currentEDRHeadroom: .nan, potentialEDRHeadroom: .infinity)
         XCTAssertEqual(invalid.usableHeadroom, 1, accuracy: 0.000_001)
+    }
+
+    func testPresentationCallSiteClampsSmoothedHeadroomToCurrentCapability() {
+        let capabilityDrop = HDRDisplayState(currentEDRHeadroom: 1.5, potentialEDRHeadroom: 4)
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(4, to: capabilityDrop),
+            1.5,
+            accuracy: 0.000_001
+        )
+
+        let potentialMismatch = HDRDisplayState(currentEDRHeadroom: 6, potentialEDRHeadroom: 2)
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(6, to: potentialMismatch),
+            2,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            EDRHeadroomSafety.clampPresentationHeadroom(.nan, to: .sdr),
+            1,
+            accuracy: 0.000_001
+        )
     }
 
     func testEDRHeadroomDecreaseClampsImmediatelyAndIncreaseRamps() {

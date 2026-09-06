@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime) ;;
+  fast|full|prime|self-contained) ;;
   *)
-    echo "usage: $0 [fast|full|prime] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -579,6 +579,14 @@ print_summary() {
 # touching correctness artifacts.
 if [ "${VERIFY_SCRIPT_LIBRARY_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
+fi
+
+if [ "$MODE" = "self-contained" ]; then
+  stage 'self-contained tiny media fixture' bash Tests/verify_tiny_media_fixture.sh
+  stage 'debug tests' swift test -c debug --disable-index-store
+  echo 'SELF-CONTAINED VERIFY: PASS'
+  echo 'No dataset audit, correctness review, objective evaluation, or holdout media access was performed.'
+  exit 0
 fi
 
 TOTAL_START=$SECONDS

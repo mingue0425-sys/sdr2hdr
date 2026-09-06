@@ -24,6 +24,7 @@ struct SDRToHDRParameters {
     float sceneShadowTop;
     uint sceneStatisticsValid;
     uint sceneStatisticsReserved;
+    uint histogramStrategy;
     float sceneP01;
     float sceneP05;
     float sceneP50;
@@ -745,6 +746,25 @@ kernel void sdrBGRA8ToHDRDebug(
                     outputTexture.get_width(), outputTexture.get_height());
 }
 
+inline uint sceneHistogramBin(float luminance, uint strategy) {
+    float clamped = clamp(luminance, 0.0f, 0.999999f);
+    if (strategy == 0u) {
+        return min(uint(clamped * 16.0f), 15u);
+    }
+    if (strategy == 2u) {
+        float logValue = clamp(luminance, exp2(-16.0f), 1.0f);
+        float normalized = (log2(logValue) + 16.0f) / 16.0f;
+        return min(max(uint(normalized * 64.0f), 0u), 63u);
+    }
+    if (strategy == 3u) {
+        if (clamped < 0.125f) {
+            return min(uint(clamped / 0.125f * 32.0f), 31u);
+        }
+        return min(32u + uint((clamped - 0.125f) / 0.875f * 32.0f), 63u);
+    }
+    return min(uint(clamped * 64.0f), 63u);
+}
+
 // A 16x9 sparse proxy (144 reads) estimates source luminance asynchronously.
 // It is independent of output resolution and does not read the HDR texture.
 kernel void estimateNV12TemporalLuminance(
@@ -769,7 +789,7 @@ kernel void estimateNV12TemporalLuminance(
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision >= 2) {
-        uint bin = min(uint(clamp(luminance, 0.0f, 0.999999f) * 64.0f), 63u);
+        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }
@@ -789,7 +809,7 @@ kernel void estimateBGRATemporalLuminance(
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision >= 2) {
-        uint bin = min(uint(luminance * 64.0f), 63u);
+        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }

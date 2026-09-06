@@ -223,8 +223,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     private var statusObservation: NSKeyValueObservation?
     private var lastFrame: HDRFrame?
     private var selector = FrameTimestampSelector()
-    private var playbackWasActiveBeforeSeek = false
-    private var seekRedrawGate = PlaybackSeekRedrawGate()
+    private var seekRedrawCoordinator = PlaybackSeekRedrawCoordinator()
     private var didLogPixelFormat = false
     private var didNotifyReady = false
     private var didEnd = false
@@ -466,8 +465,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         guard let duration = videoInfo?.duration, duration.isNumeric else { return }
         let current = player.currentTime().isNumeric ? player.currentTime().seconds : 0
         let target = min(max(current + seconds, 0), max(duration.seconds, 0))
-        playbackWasActiveBeforeSeek = player.rate != 0
-        let requestedSeekGeneration = seekRedrawGate.begin()
+        let requestedSeekGeneration = seekRedrawCoordinator.begin(wasPlaying: player.rate != 0)
         player.pause()
         selector.reset()
         lastFrame = nil
@@ -480,10 +478,13 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             to: CMTime(seconds: target, preferredTimescale: 600),
             toleranceBefore: .zero,
             toleranceAfter: .zero
-        ) { [weak self] _ in
+        ) { [weak self] finished in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                guard self.seekRedrawGate.accepts(completionFor: requestedSeekGeneration) else { return }
+                guard let redrawAction = self.seekRedrawCoordinator.complete(
+                    token: requestedSeekGeneration,
+                    succeeded: finished
+                ) else { return }
                 self.selector.reset()
                 self.lastFrame = nil
                 self.lastFrameV2 = nil
@@ -494,9 +495,11 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                 self.v4Processor?.clearTemporalHistory()
                 self.v6Processor?.clearTemporalHistory()
                 self.needsFrameReprocessing = true
-                self.videoOutput?.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
-                self.onNeedsDisplay?()
-                if self.playbackWasActiveBeforeSeek { self.play() }
+                if redrawAction.requestMediaDataChange {
+                    self.videoOutput?.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
+                }
+                if redrawAction.requestRedraw { self.onNeedsDisplay?() }
+                if redrawAction.resumePlayback { self.play() }
             }
         }
     }
@@ -650,8 +653,12 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         var sourceUnavailable = false
         var sourceUnavailableReason: PlayerSourceUnavailableReason?
         var didEncodePresentation = false
-        let effectiveDisplayHeadroom = displayHeadroomSmoother.step(
+        let smoothedDisplayHeadroom = displayHeadroomSmoother.step(
             timestamp: ProcessInfo.processInfo.systemUptime
+        )
+        let effectiveDisplayHeadroom = EDRHeadroomSafety.clampPresentationHeadroom(
+            smoothedDisplayHeadroom,
+            to: displayCapabilities.displayState
         )
         let displayROI = diagnosticROI
 
@@ -977,7 +984,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public func outputMediaDataWillChange(_ sender: AVPlayerItemOutput) {}
 
     public func outputSequenceWasFlushed(_ output: AVPlayerItemOutput) {
-        _ = seekRedrawGate.begin()
+        seekRedrawCoordinator.invalidate()
         selector.reset()
         lastFrame = nil
         lastFrameV2 = nil

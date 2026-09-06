@@ -43,6 +43,24 @@ public enum HDRSceneHistogramStrategy: String, CaseIterable, Codable, Sendable {
     case linear64
     case log64
     case shadowDense64
+
+    /// The strategy used by the current V4 runtime after 8395ee4. Keeping it
+    /// explicit lets diagnostics compare the old estimator and candidates
+    /// without silently changing the production path.
+    public static let production: HDRSceneHistogramStrategy = .linear64
+
+    public var metalValue: UInt32 {
+        switch self {
+        case .linear16: return 0
+        case .linear64: return 1
+        case .log64: return 2
+        case .shadowDense64: return 3
+        }
+    }
+
+    public var binCount: Int {
+        self == .linear16 ? 16 : 64
+    }
 }
 
 /// Low-cost source-luminance statistics used by the V4 scene-relative shadow
@@ -117,17 +135,36 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     /// sparse proxy remains intentionally low cost; the extra bins improve
     /// shadow ordering without changing the 16x9 sampling pattern.
     public init(histogram: [UInt32]) {
-        let bins = Array(histogram.prefix(Self.productionHistogramBinCount)) +
+        self.init(histogram: histogram, strategy: .production)
+    }
+
+    /// Decodes the fixed storage layout using the strategy that encoded it.
+    /// Linear16 still uses the first 16 slots of the shared 64-slot buffer;
+    /// log and shadow-dense strategies use all 64 slots.
+    public init(histogram: [UInt32], strategy: HDRSceneHistogramStrategy) {
+        let storage = Array(histogram.prefix(Self.productionHistogramBinCount)) +
             Array(repeating: 0, count: max(0, Self.productionHistogramBinCount - histogram.count))
+        let bins = Array(storage.prefix(strategy.binCount))
         let total = bins.reduce(0, +)
         func quantile(_ fraction: Double) -> Float {
             guard total > 0 else { return 0 }
-            let target = UInt64(Double(total) * fraction)
+            let target = max(UInt64(1), UInt64(Double(total) * fraction))
             var cumulative: UInt64 = 0
             for (index, count) in bins.enumerated() {
                 cumulative += UInt64(count)
                 if cumulative >= target {
-                    return (Float(index) + 0.5) / Float(Self.productionHistogramBinCount)
+                    switch strategy {
+                    case .linear16, .linear64:
+                        return (Float(index) + 0.5) / Float(strategy.binCount)
+                    case .log64:
+                        let logCenter = -16 + (Float(index) + 0.5) * 16 / Float(strategy.binCount)
+                        return pow(2, logCenter)
+                    case .shadowDense64:
+                        if index < 32 {
+                            return (Float(index) + 0.5) / 32 * 0.125
+                        }
+                        return 0.125 + (Float(index - 32) + 0.5) / 32 * 0.875
+                    }
                 }
             }
             return 1
@@ -143,7 +180,7 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     /// caller must provide the same 16x9 linear-light samples that the Metal
     /// estimator reads; no exact-percentile fallback is permitted here.
     public init(productionLinearSamples: [Float]) {
-        self.init(linearSamples: productionLinearSamples, strategy: .linear64)
+        self.init(linearSamples: productionLinearSamples, strategy: .production)
     }
 
     /// Offline estimator comparison used by correctness diagnostics. It
@@ -553,6 +590,10 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var outputMode: HDROutputMode
     public var toneCurveRevision: HDRToneCurveRevision
+    /// Explicit strategy for the causal scene histogram. The calibrated V4
+    /// production preset uses `linear64`; other strategies are diagnostic
+    /// candidates unless a caller explicitly selects them.
+    public var sceneHistogramStrategy: HDRSceneHistogramStrategy
 
     /// Content/mastering-domain linear headroom. In EDR mode, 1.0 is diffuse
     /// SDR reference white and this value is the largest content signal the
@@ -615,6 +656,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         outputMode: HDROutputMode = .edr,
         displayHeadroom: Float = 4.0,
         toneCurveRevision: HDRToneCurveRevision = .legacyV2,
+        sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
@@ -640,6 +682,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.outputMode = outputMode
         self.masteringHeadroom = displayHeadroom
         self.toneCurveRevision = toneCurveRevision
+        self.sceneHistogramStrategy = sceneHistogramStrategy
         self.inputFallbackPolicy = inputFallbackPolicy
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
@@ -749,7 +792,8 @@ public struct HDRConfiguration: Sendable, Equatable {
         temporalStability: 0.7308984,
         outputMode: .edr,
         displayHeadroom: 5.308875,
-        toneCurveRevision: .sceneRelativeV4
+        toneCurveRevision: .sceneRelativeV4,
+        sceneHistogramStrategy: .production
     )
 
     public func validated() throws -> HDRConfiguration {

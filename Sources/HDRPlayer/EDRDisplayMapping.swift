@@ -24,6 +24,19 @@ public struct HDRDisplayState: Equatable, Sendable {
     }
 }
 
+/// Final call-site safety clamp for presentation uniforms. The smoother is
+/// intentionally asymmetric, but this second clamp makes the renderer input
+/// safe even if a caller observes a capability update between smoother steps.
+public enum EDRHeadroomSafety {
+    public static func clampPresentationHeadroom(
+        _ proposed: Float,
+        to displayState: HDRDisplayState
+    ) -> Float {
+        let safeProposed = proposed.isFinite ? min(max(proposed, 1), 64) : 1
+        return min(safeProposed, displayState.usableHeadroom)
+    }
+}
+
 /// Scalar form of the presentation shader's direct-EDR shoulder. Values up to
 /// reference white are unchanged. For M>D>1, x above reference white follows
 /// x/(1+a*x), where a=1/(D-1)-1/(M-1). This has unit slope at the knee, maps M

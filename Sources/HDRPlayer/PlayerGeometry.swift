@@ -118,3 +118,69 @@ public struct PlaybackSeekRedrawGate: Sendable {
         token == generation
     }
 }
+
+/// Deterministic orchestration state for AVPlayer seek completion handling.
+/// The AVFoundation wrapper supplies the asynchronous seek result; this value
+/// decides whether that result is still current and whether it may request one
+/// redraw of the newly selected frame.
+public struct PlaybackSeekRedrawAction: Equatable, Sendable {
+    public let generation: UInt64
+    public let requestMediaDataChange: Bool
+    public let requestRedraw: Bool
+    public let resumePlayback: Bool
+
+    public init(
+        generation: UInt64,
+        requestMediaDataChange: Bool,
+        requestRedraw: Bool,
+        resumePlayback: Bool
+    ) {
+        self.generation = generation
+        self.requestMediaDataChange = requestMediaDataChange
+        self.requestRedraw = requestRedraw
+        self.resumePlayback = resumePlayback
+    }
+}
+
+public struct PlaybackSeekRedrawCoordinator: Sendable {
+    private var gate = PlaybackSeekRedrawGate()
+    private var pendingGeneration: UInt64?
+    private var pendingWasPlaying = false
+
+    public init() {}
+
+    public var generation: UInt64 { gate.generation }
+
+    public mutating func begin(wasPlaying: Bool) -> UInt64 {
+        let token = gate.begin()
+        pendingGeneration = token
+        pendingWasPlaying = wasPlaying
+        return token
+    }
+
+    /// Returns exactly one redraw action for the latest successful seek. A
+    /// late completion, a failed seek, and a duplicate callback return nil.
+    public mutating func complete(token: UInt64, succeeded: Bool) -> PlaybackSeekRedrawAction? {
+        guard gate.accepts(completionFor: token), pendingGeneration == token else { return nil }
+        guard succeeded else {
+            pendingGeneration = nil
+            pendingWasPlaying = false
+            return nil
+        }
+        pendingGeneration = nil
+        return PlaybackSeekRedrawAction(
+            generation: token,
+            requestMediaDataChange: true,
+            requestRedraw: true,
+            resumePlayback: pendingWasPlaying
+        )
+    }
+
+    /// Invalidates any pending seek when AVPlayerItemVideoOutput flushes or a
+    /// stream is otherwise discontinuous.
+    public mutating func invalidate() {
+        _ = gate.begin()
+        pendingGeneration = nil
+        pendingWasPlaying = false
+    }
+}

@@ -1,9 +1,23 @@
 import CoreMedia
 import CoreVideo
+import Dispatch
 import XCTest
 @testable import HDRCore
 import Metal
 import simd
+
+private final class TestViolationBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+
+    func mark() {
+        lock.withLock { value = true }
+    }
+
+    var isMarked: Bool {
+        lock.withLock { value }
+    }
+}
 
 final class HDRMathTests: XCTestCase {
     func testBT709TransferEndpointsAndReferenceGray() {
@@ -253,7 +267,81 @@ final class HDRMathTests: XCTestCase {
         let production = HDRSceneStatistics(productionLinearSamples: sceneC)
         let explicitLinear64 = HDRSceneStatistics(linearSamples: sceneC, strategy: .linear64)
         XCTAssertEqual(production, explicitLinear64)
+        XCTAssertEqual(HDRSceneHistogramStrategy.production, .linear64)
+        XCTAssertEqual(HDRConfiguration.calibratedV4.sceneHistogramStrategy, .production)
         XCTAssertTrue([linear16, linear64, log64, shadowDense64].flatMap { $0 }.allSatisfy(\.isFinite))
+    }
+
+    func testHistogramStrategyDiagnosticsCoverSyntheticShadowScenes() {
+        let scenes = HDRSceneHistogramDiagnostics.syntheticDistributions()
+        let strategies = HDRSceneHistogramStrategy.allCases
+        XCTAssertEqual(scenes.count, 7)
+
+        for (name, samples) in scenes {
+            let measurements = strategies.map {
+                HDRSceneHistogramDiagnostics.measure(samples: samples, strategy: $0)
+            }
+            XCTAssertEqual(measurements.count, strategies.count, name)
+            XCTAssertTrue(measurements.allSatisfy {
+                $0.p01.isFinite && $0.p05.isFinite && $0.p10.isFinite && $0.p25.isFinite && $0.p50.isFinite &&
+                $0.shadowFloor.isFinite && $0.shadowTop.isFinite &&
+                $0.meanAbsolutePercentileError.isFinite &&
+                $0.maximumAbsolutePercentileError.isFinite &&
+                $0.oneSamplePerturbationDelta.isFinite
+            }, name)
+            XCTAssertTrue(measurements.allSatisfy { $0.p01 <= $0.p05 && $0.p05 <= $0.p10 && $0.p10 <= $0.p25 }, name)
+        }
+
+        let lower = scenes["A_near_black"]!
+        let upper = scenes["B_deep_shadow"]!
+        let linear64 = HDRSceneHistogramDiagnostics.separability(
+            lower: lower, upper: upper, strategy: .linear64
+        )
+        let log64 = HDRSceneHistogramDiagnostics.separability(
+            lower: lower, upper: upper, strategy: .log64
+        )
+        let shadowDense64 = HDRSceneHistogramDiagnostics.separability(
+            lower: lower, upper: upper, strategy: .shadowDense64
+        )
+        XCTAssertEqual(linear64.p50Distance, 0, accuracy: 1e-7)
+        XCTAssertGreaterThan(log64.p50Distance, 0)
+        XCTAssertGreaterThan(shadowDense64.p50Distance, 0)
+    }
+
+    func testTemporalAndHistogramOutputDeltaCanBeAttributedIndependently() {
+        let rows = HDRSyntheticAttributionSequence.deterministicSet().map {
+            HDRTemporalHistogramAttribution.evaluate($0)
+        }
+        XCTAssertEqual(rows.count, 7)
+        XCTAssertTrue(rows.allSatisfy { row in
+            [
+                row.oldTemporalOldHistogram,
+                row.newTemporalOldHistogram,
+                row.oldTemporalNewHistogram,
+                row.newTemporalNewHistogram,
+                row.temporalOnly,
+                row.histogramOnly,
+                row.interaction
+            ].allSatisfy {
+                $0.meanAbsoluteRGBDelta.isFinite &&
+                $0.p95RGBDelta.isFinite &&
+                $0.p99RGBDelta.isFinite &&
+                $0.maxRGBDelta.isFinite &&
+                $0.meanAbsoluteLuminanceDelta.isFinite &&
+                $0.shadowLuminanceDelta.isFinite &&
+                $0.highlightLuminanceDelta.isFinite &&
+                $0.temporalFlicker.isFinite
+            }
+        })
+
+        let vfr = try! XCTUnwrap(rows.first { $0.sequenceName == "vfr-ramp" })
+        XCTAssertGreaterThan(vfr.temporalOnly.meanAbsoluteLuminanceDelta, 0)
+        XCTAssertGreaterThan(vfr.histogramOnly.meanAbsoluteLuminanceDelta, 0)
+
+        let repeated = HDRTemporalHistogramAttribution.evaluate(
+            HDRSyntheticAttributionSequence.deterministicSet()[0]
+        )
+        XCTAssertEqual(repeated, rows[0])
     }
 
     func testTemporalStabilityHasSequentialSensitivityAndSceneCutResets() throws {
@@ -312,6 +400,152 @@ final class HDRMathTests: XCTestCase {
         XCTAssertEqual(snapshot.committedSequence, 2)
         XCTAssertEqual(snapshot.scene.top, update.scene.top, accuracy: 0.000_001)
         XCTAssertEqual(snapshot.temporal.adaptation, update.temporal.adaptation, accuracy: 0.000_001)
+    }
+
+    func testAdaptiveStateRollsBackWhenSceneCommitFails() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+        let before = store.snapshot()
+        let statistics = HDRSceneStatistics(samples: [0.01, 0.20, 0.80])
+
+        let rejected = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0,
+            sceneRelativeEnabled: true,
+            rejectSceneCommitForTesting: true
+        )
+
+        XCTAssertFalse(rejected.applied)
+        let after = store.snapshot()
+        XCTAssertEqual(after.temporal.sequence, before.temporal.sequence)
+        XCTAssertEqual(after.scene.sequence, before.scene.sequence)
+        XCTAssertEqual(after.committedSequence, before.committedSequence)
+        XCTAssertEqual(after.temporal.adaptation, before.temporal.adaptation, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.floor, before.scene.floor, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.top, before.scene.top, accuracy: 0.000_001)
+        XCTAssertEqual(after.scene.statistics, before.scene.statistics)
+
+        let accepted = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertTrue(accepted.applied)
+        XCTAssertEqual(store.snapshot().temporal.sequence, 2)
+        XCTAssertEqual(store.snapshot().scene.sequence, 2)
+        XCTAssertTrue(store.snapshot().transactionInvariantHolds(sceneRelativeEnabled: true))
+    }
+
+    func testAdaptiveCompletionLedgerSeparatesGPUAndAdaptiveCommitSequences() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+        let statistics = HDRSceneStatistics(samples: [0.01, 0.20, 0.80])
+
+        XCTAssertTrue(store.recordGPUCompletion(sequence: 2, generation: 1))
+        let lateWithoutStatistics = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.10,
+            stability: 0.5,
+            sequence: 1,
+            generation: 1,
+            timestampSeconds: 0.1,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertFalse(lateWithoutStatistics.applied)
+        XCTAssertEqual(store.snapshot().committedSequence, 0)
+
+        let newer = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0.2,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertTrue(newer.applied)
+        XCTAssertEqual(store.lastGPUCompletedSequence, 2)
+        XCTAssertEqual(store.lastAdaptiveCommittedSequence, 2)
+        XCTAssertTrue(store.snapshot().transactionInvariantHolds(sceneRelativeEnabled: true))
+
+        XCTAssertTrue(store.recordGPUCompletion(sequence: 1, generation: 1))
+        let reversed = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.10,
+            stability: 0.5,
+            sequence: 1,
+            generation: 1,
+            timestampSeconds: 0.1,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertFalse(reversed.applied)
+        XCTAssertEqual(store.lastGPUCompletedSequence, 2)
+        XCTAssertEqual(store.lastAdaptiveCommittedSequence, 2)
+
+        store.advanceGeneration(to: 2, resetTemporal: true, resetScene: true)
+        XCTAssertFalse(store.recordGPUCompletion(sequence: 3, generation: 1))
+        XCTAssertEqual(store.lastGPUCompletedSequence, 0)
+        XCTAssertEqual(store.lastAdaptiveCommittedSequence, 0)
+    }
+
+    func testAdaptiveStateDefinesNonSceneRelativeCommitSemantics() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+
+        let update = store.updateAutomatic(
+            statistics: HDRSceneStatistics(samples: [0.01, 0.20, 0.80]),
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0,
+            sceneRelativeEnabled: false
+        )
+
+        XCTAssertTrue(update.applied)
+        let snapshot = store.snapshot()
+        XCTAssertEqual(snapshot.temporal.sequence, 2)
+        XCTAssertEqual(snapshot.committedSequence, 2)
+        XCTAssertEqual(snapshot.lastAdaptiveCommittedSequence, 2)
+        XCTAssertEqual(snapshot.scene.sequence, 0)
+        XCTAssertTrue(snapshot.transactionInvariantHolds(sceneRelativeEnabled: false))
+    }
+
+    func testAdaptiveSnapshotsNeverExposePartialAutomaticCommit() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+        let statistics = HDRSceneStatistics(samples: [0.01, 0.20, 0.80])
+        let violation = TestViolationBox()
+
+        DispatchQueue.concurrentPerform(iterations: 128) { index in
+            let sequence = UInt64(index + 1)
+            _ = store.recordGPUCompletion(sequence: sequence, generation: 1)
+            _ = store.updateAutomatic(
+                statistics: statistics,
+                averageLuminance: 0.25 + Float(index % 4) * 0.1,
+                stability: 0.5,
+                sequence: sequence,
+                generation: 1,
+                timestampSeconds: Double(index) / 60,
+                sceneRelativeEnabled: true
+            )
+            let snapshot = store.snapshot()
+            if snapshot.committedSequence > 0 &&
+                !snapshot.transactionInvariantHolds(sceneRelativeEnabled: true) {
+                violation.mark()
+            }
+        }
+
+        XCTAssertFalse(violation.isMarked)
+        XCTAssertTrue(store.snapshot().transactionInvariantHolds(sceneRelativeEnabled: true))
     }
 
     func testAdaptiveStateRejectsReversedAndStaleGenerationCompletions() {
@@ -488,7 +722,16 @@ final class HDRMetalReferenceTests: XCTestCase {
         }
 
         XCTAssertEqual(processor.lastCompletedTemporalSequence, 2)
+        XCTAssertEqual(processor.lastGPUCompletedSequence, 2)
+        XCTAssertEqual(processor.lastAdaptiveCommittedSequence, 2)
         XCTAssertEqual(processor.temporalCompletionTrace.count, 2)
+        XCTAssertTrue(processor.temporalCompletionTrace.allSatisfy {
+            $0.generation == processor.temporalGeneration &&
+            $0.gpuCompletionSequence == $0.submissionSequence &&
+            $0.adaptiveCommittedSequence == $0.submissionSequence &&
+            $0.temporalStateVersionProduced == $0.adaptiveCommittedSequence &&
+            $0.sceneStateVersionProduced == $0.adaptiveCommittedSequence
+        })
     }
 
     func testClearTemporalHistoryRejectsPriorUncommittedGeneration() throws {
@@ -508,6 +751,8 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
 
         XCTAssertEqual(processor.temporalAdaptation, 1, accuracy: 0.000_001)
+        XCTAssertEqual(processor.lastGPUCompletedSequence, 0)
+        XCTAssertEqual(processor.lastAdaptiveCommittedSequence, 0)
         XCTAssertEqual(processor.lastCompletedTemporalSequence, 0)
         XCTAssertTrue(processor.temporalCompletionTrace.isEmpty)
     }
