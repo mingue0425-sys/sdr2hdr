@@ -163,7 +163,9 @@ final class HDRV6ToneCurveTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertNil(commandBuffer.error)
 
-        var output = [Float16](repeating: 0, count: 4)
+        // The source texture is 2 pixels wide. Allocate a complete row for
+        // the requested bytesPerRow even though the region is only 1 pixel.
+        var output = [Float16](repeating: 0, count: 2 * 4)
         frame.texture.getBytes(
             &output,
             bytesPerRow: 2 * MemoryLayout<Float16>.size * 4,
