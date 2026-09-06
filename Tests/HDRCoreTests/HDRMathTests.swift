@@ -1050,22 +1050,8 @@ final class HDRMetalReferenceTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertNil(commandBuffer.error)
 
-        let count = 8 * 8 * 4
-        var productionOutput = [Float16](repeating: 0, count: count)
-        var diagnosticOutput = [Float16](repeating: 0, count: count)
-        let region = MTLRegionMake2D(0, 0, 8, 8)
-        productionFrame.texture.getBytes(
-            &productionOutput,
-            bytesPerRow: 8 * MemoryLayout<Float16>.size * 4,
-            from: region,
-            mipmapLevel: 0
-        )
-        diagnosticFrame.texture.getBytes(
-            &diagnosticOutput,
-            bytesPerRow: 8 * MemoryLayout<Float16>.size * 4,
-            from: region,
-            mipmapLevel: 0
-        )
+        let productionOutput = try readRGBA16FloatPixels(from: productionFrame.texture, device: device)
+        let diagnosticOutput = try readRGBA16FloatPixels(from: diagnosticFrame.texture, device: device)
         let maximumDifference = zip(productionOutput, diagnosticOutput)
             .map { abs(Float($0.0) - Float($0.1)) }
             .max() ?? 0

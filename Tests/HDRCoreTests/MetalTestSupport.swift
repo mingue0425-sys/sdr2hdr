@@ -1,12 +1,15 @@
 import Foundation
 import Metal
 
-func readFirstRGBA16FloatPixel(from texture: MTLTexture, device: MTLDevice) throws -> SIMD4<Float> {
+func readRGBA16FloatPixels(from texture: MTLTexture, device: MTLDevice) throws -> [Float16] {
     let bytesPerPixel = MemoryLayout<UInt16>.stride * 4
     guard texture.pixelFormat == .rgba16Float,
           let queue = device.makeCommandQueue(),
           let commandBuffer = queue.makeCommandBuffer(),
-          let readback = device.makeBuffer(length: bytesPerPixel, options: .storageModeShared),
+          let readback = device.makeBuffer(
+            length: texture.width * texture.height * bytesPerPixel,
+            options: .storageModeShared
+          ),
           let blit = commandBuffer.makeBlitCommandEncoder()
     else {
         throw NSError(
@@ -21,11 +24,11 @@ func readFirstRGBA16FloatPixel(from texture: MTLTexture, device: MTLDevice) thro
         sourceSlice: 0,
         sourceLevel: 0,
         sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-        sourceSize: MTLSize(width: 1, height: 1, depth: 1),
+        sourceSize: MTLSize(width: texture.width, height: texture.height, depth: 1),
         to: readback,
         destinationOffset: 0,
-        destinationBytesPerRow: bytesPerPixel,
-        destinationBytesPerImage: bytesPerPixel
+        destinationBytesPerRow: texture.width * bytesPerPixel,
+        destinationBytesPerImage: texture.width * texture.height * bytesPerPixel
     )
     blit.endEncoding()
     commandBuffer.commit()
@@ -40,10 +43,17 @@ func readFirstRGBA16FloatPixel(from texture: MTLTexture, device: MTLDevice) thro
     }
 
     let values = readback.contents().assumingMemoryBound(to: UInt16.self)
+    return (0..<(texture.width * texture.height * 4)).map {
+        Float16(bitPattern: values[$0])
+    }
+}
+
+func readFirstRGBA16FloatPixel(from texture: MTLTexture, device: MTLDevice) throws -> SIMD4<Float> {
+    let values = try readRGBA16FloatPixels(from: texture, device: device)
     return SIMD4(
-        Float(Float16(bitPattern: values[0])),
-        Float(Float16(bitPattern: values[1])),
-        Float(Float16(bitPattern: values[2])),
-        Float(Float16(bitPattern: values[3]))
+        Float(values[0]),
+        Float(values[1]),
+        Float(values[2]),
+        Float(values[3])
     )
 }
