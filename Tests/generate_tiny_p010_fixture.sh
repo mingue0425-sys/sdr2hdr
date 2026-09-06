@@ -10,7 +10,7 @@ if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; 
   exit 2
 fi
 
-if ! ffmpeg -hide_banner -encoders 2>/dev/null | rg -q '(^|[[:space:]])libx265([[:space:]]|$)'; then
+if ! ffmpeg -hide_banner -h encoder=libx265 >/dev/null 2>&1; then
   echo "ffmpeg with the libx265 Main10 encoder is required to generate the P010 fixture" >&2
   exit 2
 fi
