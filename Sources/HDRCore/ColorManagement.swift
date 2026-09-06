@@ -145,6 +145,7 @@ public enum HDRColorMath {
 
 internal struct ResolvedColorDescription: Equatable {
     let metadata: HDRInputMetadata
+    let pixelFormat: HDRInputPixelFormat
     let yOffset: Float
     let yScale: Float
     let chromaOffset: Float
@@ -157,9 +158,15 @@ internal enum HDRColorMetadataResolver {
         fallbackPolicy: HDRInputFallbackPolicy
     ) throws -> ResolvedColorDescription {
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-        let isYUV = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
-            pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-        let isFullRange = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+        let inputFormat = HDRInputPixelFormat(coreVideoFormat: pixelFormat)
+        let isYUV = inputFormat?.isYUV == true
+        let isFullRange = inputFormat?.isFullRange == true
+        let bitDepth = inputFormat?.bitDepth ?? 8
+        let denominator = Float((1 << bitDepth) - 1)
+        let yVideoOffset = bitDepth == 10 ? 64 / denominator : 16 / denominator
+        let yVideoScale = bitDepth == 10 ? denominator / 876 : denominator / 219
+        let chromaVideoOffset = bitDepth == 10 ? 512 / denominator : 128 / denominator
+        let chromaVideoScale = bitDepth == 10 ? denominator / 896 : denominator / 224
 
         let primaries = attachment(kCVImageBufferColorPrimariesKey, from: pixelBuffer)
         let transfer = attachment(kCVImageBufferTransferFunctionKey, from: pixelBuffer)
@@ -173,17 +180,19 @@ internal enum HDRColorMetadataResolver {
             case .bt709VideoRange:
                 return ResolvedColorDescription(
                     metadata: HDRInputMetadata(isFullRange: false),
-                    yOffset: 16 / 255,
-                    yScale: 255 / 219,
-                    chromaOffset: 128 / 255,
-                    chromaScale: 255 / 224
+                    pixelFormat: inputFormat ?? .nv12VideoRange,
+                    yOffset: yVideoOffset,
+                    yScale: yVideoScale,
+                    chromaOffset: chromaVideoOffset,
+                    chromaScale: chromaVideoScale
                 )
             case .bt709FullRange:
                 return ResolvedColorDescription(
                     metadata: HDRInputMetadata(isFullRange: true),
+                    pixelFormat: inputFormat ?? .nv12FullRange,
                     yOffset: 0,
                     yScale: 1,
-                    chromaOffset: 128 / 255,
+                    chromaOffset: chromaVideoOffset,
                     chromaScale: 1
                 )
             }
@@ -242,10 +251,11 @@ internal enum HDRColorMetadataResolver {
                 isFullRange: rangeIsFull,
                 metadataWasExplicit: true
             ),
-            yOffset: rangeIsFull ? 0 : 16 / 255,
-            yScale: rangeIsFull ? 1 : 255 / 219,
-            chromaOffset: 128 / 255,
-            chromaScale: rangeIsFull ? 1 : 255 / 224
+            pixelFormat: inputFormat ?? .bgra8,
+            yOffset: rangeIsFull ? 0 : (bitDepth == 10 ? 64 / 1023 : 16 / 255),
+            yScale: rangeIsFull ? 1 : (bitDepth == 10 ? 1023 / 876 : 255 / 219),
+            chromaOffset: bitDepth == 10 ? 512 / 1023 : 128 / 255,
+            chromaScale: rangeIsFull ? 1 : (bitDepth == 10 ? 1023 / 896 : 255 / 224)
         )
     }
 

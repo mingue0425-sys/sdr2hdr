@@ -1,5 +1,6 @@
 import CoreMedia
 import CoreGraphics
+import CoreVideo
 import HDRCore
 import XCTest
 import Metal
@@ -643,5 +644,19 @@ final class PlayerLogicTests: XCTestCase {
             EDRDisplayMapper.mapLuminance(4, masteringHeadroom: 4.8668838, displayHeadroom: 1.5),
             accuracy: 0.01
         )
+    }
+
+    func testDecodePrecisionKeepsEightBitDefaultAndExposesP010OptIn() throws {
+        let key = kCVPixelBufferPixelFormatTypeKey as String
+        let eightBit = HDRVideoOutputConfiguration.pixelBufferAttributes(for: .automatic)[key] as? OSType
+        XCTAssertEqual(eightBit, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
+
+        let preferredTenBit = HDRVideoOutputConfiguration.pixelBufferAttributes(for: .tenBitPreferred)[key] as? OSType
+        XCTAssertEqual(preferredTenBit, kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange)
+
+        let parsed = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--decode-precision", "10bit"
+        ])
+        XCTAssertEqual(parsed.decodePrecision, .tenBitPreferred)
     }
 }

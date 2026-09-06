@@ -11,6 +11,7 @@ private struct BenchmarkOptions {
     var warmup = 30
     var mode: HDROutputMode = .edr
     var preset = HDRPresetResolver.productionDefault
+    var precision: HDRDecodePrecision = .eightBit
     var presentationOnly = false
 
     init(arguments: [String]) {
@@ -30,6 +31,12 @@ private struct BenchmarkOptions {
                 case "--warmup": warmup = Int(arguments[index + 1]) ?? warmup
                 case "--mode": mode = HDROutputMode(rawValue: arguments[index + 1].uppercased()) ?? mode
                 case "--preset": preset = arguments[index + 1].lowercased()
+                case "--precision":
+                    switch arguments[index + 1].lowercased() {
+                    case "automatic", "8bit", "8-bit": precision = .eightBit
+                    case "10bit", "10-bit", "p010": precision = .tenBitPreferred
+                    default: break
+                    }
                 default: break
                 }
                 index += 2
@@ -102,6 +109,56 @@ private func makeSyntheticNV12(width: Int, height: Int) throws -> CVPixelBuffer 
             for x in 0..<uvWidth {
                 row[2 * x] = 128
                 row[2 * x + 1] = 128
+            }
+        }
+    }
+    return pixelBuffer
+}
+
+private func makeSyntheticP010(width: Int, height: Int) throws -> CVPixelBuffer {
+    var pixelBuffer: CVPixelBuffer?
+    let attributes: CFDictionary = [
+        kCVPixelBufferMetalCompatibilityKey as String: true,
+        kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+    ] as CFDictionary
+    let status = CVPixelBufferCreate(
+        kCFAllocatorDefault,
+        width,
+        height,
+        kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+        attributes,
+        &pixelBuffer
+    )
+    guard status == kCVReturnSuccess, let pixelBuffer else {
+        throw NSError(domain: "HDRBenchmark", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "P010 CVPixelBufferCreate failed"])
+    }
+    CVBufferSetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+    CVBufferSetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_709_2, .shouldPropagate)
+    CVBufferSetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_709_2, .shouldPropagate)
+
+    let lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    guard lockStatus == kCVReturnSuccess else { return pixelBuffer }
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+    if let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0)?.assumingMemoryBound(to: UInt16.self) {
+        let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+        for y in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 0) {
+            let row = yBase.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
+            for x in 0..<CVPixelBufferGetWidthOfPlane(pixelBuffer, 0) {
+                let ramp = Float(x) / Float(max(width - 1, 1))
+                let code = UInt16(min(max(64 + Int(ramp * 876), 64), 940))
+                row[x] = code << 6
+            }
+        }
+    }
+    if let uvBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1)?.assumingMemoryBound(to: UInt16.self) {
+        let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1)
+        let uvWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1)
+        let uvHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1)
+        for y in 0..<uvHeight {
+            let row = uvBase.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
+            for x in 0..<uvWidth {
+                row[2 * x] = 512 << 6
+                row[2 * x + 1] = 512 << 6
             }
         }
     }
@@ -193,7 +250,9 @@ private func run(options: BenchmarkOptions) throws {
         try runPresentationBenchmark(options: options, configuration: resolvedConfiguration, device: device)
         return
     }
-    let pixelBuffer = try makeSyntheticNV12(width: options.width, height: options.height)
+    let pixelBuffer = try options.precision == .tenBitPreferred
+        ? makeSyntheticP010(width: options.width, height: options.height)
+        : makeSyntheticNV12(width: options.width, height: options.height)
     var configuration = resolvedConfiguration
     configuration.outputMode = options.mode
     let processor = try HDRProcessor(device: device, configuration: configuration)
@@ -235,10 +294,11 @@ private func run(options: BenchmarkOptions) throws {
     let cpuP95 = percentile(cpuSubmissionDurations, 0.95)
     let cpuP99 = percentile(cpuSubmissionDurations, 0.99)
     let fps = gpuP50 > 0 ? 1_000 / gpuP50 : .nan
+    let precisionLabel = options.precision == .tenBitPreferred ? "P010 10-bit" : "NV12 8-bit"
 
     print("HDRBenchmark")
     print("device: \(device.name)")
-    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), preset: \(options.preset), warmup: \(options.warmup), measured: \(options.frames)")
+    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), precision: \(precisionLabel), preset: \(options.preset), warmup: \(options.warmup), measured: \(options.frames)")
     print(String(format: "GPU p50: %.3f ms", gpuP50))
     print(String(format: "GPU p95: %.3f ms", gpuP95))
     print(String(format: "GPU p99: %.3f ms", gpuP99))

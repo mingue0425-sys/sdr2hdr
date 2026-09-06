@@ -2,6 +2,7 @@ import AVFoundation
 import CoreVideo
 import Foundation
 import HDRCore
+import HDRPlayerKit
 import Metal
 
 private func argumentValue(_ name: String, in arguments: [String]) -> String? {
@@ -11,11 +12,19 @@ private func argumentValue(_ name: String, in arguments: [String]) -> String? {
 
 private func run(arguments: [String]) async throws {
     guard let inputPath = argumentValue("--input", in: arguments) else {
-        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ] [--preset calibrated-v4]"])
+        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ] [--preset calibrated-v4] [--precision automatic|8bit|10bit]"])
     }
     let requestedFrames = max(Int(argumentValue("--frames", in: arguments) ?? "1") ?? 1, 1)
     let outputMode = HDROutputMode(rawValue: (argumentValue("--mode", in: arguments) ?? "EDR").uppercased()) ?? .edr
     let presetName = argumentValue("--preset", in: arguments) ?? HDRPresetResolver.productionDefault
+    let precision: HDRDecodePrecision
+    switch (argumentValue("--precision", in: arguments) ?? "automatic").lowercased() {
+    case "automatic": precision = .automatic
+    case "8bit", "8-bit": precision = .eightBit
+    case "10bit", "10-bit", "p010": precision = .tenBitPreferred
+    default:
+        throw NSError(domain: "HDRSample", code: 8, userInfo: [NSLocalizedDescriptionKey: "Unsupported decode precision"])
+    }
     guard var configuration = HDRPresetResolver.configuration(for: presetName) else {
         throw NSError(domain: "HDRSample", code: 7, userInfo: [NSLocalizedDescriptionKey: "Unsupported preset: \(presetName)"])
     }
@@ -28,11 +37,10 @@ private func run(arguments: [String]) async throws {
         throw NSError(domain: "HDRSample", code: 3, userInfo: [NSLocalizedDescriptionKey: "No video track found"])
     }
     let reader = try AVAssetReader(asset: asset)
-    let outputSettings: [String: Any] = [
-        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-        kCVPixelBufferMetalCompatibilityKey as String: true,
-        kCVPixelBufferIOSurfacePropertiesKey as String: [:]
-    ]
+    let outputSettings = HDRVideoOutputConfiguration.pixelBufferAttributes(for: precision)
+        .reduce(into: [String: Any]()) { result, item in
+            result[item.key] = item.value
+        }
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
     output.alwaysCopiesSampleData = false
     guard reader.canAdd(output) else {

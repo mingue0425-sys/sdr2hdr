@@ -31,7 +31,8 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate {
                 diagnosticsEnabled: options.debug,
                 controlledV6: options.controlledV6,
                 v6Candidate: options.v6Candidate,
-                v62Candidate: options.v62Candidate
+                v62Candidate: options.v62Candidate,
+                decodePrecision: options.decodePrecision
             )
             if options.diagnosticJSON {
                 controller.diagnosticJSONDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)

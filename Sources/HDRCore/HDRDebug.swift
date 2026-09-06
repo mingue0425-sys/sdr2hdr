@@ -119,6 +119,9 @@ internal struct HDRDebugFrameContext: Sendable {
     let preset: String
     let configurationGeneration: UInt64
     let configuration: HDRConfiguration
+    let inputPixelFormat: String
+    let inputBitDepth: Int
+    let inputRange: String
     let temporalAdaptation: Float
     let temporalSubmissionSequence: UInt64
     let sceneShadowFloor: Float
@@ -254,6 +257,9 @@ internal final class DebugStatisticsStore: @unchecked Sendable {
             preset: context.preset,
             configurationGeneration: context.configurationGeneration,
             input: input,
+            inputPixelFormat: context.inputPixelFormat,
+            inputBitDepth: context.inputBitDepth,
+            inputRange: context.inputRange,
             sceneShadowFloor: context.sceneShadowFloor,
             sceneShadowTop: context.sceneShadowTop,
             sceneStatisticsValid: context.sceneStatisticsValid,

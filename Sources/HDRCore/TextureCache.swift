@@ -5,6 +5,7 @@ internal struct CVMetalInputTextures: @unchecked Sendable {
     let y: MTLTexture?
     let uv: MTLTexture?
     let bgra: MTLTexture?
+    let pixelFormat: HDRInputPixelFormat
     let retainedMetalTextures: [CVMetalTexture]
 }
 
@@ -76,6 +77,58 @@ internal final class TextureCache {
                 y: y,
                 uv: uv,
                 bgra: nil,
+                pixelFormat: HDRInputPixelFormat(coreVideoFormat: format)!,
+                retainedMetalTextures: [yTexture, uvTexture]
+            )
+
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarFullRange:
+            let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+            let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+            let uvWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1)
+            let uvHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1)
+            guard width > 0, height > 0, uvWidth > 0, uvHeight > 0 else {
+                throw HDRProcessorError.invalidDimensions
+            }
+
+            var yTexture: CVMetalTexture?
+            let yStatus = CVMetalTextureCacheCreateTextureFromImage(
+                kCFAllocatorDefault,
+                cache,
+                pixelBuffer,
+                nil,
+                .r16Unorm,
+                width,
+                height,
+                0,
+                &yTexture
+            )
+            guard yStatus == kCVReturnSuccess, let yTexture,
+                  let y = CVMetalTextureGetTexture(yTexture) else {
+                throw HDRProcessorError.textureCreationFailed(yStatus, plane: 0)
+            }
+
+            var uvTexture: CVMetalTexture?
+            let uvStatus = CVMetalTextureCacheCreateTextureFromImage(
+                kCFAllocatorDefault,
+                cache,
+                pixelBuffer,
+                nil,
+                .rg16Unorm,
+                uvWidth,
+                uvHeight,
+                1,
+                &uvTexture
+            )
+            guard uvStatus == kCVReturnSuccess, let uvTexture,
+                  let uv = CVMetalTextureGetTexture(uvTexture) else {
+                throw HDRProcessorError.textureCreationFailed(uvStatus, plane: 1)
+            }
+            return CVMetalInputTextures(
+                y: y,
+                uv: uv,
+                bgra: nil,
+                pixelFormat: HDRInputPixelFormat(coreVideoFormat: format)!,
                 retainedMetalTextures: [yTexture, uvTexture]
             )
 
@@ -105,6 +158,7 @@ internal final class TextureCache {
                 y: nil,
                 uv: nil,
                 bgra: bgra,
+                pixelFormat: .bgra8,
                 retainedMetalTextures: [bgraTexture]
             )
 

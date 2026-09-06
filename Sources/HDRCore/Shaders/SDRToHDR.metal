@@ -669,6 +669,26 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) 
     );
 }
 
+// Apple P010 stores ten valid bits in the most-significant bits of each
+// little-endian 16-bit plane sample. A .r16Unorm/.rg16Unorm read is normalized
+// by Metal against 65535, so recover the integer code value before applying
+// the 10-bit range coefficients supplied by ColorManagement.swift.
+inline float p010CodeFromUnorm(float stored) {
+    return clamp(round(stored * 65535.0f / 64.0f), 0.0f, 1023.0f);
+}
+
+inline float p010LumaSignal(float stored, constant SDRToHDRParameters& p) {
+    float code = p010CodeFromUnorm(stored) / 1023.0f;
+    return (code - p.yOffset) * p.yScale;
+}
+
+inline float2 p010ChromaSignal(float2 stored, constant SDRToHDRParameters& p) {
+    return float2(
+        p010CodeFromUnorm(stored.x) / 1023.0f,
+        p010CodeFromUnorm(stored.y) / 1023.0f
+    );
+}
+
 kernel void sdrNV12ToHDR(
     texture2d<float, access::read> yTexture [[texture(0)]],
     texture2d<float, access::read> uvTexture [[texture(1)]],
@@ -685,6 +705,26 @@ kernel void sdrNV12ToHDR(
     );
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float2 uv = uvTexture.read(uvPosition).rg;
+    float3 signalRGB = ycbcrToRGB(y, uv, p);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+}
+
+kernel void sdrP010ToHDR(
+    texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
+    texture2d<half, access::write> outputTexture [[texture(2)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    uint2 uvPosition = uint2(
+        min(gid.x / 2, uvTexture.get_width() - 1),
+        min(gid.y / 2, uvTexture.get_height() - 1)
+    );
+    float y = p010LumaSignal(yTexture.read(gid).r, p);
+    float2 uv = p010ChromaSignal(uvTexture.read(uvPosition).rg, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
     outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
 }
@@ -721,6 +761,31 @@ kernel void sdrNV12ToHDRDebug(
     );
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
+    float3 output = transformSignalRGB(signalRGB, p);
+    outputTexture.write(half4(float4(output, 1.0f)), gid);
+    accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
+                    outputTexture.get_width(), outputTexture.get_height());
+}
+
+kernel void sdrP010ToHDRDebug(
+    texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
+    texture2d<half, access::write> outputTexture [[texture(2)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    device HDRDebugStats* stats [[buffer(1)]],
+    device atomic_uint* histograms [[buffer(2)]],
+    device atomic_uint* details [[buffer(3)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    uint2 uvPosition = uint2(
+        min(gid.x / 2, uvTexture.get_width() - 1),
+        min(gid.y / 2, uvTexture.get_height() - 1)
+    );
+    float y = p010LumaSignal(yTexture.read(gid).r, p);
+    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(uvTexture.read(uvPosition).rg, p), p);
     float3 output = transformSignalRGB(signalRGB, p);
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
@@ -784,6 +849,33 @@ kernel void estimateNV12TemporalLuminance(
     );
     float y = (yTexture.read(position).r - p.yOffset) * p.yScale;
     float3 signalRGB = ycbcrToRGB(y, uvTexture.read(uvPosition).rg, p);
+    float3 linearRGB = linearizeSignal(signalRGB, p);
+    float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
+    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
+    atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
+    if (p.toneCurveRevision >= 2) {
+        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
+        atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
+    }
+}
+
+kernel void estimateP010TemporalLuminance(
+    texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    device TemporalLumaStats* stats [[buffer(1)]],
+    uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= 16 || gid.y >= 9) return;
+    uint2 position = uint2(
+        min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
+        min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
+    );
+    uint2 uvPosition = uint2(
+        min(position.x / 2, uvTexture.get_width() - 1),
+        min(position.y / 2, uvTexture.get_height() - 1)
+    );
+    float y = p010LumaSignal(yTexture.read(position).r, p);
+    float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(uvTexture.read(uvPosition).rg, p), p);
     float3 linearRGB = linearizeSignal(signalRGB, p);
     float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
