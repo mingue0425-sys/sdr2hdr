@@ -55,10 +55,13 @@ internal final class MetalContext {
     let commandQueue: MTLCommandQueue
     let textureCache: TextureCache
     let nv12Pipeline: MTLComputePipelineState
+    let p010Pipeline: MTLComputePipelineState
     let bgraPipeline: MTLComputePipelineState
     let nv12DebugPipeline: MTLComputePipelineState
+    let p010DebugPipeline: MTLComputePipelineState
     let bgraDebugPipeline: MTLComputePipelineState
     let nv12TemporalPipeline: MTLComputePipelineState
+    let p010TemporalPipeline: MTLComputePipelineState
     let bgraTemporalPipeline: MTLComputePipelineState
 
     init(device: MTLDevice, commandQueue suppliedQueue: MTLCommandQueue? = nil) throws {
@@ -92,11 +95,17 @@ internal final class MetalContext {
         guard let nv12Function = library.makeFunction(name: "sdrNV12ToHDR") else {
             throw HDRProcessorError.shaderFunctionMissing("sdrNV12ToHDR")
         }
+        guard let p010Function = library.makeFunction(name: "sdrP010ToHDR") else {
+            throw HDRProcessorError.shaderFunctionMissing("sdrP010ToHDR")
+        }
         guard let bgraFunction = library.makeFunction(name: "sdrBGRA8ToHDR") else {
             throw HDRProcessorError.shaderFunctionMissing("sdrBGRA8ToHDR")
         }
         guard let nv12DebugFunction = library.makeFunction(name: "sdrNV12ToHDRDebug") else {
             throw HDRProcessorError.shaderFunctionMissing("sdrNV12ToHDRDebug")
+        }
+        guard let p010DebugFunction = library.makeFunction(name: "sdrP010ToHDRDebug") else {
+            throw HDRProcessorError.shaderFunctionMissing("sdrP010ToHDRDebug")
         }
         guard let bgraDebugFunction = library.makeFunction(name: "sdrBGRA8ToHDRDebug") else {
             throw HDRProcessorError.shaderFunctionMissing("sdrBGRA8ToHDRDebug")
@@ -104,15 +113,21 @@ internal final class MetalContext {
         guard let nv12TemporalFunction = library.makeFunction(name: "estimateNV12TemporalLuminance") else {
             throw HDRProcessorError.shaderFunctionMissing("estimateNV12TemporalLuminance")
         }
+        guard let p010TemporalFunction = library.makeFunction(name: "estimateP010TemporalLuminance") else {
+            throw HDRProcessorError.shaderFunctionMissing("estimateP010TemporalLuminance")
+        }
         guard let bgraTemporalFunction = library.makeFunction(name: "estimateBGRATemporalLuminance") else {
             throw HDRProcessorError.shaderFunctionMissing("estimateBGRATemporalLuminance")
         }
         do {
             self.nv12Pipeline = try device.makeComputePipelineState(function: nv12Function)
+            self.p010Pipeline = try device.makeComputePipelineState(function: p010Function)
             self.bgraPipeline = try device.makeComputePipelineState(function: bgraFunction)
             self.nv12DebugPipeline = try device.makeComputePipelineState(function: nv12DebugFunction)
+            self.p010DebugPipeline = try device.makeComputePipelineState(function: p010DebugFunction)
             self.bgraDebugPipeline = try device.makeComputePipelineState(function: bgraDebugFunction)
             self.nv12TemporalPipeline = try device.makeComputePipelineState(function: nv12TemporalFunction)
+            self.p010TemporalPipeline = try device.makeComputePipelineState(function: p010TemporalFunction)
             self.bgraTemporalPipeline = try device.makeComputePipelineState(function: bgraTemporalFunction)
         } catch {
             throw HDRProcessorError.pipelineCreationFailed(String(describing: error))

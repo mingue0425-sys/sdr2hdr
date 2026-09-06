@@ -120,13 +120,123 @@ final class RealMediaIntegrationTests: XCTestCase {
         )
     }
 
+    func testGeneratedP010FixtureRunsThroughAVFoundationHDRCoreMetalAndOffscreenPresentation() async throws {
+        guard let fixturePath = ProcessInfo.processInfo.environment["HDR_P010_SELF_CONTAINED_FIXTURE"] else {
+            throw XCTSkip("set HDR_P010_SELF_CONTAINED_FIXTURE to run the P010 real-media integration test")
+        }
+        let fixtureURL = URL(fileURLWithPath: fixturePath)
+        guard FileManager.default.fileExists(atPath: fixtureURL.path) else {
+            throw XCTSkip("P010 self-contained fixture does not exist: \(fixtureURL.path)")
+        }
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let asset = AVURLAsset(url: fixtureURL)
+        let isPlayable = try await asset.load(.isPlayable)
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        XCTAssertTrue(isPlayable)
+        XCTAssertEqual(tracks.count, 1)
+
+        let frames = try await decodeFrames(
+            asset: asset,
+            minimumCount: 3,
+            maximumCount: 10,
+            precision: .tenBitPreferred
+        )
+        XCTAssertGreaterThanOrEqual(frames.count, 3)
+
+        let firstPixelBuffer = try XCTUnwrap(frames.first?.pixelBuffer)
+        let pixelFormat = CVPixelBufferGetPixelFormatType(firstPixelBuffer)
+        XCTAssertTrue(
+            pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange ||
+                pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+            "10-bit source was downgraded to \(pixelFormatString(pixelFormat))"
+        )
+        XCTAssertNotNil(attachment(kCVImageBufferColorPrimariesKey, from: firstPixelBuffer))
+        XCTAssertNotNil(attachment(kCVImageBufferTransferFunctionKey, from: firstPixelBuffer))
+        XCTAssertNotNil(attachment(kCVImageBufferYCbCrMatrixKey, from: firstPixelBuffer))
+
+        let metadata = try HDRColorMetadataResolver.resolve(
+            pixelBuffer: firstPixelBuffer,
+            fallbackPolicy: .requireMetadata
+        )
+        XCTAssertEqual(metadata.pixelFormat, pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange ? .p010FullRange : .p010VideoRange)
+        XCTAssertEqual(metadata.metadata.transferFunction, .bt709)
+        XCTAssertEqual(metadata.metadata.yCbCrMatrix, .bt709)
+        XCTAssertFalse(metadata.metadata.isFullRange)
+        XCTAssertEqual(metadata.yOffset, 64 / 1023, accuracy: 1e-6)
+        XCTAssertEqual(metadata.yScale, 1023 / 876, accuracy: 1e-6)
+        XCTAssertEqual(metadata.chromaOffset, 512 / 1023, accuracy: 1e-6)
+        XCTAssertEqual(metadata.chromaScale, 1023 / 896, accuracy: 1e-6)
+        let codeSummary = try p010LumaCodeSummary(frames)
+        XCTAssertGreaterThan(codeSummary.uniqueCodeCount, 32)
+        XCTAssertGreaterThanOrEqual(codeSummary.minimumCode, 64)
+        XCTAssertLessThanOrEqual(codeSummary.maximumCode, 940)
+
+        let processor = try HDRProcessor(device: device, configuration: .calibratedV4)
+        processor.temporalTraceEnabled = true
+        let renderer = try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
+        let width = CVPixelBufferGetWidth(firstPixelBuffer)
+        let height = CVPixelBufferGetHeight(firstPixelBuffer)
+        var observations: [OutputObservation] = []
+        var previousTimestamp: Double?
+
+        for (index, decoded) in frames.enumerated() {
+            let timestamp = decoded.presentationTime.seconds
+            XCTAssertTrue(timestamp.isFinite)
+            if let previousTimestamp {
+                XCTAssertGreaterThan(timestamp, previousTimestamp)
+            }
+            previousTimestamp = timestamp
+            observations.append(try processAndPresent(
+                decoded,
+                index: index,
+                width: width,
+                height: height,
+                device: device,
+                processor: processor,
+                renderer: renderer
+            ))
+        }
+
+        XCTAssertEqual(processor.configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(processor.configuration.sceneHistogramStrategy, .production)
+        XCTAssertGreaterThanOrEqual(processor.lastGPUCompletedSequence, UInt64(frames.count))
+        XCTAssertGreaterThanOrEqual(processor.lastAdaptiveCommittedSequence, UInt64(frames.count))
+        XCTAssertTrue(processor.temporalCompletionTrace.allSatisfy {
+            $0.gpuCompletionSequence == $0.adaptiveCommittedSequence &&
+                $0.temporalStateVersionProduced == $0.adaptiveCommittedSequence &&
+                $0.sceneStateVersionProduced == $0.adaptiveCommittedSequence
+        })
+        XCTAssertGreaterThan(observations.reduce(0) { $0 + $1.finiteSampleCount }, 0)
+        XCTAssertGreaterThan(observations.reduce(0) { $0 + $1.nonZeroSampleCount }, 0)
+        XCTAssertTrue(observations.allSatisfy { $0.maximumLuminance.isFinite })
+        XCTAssertTrue(observations.allSatisfy { $0.maximumLuminance <= 1.5 + 0.01 })
+
+        let firstTime = frames.first?.presentationTime.seconds ?? 0
+        let lastTime = frames.last?.presentationTime.seconds ?? 0
+        print(
+            "REAL_MEDIA_P010_E2E codec=hevc pixelFormat=\(pixelFormatString(pixelFormat)) " +
+                "resolution=\(width)x\(height) frames=\(frames.count) " +
+                "uniqueYCodes=\(codeSummary.uniqueCodeCount) " +
+                "YCodeRange=\(codeSummary.minimumCode)...\(codeSummary.maximumCode) " +
+                "timestamps=\(firstTime)...\(lastTime) " +
+                "finiteSamples=\(observations.reduce(0) { $0 + $1.finiteSampleCount }) " +
+                "nonZeroSamples=\(observations.reduce(0) { $0 + $1.nonZeroSampleCount }) " +
+                "gpuSequence=\(processor.lastGPUCompletedSequence) " +
+                "adaptiveSequence=\(processor.lastAdaptiveCommittedSequence)"
+        )
+    }
+
     private func decodeFrames(
         asset: AVAsset,
         minimumCount: Int,
-        maximumCount: Int
+        maximumCount: Int,
+        precision: HDRDecodePrecision = .automatic
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
-        let output = HDRVideoOutputConfiguration.makeVideoOutput()
+        let output = HDRVideoOutputConfiguration.makeVideoOutput(precision: precision)
         output.suppressesPlayerRendering = true
         item.add(output)
 
@@ -270,6 +380,34 @@ final class RealMediaIntegrationTests: XCTestCase {
 
     private func attachment(_ key: CFString, from pixelBuffer: CVPixelBuffer) -> CFTypeRef? {
         CVBufferCopyAttachment(pixelBuffer, key, nil)
+    }
+
+    private func p010LumaCodeSummary(
+        _ frames: [DecodedFrame]
+    ) throws -> (uniqueCodeCount: Int, minimumCode: UInt16, maximumCode: UInt16) {
+        var codes = Set<UInt16>()
+        var minimum = UInt16.max
+        var maximum: UInt16 = 0
+        for frame in frames {
+            let pixelBuffer = frame.pixelBuffer
+            CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+            defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+            let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+            let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+            let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+            let base = try XCTUnwrap(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0))
+                .assumingMemoryBound(to: UInt16.self)
+            for y in 0..<height {
+                let row = base.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
+                for x in 0..<width {
+                    let code = row[x] >> 6
+                    codes.insert(code)
+                    minimum = min(minimum, code)
+                    maximum = max(maximum, code)
+                }
+            }
+        }
+        return (codes.count, minimum, maximum)
     }
 
     private func pixelFormatString(_ format: OSType) -> String {

@@ -249,7 +249,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         diagnosticsEnabled: Bool = false,
         controlledV6: Bool = false,
         v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
-        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined
+        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
+        decodePrecision: HDRDecodePrecision = .automatic
     ) throws {
         self.baseConfiguration = configuration
         self.isTestPattern = url == nil
@@ -318,7 +319,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             }
             let asset = AVURLAsset(url: url)
             let item = AVPlayerItem(asset: asset)
-            let output = Self.makeVideoOutput()
+            let output = Self.makeVideoOutput(precision: decodePrecision)
             output.suppressesPlayerRendering = true
             self.asset = asset
             self.item = item
@@ -965,8 +966,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         onError?(error)
     }
 
-    private static func makeVideoOutput() -> AVPlayerItemVideoOutput {
-        HDRVideoOutputConfiguration.makeVideoOutput()
+    private static func makeVideoOutput(precision: HDRDecodePrecision) -> AVPlayerItemVideoOutput {
+        HDRVideoOutputConfiguration.makeVideoOutput(precision: precision)
     }
 
     @objc private func playerItemDidEnd(_ notification: Notification) {

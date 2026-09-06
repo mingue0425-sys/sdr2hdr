@@ -48,6 +48,7 @@ public struct PlayerOptions: Equatable, Sendable {
     public var diagnosticROI: HDRDiagnosticROI?
     public var v6Candidate: HDRV6ToneCurveCandidate
     public var v62Candidate: HDRV62ToneCurveCandidate
+    public var decodePrecision: HDRDecodePrecision
 
     public init(
         inputURL: URL? = nil,
@@ -63,7 +64,8 @@ public struct PlayerOptions: Equatable, Sendable {
         diagnosticJSON: Bool = false,
         diagnosticROI: HDRDiagnosticROI? = nil,
         v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
-        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined
+        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
+        decodePrecision: HDRDecodePrecision = .automatic
     ) {
         self.inputURL = inputURL
         self.preset = preset
@@ -79,6 +81,7 @@ public struct PlayerOptions: Equatable, Sendable {
         self.diagnosticROI = diagnosticROI
         self.v6Candidate = v6Candidate
         self.v62Candidate = v62Candidate
+        self.decodePrecision = decodePrecision
     }
 
     public static var usage: String {
@@ -88,6 +91,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --controlled-ab --debug
           HDRPlayer <video-file> --controlled-v6 --debug
           HDRPlayer <video-file> --debug --diagnostic-json
+          HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
@@ -153,6 +157,19 @@ public struct PlayerOptions: Equatable, Sendable {
             case "--peak":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 options.peakNits = try parsePositive(value)
+                index += 2
+            case "--decode-precision":
+                let value = try valueAfter(argument, arguments: arguments, index: index).lowercased()
+                switch value {
+                case "automatic":
+                    options.decodePrecision = .automatic
+                case "8bit", "8-bit":
+                    options.decodePrecision = .eightBit
+                case "10bit", "10-bit", "p010":
+                    options.decodePrecision = .tenBitPreferred
+                default:
+                    throw HDRPlayerCLIError.invalidOption("unsupported decode precision: \(value)")
+                }
                 index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)

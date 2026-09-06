@@ -1035,12 +1035,26 @@ public final class HDRProcessor {
             debugBuffers = nil
         }
 
-        let isYUV = inputTextures.y != nil
+        let isYUV = inputTextures.pixelFormat.isYUV
         let pipeline: MTLComputePipelineState
         if debugEnabled {
-            pipeline = isYUV ? context.nv12DebugPipeline : context.bgraDebugPipeline
+            switch inputTextures.pixelFormat {
+            case .nv12VideoRange, .nv12FullRange:
+                pipeline = context.nv12DebugPipeline
+            case .p010VideoRange, .p010FullRange:
+                pipeline = context.p010DebugPipeline
+            case .bgra8:
+                pipeline = context.bgraDebugPipeline
+            }
         } else {
-            pipeline = isYUV ? context.nv12Pipeline : context.bgraPipeline
+            switch inputTextures.pixelFormat {
+            case .nv12VideoRange, .nv12FullRange:
+                pipeline = context.nv12Pipeline
+            case .p010VideoRange, .p010FullRange:
+                pipeline = context.p010Pipeline
+            case .bgra8:
+                pipeline = context.bgraPipeline
+            }
         }
         let parameterSnapshot = makeShaderParameters(
             configuration: configuration,
@@ -1058,6 +1072,9 @@ public final class HDRProcessor {
             preset: diagnosticPresetLabel,
             configurationGeneration: configurationGeneration,
             configuration: configuration,
+            inputPixelFormat: inputTextures.pixelFormat.diagnosticName,
+            inputBitDepth: inputTextures.pixelFormat.bitDepth,
+            inputRange: inputTextures.pixelFormat.diagnosticRangeName,
             temporalAdaptation: parameters.temporalAdaptation,
             temporalSubmissionSequence: temporalSubmission?.sequence ?? 0,
             sceneShadowFloor: parameters.sceneShadowFloor,
@@ -1117,7 +1134,15 @@ public final class HDRProcessor {
         )
 
         if let buffer = temporalEstimateBuffer {
-            let temporalPipeline = isYUV ? context.nv12TemporalPipeline : context.bgraTemporalPipeline
+            let temporalPipeline: MTLComputePipelineState
+            switch inputTextures.pixelFormat {
+            case .nv12VideoRange, .nv12FullRange:
+                temporalPipeline = context.nv12TemporalPipeline
+            case .p010VideoRange, .p010FullRange:
+                temporalPipeline = context.p010TemporalPipeline
+            case .bgra8:
+                temporalPipeline = context.bgraTemporalPipeline
+            }
             encoder.setComputePipelineState(temporalPipeline)
             if isYUV {
                 encoder.setTexture(inputTextures.y, index: 0)

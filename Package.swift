@@ -27,7 +27,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "HDRSample",
-            dependencies: ["HDRCore"]
+            dependencies: ["HDRCore", "HDRPlayerKit"]
         ),
         .target(
             name: "HDRPlayerKit",

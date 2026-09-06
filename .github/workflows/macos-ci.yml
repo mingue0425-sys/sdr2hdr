@@ -25,6 +25,8 @@ jobs:
           bash -n RUN_MACOS_VERIFY.sh
           bash -n Tests/generate_tiny_media_fixture.sh
           bash -n Tests/verify_tiny_media_fixture.sh
+          bash -n Tests/generate_tiny_p010_fixture.sh
+          bash -n Tests/verify_tiny_p010_fixture.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
       - name: Check self-contained media tools

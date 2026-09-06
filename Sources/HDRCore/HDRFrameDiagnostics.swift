@@ -220,6 +220,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
     public let preset: String
     public let configurationGeneration: UInt64
     public let input: HDRLuminanceStatistics
+    public let inputPixelFormat: String
+    public let inputBitDepth: Int
+    public let inputRange: String
     public let sceneShadowFloor: Float
     public let sceneShadowTop: Float
     public let sceneStatisticsValid: Bool
@@ -240,6 +243,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         preset: String,
         configurationGeneration: UInt64,
         input: HDRLuminanceStatistics,
+        inputPixelFormat: String = "unknown",
+        inputBitDepth: Int = 0,
+        inputRange: String = "unknown",
         sceneShadowFloor: Float,
         sceneShadowTop: Float,
         sceneStatisticsValid: Bool,
@@ -259,6 +265,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         self.preset = preset
         self.configurationGeneration = configurationGeneration
         self.input = input
+        self.inputPixelFormat = inputPixelFormat
+        self.inputBitDepth = inputBitDepth
+        self.inputRange = inputRange
         self.sceneShadowFloor = sceneShadowFloor
         self.sceneShadowTop = sceneShadowTop
         self.sceneStatisticsValid = sceneStatisticsValid
@@ -305,6 +314,9 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
             preset: preset,
             configurationGeneration: configurationGeneration,
             input: input,
+            inputPixelFormat: inputPixelFormat,
+            inputBitDepth: inputBitDepth,
+            inputRange: inputRange,
             sceneShadowFloor: sceneShadowFloor,
             sceneShadowTop: sceneShadowTop,
             sceneStatisticsValid: sceneStatisticsValid,
@@ -331,7 +343,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         var lines = [
             "preset: \(preset)",
             "frame: \(frameIndex), timestamp: \(timestampSeconds.map { String(format: "%.6f", $0) } ?? "NOT_MEASURED"), configurationGeneration: \(configurationGeneration)",
-            "INPUT \(stats(input))",
+            "INPUT format=\(inputPixelFormat), bitDepth=\(inputBitDepth), range=\(inputRange), \(stats(input))",
             "SCENE shadowFloor=\(sceneShadowFloor), shadowTop=\(sceneShadowTop), valid=\(sceneStatisticsValid)",
             "TEMPORAL adaptation=\(temporalAdaptation), submission=\(temporalSubmissionSequence), lastCompleted=\(lastCompletedTemporalSequence)",
             "TONE shoulderStart=\(toneCurve.shoulderStart), effectiveStrength=\(toneCurve.highlightStrengthEffective), lowMidContribution=\(toneCurve.lowMidExpansionContribution), shoulderContribution=\(toneCurve.shoulderExpansionContribution), shadowProtectionFactor=\(toneCurve.shadowProtectionFactor), temporalStrength=\(toneCurve.temporalStrength)",
