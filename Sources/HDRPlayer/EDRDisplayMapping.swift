@@ -8,8 +8,9 @@ public struct HDRDisplayState: Equatable, Sendable {
     public var potentialEDRHeadroom: Float
 
     public init(currentEDRHeadroom: Float, potentialEDRHeadroom: Float) {
-        self.currentEDRHeadroom = Self.sanitize(currentEDRHeadroom)
-        self.potentialEDRHeadroom = Self.sanitize(potentialEDRHeadroom)
+        let safePotential = Self.sanitize(potentialEDRHeadroom)
+        self.potentialEDRHeadroom = safePotential
+        self.currentEDRHeadroom = min(Self.sanitize(currentEDRHeadroom), safePotential)
     }
 
     public static let sdr = HDRDisplayState(currentEDRHeadroom: 1, potentialEDRHeadroom: 1)
@@ -65,18 +66,32 @@ public struct EDRHeadroomSmoother: Sendable {
     }
 
     public mutating func setTarget(_ newTarget: Float) {
-        target = newTarget.isFinite ? min(max(newTarget, 1), 64) : 1
+        let sanitized = newTarget.isFinite ? min(max(newTarget, 1), 64) : 1
+        target = sanitized
+        // A display can lose current EDR headroom immediately during a
+        // brightness change or screen migration.  Retaining the old value
+        // would let the presentation mapper emit above the current display
+        // capability for several frames.  Only upward motion is smoothed.
+        if sanitized < value {
+            value = sanitized
+        }
     }
 
     public mutating func step(timestamp: Double) -> Float {
         guard timestamp.isFinite else { return value }
         guard let previous = lastTimestamp else {
             lastTimestamp = timestamp
-            value = target
+            if target < value {
+                value = target
+            }
             return value
         }
         let delta = min(max(timestamp - previous, 0), 1)
         lastTimestamp = timestamp
+        if target < value {
+            value = target
+            return value
+        }
         let alpha = Float(1 - exp(-delta / timeConstantSeconds))
         value += alpha * (target - value)
         return value

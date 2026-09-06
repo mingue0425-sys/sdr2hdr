@@ -223,6 +223,39 @@ final class HDRMathTests: XCTestCase {
         XCTAssertFalse(processor.sceneShadowCoordinates.valid)
     }
 
+    func testSceneHistogramStrategiesResolveShadowDistributionsWithoutChangingProductionLayout() {
+        let sceneA = Array(repeating: Float(0.001), count: 100)
+        let sceneB = Array(repeating: Float(0.01), count: 100)
+        let sceneC = Array(repeating: Float(0.05), count: 100)
+
+        let linear16 = [sceneA, sceneB, sceneC].map {
+            HDRSceneStatistics(linearSamples: $0, strategy: .linear16).p50
+        }
+        let linear64 = [sceneA, sceneB, sceneC].map {
+            HDRSceneStatistics(linearSamples: $0, strategy: .linear64).p50
+        }
+        let log64 = [sceneA, sceneB, sceneC].map {
+            HDRSceneStatistics(linearSamples: $0, strategy: .log64).p50
+        }
+        let shadowDense64 = [sceneA, sceneB, sceneC].map {
+            HDRSceneStatistics(linearSamples: $0, strategy: .shadowDense64).p50
+        }
+
+        XCTAssertEqual(linear16[0], linear16[1], accuracy: 1e-7)
+        XCTAssertEqual(linear16[1], linear16[2], accuracy: 1e-7)
+        XCTAssertEqual(linear64[0], linear64[1], accuracy: 1e-7)
+        XCTAssertLessThan(linear64[1], linear64[2])
+        XCTAssertLessThan(log64[0], log64[1])
+        XCTAssertLessThan(log64[1], log64[2])
+        XCTAssertLessThan(shadowDense64[0], shadowDense64[1])
+        XCTAssertLessThan(shadowDense64[1], shadowDense64[2])
+
+        let production = HDRSceneStatistics(productionLinearSamples: sceneC)
+        let explicitLinear64 = HDRSceneStatistics(linearSamples: sceneC, strategy: .linear64)
+        XCTAssertEqual(production, explicitLinear64)
+        XCTAssertTrue([linear16, linear64, log64, shadowDense64].flatMap { $0 }.allSatisfy(\.isFinite))
+    }
+
     func testTemporalStabilityHasSequentialSensitivityAndSceneCutResets() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal unavailable") }
         var responsiveConfiguration = HDRConfiguration.calibratedV2
@@ -252,6 +285,168 @@ final class HDRMathTests: XCTestCase {
         XCTAssertThrowsError(try HDRConfiguration(paperWhiteNits: -1).validated())
         XCTAssertThrowsError(try HDRConfiguration(paperWhiteNits: 500, peakNits: 400).validated())
         XCTAssertThrowsError(try HDRConfiguration(highlightStrength: 2).validated())
+    }
+
+    func testAdaptiveStateCommitsTemporalAndSceneAsOneSnapshot() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 1, resetTemporal: true, resetScene: true)
+        let statistics = HDRSceneStatistics(
+            p01: 0.001, p05: 0.01, p10: 0.02, p25: 0.08,
+            p50: 0.35, p90: 0.80, p99: 1
+        )
+
+        let update = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.35,
+            stability: 0.73,
+            sequence: 2,
+            generation: 1,
+            timestampSeconds: 0,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertTrue(update.applied)
+        let snapshot = store.snapshot()
+        XCTAssertEqual(snapshot.temporal.sequence, 2)
+        XCTAssertEqual(snapshot.scene.sequence, 2)
+        XCTAssertEqual(snapshot.temporal.sequence, snapshot.scene.sequence)
+        XCTAssertEqual(snapshot.committedSequence, 2)
+        XCTAssertEqual(snapshot.scene.top, update.scene.top, accuracy: 0.000_001)
+        XCTAssertEqual(snapshot.temporal.adaptation, update.temporal.adaptation, accuracy: 0.000_001)
+    }
+
+    func testAdaptiveStateRejectsReversedAndStaleGenerationCompletions() {
+        let store = HDRAdaptiveStateStore()
+        store.advanceGeneration(to: 4, resetTemporal: true, resetScene: true)
+        let statistics = HDRSceneStatistics(samples: [0.01, 0.20, 0.80])
+
+        let newer = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.40,
+            stability: 0.5,
+            sequence: 9,
+            generation: 4,
+            timestampSeconds: 0.2,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertTrue(newer.applied)
+        let reversed = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.10,
+            stability: 0.5,
+            sequence: 8,
+            generation: 4,
+            timestampSeconds: 0.1,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertFalse(reversed.applied)
+        XCTAssertEqual(store.snapshot().committedSequence, 9)
+
+        store.advanceGeneration(to: 5, resetTemporal: true, resetScene: true)
+        let stale = store.updateAutomatic(
+            statistics: statistics,
+            averageLuminance: 0.90,
+            stability: 0,
+            sequence: 10,
+            generation: 4,
+            timestampSeconds: 0.3,
+            sceneRelativeEnabled: true
+        )
+        XCTAssertFalse(stale.applied)
+        let resetSnapshot = store.snapshot()
+        XCTAssertEqual(resetSnapshot.generation, 5)
+        XCTAssertEqual(resetSnapshot.committedSequence, 0)
+        XCTAssertEqual(resetSnapshot.temporal.sequence, resetSnapshot.scene.sequence)
+    }
+
+    func testContentTemporalSmoothingIsFPSIndependentAndHandlesVFR() {
+        func simulate(fps: Double) -> Float {
+            var state = HDRTemporalControlState()
+            _ = state.updateAutomaticAverage(
+                averageLuminance: 0.30,
+                stability: 0.73,
+                sequence: 1,
+                timestampSeconds: 0
+            )
+            let frameCount = Int(fps * 0.5)
+            for frame in 1...frameCount {
+                _ = state.updateAutomaticAverage(
+                    averageLuminance: 0.45,
+                    stability: 0.73,
+                    sequence: UInt64(frame + 1),
+                    timestampSeconds: Double(frame) / fps
+                )
+            }
+            return state.adaptation
+        }
+
+        let values = [24.0, 30.0, 60.0, 120.0].map(simulate)
+        for value in values.dropFirst() {
+            XCTAssertEqual(value, values[0], accuracy: 0.000_01)
+        }
+
+        var vfr = HDRTemporalControlState()
+        let timestamps = [0.0, 0.037, 0.12, 0.145, 0.29, 0.50]
+        for (index, timestamp) in timestamps.enumerated() {
+            _ = vfr.updateAutomaticAverage(
+                averageLuminance: index == 0 ? 0.30 : 0.45,
+                stability: 0.73,
+                sequence: UInt64(index + 1),
+                timestampSeconds: timestamp
+            )
+        }
+        XCTAssertEqual(vfr.adaptation, simulate(fps: 60), accuracy: 0.002)
+
+        var discontinuity = HDRTemporalControlState()
+        _ = discontinuity.updateAutomaticAverage(averageLuminance: 0.30, stability: 0.73, sequence: 1, timestampSeconds: 0)
+        _ = discontinuity.updateAutomaticAverage(averageLuminance: 0.45, stability: 0.73, sequence: 2, timestampSeconds: 2)
+        XCTAssertEqual(
+            discontinuity.adaptation,
+            HDRTemporalControlState.adaptation(for: 0.45),
+            accuracy: 0.000_001
+        )
+    }
+
+    func testPresetResolverAndEffectivePeakSemanticsAreConsistent() throws {
+        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v4")
+        XCTAssertEqual(HDRPresetResolver.configuration(for: "calibrated-v4"), .calibratedV4)
+        XCTAssertNil(HDRPresetResolver.configuration(for: "unknown-preset"))
+
+        for configuration in [
+            HDRConfiguration.natural,
+            .hdr,
+            .vivid,
+            .calibratedV1,
+            .calibratedV2,
+            .calibratedV4
+        ] {
+            let validated = try configuration.validated()
+            XCTAssertEqual(
+                validated.effectivePeakNits,
+                validated.paperWhiteNits * validated.effectiveOutputHeadroom,
+                accuracy: 0.000_1
+            )
+            XCTAssertLessThanOrEqual(validated.effectiveOutputHeadroom, validated.peakNits / validated.paperWhiteNits + 0.000_001)
+            XCTAssertLessThanOrEqual(validated.effectiveOutputHeadroom, validated.masteringHeadroom + 0.000_001)
+        }
+
+        var pq = HDRConfiguration.vivid
+        pq.outputMode = .pq
+        XCTAssertEqual(pq.effectiveOutputHeadroom, pq.peakNits / pq.paperWhiteNits, accuracy: 0.000_001)
+
+        let edrMetadata = HDRFrameMetadata(
+            outputMode: .edr,
+            peakNits: 1_500,
+            paperWhiteNits: 203,
+            masteringHeadroom: 7
+        )
+        XCTAssertEqual(edrMetadata.effectivePeakNits, 1_421, accuracy: 0.001)
+        let pqMetadata = HDRFrameMetadata(
+            outputMode: .pq,
+            peakNits: 1_500,
+            paperWhiteNits: 203,
+            masteringHeadroom: 7
+        )
+        XCTAssertEqual(pqMetadata.effectivePeakNits, 1_500, accuracy: 0.001)
     }
 }
 

@@ -460,6 +460,9 @@ public struct SceneMetrics: Codable, Sendable {
     public var temporalError: Double
     public var structureError: Double
     public var clippedRatio: Double
+    /// Number of source/reference/generated pixel positions excluded because
+    /// at least one member of the correspondence was missing or non-finite.
+    public var invalidPairedSampleCount: Int
     public var errorFamilies: [ErrorFamily]
 
     public init(
@@ -478,6 +481,7 @@ public struct SceneMetrics: Codable, Sendable {
         temporalError: Double,
         structureError: Double,
         clippedRatio: Double,
+        invalidPairedSampleCount: Int = 0,
         errorFamilies: [ErrorFamily]
     ) {
         self.pairID = pairID
@@ -495,7 +499,70 @@ public struct SceneMetrics: Codable, Sendable {
         self.temporalError = temporalError
         self.structureError = structureError
         self.clippedRatio = clippedRatio
+        self.invalidPairedSampleCount = invalidPairedSampleCount
         self.errorFamilies = errorFamilies
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case pairID
+        case sceneID
+        case tags
+        case alignmentConfidence
+        case frameCount
+        case referenceLuminance
+        case generatedLuminance
+        case luminanceError
+        case highlightError
+        case diffuseWhiteError
+        case shadowError
+        case colorError
+        case temporalError
+        case structureError
+        case clippedRatio
+        case invalidPairedSampleCount
+        case errorFamilies
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.pairID = try container.decode(String.self, forKey: .pairID)
+        self.sceneID = try container.decode(String.self, forKey: .sceneID)
+        self.tags = try container.decode([String].self, forKey: .tags)
+        self.alignmentConfidence = try container.decode(Double.self, forKey: .alignmentConfidence)
+        self.frameCount = try container.decode(Int.self, forKey: .frameCount)
+        self.referenceLuminance = try container.decode(MetricVector.self, forKey: .referenceLuminance)
+        self.generatedLuminance = try container.decode(MetricVector.self, forKey: .generatedLuminance)
+        self.luminanceError = try container.decode(Double.self, forKey: .luminanceError)
+        self.highlightError = try container.decode(Double.self, forKey: .highlightError)
+        self.diffuseWhiteError = try container.decode(Double.self, forKey: .diffuseWhiteError)
+        self.shadowError = try container.decode(Double.self, forKey: .shadowError)
+        self.colorError = try container.decode(Double.self, forKey: .colorError)
+        self.temporalError = try container.decode(Double.self, forKey: .temporalError)
+        self.structureError = try container.decode(Double.self, forKey: .structureError)
+        self.clippedRatio = try container.decode(Double.self, forKey: .clippedRatio)
+        self.invalidPairedSampleCount = try container.decodeIfPresent(Int.self, forKey: .invalidPairedSampleCount) ?? 0
+        self.errorFamilies = try container.decode([ErrorFamily].self, forKey: .errorFamilies)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(pairID, forKey: .pairID)
+        try container.encode(sceneID, forKey: .sceneID)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(alignmentConfidence, forKey: .alignmentConfidence)
+        try container.encode(frameCount, forKey: .frameCount)
+        try container.encode(referenceLuminance, forKey: .referenceLuminance)
+        try container.encode(generatedLuminance, forKey: .generatedLuminance)
+        try container.encode(luminanceError, forKey: .luminanceError)
+        try container.encode(highlightError, forKey: .highlightError)
+        try container.encode(diffuseWhiteError, forKey: .diffuseWhiteError)
+        try container.encode(shadowError, forKey: .shadowError)
+        try container.encode(colorError, forKey: .colorError)
+        try container.encode(temporalError, forKey: .temporalError)
+        try container.encode(structureError, forKey: .structureError)
+        try container.encode(clippedRatio, forKey: .clippedRatio)
+        try container.encode(invalidPairedSampleCount, forKey: .invalidPairedSampleCount)
+        try container.encode(errorFamilies, forKey: .errorFamilies)
     }
 }
 

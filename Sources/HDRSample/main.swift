@@ -11,10 +11,14 @@ private func argumentValue(_ name: String, in arguments: [String]) -> String? {
 
 private func run(arguments: [String]) async throws {
     guard let inputPath = argumentValue("--input", in: arguments) else {
-        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ]"])
+        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ] [--preset calibrated-v4]"])
     }
     let requestedFrames = max(Int(argumentValue("--frames", in: arguments) ?? "1") ?? 1, 1)
     let outputMode = HDROutputMode(rawValue: (argumentValue("--mode", in: arguments) ?? "EDR").uppercased()) ?? .edr
+    let presetName = argumentValue("--preset", in: arguments) ?? HDRPresetResolver.productionDefault
+    guard var configuration = HDRPresetResolver.configuration(for: presetName) else {
+        throw NSError(domain: "HDRSample", code: 7, userInfo: [NSLocalizedDescriptionKey: "Unsupported preset: \(presetName)"])
+    }
     guard let device = MTLCreateSystemDefaultDevice() else {
         throw NSError(domain: "HDRSample", code: 2, userInfo: [NSLocalizedDescriptionKey: "Metal device unavailable"])
     }
@@ -39,7 +43,6 @@ private func run(arguments: [String]) async throws {
         throw reader.error ?? NSError(domain: "HDRSample", code: 5, userInfo: [NSLocalizedDescriptionKey: "AVAssetReader failed to start"])
     }
 
-    var configuration = HDRConfiguration.hdr
     configuration.outputMode = outputMode
     let processor = try HDRProcessor(device: device, configuration: configuration)
     guard let queue = device.makeCommandQueue() else {

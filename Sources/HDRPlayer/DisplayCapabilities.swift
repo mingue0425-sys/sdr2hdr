@@ -48,9 +48,10 @@ public struct DisplayCapabilities: Equatable, Sendable {
         refreshRate: Double?
     ) {
         self.screenName = screenName
-        self.potentialHeadroom = potentialHeadroom
-        self.currentHeadroom = currentHeadroom
-        self.referenceHeadroom = referenceHeadroom
+        let safePotential = Self.finiteOrOne(potentialHeadroom)
+        self.potentialHeadroom = safePotential
+        self.currentHeadroom = min(Self.finiteOrOne(currentHeadroom), safePotential)
+        self.referenceHeadroom = Self.finiteOrOne(referenceHeadroom)
         self.refreshRate = refreshRate
     }
 

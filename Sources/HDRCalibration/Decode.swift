@@ -193,7 +193,7 @@ public final class HDRCoreOfflineEvaluator {
         self.processor = try HDRProcessor(device: device, configuration: configuration)
         // Offline evaluation must execute the same causal GPU estimator as
         // production. It waits only because calibration needs a readback;
-        // the estimator itself remains the production 16x9/16-bin path.
+        // the estimator itself remains the production 16x9/64-bin path.
         self.processor.automaticTemporalEstimationEnabled = true
         self.gridWidth = gridWidth
         self.gridHeight = gridHeight

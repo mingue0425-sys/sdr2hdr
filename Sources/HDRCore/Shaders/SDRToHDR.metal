@@ -69,7 +69,7 @@ struct HDRDebugStats {
 struct TemporalLumaStats {
     atomic_uint linearLuminanceSum;
     atomic_uint sampleCount;
-    atomic_uint histogram[16];
+    atomic_uint histogram[64];
 };
 
 constant float3 kBT709Luma = float3(0.2126, 0.7152, 0.0722);
@@ -768,8 +768,8 @@ kernel void estimateNV12TemporalLuminance(
     float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
-    if (p.toneCurveRevision == 2) {
-        uint bin = min(uint(clamp(luminance, 0.0f, 0.999999f) * 16.0f), 15u);
+    if (p.toneCurveRevision >= 2) {
+        uint bin = min(uint(clamp(luminance, 0.0f, 0.999999f) * 64.0f), 63u);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }
@@ -788,8 +788,8 @@ kernel void estimateBGRATemporalLuminance(
     float luminance = clamp(dot(linear, kBT709Luma), 0.0f, 1.0f);
     atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
-    if (p.toneCurveRevision == 2) {
-        uint bin = min(uint(luminance * 16.0f), 15u);
+    if (p.toneCurveRevision >= 2) {
+        uint bin = min(uint(luminance * 64.0f), 63u);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }

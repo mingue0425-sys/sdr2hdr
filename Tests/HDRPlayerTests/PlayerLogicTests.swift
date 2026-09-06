@@ -28,6 +28,25 @@ final class PlayerLogicTests: XCTestCase {
         )
     }
 
+    func testTrackTransformPreservesHorizontalVerticalAndRotatedMirrors() {
+        XCTAssertEqual(
+            VideoTransformResolver.orientation(for: CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 1920, ty: 0)),
+            .mirrorX
+        )
+        XCTAssertEqual(
+            VideoTransformResolver.orientation(for: CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 1080)),
+            .mirrorY
+        )
+        let rotatedMirror = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+        let resolved = VideoTransformResolver.orientation(for: rotatedMirror)
+        XCTAssertTrue(resolved.mirroredX || resolved.mirroredY)
+        XCTAssertTrue(resolved.swapsDimensions)
+
+        let point = VideoOrientation.mirrorX.sourcePoint(forDisplayPoint: CGPoint(x: 0.2, y: 0.3))
+        XCTAssertEqual(point.x, 0.8, accuracy: 0.000_001)
+        XCTAssertEqual(point.y, 0.3, accuracy: 0.000_001)
+    }
+
     func testFrameSelectorSuppressesDuplicatesAndResetsAfterSeek() {
         var selector = FrameTimestampSelector()
         let target = CMTime(value: 0, timescale: 120)
@@ -43,6 +62,16 @@ final class PlayerLogicTests: XCTestCase {
         let target = CMTime(value: 120, timescale: 30)
         let late = CMTime(value: 0, timescale: 30)
         XCTAssertEqual(selector.decide(frameTime: late, targetTime: target, dropIfLate: true), .lateDrop)
+    }
+
+    func testPausedSeekRedrawGateRejectsLateCompletions() {
+        var gate = PlaybackSeekRedrawGate()
+        let seekA = gate.begin()
+        let seekB = gate.begin()
+        let seekC = gate.begin()
+        XCTAssertFalse(gate.accepts(completionFor: seekA))
+        XCTAssertFalse(gate.accepts(completionFor: seekB))
+        XCTAssertTrue(gate.accepts(completionFor: seekC))
     }
 
     func testTwentyFourFPSSourceIsNotProcessedAtOneHundTwentyHz() {
@@ -431,6 +460,42 @@ final class PlayerLogicTests: XCTestCase {
             previous = current
         }
         XCTAssertEqual(previous, 2, accuracy: 0.01)
+    }
+
+    func testDisplayHeadroomNeverExceedsCurrentOrPotentialCapability() {
+        let limited = HDRDisplayState(currentEDRHeadroom: 4, potentialEDRHeadroom: 1.5)
+        XCTAssertLessThanOrEqual(limited.usableHeadroom, limited.currentEDRHeadroom)
+        XCTAssertLessThanOrEqual(limited.usableHeadroom, limited.potentialEDRHeadroom)
+        XCTAssertLessThanOrEqual(limited.currentEDRHeadroom, limited.potentialEDRHeadroom)
+
+        let invalid = HDRDisplayState(currentEDRHeadroom: .nan, potentialEDRHeadroom: .infinity)
+        XCTAssertEqual(invalid.usableHeadroom, 1, accuracy: 0.000_001)
+    }
+
+    func testEDRHeadroomDecreaseClampsImmediatelyAndIncreaseRamps() {
+        var smoother = EDRHeadroomSmoother(initial: 4, timeConstantSeconds: 0.18)
+        _ = smoother.step(timestamp: 0)
+        smoother.setTarget(1.5)
+        XCTAssertLessThanOrEqual(smoother.value, 1.5)
+        XCTAssertEqual(smoother.step(timestamp: 1.0 / 60.0), 1.5, accuracy: 0.000_001)
+
+        smoother.setTarget(4)
+        let first = smoother.step(timestamp: 2.0 / 60.0)
+        XCTAssertGreaterThan(first, 1.5)
+        XCTAssertLessThan(first, 4)
+
+        smoother.setTarget(.nan)
+        XCTAssertEqual(smoother.step(timestamp: 3.0 / 60.0), 1, accuracy: 0.000_001)
+        smoother.setTarget(.infinity)
+        let longGap = smoother.step(timestamp: 10)
+        XCTAssertLessThanOrEqual(longGap, 64)
+        XCTAssertTrue(longGap.isFinite)
+        XCTAssertEqual(smoother.step(timestamp: 9), longGap, accuracy: 0.000_001)
+
+        var firstObservation = EDRHeadroomSmoother(initial: 1)
+        firstObservation.setTarget(4)
+        XCTAssertEqual(firstObservation.step(timestamp: 0), 1, accuracy: 0.000_001)
+        XCTAssertLessThan(firstObservation.step(timestamp: 1.0 / 60.0), 4)
     }
 
     func testPresentationPatternPreservesValuesAboveOneInEDRPath() throws {

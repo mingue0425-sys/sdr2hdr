@@ -209,7 +209,8 @@ private final class TemporalState: @unchecked Sendable {
         averageLuminance: Float,
         stability: Float,
         sequence: UInt64,
-        generation: UInt64
+        generation: UInt64,
+        timestampSeconds: Double?
     ) -> (applied: Bool, adaptation: Float, sequence: UInt64) {
         lock.lock()
         defer { lock.unlock() }
@@ -220,7 +221,8 @@ private final class TemporalState: @unchecked Sendable {
         _ = control.updateAutomaticAverage(
             averageLuminance: averageLuminance,
             stability: stability,
-            sequence: sequence
+            sequence: sequence,
+            timestampSeconds: timestampSeconds
         )
         return (
             control.automaticSequence > previousSequence,
@@ -288,7 +290,8 @@ private final class SceneShadowState: @unchecked Sendable {
             previous: smoothedStatistics,
             target: statistics,
             stability: stability,
-            sceneCut: shouldSnap
+            sceneCut: shouldSnap,
+            deltaSeconds: HDRTemporalControlState.referenceFrameDurationSeconds
         )
         lock.unlock()
     }
@@ -301,7 +304,8 @@ private final class SceneShadowState: @unchecked Sendable {
         averageLuminance: Float,
         stability: Float,
         sequence: UInt64,
-        generation: UInt64
+        generation: UInt64,
+        timestampSeconds: Double?
     ) -> (applied: Bool, floor: Float, top: Float, valid: Bool, sequence: UInt64) {
         lock.lock()
         defer { lock.unlock() }
@@ -319,7 +323,8 @@ private final class SceneShadowState: @unchecked Sendable {
             statistics,
             averageLuminance: averageLuminance,
             stability: stability,
-            sequence: sequence
+            sequence: sequence,
+            timestampSeconds: timestampSeconds
         )
         guard control.shadowSequence > previousSequence else {
             return (
@@ -334,7 +339,8 @@ private final class SceneShadowState: @unchecked Sendable {
             previous: smoothedStatistics,
             target: statistics,
             stability: stability,
-            sceneCut: sceneCut
+            sceneCut: sceneCut,
+            deltaSeconds: control.lastShadowDeltaSeconds
         )
         return (
             control.shadowSequence > previousSequence,
@@ -345,6 +351,182 @@ private final class SceneShadowState: @unchecked Sendable {
         )
     }
 
+}
+
+struct HDRAdaptiveStateSnapshot: Sendable {
+    let temporal: (adaptation: Float, sequence: UInt64)
+    let scene: (
+        floor: Float,
+        top: Float,
+        valid: Bool,
+        sequence: UInt64,
+        statistics: HDRSceneStatistics
+    )
+    let generation: UInt64
+    /// One transaction sequence for all adaptive parameters.  The legacy
+    /// per-component sequence fields remain available for diagnostics, but a
+    /// frame consumes this common commit boundary.
+    let committedSequence: UInt64
+}
+
+struct HDRAdaptiveCompletionUpdate: Sendable {
+    let applied: Bool
+    let temporal: (adaptation: Float, sequence: UInt64)
+    let scene: (floor: Float, top: Float, valid: Bool, sequence: UInt64)
+    let committedSequence: UInt64
+}
+
+/// Owns every causal state used to encode one frame.  Temporal adaptation and
+/// scene anchors are intentionally updated under the same lock and committed
+/// sequence, so a process snapshot cannot observe values from different GPU
+/// completions.  The two leaf objects retain their local locking because
+/// existing public diagnostics may still read them, but this store is their
+/// only processor access path.
+final class HDRAdaptiveStateStore: @unchecked Sendable {
+    private let lock = NSLock()
+    private let temporalState = TemporalState()
+    private let sceneState = SceneShadowState()
+    private var generationStorage: UInt64 = 0
+    private var committedSequenceStorage: UInt64 = 0
+
+    var generation: UInt64 { lock.withLock { generationStorage } }
+
+    func snapshot() -> HDRAdaptiveStateSnapshot {
+        lock.withLock {
+            HDRAdaptiveStateSnapshot(
+                temporal: temporalState.snapshot(),
+                scene: sceneState.snapshotWithStatistics(),
+                generation: generationStorage,
+                committedSequence: committedSequenceStorage
+            )
+        }
+    }
+
+    func temporalAdaptation() -> Float {
+        lock.withLock { temporalState.snapshot().adaptation }
+    }
+
+    func sceneCoordinates() -> (floor: Float, top: Float, valid: Bool) {
+        lock.withLock {
+            let snapshot = sceneState.snapshot()
+            return (snapshot.floor, snapshot.top, snapshot.valid)
+        }
+    }
+
+    func sceneStatistics() -> HDRSceneStatistics {
+        lock.withLock { sceneState.snapshotWithStatistics().statistics }
+    }
+
+    func advanceGeneration(to generation: UInt64, resetTemporal: Bool, resetScene: Bool) {
+        lock.withLock {
+            generationStorage = generation
+            committedSequenceStorage = 0
+            temporalState.advanceGeneration(to: generation, reset: resetTemporal)
+            sceneState.advanceGeneration(to: generation, reset: resetScene)
+        }
+    }
+
+    func updateTemporal(averageLuminance: Float, stability: Float, sceneCut: Bool) {
+        lock.withLock {
+            temporalState.update(
+                averageLuminance: averageLuminance,
+                stability: stability,
+                sceneCut: sceneCut
+            )
+        }
+    }
+
+    func updateScene(statistics: HDRSceneStatistics, stability: Float, sceneCut: Bool) {
+        lock.withLock {
+            sceneState.update(statistics: statistics, stability: stability, sceneCut: sceneCut)
+        }
+    }
+
+    @discardableResult
+    func updateAutomatic(
+        statistics: HDRSceneStatistics,
+        averageLuminance: Float,
+        stability: Float,
+        sequence: UInt64,
+        generation: UInt64,
+        timestampSeconds: Double?,
+        sceneRelativeEnabled: Bool
+    ) -> HDRAdaptiveCompletionUpdate {
+        lock.withLock {
+            let current = snapshotUnlocked()
+            let canApplyTemporal = generation == generationStorage && sequence > committedSequenceStorage &&
+                sequence > current.temporal.sequence
+            let canApplyScene = !sceneRelativeEnabled ||
+                (statistics.isFinite && averageLuminance.isFinite && sequence > current.scene.sequence)
+            guard canApplyTemporal, canApplyScene else {
+                return HDRAdaptiveCompletionUpdate(
+                    applied: false,
+                    temporal: current.temporal,
+                    scene: (
+                        floor: current.scene.floor,
+                        top: current.scene.top,
+                        valid: current.scene.valid,
+                        sequence: current.scene.sequence
+                    ),
+                    committedSequence: committedSequenceStorage
+                )
+            }
+
+            let temporal = temporalState.updateAutomatic(
+                averageLuminance: averageLuminance,
+                stability: stability,
+                sequence: sequence,
+                generation: generation,
+                timestampSeconds: timestampSeconds
+            )
+            guard temporal.applied else {
+                return HDRAdaptiveCompletionUpdate(
+                    applied: false,
+                    temporal: current.temporal,
+                    scene: (
+                        floor: current.scene.floor,
+                        top: current.scene.top,
+                        valid: current.scene.valid,
+                        sequence: current.scene.sequence
+                    ),
+                    committedSequence: committedSequenceStorage
+                )
+            }
+
+            if sceneRelativeEnabled {
+                _ = sceneState.updateAutomatic(
+                    statistics: statistics,
+                    averageLuminance: averageLuminance,
+                    stability: stability,
+                    sequence: sequence,
+                    generation: generation,
+                    timestampSeconds: timestampSeconds
+                )
+            }
+            committedSequenceStorage = sequence
+            let committed = snapshotUnlocked()
+            return HDRAdaptiveCompletionUpdate(
+                applied: true,
+                temporal: committed.temporal,
+                scene: (
+                    floor: committed.scene.floor,
+                    top: committed.scene.top,
+                    valid: committed.scene.valid,
+                    sequence: committed.scene.sequence
+                ),
+                committedSequence: committedSequenceStorage
+            )
+        }
+    }
+
+    private func snapshotUnlocked() -> HDRAdaptiveStateSnapshot {
+        HDRAdaptiveStateSnapshot(
+            temporal: temporalState.snapshot(),
+            scene: sceneState.snapshotWithStatistics(),
+            generation: generationStorage,
+            committedSequence: committedSequenceStorage
+        )
+    }
 }
 
 private struct TemporalLumaStatsStorage {
@@ -366,10 +548,58 @@ private struct TemporalLumaStatsStorage {
     var histogram13: UInt32 = 0
     var histogram14: UInt32 = 0
     var histogram15: UInt32 = 0
+    var histogram16: UInt32 = 0
+    var histogram17: UInt32 = 0
+    var histogram18: UInt32 = 0
+    var histogram19: UInt32 = 0
+    var histogram20: UInt32 = 0
+    var histogram21: UInt32 = 0
+    var histogram22: UInt32 = 0
+    var histogram23: UInt32 = 0
+    var histogram24: UInt32 = 0
+    var histogram25: UInt32 = 0
+    var histogram26: UInt32 = 0
+    var histogram27: UInt32 = 0
+    var histogram28: UInt32 = 0
+    var histogram29: UInt32 = 0
+    var histogram30: UInt32 = 0
+    var histogram31: UInt32 = 0
+    var histogram32: UInt32 = 0
+    var histogram33: UInt32 = 0
+    var histogram34: UInt32 = 0
+    var histogram35: UInt32 = 0
+    var histogram36: UInt32 = 0
+    var histogram37: UInt32 = 0
+    var histogram38: UInt32 = 0
+    var histogram39: UInt32 = 0
+    var histogram40: UInt32 = 0
+    var histogram41: UInt32 = 0
+    var histogram42: UInt32 = 0
+    var histogram43: UInt32 = 0
+    var histogram44: UInt32 = 0
+    var histogram45: UInt32 = 0
+    var histogram46: UInt32 = 0
+    var histogram47: UInt32 = 0
+    var histogram48: UInt32 = 0
+    var histogram49: UInt32 = 0
+    var histogram50: UInt32 = 0
+    var histogram51: UInt32 = 0
+    var histogram52: UInt32 = 0
+    var histogram53: UInt32 = 0
+    var histogram54: UInt32 = 0
+    var histogram55: UInt32 = 0
+    var histogram56: UInt32 = 0
+    var histogram57: UInt32 = 0
+    var histogram58: UInt32 = 0
+    var histogram59: UInt32 = 0
+    var histogram60: UInt32 = 0
+    var histogram61: UInt32 = 0
+    var histogram62: UInt32 = 0
+    var histogram63: UInt32 = 0
 
     var histogram: [UInt32] {
-        [histogram0, histogram1, histogram2, histogram3, histogram4, histogram5, histogram6, histogram7,
-         histogram8, histogram9, histogram10, histogram11, histogram12, histogram13, histogram14, histogram15]
+        [histogram0, histogram1, histogram2, histogram3, histogram4, histogram5, histogram6, histogram7, histogram8, histogram9, histogram10, histogram11, histogram12, histogram13, histogram14, histogram15, histogram16, histogram17, histogram18, histogram19, histogram20, histogram21, histogram22, histogram23, histogram24, histogram25, histogram26, histogram27, histogram28, histogram29, histogram30, histogram31,
+         histogram32, histogram33, histogram34, histogram35, histogram36, histogram37, histogram38, histogram39, histogram40, histogram41, histogram42, histogram43, histogram44, histogram45, histogram46, histogram47, histogram48, histogram49, histogram50, histogram51, histogram52, histogram53, histogram54, histogram55, histogram56, histogram57, histogram58, histogram59, histogram60, histogram61, histogram62, histogram63]
     }
 }
 
@@ -508,8 +738,7 @@ public final class HDRProcessor {
     private let outputPool: OutputTexturePool
     private let stateLock = NSLock()
     private var currentConfiguration: HDRConfiguration
-    private let temporalState = TemporalState()
-    private let sceneShadowState = SceneShadowState()
+    private let adaptiveState = HDRAdaptiveStateStore()
     private let temporalEstimateBuffers: TemporalEstimateBufferPool
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
@@ -647,7 +876,7 @@ public final class HDRProcessor {
             // causal state. Reject automatic completions submitted before it
             // instead of allowing one to overwrite this update afterward.
             advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
-            temporalState.update(
+            adaptiveState.updateTemporal(
                 averageLuminance: averageLuminance,
                 stability: currentConfiguration.temporalStability,
                 sceneCut: sceneCut
@@ -664,7 +893,7 @@ public final class HDRProcessor {
             // Keep manual temporal/scene control atomic with respect to the
             // generation observed by asynchronous GPU completions.
             advanceTemporalGenerationLocked(resetTemporal: false, resetScene: false)
-            sceneShadowState.update(
+            adaptiveState.updateScene(
                 statistics: statistics,
                 stability: currentConfiguration.temporalStability,
                 sceneCut: sceneCut
@@ -675,7 +904,7 @@ public final class HDRProcessor {
     /// Current causal scene-relative shadow coordinates, useful for the
     /// offline/runtime equivalence harness and DEBUG diagnostics.
     public var sceneShadowCoordinates: (floor: Float, top: Float, valid: Bool) {
-        sceneShadowState.value()
+        adaptiveState.sceneCoordinates()
     }
 
     /// The causal percentile state consumed by development controllers. It is
@@ -683,7 +912,7 @@ public final class HDRProcessor {
     /// the configured temporal stability. V4's production shader does not
     /// read these percentile fields.
     public var causalSceneStatistics: HDRSceneStatistics {
-        sceneShadowState.snapshotWithStatistics().statistics
+        adaptiveState.sceneStatistics()
     }
 
     /// Resets temporal history at a seek/scene boundary. Offline calibration
@@ -692,7 +921,7 @@ public final class HDRProcessor {
         stateLock.withLock {
             let stability = currentConfiguration.temporalStability
             advanceTemporalGenerationLocked(resetTemporal: true, resetScene: false)
-            temporalState.update(
+            adaptiveState.updateTemporal(
                 averageLuminance: averageLuminance,
                 stability: stability,
                 sceneCut: true
@@ -717,15 +946,18 @@ public final class HDRProcessor {
     ) -> UInt64 {
         temporalGenerationStorage &+= 1
         let generation = temporalGenerationStorage
-        temporalState.advanceGeneration(to: generation, reset: resetTemporal)
-        sceneShadowState.advanceGeneration(to: generation, reset: resetScene)
+        adaptiveState.advanceGeneration(
+            to: generation,
+            resetTemporal: resetTemporal,
+            resetScene: resetScene
+        )
         temporalCompletionBookkeeping.advanceGeneration(to: generation)
         temporalTraceStore.advanceGeneration(to: generation)
         return generation
     }
 
     /// Exposed for calibration diagnostics; it does not synchronize with GPU.
-    public var temporalAdaptation: Float { temporalState.value() }
+    public var temporalAdaptation: Float { adaptiveState.temporalAdaptation() }
 
     public var temporalSubmissionSequence: UInt64 {
         stateLock.withLock { temporalSubmissionSequenceStorage }
@@ -788,7 +1020,11 @@ public final class HDRProcessor {
             debugEnabled: Bool,
             diagnosticPresetLabel: String,
             configurationGeneration: UInt64,
-            temporalSubmission: (sequence: UInt64, generation: UInt64)?,
+            temporalSubmission: (
+                sequence: UInt64,
+                generation: UInt64,
+                timestampSeconds: Double?
+            )?,
             temporalSnapshot: (adaptation: Float, sequence: UInt64),
             sceneSnapshot: (
                 floor: Float,
@@ -798,24 +1034,30 @@ public final class HDRProcessor {
                 statistics: HDRSceneStatistics
             )
         ) = stateLock.withLock {
-            let submission: (sequence: UInt64, generation: UInt64)?
+            let submission: (
+                sequence: UInt64,
+                generation: UInt64,
+                timestampSeconds: Double?
+            )?
             if automaticTemporalEnabled {
                 temporalSubmissionSequenceStorage &+= 1
                 submission = (
                     sequence: temporalSubmissionSequenceStorage,
-                    generation: temporalGenerationStorage
+                    generation: temporalGenerationStorage,
+                    timestampSeconds: timestamp?.isNumeric == true ? timestamp?.seconds : nil
                 )
             } else {
                 submission = nil
             }
+            let adaptiveSnapshot = self.adaptiveState.snapshot()
             return (
                 currentConfiguration,
                 self.debugEnabled,
                 self.debugPresetLabel,
                 self.configurationGenerationStorage,
                 submission,
-                self.temporalState.snapshot(),
-                self.sceneShadowState.snapshotWithStatistics()
+                adaptiveSnapshot.temporal,
+                adaptiveSnapshot.scene
             )
         }
         let configuration = processState.configuration
@@ -998,8 +1240,7 @@ public final class HDRProcessor {
         let inputLifetime = GPUInputLifetime(pixelBuffer: pixelBuffer, metalTextures: inputTextures.retainedMetalTextures)
         let debugLifetime = debugBuffers
         let debugStore = self.debugStore
-        let temporalState = self.temporalState
-        let sceneShadowState = self.sceneShadowState
+        let adaptiveState = self.adaptiveState
         let temporalStability = configuration.temporalStability
         let sceneRelativeEnabled = configuration.toneCurveRevision == .sceneRelativeV4 ||
             configuration.toneCurveRevision == .sceneRelativeV6Candidate ||
@@ -1007,16 +1248,10 @@ public final class HDRProcessor {
         let temporalEstimateLifetime = temporalEstimateBuffer.map(TemporalEstimateBufferLifetime.init)
         let temporalCompletionBookkeeping = self.temporalCompletionBookkeeping
         let temporalTraceStore = self.temporalTraceStore
-        metalCommandBuffer.addCompletedHandler { [outputLeaseLifetime, inputLifetime, debugLifetime, debugStore, debugFrameContext, temporalEstimateLifetime, temporalState, sceneShadowState, temporalCompletionBookkeeping, temporalTraceStore] commandBuffer in
+        metalCommandBuffer.addCompletedHandler { [outputLeaseLifetime, inputLifetime, debugLifetime, debugStore, debugFrameContext, temporalEstimateLifetime, adaptiveState, temporalCompletionBookkeeping, temporalTraceStore] commandBuffer in
             _ = outputLeaseLifetime
             _ = inputLifetime
-            var temporalUpdate: (
-                applied: Bool, adaptation: Float, sequence: UInt64
-            )?
-            var sceneUpdate: (
-                applied: Bool, floor: Float, top: Float,
-                valid: Bool, sequence: UInt64
-            )?
+            var adaptiveUpdate: HDRAdaptiveCompletionUpdate?
             var completionAccepted = false
             if commandBuffer.status == .completed,
                let temporalEstimateLifetime,
@@ -1024,23 +1259,16 @@ public final class HDRProcessor {
                 let stats = temporalEstimateLifetime.buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee
                 if stats.sampleCount > 0 {
                     let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) / 65535
-                    let update = temporalState.updateAutomatic(
-                        averageLuminance: average, stability: temporalStability,
+                    let update = adaptiveState.updateAutomatic(
+                        statistics: HDRSceneStatistics(histogram: stats.histogram),
+                        averageLuminance: average,
+                        stability: temporalStability,
                         sequence: submission.sequence,
-                        generation: submission.generation
+                        generation: submission.generation,
+                        timestampSeconds: submission.timestampSeconds,
+                        sceneRelativeEnabled: sceneRelativeEnabled
                     )
-                    if update.applied {
-                        temporalUpdate = update
-                    }
-                    if update.applied, sceneRelativeEnabled {
-                        sceneUpdate = sceneShadowState.updateAutomatic(
-                            statistics: HDRSceneStatistics(histogram: stats.histogram),
-                            averageLuminance: average,
-                            stability: temporalStability,
-                            sequence: submission.sequence,
-                            generation: submission.generation
-                        )
-                    }
+                    adaptiveUpdate = update
                     if update.applied {
                         completionAccepted = temporalCompletionBookkeeping.recordCompleted(
                             sequence: submission.sequence,
@@ -1051,19 +1279,16 @@ public final class HDRProcessor {
             }
             if temporalCompletionBookkeeping.traceEnabled,
                completionAccepted,
-               let temporalUpdate,
+               let adaptiveUpdate,
                let submission = temporalSubmission {
-                let sceneSnapshot = sceneUpdate.map {
-                    (floor: $0.floor, top: $0.top, valid: $0.valid, sequence: $0.sequence)
-                } ?? sceneShadowState.snapshot()
                 temporalTraceStore.append(HDRTemporalCompletionTrace(
                     submissionSequence: submission.sequence,
-                    temporalStateVersionProduced: temporalUpdate.sequence,
-                    sceneStateVersionProduced: sceneSnapshot.sequence,
-                    temporalAdaptationProduced: temporalUpdate.adaptation,
-                    sceneShadowFloorProduced: sceneSnapshot.floor,
-                    sceneShadowTopProduced: sceneSnapshot.top,
-                    sceneStatisticsValidProduced: sceneSnapshot.valid
+                    temporalStateVersionProduced: adaptiveUpdate.temporal.sequence,
+                    sceneStateVersionProduced: adaptiveUpdate.scene.sequence,
+                    temporalAdaptationProduced: adaptiveUpdate.temporal.adaptation,
+                    sceneShadowFloorProduced: adaptiveUpdate.scene.floor,
+                    sceneShadowTopProduced: adaptiveUpdate.scene.top,
+                    sceneStatisticsValidProduced: adaptiveUpdate.scene.valid
                 ), generation: submission.generation)
             }
             if commandBuffer.status == .completed,
@@ -1103,9 +1328,7 @@ public final class HDRProcessor {
         diagnosticROI: HDRDiagnosticROI?
     ) -> (parameters: HDRShaderParameters, temporalVersion: UInt64, sceneVersion: UInt64) {
         // Capture the exact causal values encoded into this frame. Temporal
-        // and scene statistics deliberately retain independent sequence IDs:
-        // under burst load one completion may advance one state before the
-        // other, and the parity harness must observe that rather than infer it.
+        // and scene statistics come from one atomic adaptive-state snapshot.
         let matrixKind: UInt32
         switch color.metadata.yCbCrMatrix {
         case .bt709: matrixKind = 0

@@ -8,6 +8,10 @@ public struct HDRFrameMetadata: Equatable, Sendable {
     public let peakNits: Float
     public let paperWhiteNits: Float
     public let masteringHeadroom: Float
+    /// Effective content ceiling after applying the output-mode semantic:
+    /// EDR uses min(peakNits / paperWhiteNits, masteringHeadroom), while PQ
+    /// retains the configured peak ratio.
+    public let effectivePeakNits: Float
 
     @available(*, deprecated, renamed: "masteringHeadroom")
     public var displayHeadroom: Float { masteringHeadroom }
@@ -17,13 +21,20 @@ public struct HDRFrameMetadata: Equatable, Sendable {
         outputPrimaries: String = "BT.2020",
         peakNits: Float,
         paperWhiteNits: Float,
-        masteringHeadroom: Float
+        masteringHeadroom: Float,
+        effectivePeakNits: Float? = nil
     ) {
         self.outputMode = outputMode
         self.outputPrimaries = outputPrimaries
         self.peakNits = peakNits
         self.paperWhiteNits = paperWhiteNits
         self.masteringHeadroom = masteringHeadroom
+        let peakRatio = peakNits / max(paperWhiteNits, 1)
+        self.effectivePeakNits = effectivePeakNits ?? (
+            outputMode == .edr
+                ? paperWhiteNits * min(peakRatio, masteringHeadroom)
+                : peakNits
+        )
     }
 }
 
@@ -55,7 +66,8 @@ public struct HDRFrame {
             outputMode: configuration.outputMode,
             peakNits: configuration.peakNits,
             paperWhiteNits: configuration.paperWhiteNits,
-            masteringHeadroom: configuration.masteringHeadroom
+            masteringHeadroom: configuration.masteringHeadroom,
+            effectivePeakNits: configuration.effectivePeakNits
         )
     }
 }

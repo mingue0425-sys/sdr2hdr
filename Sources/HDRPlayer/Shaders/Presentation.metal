@@ -56,7 +56,9 @@ inline float2 orientedSourceUV(float2 displayUV, uint orientation) {
     // as top-left for the CVPixelBuffer-derived texture. The vertex UV is
     // bottom-left, so flip Y before applying track orientation.
     float2 topLeftUV = float2(displayUV.x, 1.0f - displayUV.y);
-    switch (orientation) {
+    if ((orientation & 4u) != 0u) topLeftUV.x = 1.0f - topLeftUV.x;
+    if ((orientation & 8u) != 0u) topLeftUV.y = 1.0f - topLeftUV.y;
+    switch (orientation & 3u) {
         case 1: return float2(topLeftUV.y, 1.0f - topLeftUV.x);
         case 2: return float2(1.0f - topLeftUV.x, 1.0f - topLeftUV.y);
         case 3: return float2(1.0f - topLeftUV.y, topLeftUV.x);

@@ -1330,7 +1330,7 @@ public final class CalibrationV4Runner {
                 "Virgin Frozen metrics were opened once only after candidate, code, manifest and objective hashes were frozen.",
                 "The three Virgin Frozen pairs are a small holdout; family/transfer confidence intervals are limited.",
                 "Reference HDR creative grading and SDR information loss are not recoverable detail ground truth.",
-                "Runtime scene statistics use a 16x9, 16-bin causal GPU estimator; offline uses the same one-frame-late state transition."
+                "Runtime scene statistics use a 16x9, 64-bin causal GPU estimator; offline uses the same one-frame-late state transition."
             ],
             promotionGates: decision.2,
             preFrozenGates: preFrozenGates,

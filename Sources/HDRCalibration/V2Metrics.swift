@@ -53,11 +53,9 @@ enum V2MetricsEvaluator {
         configuration: CalibrationParameters,
         weights: V2ObjectiveWeights
     ) -> V2SceneEvaluation {
-        let referenceLuma = frames.flatMap { $0.reference.lumaNits.map(Double.init) }.filter(\.isFinite)
-        let generatedLuma = frames.flatMap { $0.generated.lumaNits.map(Double.init) }.filter(\.isFinite)
-        let count = min(referenceLuma.count, generatedLuma.count)
-        let pairedReference = Array(referenceLuma.prefix(count))
-        let pairedGenerated = Array(generatedLuma.prefix(count))
+        let lumaPairs = pairedFiniteLuminance(frames)
+        let pairedReference = lumaPairs.reference
+        let pairedGenerated = lumaPairs.generated
         let refPercentiles = percentiles(pairedReference)
         let genPercentiles = percentiles(pairedGenerated)
 
@@ -111,11 +109,7 @@ enum V2MetricsEvaluator {
         let color = colorMetrics(frames)
         let temporal = temporalMetrics(frames)
         let structure = structureError(frames)
-        let invalidCount = frames.reduce(0) { total, frame in
-            total + zip(frame.reference.rgbNits, frame.generated.rgbNits).filter { ref, gen in
-                !(ref.x.isFinite && ref.y.isFinite && ref.z.isFinite && gen.x.isFinite && gen.y.isFinite && gen.z.isFinite)
-            }.count
-        }
+        let invalidCount = invalidPairedPixelCount(frames)
 
         var contributions: [String: Double] = [
             "luminance": weights.luminance * finite(luminanceError),
@@ -312,6 +306,10 @@ enum V2MetricsEvaluator {
         var count = 0
         for frame in frames {
             for (reference, generated) in zip(frame.reference.rgbNits, frame.generated.rgbNits) {
+                guard reference.x.isFinite, reference.y.isFinite, reference.z.isFinite,
+                      generated.x.isFinite, generated.y.isFinite, generated.z.isFinite else {
+                    continue
+                }
                 let ref = PerceptualColorV2.ictcp(rgbNits: reference)
                 let gen = PerceptualColorV2.ictcp(rgbNits: generated)
                 let refChroma = hypot(ref.y, ref.z)
@@ -341,10 +339,16 @@ enum V2MetricsEvaluator {
     static func temporalMetrics(_ frames: [V2FrameData]) -> (luminance: Double, highlight: Double, flicker: Double) {
         let sorted = frames.sorted { $0.generated.timestampSeconds < $1.generated.timestampSeconds }
         guard sorted.count > 1 else { return (0, 0, 0) }
-        let referenceMeans = sorted.map { average($0.reference.lumaNits.map(Double.init)) }
-        let generatedMeans = sorted.map { average($0.generated.lumaNits.map(Double.init)) }
-        let referenceHighlights = sorted.map { percentile($0.reference.lumaNits.map(Double.init), 0.95) }
-        let generatedHighlights = sorted.map { percentile($0.generated.lumaNits.map(Double.init), 0.95) }
+        let framePairs = sorted.compactMap { frame -> (reference: [Double], generated: [Double])? in
+            let pairs = pairedFiniteLuminance([frame])
+            guard !pairs.reference.isEmpty else { return nil }
+            return (pairs.reference, pairs.generated)
+        }
+        guard framePairs.count > 1 else { return (0, 0, 0) }
+        let referenceMeans = framePairs.map { average($0.reference) }
+        let generatedMeans = framePairs.map { average($0.generated) }
+        let referenceHighlights = framePairs.map { percentile($0.reference, 0.95) }
+        let generatedHighlights = framePairs.map { percentile($0.generated, 0.95) }
         let luma = deltaError(referenceMeans, generatedMeans)
         let highlight = deltaError(referenceHighlights, generatedHighlights)
         var second: [Double] = []
@@ -360,12 +364,75 @@ enum V2MetricsEvaluator {
 
     private static func structureError(_ frames: [V2FrameData]) -> Double {
         let errors = frames.compactMap { frame -> Double? in
-            let source = frame.sourceLuma.map(Double.init)
-            let generated = frame.generated.lumaNits.map(Double.init)
-            guard source.count == generated.count, let correlation = correlation(source, generated) else { return nil }
+            let count = min(frame.sourceLuma.count, frame.generated.lumaNits.count)
+            var source: [Double] = []
+            var generated: [Double] = []
+            for index in 0..<count {
+                let lhs = Double(frame.sourceLuma[index])
+                let rhs = Double(frame.generated.lumaNits[index])
+                guard lhs.isFinite, rhs.isFinite else { continue }
+                source.append(lhs)
+                generated.append(rhs)
+            }
+            guard let correlation = correlation(source, generated) else { return nil }
             return 1 - correlation
         }
         return average(errors)
+    }
+
+    /// Builds paired luminance vectors without independently compacting either
+    /// side.  Removing invalid values from each array separately changes pixel
+    /// correspondence and can compare two different pixels.
+    private static func pairedFiniteLuminance(_ frames: [V2FrameData]) -> (
+        reference: [Double], generated: [Double], invalid: Int
+    ) {
+        var reference: [Double] = []
+        var generated: [Double] = []
+        var invalid = 0
+        for frame in frames {
+            let count = max(frame.reference.lumaNits.count, frame.generated.lumaNits.count)
+            for index in 0..<count {
+                guard index < frame.reference.lumaNits.count,
+                      index < frame.generated.lumaNits.count else {
+                    invalid += 1
+                    continue
+                }
+                let lhs = Double(frame.reference.lumaNits[index])
+                let rhs = Double(frame.generated.lumaNits[index])
+                guard lhs.isFinite, rhs.isFinite else {
+                    invalid += 1
+                    continue
+                }
+                reference.append(lhs)
+                generated.append(rhs)
+            }
+        }
+        return (reference, generated, invalid)
+    }
+
+    private static func invalidPairedPixelCount(_ frames: [V2FrameData]) -> Int {
+        frames.reduce(0) { total, frame in
+            let count = max(
+                max(frame.reference.lumaNits.count, frame.generated.lumaNits.count),
+                max(frame.reference.rgbNits.count, frame.generated.rgbNits.count)
+            )
+            let invalid = (0..<count).reduce(0) { count, index in
+                guard index < frame.reference.lumaNits.count,
+                      index < frame.generated.lumaNits.count,
+                      index < frame.reference.rgbNits.count,
+                      index < frame.generated.rgbNits.count else {
+                    return count + 1
+                }
+                let referenceLuma = frame.reference.lumaNits[index]
+                let generatedLuma = frame.generated.lumaNits[index]
+                let reference = frame.reference.rgbNits[index]
+                let generated = frame.generated.rgbNits[index]
+                let vectorFinite = reference.x.isFinite && reference.y.isFinite && reference.z.isFinite &&
+                    generated.x.isFinite && generated.y.isFinite && generated.z.isFinite
+                return count + (referenceLuma.isFinite && generatedLuma.isFinite && vectorFinite ? 0 : 1)
+            }
+            return total + invalid
+        }
     }
 
     private static func isSkinLike(_ rgb: SIMD3<Float>) -> Bool {

@@ -169,7 +169,7 @@ private struct V62Frame {
     let pixelBuffer: CVPixelBuffer
     let reference: ReferenceFrame
     let sourceLuma: [Float]
-    /// The exact 16x9/16-bin causal estimator input for this frame.  Scene
+    /// The exact 16x9/64-bin causal estimator input for this frame.  Scene
     /// feature aggregates must use this grid rather than the denser metric
     /// sampling grid, otherwise the offline controller fit observes a signal
     /// that production cannot observe.
@@ -479,10 +479,16 @@ public enum V62SceneAdaptiveExpansionRunner {
                 }.map(Double.init)
                 let reference = scene.frames.flatMap(\.reference.lumaNits).map(Double.init)
                 let source = scene.frames.flatMap(\.sourceLuma).map(Double.init)
+                let paired = zip(reference, zip(generated, source)).compactMap { reference, generatedAndSource -> (Double, Double, Double)? in
+                    let generated = generatedAndSource.0
+                    let source = generatedAndSource.1
+                    guard reference.isFinite, generated.isFinite, source.isFinite else { return nil }
+                    return (reference, generated, source)
+                }
                 let scalar = scalarMetrics(
-                    reference: reference,
-                    generated: generated,
-                    source: source,
+                    reference: paired.map(\.0),
+                    generated: paired.map(\.1),
+                    source: paired.map(\.2),
                     weights: weights
                 )
                 return V62ScalarDemandPoint(

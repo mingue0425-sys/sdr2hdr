@@ -224,6 +224,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     private var lastFrame: HDRFrame?
     private var selector = FrameTimestampSelector()
     private var playbackWasActiveBeforeSeek = false
+    private var seekRedrawGate = PlaybackSeekRedrawGate()
     private var didLogPixelFormat = false
     private var didNotifyReady = false
     private var didEnd = false
@@ -466,6 +467,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         let current = player.currentTime().isNumeric ? player.currentTime().seconds : 0
         let target = min(max(current + seconds, 0), max(duration.seconds, 0))
         playbackWasActiveBeforeSeek = player.rate != 0
+        let requestedSeekGeneration = seekRedrawGate.begin()
         player.pause()
         selector.reset()
         lastFrame = nil
@@ -481,6 +483,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                guard self.seekRedrawGate.accepts(completionFor: requestedSeekGeneration) else { return }
                 self.selector.reset()
                 self.lastFrame = nil
                 self.lastFrameV2 = nil
@@ -490,6 +493,9 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                 self.v2Processor?.clearTemporalHistory()
                 self.v4Processor?.clearTemporalHistory()
                 self.v6Processor?.clearTemporalHistory()
+                self.needsFrameReprocessing = true
+                self.videoOutput?.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
+                self.onNeedsDisplay?()
                 if self.playbackWasActiveBeforeSeek { self.play() }
             }
         }
@@ -882,16 +888,20 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
 
     private func sourceROI(_ roi: HDRDiagnosticROI?, orientation: VideoOrientation) -> HDRDiagnosticROI? {
         guard let roi, !roi.isEmpty else { return roi }
-        switch orientation {
-        case .identity:
-            return roi
-        case .rotate90:
-            return HDRDiagnosticROI(x: 1 - roi.y - roi.height, y: roi.x, width: roi.height, height: roi.width)
-        case .rotate180:
-            return HDRDiagnosticROI(x: 1 - roi.x - roi.width, y: 1 - roi.y - roi.height, width: roi.width, height: roi.height)
-        case .rotate270:
-            return HDRDiagnosticROI(x: roi.y, y: 1 - roi.x - roi.width, width: roi.height, height: roi.width)
+        let corners = [
+            CGPoint(x: CGFloat(roi.x), y: CGFloat(roi.y)),
+            CGPoint(x: CGFloat(roi.x + roi.width), y: CGFloat(roi.y)),
+            CGPoint(x: CGFloat(roi.x), y: CGFloat(roi.y + roi.height)),
+            CGPoint(x: CGFloat(roi.x + roi.width), y: CGFloat(roi.y + roi.height))
+        ].map(orientation.sourcePoint(forDisplayPoint:))
+        guard let first = corners.first else { return roi }
+        let bounds = corners.dropFirst().reduce(CGRect(origin: first, size: .zero)) { result, point in
+            result.union(CGRect(origin: point, size: .zero))
         }
+        return HDRDiagnosticROI(
+            x: Float(bounds.minX), y: Float(bounds.minY),
+            width: Float(bounds.width), height: Float(bounds.height)
+        )
     }
 
     private func finishPreparationIfReady() {
@@ -967,6 +977,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public func outputMediaDataWillChange(_ sender: AVPlayerItemOutput) {}
 
     public func outputSequenceWasFlushed(_ output: AVPlayerItemOutput) {
+        _ = seekRedrawGate.begin()
         selector.reset()
         lastFrame = nil
         lastFrameV2 = nil

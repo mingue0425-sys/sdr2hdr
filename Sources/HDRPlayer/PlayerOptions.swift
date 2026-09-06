@@ -51,7 +51,7 @@ public struct PlayerOptions: Equatable, Sendable {
 
     public init(
         inputURL: URL? = nil,
-        preset: String = "calibrated-v4",
+        preset: String = HDRPresetResolver.productionDefault,
         paperWhiteNits: Float? = nil,
         peakNits: Float? = nil,
         debug: Bool = false,
@@ -81,20 +81,22 @@ public struct PlayerOptions: Equatable, Sendable {
         self.v62Candidate = v62Candidate
     }
 
-    public static let usage = """
-    Usage:
-      HDRPlayer <video-file> [--preset natural|hdr|vivid|calibrated-v1|calibrated-v2|calibrated-v4|calibrated-v3-candidate|v6-candidate-bandlimited-035|v6-candidate-bandlimited-045|v6-candidate-bandlimited-055|v6-candidate-bandlimited-065|v6-candidate-bandlimited-075|v6-candidate-no-lowmid|v6.2-candidate-adaptive-highlight|v6.2-candidate-adaptive-dynamic-range|v6.2-candidate-adaptive-combined] [--debug]
-      HDRPlayer <video-file> --controlled-ab --debug
-      HDRPlayer <video-file> --controlled-v6 --debug
-      HDRPlayer <video-file> --debug --diagnostic-json
-      HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
-      HDRPlayer <video-file> --paper-white 203 --peak 1000
-      HDRPlayer --edr-test-pattern [--play-for 5]
+    public static var usage: String {
+        """
+        Usage:
+          HDRPlayer <video-file> [--preset \(HDRPresetResolver.supportedPresetNames.joined(separator: "|"))] [--debug]
+          HDRPlayer <video-file> --controlled-ab --debug
+          HDRPlayer <video-file> --controlled-v6 --debug
+          HDRPlayer <video-file> --debug --diagnostic-json
+          HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
+          HDRPlayer <video-file> --paper-white 203 --peak 1000
+          HDRPlayer --edr-test-pattern [--play-for 5]
 
-    Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen,
-    B quick V2/V4 A/B toggle, 6 quick V4/V6 candidate toggle, 7 quick V4/V6.2 candidate toggle, D diagnostic dump, Shift-drag generic ROI, Up/Down volume,
-    Command-Q quit.
-    """
+        Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen,
+        B quick V2/V4 A/B toggle, 6 quick V4/V6 candidate toggle, 7 quick V4/V6.2 candidate toggle, D diagnostic dump, Shift-drag generic ROI, Up/Down volume,
+        Command-Q quit.
+        """
+    }
 
     public static func parse(arguments: [String]) throws -> PlayerOptions {
         var options = PlayerOptions()
@@ -133,9 +135,7 @@ public struct PlayerOptions: Equatable, Sendable {
             case "--preset":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 let normalized = value.lowercased()
-                let supported = ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"] +
-                    HDRV6ToneCurveCandidate.allCases.map(\.rawValue) +
-                    HDRV62ToneCurveCandidate.allCases.map(\.rawValue)
+                let supported = HDRPresetResolver.supportedPresetNames
                 guard supported.contains(normalized) else {
                     throw HDRPlayerCLIError.unsupportedPreset(value)
                 }
@@ -188,22 +188,8 @@ public struct PlayerOptions: Equatable, Sendable {
     }
 
     public func baseConfiguration() throws -> HDRConfiguration {
-        var configuration: HDRConfiguration
-        if let candidate = HDRV62ToneCurveCandidate(rawValue: preset) {
-            configuration = candidate.configuration()
-        } else if let candidate = HDRV6ToneCurveCandidate(rawValue: preset) {
-            configuration = candidate.configuration()
-        } else {
-            switch preset {
-            case "natural": configuration = .natural
-            case "hdr": configuration = .hdr
-            case "vivid": configuration = .vivid
-            case "calibrated-v1": configuration = .calibratedV1
-            case "calibrated-v2": configuration = .calibratedV2
-            case "calibrated-v4": configuration = .calibratedV4
-            case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
-            default: throw HDRPlayerCLIError.unsupportedPreset(preset)
-            }
+        guard var configuration = HDRPresetResolver.configuration(for: preset) else {
+            throw HDRPlayerCLIError.unsupportedPreset(preset)
         }
         configuration.outputMode = .edr
         if let paperWhiteNits { configuration.paperWhiteNits = paperWhiteNits }

@@ -406,6 +406,29 @@ final class CalibrationTests: XCTestCase {
         XCTAssertFalse(metrics.weightedContributions.isEmpty)
     }
 
+    func testPairedMetricsRejectNonFiniteSamplesWithoutShiftingPixelCorrespondence() {
+        let nan = Float.nan
+        let reference = [
+            SIMD3<Float>(repeating: 1),
+            SIMD3<Float>(repeating: nan),
+            SIMD3<Float>(repeating: 3),
+            SIMD3<Float>(repeating: 4)
+        ]
+        let generated = [
+            SIMD3<Float>(repeating: 1),
+            SIMD3<Float>(repeating: 2),
+            SIMD3<Float>(repeating: nan),
+            SIMD3<Float>(repeating: 4)
+        ]
+
+        let metrics = V2MetricTestProbe.compare(reference: reference, generated: generated)
+        XCTAssertEqual(metrics.invalidSampleCount, 2)
+        // Only indices 0 and 3 are valid paired samples, and they match.
+        // Independently filtering each side would incorrectly compare 3 with 2.
+        XCTAssertEqual(metrics.luminanceError, 0, accuracy: 0.000_001)
+        XCTAssertEqual(metrics.absoluteNitError, 0, accuracy: 0.000_001)
+    }
+
     func testDiffuseMidtoneDiagnosticUsesSourceRangeAndIsExcludedFromWeightedObjective() {
         let reference = ReferenceFrame(
             timestampSeconds: 0,
@@ -1726,9 +1749,9 @@ final class CalibrationTests: XCTestCase {
     func testProductionPercentileEstimatorMatchesOfflineQuantization() {
         let dark = Array(repeating: Float(0.01), count: 144)
         let runtimeDark = HDRSceneStatistics(productionLinearSamples: dark)
-        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 15))
+        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 63))
         XCTAssertEqual(runtimeDark, offlineDark)
-        XCTAssertEqual(runtimeDark.p05, 0.03125, accuracy: 0.000_001)
+        XCTAssertEqual(runtimeDark.p05, 0.0078125, accuracy: 0.000_001)
 
         let ramp = (0..<144).map { Float($0) / 143 }
         let runtimeRamp = HDRSceneStatistics(productionLinearSamples: ramp)
@@ -1857,6 +1880,11 @@ final class CalibrationTests: XCTestCase {
         for trace in submissions {
             XCTAssertLessThan(trace.temporalStateVersionConsumed, trace.submissionSequence)
             XCTAssertLessThan(trace.sceneStateVersionConsumed, trace.submissionSequence)
+            XCTAssertEqual(
+                trace.temporalStateVersionConsumed,
+                trace.sceneStateVersionConsumed,
+                "adaptive parameters must come from one committed state snapshot"
+            )
             XCTAssertGreaterThanOrEqual(trace.temporalStateVersionConsumed, previousTemporalVersion)
             XCTAssertGreaterThanOrEqual(trace.sceneStateVersionConsumed, previousSceneVersion)
             previousTemporalVersion = trace.temporalStateVersionConsumed
@@ -1876,6 +1904,11 @@ final class CalibrationTests: XCTestCase {
             XCTAssertGreaterThan(trace.submissionSequence, lastSequence)
             XCTAssertGreaterThanOrEqual(trace.temporalStateVersionProduced, lastTemporalVersion)
             XCTAssertGreaterThanOrEqual(trace.sceneStateVersionProduced, lastSceneVersion)
+            XCTAssertEqual(
+                trace.temporalStateVersionProduced,
+                trace.sceneStateVersionProduced,
+                "completion must commit temporal and scene state in one transaction"
+            )
             lastSequence = trace.submissionSequence
             lastTemporalVersion = trace.temporalStateVersionProduced
             lastSceneVersion = trace.sceneStateVersionProduced

@@ -2,7 +2,7 @@ import Foundation
 import Metal
 
 /// Layout for the DEBUG-only observation buffers. Production temporal control
-/// remains the fixed 16x9/16-bin estimator in SDRToHDR.metal. These values are
+/// remains the fixed 16x9/64-bin estimator in SDRToHDR.metal. These values are
 /// intentionally separate so diagnostics cannot change the causal estimator.
 public enum HDRDiagnosticHistogramLayout {
     public static let binCount = 64

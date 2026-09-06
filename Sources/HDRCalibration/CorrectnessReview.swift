@@ -1432,12 +1432,12 @@ public enum V4CorrectnessReview {
     private static func percentileParityCheck() -> V4CorrectnessCheck {
         let dark = Array(repeating: Float(0.01), count: 144)
         let runtimeDark = HDRSceneStatistics(productionLinearSamples: dark)
-        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 15))
+        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 63))
         let ramp = (0..<144).map { Float($0) / 143 }
         let runtimeRamp = HDRSceneStatistics(productionLinearSamples: ramp)
         let repeatedRamp = HDRSceneStatistics(productionLinearSamples: ramp)
         let passed = runtimeDark == offlineDark &&
-            abs(runtimeDark.p05 - 0.03125) <= 0.000_001 &&
+            abs(runtimeDark.p05 - 0.0078125) <= 0.000_001 &&
             runtimeRamp == repeatedRamp &&
             HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count == 144 &&
             abs(HDRSceneStatistics.productionLinearAverage(linearSamples: dark) - 0.01) <= 0.000_01
@@ -1446,7 +1446,7 @@ public enum V4CorrectnessReview {
             status: passed ? "PASS" : "FAIL",
             evidence: V4CorrectnessEvidence(
                 summary: passed
-                    ? "16x9/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+                    ? "16x9/64-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
                     : "production/offline percentile quantization check failed",
                 numerical: [
                     "p05MaxError": abs(Double(runtimeDark.p05 - offlineDark.p05)),
@@ -1844,7 +1844,7 @@ public enum V4CorrectnessReview {
         try writeJSON(
             V4ParityArtifact(
                 status: checkStatus("percentile-production-offline-parity"),
-                model: "16x9 sparse sampling, 16-bin histogram, bin-center quantization, causal delay",
+                model: "16x9 sparse sampling, 64-bin histogram, bin-center quantization, causal delay",
                 evidence: report.checks.first(where: { $0.id == "percentile-production-offline-parity" })?.evidence ??
                     V4CorrectnessEvidence(summary: "missing check evidence"),
                 virginFrozenObjectiveEvaluated: false

@@ -10,7 +10,7 @@ private struct BenchmarkOptions {
     var frames = 300
     var warmup = 30
     var mode: HDROutputMode = .edr
-    var preset = "hdr"
+    var preset = HDRPresetResolver.productionDefault
     var presentationOnly = false
 
     init(arguments: [String]) {
@@ -115,7 +115,11 @@ private func percentile(_ values: [Double], _ fraction: Double) -> Double {
     return sorted[position]
 }
 
-private func runPresentationBenchmark(options: BenchmarkOptions, device: MTLDevice) throws {
+private func runPresentationBenchmark(
+    options: BenchmarkOptions,
+    configuration: HDRConfiguration,
+    device: MTLDevice
+) throws {
     let renderer = try HDRPresentationRenderer(device: device)
     guard let queue = device.makeCommandQueue() else {
         throw NSError(domain: "HDRBenchmark", code: 2, userInfo: [NSLocalizedDescriptionKey: "Command queue unavailable"])
@@ -146,7 +150,7 @@ private func runPresentationBenchmark(options: BenchmarkOptions, device: MTLDevi
         renderer.encodeTestPattern(
             to: target,
             commandBuffer: commandBuffer,
-            masteringHeadroom: HDRConfiguration.calibratedV3Candidate.masteringHeadroom,
+            masteringHeadroom: configuration.masteringHeadroom,
             displayHeadroom: 2
         )
         let encodeEnd = ProcessInfo.processInfo.systemUptime
@@ -164,7 +168,7 @@ private func runPresentationBenchmark(options: BenchmarkOptions, device: MTLDevi
 
     print("HDRPresentationBenchmark")
     print("device: \(device.name)")
-    print("size: \(options.width)x\(options.height), format: rgba16Float, mastering: \(HDRConfiguration.calibratedV3Candidate.masteringHeadroom), display: 2.0, warmup: \(options.warmup), measured: \(options.frames)")
+    print("size: \(options.width)x\(options.height), format: rgba16Float, preset: \(options.preset), mastering: \(configuration.masteringHeadroom), effective peak nits: \(configuration.effectivePeakNits), display: 2.0, warmup: \(options.warmup), measured: \(options.frames)")
     print(String(format: "GPU p50: %.3f ms", percentile(gpuDurations, 0.50)))
     print(String(format: "GPU p95: %.3f ms", percentile(gpuDurations, 0.95)))
     print(String(format: "GPU p99: %.3f ms", percentile(gpuDurations, 0.99)))
@@ -178,33 +182,19 @@ private func run(options: BenchmarkOptions) throws {
     guard let device = MTLCreateSystemDefaultDevice() else {
         throw NSError(domain: "HDRBenchmark", code: 1, userInfo: [NSLocalizedDescriptionKey: "Metal device unavailable"])
     }
+    guard let resolvedConfiguration = HDRPresetResolver.configuration(for: options.preset) else {
+        throw NSError(
+            domain: "HDRBenchmark",
+            code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "unsupported preset: \(options.preset)"]
+        )
+    }
     if options.presentationOnly {
-        try runPresentationBenchmark(options: options, device: device)
+        try runPresentationBenchmark(options: options, configuration: resolvedConfiguration, device: device)
         return
     }
     let pixelBuffer = try makeSyntheticNV12(width: options.width, height: options.height)
-    var configuration: HDRConfiguration
-    switch options.preset {
-    case "natural": configuration = .natural
-    case "hdr": configuration = .hdr
-    case "vivid": configuration = .vivid
-    case "calibrated-v1": configuration = .calibratedV1
-    case "calibrated-v2": configuration = .calibratedV2
-    case "calibrated-v4": configuration = .calibratedV4
-    case "calibrated-v3-candidate": configuration = .calibratedV3Candidate
-    default:
-        if let candidate = HDRV62ToneCurveCandidate(rawValue: options.preset) {
-            configuration = candidate.configuration()
-        } else if let candidate = HDRV6ToneCurveCandidate(rawValue: options.preset) {
-            configuration = candidate.configuration()
-        } else {
-            throw NSError(
-                domain: "HDRBenchmark",
-                code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "unsupported preset: \(options.preset)"]
-            )
-        }
-    }
+    var configuration = resolvedConfiguration
     configuration.outputMode = options.mode
     let processor = try HDRProcessor(device: device, configuration: configuration)
     try processor.prepare(width: options.width, height: options.height)
