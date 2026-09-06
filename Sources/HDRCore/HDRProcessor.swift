@@ -1075,6 +1075,11 @@ public final class HDRProcessor {
             inputPixelFormat: inputTextures.pixelFormat.diagnosticName,
             inputBitDepth: inputTextures.pixelFormat.bitDepth,
             inputRange: inputTextures.pixelFormat.diagnosticRangeName,
+            inputChromaLocation: resolvedColor.chromaGeometry.metadataDescription,
+            resolvedChromaSiting: resolvedColor.chromaGeometry.resolvedSiting.rawValue,
+            chromaReconstructionMode: configuration.chromaReconstructionMode == .nearest
+                ? "nearest"
+                : "siting-aware-bilinear",
             temporalAdaptation: parameters.temporalAdaptation,
             temporalSubmissionSequence: temporalSubmission?.sequence ?? 0,
             sceneShadowFloor: parameters.sceneShadowFloor,
@@ -1333,7 +1338,10 @@ public final class HDRProcessor {
             developmentExpansionMidtoneHigh: configuration.developmentExpansionMidtoneHigh,
             developmentExpansionCombinedHighlightWeight: configuration.developmentExpansionCombinedHighlightWeight,
             developmentExpansionCombinedRangeWeight: configuration.developmentExpansionCombinedRangeWeight,
-            developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight
+            developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight,
+            chromaReconstructionMode: configuration.chromaReconstructionMode.rawValue,
+            chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
+            chromaSampleCenterY: color.chromaGeometry.sampleCenterY
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

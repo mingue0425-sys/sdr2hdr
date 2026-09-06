@@ -48,6 +48,9 @@ internal struct HDRShaderParameters {
     var developmentExpansionCombinedHighlightWeight: Float
     var developmentExpansionCombinedRangeWeight: Float
     var developmentExpansionCombinedMidtoneWeight: Float
+    var chromaReconstructionMode: UInt32
+    var chromaSampleCenterX: Float
+    var chromaSampleCenterY: Float
 }
 
 internal final class MetalContext {

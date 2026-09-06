@@ -49,6 +49,7 @@ public struct PlayerOptions: Equatable, Sendable {
     public var v6Candidate: HDRV6ToneCurveCandidate
     public var v62Candidate: HDRV62ToneCurveCandidate
     public var decodePrecision: HDRDecodePrecision
+    public var chromaReconstructionMode: HDRChromaReconstructionMode
 
     public init(
         inputURL: URL? = nil,
@@ -65,7 +66,8 @@ public struct PlayerOptions: Equatable, Sendable {
         diagnosticROI: HDRDiagnosticROI? = nil,
         v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
-        decodePrecision: HDRDecodePrecision = .automatic
+        decodePrecision: HDRDecodePrecision = .automatic,
+        chromaReconstructionMode: HDRChromaReconstructionMode = .nearest
     ) {
         self.inputURL = inputURL
         self.preset = preset
@@ -82,6 +84,7 @@ public struct PlayerOptions: Equatable, Sendable {
         self.v6Candidate = v6Candidate
         self.v62Candidate = v62Candidate
         self.decodePrecision = decodePrecision
+        self.chromaReconstructionMode = chromaReconstructionMode
     }
 
     public static var usage: String {
@@ -92,6 +95,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --controlled-v6 --debug
           HDRPlayer <video-file> --debug --diagnostic-json
           HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
+          HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
@@ -171,6 +175,17 @@ public struct PlayerOptions: Equatable, Sendable {
                     throw HDRPlayerCLIError.invalidOption("unsupported decode precision: \(value)")
                 }
                 index += 2
+            case "--chroma-reconstruction":
+                let value = try valueAfter(argument, arguments: arguments, index: index).lowercased()
+                switch value {
+                case "nearest":
+                    options.chromaReconstructionMode = .nearest
+                case "siting-aware-bilinear", "bilinear", "siting-aware":
+                    options.chromaReconstructionMode = .sitingAwareBilinear
+                default:
+                    throw HDRPlayerCLIError.invalidOption("unsupported chroma reconstruction: \(value)")
+                }
+                index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 let seconds = try parsePositive(value)
@@ -212,6 +227,7 @@ public struct PlayerOptions: Equatable, Sendable {
         if let paperWhiteNits { configuration.paperWhiteNits = paperWhiteNits }
         if let peakNits { configuration.peakNits = peakNits }
         configuration.inputFallbackPolicy = .bt709VideoRange
+        configuration.chromaReconstructionMode = chromaReconstructionMode
         return try configuration.validated()
     }
 

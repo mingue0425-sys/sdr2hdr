@@ -18,6 +18,15 @@ public enum HDRInputFallbackPolicy: String, CaseIterable, Sendable {
     case requireMetadata
 }
 
+/// Selects the spatial reconstruction used for 4:2:0 chroma planes. The
+/// calibrated V4 preset remains on `.nearest`; the siting-aware mode is an
+/// explicit development candidate until its synthetic and real-media error
+/// measurements justify promotion.
+public enum HDRChromaReconstructionMode: UInt32, CaseIterable, Codable, Sendable {
+    case nearest = 0
+    case sitingAwareBilinear = 1
+}
+
 /// Selects the analytical tone-expansion revision. Historical V1/V2 presets
 /// remain on the frozen V2 curve; the rejected V3 candidate explicitly opts
 /// into repaired shadow control, while the promoted V4 preset uses
@@ -595,6 +604,11 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// candidates unless a caller explicitly selects them.
     public var sceneHistogramStrategy: HDRSceneHistogramStrategy
 
+    /// Spatial reconstruction for 4:2:0 chroma planes. This is independent of
+    /// luma normalization, tone expansion, temporal adaptation, and the scene
+    /// histogram estimator.
+    public var chromaReconstructionMode: HDRChromaReconstructionMode
+
     /// Content/mastering-domain linear headroom. In EDR mode, 1.0 is diffuse
     /// SDR reference white and this value is the largest content signal the
     /// core may emit. Physical display headroom is presentation state and must
@@ -657,6 +671,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         displayHeadroom: Float = 4.0,
         toneCurveRevision: HDRToneCurveRevision = .legacyV2,
         sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
+        chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
@@ -683,6 +698,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.masteringHeadroom = displayHeadroom
         self.toneCurveRevision = toneCurveRevision
         self.sceneHistogramStrategy = sceneHistogramStrategy
+        self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
