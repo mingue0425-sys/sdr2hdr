@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "minimumDecodedFrames": 8,
+  "minimumP010InputLuminanceLevels": 3,
+  "minimumP010OutputLuminanceLevels": 6,
+  "maximumSequenceMismatch": 0,
+  "maximumUnexpectedClippingFraction": 0.50,
+  "maximumStaticFlickerP95": 0.08,
+  "maximumStaticFlickerMaximum": 0.25,
+  "maximumTimestampBackwardsSeconds": 0.000001,
+  "maximumExpectedCFRDeltaVariationSeconds": 0.002
+}
