@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained) ;;
+  fast|full|prime|self-contained|p010) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -581,9 +581,10 @@ if [ "${VERIFY_SCRIPT_LIBRARY_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
-if [ "$MODE" = "self-contained" ]; then
+if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
   FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-tiny-e2e.XXXXXX")"
   FIXTURE_PATH="$FIXTURE_DIR/tiny-sdr.mp4"
+  P010_FIXTURE_PATH="$FIXTURE_DIR/tiny-p010-sdr.mp4"
   trap 'rm -rf "$FIXTURE_DIR"' EXIT
   command -v ffmpeg >/dev/null 2>&1 || {
     echo 'SELF-CONTAINED REAL-MEDIA VERIFY: FAIL (ffmpeg is required)' >&2
@@ -593,11 +594,21 @@ if [ "$MODE" = "self-contained" ]; then
     echo 'SELF-CONTAINED REAL-MEDIA VERIFY: FAIL (ffprobe is required)' >&2
     exit 2
   }
-  stage 'self-contained tiny media fixture' bash Tests/verify_tiny_media_fixture.sh "$FIXTURE_PATH"
-  stage 'real-media AVFoundation HDR/Metal integration' env \
-    HDR_SELF_CONTAINED_FIXTURE="$FIXTURE_PATH" \
-    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests
-  echo 'SELF-CONTAINED REAL-MEDIA VERIFY: PASS'
+  if [ "$MODE" = "self-contained" ]; then
+    stage 'self-contained tiny 8-bit media fixture' bash Tests/verify_tiny_media_fixture.sh "$FIXTURE_PATH"
+    stage 'real-media AVFoundation 8-bit HDR/Metal integration' env \
+      HDR_SELF_CONTAINED_FIXTURE="$FIXTURE_PATH" \
+      swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedFixtureRunsThroughAVFoundationHDRCoreMetalAndOffscreenPresentation
+  fi
+  stage 'self-contained tiny compressed P010 fixture' bash Tests/verify_tiny_p010_fixture.sh "$P010_FIXTURE_PATH"
+  stage 'real-media AVFoundation P010 HDR/Metal integration' env \
+    HDR_P010_SELF_CONTAINED_FIXTURE="$P010_FIXTURE_PATH" \
+    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedP010FixtureRunsThroughAVFoundationHDRCoreMetalAndOffscreenPresentation
+  if [ "$MODE" = "self-contained" ]; then
+    echo 'SELF-CONTAINED REAL-MEDIA VERIFY: PASS'
+  else
+    echo 'P010 REAL-MEDIA VERIFY: PASS'
+  fi
   echo 'AVFoundation decode, CVPixelBuffer metadata, HDRProcessor Metal, and offscreen presentation were exercised.'
   echo 'No dataset audit, correctness review, objective evaluation, or holdout media access was performed.'
   exit 0
