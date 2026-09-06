@@ -27,8 +27,12 @@ jobs:
           bash -n Tests/verify_tiny_media_fixture.sh
           bash -n Tests/generate_tiny_p010_fixture.sh
           bash -n Tests/verify_tiny_p010_fixture.sh
+          bash -n Tests/RealMediaRegression/generate_regression_fixtures.sh
+          bash -n Tests/RealMediaRegression/verify_regression_fixtures.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
+          python3 -m json.tool Tests/RealMediaRegression/manifest.json >/dev/null
+          python3 -m json.tool Tests/RealMediaRegression/gates.json >/dev/null
       - name: Check self-contained media tools
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
@@ -38,6 +42,8 @@ jobs:
           command -v ffprobe
       - name: Self-contained real-media integration
         run: ./RUN_MACOS_VERIFY.sh self-contained
+      - name: Manifest-driven compressed-media regression matrix
+        run: ./RUN_MACOS_VERIFY.sh regression
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 

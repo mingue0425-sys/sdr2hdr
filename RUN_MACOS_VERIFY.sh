@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010) ;;
+  fast|full|prime|self-contained|p010|regression|regression-full) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|regression|regression-full] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -617,6 +617,53 @@ if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
   fi
   echo 'AVFoundation decode, CVPixelBuffer metadata, HDRProcessor Metal, and offscreen presentation were exercised.'
   echo 'No dataset audit, correctness review, objective evaluation, or holdout media access was performed.'
+  exit 0
+fi
+
+if [ "$MODE" = "regression" ] || [ "$MODE" = "regression-full" ]; then
+  FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-real-media-regression.XXXXXX")"
+  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  command -v ffmpeg >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA REGRESSION VERIFY: FAIL (ffmpeg is required)' >&2
+    exit 2
+  }
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA REGRESSION VERIFY: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  stage 'manifest-driven compressed fixture generation' \
+    bash Tests/RealMediaRegression/generate_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'manifest-driven ffprobe fixture contracts' \
+    bash Tests/RealMediaRegression/verify_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'mandatory real-media regression matrix' env \
+    HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+    HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+    HDR_REAL_MEDIA_REGRESSION_RESULTS="$ROOT/results/real-media-regression.json" \
+    swift test -c debug --disable-index-store \
+      --filter RealMediaRegressionTests/testManifestDrivenRegressionMatrixRunsBothModes
+  if [ "$MODE" = "regression-full" ]; then
+    stage 'release real-media regression matrix' env \
+      HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+      HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+      HDR_REAL_MEDIA_REGRESSION_RESULTS="$ROOT/results/real-media-regression-release.json" \
+      swift test -c release --disable-index-store \
+        --filter RealMediaRegressionTests/testManifestDrivenRegressionMatrixRunsBothModes
+  fi
+  if [ -f "$ROOT/results/real-media-regression.json" ] && \
+     python3 - "$ROOT/results/real-media-regression.json" <<'PY'
+import json
+import sys
+document = json.load(open(sys.argv[1], encoding="utf-8"))
+raise SystemExit(0 if document.get("skipped", 0) > 0 else 1)
+PY
+  then
+    echo 'REAL-MEDIA REGRESSION VERIFY: PASS WITH EXPLICIT CAPABILITY SKIPS'
+  else
+    echo 'REAL-MEDIA REGRESSION VERIFY: PASS'
+  fi
+  echo 'Production nearest and siting-aware candidate were both evaluated for every available manifest fixture.'
+  echo 'Virgin Frozen accessed: NO'
+  echo 'Objective evaluations: 0'
   exit 0
 fi
 
