@@ -163,24 +163,16 @@ final class HDRV6ToneCurveTests: XCTestCase {
         commandBuffer.waitUntilCompleted()
         XCTAssertNil(commandBuffer.error)
 
-        // The source texture is 2 pixels wide. Allocate a complete row for
-        // the requested bytesPerRow even though the region is only 1 pixel.
-        var output = [Float16](repeating: 0, count: 2 * 4)
-        frame.texture.getBytes(
-            &output,
-            bytesPerRow: 2 * MemoryLayout<Float16>.size * 4,
-            from: MTLRegionMake2D(0, 0, 1, 1),
-            mipmapLevel: 0
-        )
+        let output = try readFirstRGBA16FloatPixel(from: frame.texture, device: device)
         let expected = HDRReference.process(
             signalRGB: SIMD3(repeating: 0.65),
             configuration: configuration,
             temporalAdaptation: 1,
             sceneStatistics: nil
         )
-        XCTAssertEqual(Float(output[0]), expected.x, accuracy: 0.003)
-        XCTAssertEqual(Float(output[1]), expected.y, accuracy: 0.003)
-        XCTAssertEqual(Float(output[2]), expected.z, accuracy: 0.003)
+        XCTAssertEqual(output.x, expected.x, accuracy: 0.003)
+        XCTAssertEqual(output.y, expected.y, accuracy: 0.003)
+        XCTAssertEqual(output.z, expected.z, accuracy: 0.003)
     }
 
     func testV6ControlledProcessorsKeepIndependentTemporalState() throws {
