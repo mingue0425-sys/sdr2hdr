@@ -132,7 +132,10 @@ bash Tests/verify_script_cache_test.sh: PASS
 git diff --check: PASS
 ```
 
-The existing self-contained verification already runs the compressed 8-bit and P010 real-media stages, so no CI workflow change was required for the synthetic chroma suite. A remote CI run was not initiated from this local branch.
+The earlier PR #4 head (`7b20bfb`) passed macOS CI run #27. This follow-up
+keeps that result and changes the self-contained filters to execute the full
+2×2 real-media gate: H.264 nearest, H.264 siting-aware, P010 nearest, and P010
+siting-aware. The pushed follow-up head will receive a separate CI run.
 
 `./RUN_MACOS_VERIFY.sh fast` was not run because it belongs to the larger dataset verification workflow; no protected dataset was opened for this development validation.
 

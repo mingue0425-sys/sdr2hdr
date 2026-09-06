@@ -596,14 +596,20 @@ if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
   }
   if [ "$MODE" = "self-contained" ]; then
     stage 'self-contained tiny 8-bit media fixture' bash Tests/verify_tiny_media_fixture.sh "$FIXTURE_PATH"
-    stage 'real-media AVFoundation 8-bit HDR/Metal integration' env \
+    stage 'real-media AVFoundation 8-bit production nearest integration' env \
       HDR_SELF_CONTAINED_FIXTURE="$FIXTURE_PATH" \
-      swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedFixtureRunsThroughAVFoundationHDRCoreMetalAndOffscreenPresentation
+      swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedFixtureRunsThroughProductionNearestPath
+    stage 'real-media AVFoundation 8-bit siting-aware candidate integration' env \
+      HDR_SELF_CONTAINED_FIXTURE="$FIXTURE_PATH" \
+      swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedFixtureRunsThroughSitingAwareCandidate
   fi
   stage 'self-contained tiny compressed P010 fixture' bash Tests/verify_tiny_p010_fixture.sh "$P010_FIXTURE_PATH"
-  stage 'real-media AVFoundation P010 HDR/Metal integration' env \
+  stage 'real-media AVFoundation P010 production nearest integration' env \
     HDR_P010_SELF_CONTAINED_FIXTURE="$P010_FIXTURE_PATH" \
-    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedP010FixtureRunsThroughAVFoundationHDRCoreMetalAndOffscreenPresentation
+    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedP010FixtureRunsThroughProductionNearestPath
+  stage 'real-media AVFoundation P010 siting-aware candidate integration' env \
+    HDR_P010_SELF_CONTAINED_FIXTURE="$P010_FIXTURE_PATH" \
+    swift test -c debug --disable-index-store --filter RealMediaIntegrationTests/testGeneratedP010FixtureRunsThroughSitingAwareCandidate
   if [ "$MODE" = "self-contained" ]; then
     echo 'SELF-CONTAINED REAL-MEDIA VERIFY: PASS'
   else
