@@ -114,8 +114,10 @@ remain available and are covered by the pre-existing regression tests.
 ## CI and dataset isolation
 
 The macOS workflow runs the self-contained verification mode, which now
-exercises both compressed 8-bit and compressed P010 media. Remote PR workflow
-status is recorded after the feature branch is pushed.
+exercises both compressed 8-bit and compressed P010 media. PR #3 macOS CI
+passed on commit `bd41a71`. The first runner attempt stopped before P010
+fixture generation because that runner did not provide `rg`; the capability
+check was changed to use FFmpeg's encoder help command and the rerun passed.
 
 ```text
 K-Choreo accessed: NO
