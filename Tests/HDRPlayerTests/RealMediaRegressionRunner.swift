@@ -559,13 +559,34 @@ struct RealMediaRegressionRunner {
         if distinct < fixture.minimumDistinctFrameDurations {
             failures.append("timing has \(distinct) distinct frame durations; \(fixture.minimumDistinctFrameDurations) required")
         }
-        if fixture.timing == .cfr, let first = deltas.first {
-            let variation = deltas.map { abs($0 - first) }.max() ?? 0
-            if variation > gates.maximumExpectedCFRDeltaVariationSeconds {
-                failures.append("CFR frame duration variation \(variation) exceeds gate")
-            }
+        if fixture.timing == .cfr {
+            failures.append(contentsOf: Self.cfrTimestampFailures(
+                timestamps: timestamps,
+                frameRate: fixture.frameRate,
+                tolerance: gates.maximumExpectedCFRDeltaVariationSeconds
+            ))
         }
         return failures
+    }
+
+    static func cfrTimestampFailures(
+        timestamps: [Double],
+        frameRate: Double,
+        tolerance: Double
+    ) -> [String] {
+        guard frameRate.isFinite, frameRate > 0,
+              tolerance.isFinite, tolerance >= 0 else {
+            return ["CFR timing gate has invalid nominal frame rate or tolerance"]
+        }
+        let nominalDuration = 1.0 / frameRate
+        return zip(timestamps, timestamps.dropFirst()).compactMap { left, right in
+            let delta = right - left
+            guard delta.isFinite, delta > 0 else { return nil }
+            let nearestFrameCount = max(1, (delta / nominalDuration).rounded())
+            let quantizationError = abs(delta - nearestFrameCount * nominalDuration)
+            guard quantizationError > tolerance else { return nil }
+            return "CFR frame delta \(delta) is not an integer multiple of nominal duration \(nominalDuration)"
+        }
     }
 
     private func validateRuntime(

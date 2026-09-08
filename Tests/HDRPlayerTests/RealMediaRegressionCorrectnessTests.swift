@@ -123,6 +123,32 @@ final class RealMediaRegressionCorrectnessTests: XCTestCase {
         XCTAssertTrue(failures.contains { $0.contains("mandatory fixtures skipped") })
     }
 
+    func testCFRTimestampGateAllowsDroppedFramesButRejectsIrregularDeltas() {
+        let frameDuration = 1.0 / 60.0
+        let droppedFrameTimestamps = [
+            0.0,
+            frameDuration,
+            3.0 * frameDuration,
+            4.0 * frameDuration
+        ]
+        XCTAssertTrue(
+            RealMediaRegressionRunner.cfrTimestampFailures(
+                timestamps: droppedFrameTimestamps,
+                frameRate: 60,
+                tolerance: 0.002
+            ).isEmpty
+        )
+
+        let irregularTimestamps = [0.0, frameDuration, 2.5 * frameDuration]
+        XCTAssertFalse(
+            RealMediaRegressionRunner.cfrTimestampFailures(
+                timestamps: irregularTimestamps,
+                frameRate: 60,
+                tolerance: 0.002
+            ).isEmpty
+        )
+    }
+
     private func makeNV12(yCodes: [UInt8]) throws -> CVPixelBuffer {
         let width = 4
         let height = 2
