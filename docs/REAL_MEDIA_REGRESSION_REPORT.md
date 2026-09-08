@@ -182,7 +182,7 @@ outside the repository and is not part of the corpus report.
 The CI workflow now syntax-checks the generator, verifier, manifest, and gates,
 then runs `./RUN_MACOS_VERIFY.sh regression` before the broader Swift/Metal
 tests. The latest local full Swift test suite passed in both configurations with
-268 tests, 0 failures, and 12 environment/data-dependent skips. Remote CI
+269 tests, 0 failures, and 12 environment/data-dependent skips. Remote CI
 status is reported by the pull request for the branch.
 
 ## Production invariants
