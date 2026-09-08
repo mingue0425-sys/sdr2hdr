@@ -155,7 +155,7 @@ struct RealMediaRegressionRunner {
             manifest: fixture,
             id: fixture.id,
             status: failures.isEmpty ? "pass" : "fail",
-            skipReason: nil,
+            skipReason: failures.isEmpty ? nil : failures.joined(separator: "; "),
             nearest: nearest.result,
             candidate: candidate.result,
             comparison: comparison
