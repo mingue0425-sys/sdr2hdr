@@ -1,0 +1,59 @@
+{
+  "id": "pexels-8729490",
+  "fileName": "development/pexels-8729490.mp4",
+  "sha256": "2c8c378c9d2bfccf58c3a2131861be33979e3455d27111eda7cc12b1c238bc65",
+  "sourceFamily": "pexels-creator-katya-wolf",
+  "split": "development",
+  "category": "skin-face",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 23.976023976023978,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/a-woman-with-a-beautiful-smile-8729490/",
+    "downloadURL": "https://videos.pexels.com/video-files/8729490/8729490-uhd_1440_2560_24fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Katya Wolf",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 1440,
+      "height": 2560
+    },
+    "frameRateRational": "24000/1001",
+    "duration": 10.01,
+    "chromaLocation": "left",
+    "bytes": 15892693,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 240,
+      "minDelta": 0.04170799999999897,
+      "maxDelta": 0.041709000000000884,
+      "medianDelta": 0.04170800000000008,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

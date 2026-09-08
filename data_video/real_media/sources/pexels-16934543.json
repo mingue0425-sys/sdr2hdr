@@ -1,0 +1,59 @@
+{
+  "id": "pexels-16934543",
+  "fileName": "development/pexels-16934543.mp4",
+  "sha256": "5ef83ab5ff29498dc7d06337aa8517ed85636f9c05e82719088c62acc748c103",
+  "sourceFamily": "pexels-creator-mohammed-abubakr",
+  "split": "development",
+  "category": "night-neon",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 30.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/a-street-with-a-building-and-a-street-light-16934543/",
+    "downloadURL": "https://videos.pexels.com/video-files/16934543/16934543-hd_1080_1920_30fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Mohammed Abubakr",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 1080,
+      "height": 1920
+    },
+    "frameRateRational": "30/1",
+    "duration": 8.0,
+    "chromaLocation": "left",
+    "bytes": 6265661,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 240,
+      "minDelta": 0.033332999999999835,
+      "maxDelta": 0.033334000000000086,
+      "medianDelta": 0.03333300000000006,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

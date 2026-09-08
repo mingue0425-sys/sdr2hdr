@@ -1,0 +1,59 @@
+{
+  "id": "pexels-10297595",
+  "fileName": "validation/pexels-10297595.mp4",
+  "sha256": "9ad31d41436f724b257a26d882e48da18df5abe9441352b67d810f48e3564131",
+  "sourceFamily": "pexels-creator-evgenij-mikhailov",
+  "split": "validation",
+  "category": "night-neon",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 29.97002997002997,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/traffic-at-night-in-moscow-10297595/",
+    "downloadURL": "https://videos.pexels.com/video-files/10297595/10297595-hd_2560_1440_30fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Evgenij Mikhailov",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2560,
+      "height": 1440
+    },
+    "frameRateRational": "30000/1001",
+    "duration": 20.753333,
+    "chromaLocation": "left",
+    "bytes": 35295382,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 622,
+      "minDelta": 0.03336599999999734,
+      "maxDelta": 0.03336700000000192,
+      "medianDelta": 0.033366999999999924,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

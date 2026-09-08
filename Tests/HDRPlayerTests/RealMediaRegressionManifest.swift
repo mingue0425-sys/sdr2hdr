@@ -62,6 +62,17 @@ struct RegressionChromaSitingExpectation: Codable, Equatable, Sendable {
     }
 }
 
+struct RegressionRegion: Codable, Equatable, Sendable {
+    let x: Int
+    let y: Int
+    let width: Int
+    let height: Int
+
+    var isValid: Bool {
+        x >= 0 && y >= 0 && width > 0 && height > 0
+    }
+}
+
 struct RealMediaRegressionFixture: Codable, Equatable, Sendable, Identifiable {
     let id: String
     let codec: RegressionCodec
@@ -76,10 +87,13 @@ struct RealMediaRegressionFixture: Codable, Equatable, Sendable, Identifiable {
     let expectedTransfer: RegressionTransfer
     let expectedMatrix: RegressionMatrix
     let chromaSiting: RegressionChromaSitingExpectation
+    let gateProfile: String
     let minimumFrames: Int
     let minimumDistinctFrameDurations: Int
     let staticContent: Bool
     let minimumInputLuminanceLevels: Int
+    let precisionRegion: RegressionRegion?
+    let minimumNearBlackOutputLevels: Int?
 
     var decodePrecision: HDRDecodePrecision {
         expectedPixelFormatFamily == .p010 ? .tenBitPreferred : .eightBit
@@ -142,10 +156,34 @@ struct RealMediaRegressionManifest: Codable, Equatable, Sendable {
                     "\(fixture.id) must declare a chroma metadata policy"
                 )
             }
+            if let allowed = fixture.chromaSiting.allowed {
+                guard !allowed.isEmpty, Set(allowed).count == allowed.count else {
+                    throw RegressionManifestError.invalid(
+                        "\(fixture.id) has an empty or duplicate chroma siting allow-list"
+                    )
+                }
+            }
+            guard !fixture.gateProfile.isEmpty else {
+                throw RegressionManifestError.invalid("\(fixture.id) has no gate profile")
+            }
             guard fixture.staticContent == fixture.contentClass.isStatic else {
                 throw RegressionManifestError.invalid(
                     "\(fixture.id) staticContent disagrees with contentClass"
                 )
+            }
+            if let region = fixture.precisionRegion {
+                guard region.isValid else {
+                    throw RegressionManifestError.invalid("\(fixture.id) has an invalid precision region")
+                }
+            }
+            if fixture.contentClass == .nearBlack {
+                guard fixture.precisionRegion != nil,
+                      let minimum = fixture.minimumNearBlackOutputLevels,
+                      minimum > 0 else {
+                    throw RegressionManifestError.invalid(
+                        "\(fixture.id) must declare a near-black precision region and output gate"
+                    )
+                }
             }
         }
     }
@@ -158,20 +196,62 @@ struct RealMediaRegressionManifest: Codable, Equatable, Sendable {
     }
 }
 
+struct RegressionGateProfile: Codable, Equatable, Sendable {
+    let maximumClippingFraction: Double
+
+    var isValid: Bool {
+        maximumClippingFraction.isFinite && (0...1).contains(maximumClippingFraction)
+    }
+}
+
 struct RegressionGates: Codable, Equatable, Sendable {
     let version: Int
     let minimumDecodedFrames: Int
     let minimumP010InputLuminanceLevels: Int
     let minimumP010OutputLuminanceLevels: Int
     let maximumSequenceMismatch: UInt64
-    let maximumUnexpectedClippingFraction: Double
+    let maximumNearBlackOrderingViolations: Int
     let maximumStaticFlickerP95: Double
     let maximumStaticFlickerMaximum: Double
     let maximumTimestampBackwardsSeconds: Double
     let maximumExpectedCFRDeltaVariationSeconds: Double
+    let profiles: [String: RegressionGateProfile]
+
+    func profile(for name: String) throws -> RegressionGateProfile {
+        guard let profile = profiles[name] else {
+            throw RegressionManifestError.invalid("missing regression gate profile \(name)")
+        }
+        guard profile.isValid else {
+            throw RegressionManifestError.invalid("invalid clipping gate profile \(name)")
+        }
+        return profile
+    }
+
+    func validate() throws {
+        guard version == 1 else {
+            throw RegressionManifestError.invalid("unsupported regression gate version \(version)")
+        }
+        guard minimumDecodedFrames > 0,
+              minimumP010InputLuminanceLevels > 0,
+              minimumP010OutputLuminanceLevels > 0,
+              maximumNearBlackOrderingViolations >= 0 else {
+            throw RegressionManifestError.invalid("invalid regression gate counts")
+        }
+        guard maximumStaticFlickerP95.isFinite,
+              maximumStaticFlickerMaximum.isFinite,
+              maximumTimestampBackwardsSeconds.isFinite,
+              maximumExpectedCFRDeltaVariationSeconds.isFinite else {
+            throw RegressionManifestError.invalid("non-finite regression gate")
+        }
+        guard !profiles.isEmpty, profiles.values.allSatisfy(\.isValid) else {
+            throw RegressionManifestError.invalid("regression clipping profiles are invalid or empty")
+        }
+    }
 
     static func load(from url: URL) throws -> Self {
-        try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        let gates = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        try gates.validate()
+        return gates
     }
 }
 
@@ -223,6 +303,9 @@ struct RegressionOutputSummary: Codable, Sendable {
     let maximumClippingFraction: Double
     let inputDistinguishableLuminanceLevels: Int
     let outputDistinguishableLuminanceLevels: Int
+    let nearBlackInputLuminanceLevels: Int?
+    let nearBlackOutputLuminanceLevels: Int?
+    let nearBlackOrderingViolations: Int?
     let staticFlickerP95: Double
     let staticFlickerMaximum: Double
 }

@@ -78,12 +78,28 @@ The preregistered gates are in
 - unexpected clipping fraction;
 - static fixture frame-to-frame luminance flicker;
 - P010 input and output distinguishable luminance levels;
+- the Main10 near-black precision ROI at `(0, 0, 32, 36)`, including
+  Float16-aware output level clustering and monotonic ordering violations;
+- content-aware clipping profiles (`dark-static`, `neutral-static`, and
+  `motion`);
 - GPU/adaptive completion sequence consistency.
+
+Every deterministic generated fixture preregisters its expected decoded
+chroma siting as `left`. A siting attachment outside that allow-list fails the
+fixture contract instead of silently becoming an informational result. The
+near-black fixture currently records 16 input levels, 20 output levels, and
+zero ordering violations in the configured ROI for both reconstruction modes.
+The current local run observed zero clipping in all three content profiles.
 
 The report artifact is written to the ignored `results/` directory as
 `real-media-regression.json`; release mode writes a separate
 `real-media-regression-release.json`. The fixture probe artifact is kept in the
 temporary fixture directory.
+
+For high-resolution external media, CPU readback validity and percentile
+diagnostics use a deterministic grid capped at 65,536 pixels per frame. GPU
+processing and presentation still run at the source resolution. The
+deterministic generated matrix retains its full-pixel diagnostic behavior.
 
 ## Local results
 
@@ -120,6 +136,19 @@ These are diagnostic samples from 64×36 fixtures, not a production
 performance gate. A larger local performance tier remains separate from the
 mandatory PR matrix.
 
+The configured external corpus then passed the shared runtime path:
+
+```text
+development: 12 sources, failures=0, metadata-only=0, 61 seconds
+validation:  5 sources, failures=0, metadata-only=1, 23 seconds
+```
+
+The validation metadata-only source is the local HEVC adaptation of Elephants
+Dream. Its hash and ffprobe contract pass, but its SMPTE 170M colorimetry is
+outside the current HDRCore BT.709 SDR runtime domain, so the manifest marks
+it explicitly as `engineEvaluation: metadata-only`. It is not counted as a
+runtime pass.
+
 ## Verification commands
 
 Executed locally:
@@ -136,14 +165,23 @@ bash Tests/verify_script_cache_test.sh
 ./RUN_MACOS_VERIFY.sh p010
 ./RUN_MACOS_VERIFY.sh regression
 ./RUN_MACOS_VERIFY.sh regression-full
+./RUN_MACOS_VERIFY.sh real-media
+./RUN_MACOS_VERIFY.sh real-media-validation
+HDR_REAL_MEDIA_ROOT="$PWD/sdr2hdr-real-media" ./RUN_MACOS_VERIFY.sh real-media
+HDR_REAL_MEDIA_ROOT="$PWD/sdr2hdr-real-media" ./RUN_MACOS_VERIFY.sh real-media-validation
 git diff --check
 ```
 
+The external modes were first run without `HDR_REAL_MEDIA_ROOT` and reported an
+explicit skip. They were then run against the configured local corpus above.
+The temporary generated H.264 smoke source used during runner bring-up remains
+outside the repository and is not part of the corpus report.
+
 The CI workflow now syntax-checks the generator, verifier, manifest, and gates,
 then runs `./RUN_MACOS_VERIFY.sh regression` before the broader Swift/Metal
-tests. The local full Swift test suite passed in both configurations with 247
-tests, 0 failures, and 9 environment/data-dependent skips. Remote CI status is
-reported by the pull request for the branch.
+tests. The latest local full Swift test suite passed in both configurations with
+262 tests, 0 failures, and 12 environment/data-dependent skips. Remote CI
+status is reported by the pull request for the branch.
 
 ## Production invariants
 
@@ -160,10 +198,42 @@ shared AVPlayerItemVideoOutput configuration helper. Its default remains the
 existing 8-bit/video-range contract; the explicit full-range option is used by
 the regression harness to verify that range is not silently lost.
 
+## External corpus path
+
+External sources are intentionally separate from the deterministic CI
+manifest. `data_video/real_media/external-manifest.json` stores source
+identity, SHA-256, source-family provenance, split, category, strict metadata
+expectations, and fixed duration-fraction windows; media bytes remain outside
+the repository under `HDR_REAL_MEDIA_ROOT`.
+
+`real-media` runs only the development split and
+`real-media-validation` runs only the validation split. Both modes validate
+the file hash and ffprobe metadata before reusing the common AVFoundation →
+CVPixelBuffer → HDRProcessor → Metal → offscreen presentation runner. The
+runner records nearest and siting-aware results and their deltas without
+declaring a candidate better in the absence of an HDR reference. A source
+family appearing in both splits is rejected as
+`SOURCE_FAMILY_SPLIT_LEAKAGE`.
+
+The manifest also carries optional `MatchedMediaPair` records. When both
+members are present in the selected split, the report records coarse
+resolution, duration, frame-count, frame-rate, and metadata compatibility.
+Scene correspondence is explicitly marked not evaluated; this path never
+turns a matched pair into an objective evaluation.
+
+The local manifest contains 17 playable source entries across 16 source
+families: 12 development sources and 5 validation sources. Development covers
+8-bit NV12 plus two genuine 10-bit P010 sources. Validation has four runtime
+sources and one explicit metadata-only source as described above. No source
+family crosses the split boundary. The media bytes remain outside Git and are
+not added to CI; deterministic 12-fixture regression remains the mandatory
+CI gate.
+
 ## Next step
 
-Use the deterministic matrix as the mandatory correctness gate while adding
-independent local real-media source families. Keep any HDR-reference quality
-assessment separate from this decode, timing, chroma, and runtime-validity
-regression layer. Do not promote siting-aware reconstruction from these smoke
-and matrix results alone.
+Keep the deterministic matrix as the mandatory correctness gate. The next
+corpus work is to close the documented gaps: genuine VFR, more native HEVC
+sources, at least one additional genuine 10-bit family, and matched SDR/HDR
+pairs. Keep HDR-reference quality assessment separate from this decode, timing,
+chroma, and runtime-validity regression layer. Do not promote siting-aware
+reconstruction from these runtime results alone.

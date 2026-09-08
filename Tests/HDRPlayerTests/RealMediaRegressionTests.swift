@@ -33,6 +33,41 @@ final class RealMediaRegressionTests: XCTestCase {
         XCTAssertEqual(Set(manifest.fixtures.map(\.id)), requiredIDs)
     }
 
+    func testDeterministicChromaSitingExpectationsAreExplicit() throws {
+        let manifest = try loadManifest()
+        XCTAssertTrue(manifest.fixtures.allSatisfy { fixture in
+            fixture.chromaSiting.required && fixture.chromaSiting.allowed == [.left]
+        })
+    }
+
+    func testNearBlackPrecisionUsesConfiguredROI() throws {
+        let manifest = try loadManifest()
+        let fixture = try XCTUnwrap(manifest.fixtures.first { $0.contentClass == .nearBlack })
+        XCTAssertEqual(fixture.precisionRegion, RegressionRegion(x: 0, y: 0, width: 32, height: 36))
+        XCTAssertEqual(fixture.minimumNearBlackOutputLevels, 6)
+    }
+
+    func testNearBlackOutputOrderingDoesNotCollapseUnexpectedly() throws {
+        let input: [Float] = [0.001, 0.002, 0.004, 0.008, 0.016]
+        let output: [Float] = [0.010, 0.011, 0.013, 0.017, 0.024]
+        let violations = zip(input, output).sorted { $0.0 < $1.0 }.reduce(into: (last: -Float.infinity, count: 0)) {
+            if $1.1 + 1.0 / 4096.0 < $0.last { $0.count += 1 }
+            $0.last = max($0.last, $1.1)
+        }.count
+        XCTAssertEqual(violations, 0)
+        XCTAssertGreaterThan(output.count, 1)
+    }
+
+    func testContentSpecificClippingGatesLoadCorrectly() throws {
+        let manifest = try loadManifest()
+        let gates = try loadGates()
+        XCTAssertEqual(gates.profiles["dark-static"]?.maximumClippingFraction, 0.25)
+        XCTAssertEqual(gates.profiles["neutral-static"]?.maximumClippingFraction, 0.50)
+        XCTAssertEqual(gates.profiles["motion"]?.maximumClippingFraction, 0.75)
+        XCTAssertEqual(gates.maximumNearBlackOrderingViolations, 0)
+        XCTAssertTrue(manifest.fixtures.allSatisfy { gates.profiles[$0.gateProfile] != nil })
+    }
+
     func testSharedVideoOutputDefaultsRemainVideoRange() {
         let key = kCVPixelBufferPixelFormatTypeKey as String
         XCTAssertEqual(

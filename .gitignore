@@ -14,3 +14,6 @@
 # Calibration output is reproducible and can be regenerated locally.
 results/
 data_video/virgin_candidates/**/.work/
+
+# External local corpus, including raw Y4M and provenance caches.
+/sdr2hdr-real-media/

@@ -9,6 +9,10 @@ import HDRPlayerKit
 
 @MainActor
 struct RealMediaRegressionRunner {
+    // External media may be 4K or larger. Keep diagnostic arrays bounded for
+    // the external corpus while retaining the full deterministic fixture path.
+    private static let externalDiagnosticSampleLimit = 65_536
+
     struct DecodedFrame {
         let pixelBuffer: CVPixelBuffer
         let presentationTime: CMTime
@@ -32,6 +36,7 @@ struct RealMediaRegressionRunner {
         case missingDevice
         case missingTexture
         case commandBufferFailed(String)
+        case invalidPrecisionRegion
 
         var errorDescription: String? {
             switch self {
@@ -47,6 +52,8 @@ struct RealMediaRegressionRunner {
                 return "Metal texture allocation failed"
             case .commandBufferFailed(let reason):
                 return "Metal command buffer failed: \(reason)"
+            case .invalidPrecisionRegion:
+                return "precision region is outside the decoded luma plane"
             }
         }
     }
@@ -97,17 +104,29 @@ struct RealMediaRegressionRunner {
         }
         let frames = try await decodeFrames(asset: asset, fixture: fixture)
         let inputLevels = try inputLuminanceLevelCount(frames: frames, bitDepth: fixture.sourceBitDepth)
+        let nearBlackInputSamples: [Float]?
+        if let region = fixture.precisionRegion {
+            nearBlackInputSamples = try inputLuminanceSamples(
+                frames: frames,
+                bitDepth: fixture.sourceBitDepth,
+                region: region
+            )
+        } else {
+            nearBlackInputSamples = nil
+        }
 
         let nearest = try await runMode(
             fixture: fixture,
             frames: frames,
             inputLevels: inputLevels,
+            nearBlackInputSamples: nearBlackInputSamples,
             mode: .nearest
         )
         let candidate = try await runMode(
             fixture: fixture,
             frames: frames,
             inputLevels: inputLevels,
+            nearBlackInputSamples: nearBlackInputSamples,
             mode: .sitingAwareBilinear
         )
         let comparison = compare(nearest: nearest, candidate: candidate)
@@ -125,11 +144,14 @@ struct RealMediaRegressionRunner {
 
     private func decodeFrames(
         asset: AVAsset,
-        fixture: RealMediaRegressionFixture
+        fixture: RealMediaRegressionFixture,
+        startTime: Double = 0,
+        duration: Double? = nil,
+        precision: HDRDecodePrecision? = nil
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
         let output = HDRVideoOutputConfiguration.makeVideoOutput(
-            precision: fixture.decodePrecision,
+            precision: precision ?? fixture.decodePrecision,
             range: fixture.range.decodeRange
         )
         output.suppressesPlayerRendering = true
@@ -147,6 +169,14 @@ struct RealMediaRegressionRunner {
             throw RunnerError.playerItemNotReady(item.error?.localizedDescription ?? "unknown status")
         }
 
+        if startTime > 0 {
+            let target = CMTime(seconds: startTime, preferredTimescale: 600)
+            await withCheckedContinuation { continuation in
+                player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                    continuation.resume()
+                }
+            }
+        }
         output.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
         player.play()
 
@@ -168,6 +198,10 @@ struct RealMediaRegressionRunner {
                     }
                 }
             }
+            if let duration, frames.count >= fixture.minimumFrames,
+               itemTime.isNumeric, itemTime.seconds >= startTime + duration {
+                break
+            }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
         player.pause()
@@ -185,14 +219,19 @@ struct RealMediaRegressionRunner {
         fixture: RealMediaRegressionFixture,
         frames: [DecodedFrame],
         inputLevels: Int,
-        mode: RegressionMode
+        nearBlackInputSamples: [Float]?,
+        mode: RegressionMode,
+        validateFixtureMetadata: Bool = true,
+        enforcePrecisionGates: Bool = true,
+        diagnosticLuminanceSampleLimit: Int? = nil
     ) async throws -> ModeExecution {
         let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
         let resolvedColor = try HDRColorMetadataResolver.resolve(
             pixelBuffer: firstPixelBuffer,
             fallbackPolicy: .requireMetadata
         )
-        var failures = validateMetadata(fixture: fixture, resolvedColor: resolvedColor)
+        var failures = validateFixtureMetadata ?
+            validateMetadata(fixture: fixture, resolvedColor: resolvedColor) : []
         let timestamps = frames.map { $0.presentationTime.seconds }
         failures.append(contentsOf: validateTimestamps(timestamps, fixture: fixture))
 
@@ -214,21 +253,28 @@ struct RealMediaRegressionRunner {
                 width: width,
                 height: height,
                 processor: processor,
-                renderer: renderer
+                renderer: renderer,
+                luminanceSampleLimit: diagnosticLuminanceSampleLimit
             ))
         }
 
         let timing = timingSummary(timestamps: timestamps, frameExecutions: frameExecutions)
         let output = outputSummary(
             inputLevels: inputLevels,
-            frames: frameExecutions.map(\.output)
+            frames: frameExecutions.map(\.output),
+            nearBlackInputSamples: nearBlackInputSamples,
+            precisionRegion: fixture.precisionRegion,
+            bitDepth: fixture.sourceBitDepth,
+            width: width,
+            height: height
         )
         failures.append(contentsOf: validateRuntime(
             fixture: fixture,
             processor: processor,
             frameCount: frames.count,
             output: output,
-            timing: timing
+            timing: timing,
+            enforcePrecisionGates: enforcePrecisionGates
         ))
 
         let metadata = RegressionMetadataSummary(
@@ -269,7 +315,8 @@ struct RealMediaRegressionRunner {
         width: Int,
         height: Int,
         processor: HDRProcessor,
-        renderer: HDRPresentationRenderer
+        renderer: HDRPresentationRenderer,
+        luminanceSampleLimit: Int? = nil
     ) throws -> FrameExecution {
         let cpuStart = CACurrentMediaTime()
         let commandBuffer = try processor.makeCommandBuffer()
@@ -342,32 +389,64 @@ struct RealMediaRegressionRunner {
         var nonZeroSampleCount = 0
         var minimumValue = Double.infinity
         var maximumValue = -Double.infinity
+        let luminanceSampleStride = samplingStride(
+            width: width,
+            height: height,
+            maxSamples: luminanceSampleLimit
+        )
+        let sampledWidth = (width + luminanceSampleStride - 1) / luminanceSampleStride
+        let sampledHeight = (height + luminanceSampleStride - 1) / luminanceSampleStride
+        let sampledPixelCount = max(sampledWidth * sampledHeight, 1)
         var luminance: [Float] = []
-        luminance.reserveCapacity(width * height)
+        luminance.reserveCapacity(sampledPixelCount)
         var clippingPixels = 0
         var luminanceSum = 0.0
 
-        for pixel in 0..<(width * height) {
-            let red = Float(Float16(bitPattern: values[pixel * 4]))
-            let green = Float(Float16(bitPattern: values[pixel * 4 + 1]))
-            let blue = Float(Float16(bitPattern: values[pixel * 4 + 2]))
-            let alpha = Float(Float16(bitPattern: values[pixel * 4 + 3]))
-            let components = [red, green, blue, alpha]
-            for component in components {
-                if component.isNaN { nanCount += 1 }
-                else if component.isInfinite { infinityCount += 1 }
+        for y in stride(from: 0, to: height, by: luminanceSampleStride) {
+            for x in stride(from: 0, to: width, by: luminanceSampleStride) {
+                let pixel = y * width + x
+                let red = Float(Float16(bitPattern: values[pixel * 4]))
+                let green = Float(Float16(bitPattern: values[pixel * 4 + 1]))
+                let blue = Float(Float16(bitPattern: values[pixel * 4 + 2]))
+                let alpha = Float(Float16(bitPattern: values[pixel * 4 + 3]))
+                if red.isNaN { nanCount += 1 }
+                else if red.isInfinite { infinityCount += 1 }
                 else {
                     finiteSampleCount += 1
-                    if component < 0 { negativeCount += 1 }
-                    minimumValue = min(minimumValue, Double(component))
-                    maximumValue = max(maximumValue, Double(component))
+                    if red < 0 { negativeCount += 1 }
+                    minimumValue = min(minimumValue, Double(red))
+                    maximumValue = max(maximumValue, Double(red))
                 }
+                if green.isNaN { nanCount += 1 }
+                else if green.isInfinite { infinityCount += 1 }
+                else {
+                    finiteSampleCount += 1
+                    if green < 0 { negativeCount += 1 }
+                    minimumValue = min(minimumValue, Double(green))
+                    maximumValue = max(maximumValue, Double(green))
+                }
+                if blue.isNaN { nanCount += 1 }
+                else if blue.isInfinite { infinityCount += 1 }
+                else {
+                    finiteSampleCount += 1
+                    if blue < 0 { negativeCount += 1 }
+                    minimumValue = min(minimumValue, Double(blue))
+                    maximumValue = max(maximumValue, Double(blue))
+                }
+                if alpha.isNaN { nanCount += 1 }
+                else if alpha.isInfinite { infinityCount += 1 }
+                else {
+                    finiteSampleCount += 1
+                    if alpha < 0 { negativeCount += 1 }
+                    minimumValue = min(minimumValue, Double(alpha))
+                    maximumValue = max(maximumValue, Double(alpha))
+                }
+                let pixelLuminance = 0.2627 * red + 0.6780 * green + 0.0593 * blue
+                luminance.append(pixelLuminance)
+                luminanceSum += Double(pixelLuminance)
+                if max(red, max(green, blue)) > 0.0001 { nonZeroSampleCount += 1 }
+                if max(red, max(green, blue)) >= 1.5 { clippingPixels += 1 }
             }
-            let pixelLuminance = 0.2627 * red + 0.6780 * green + 0.0593 * blue
-            luminance.append(pixelLuminance)
-            luminanceSum += Double(pixelLuminance)
-            if max(red, max(green, blue)) > 0.0001 { nonZeroSampleCount += 1 }
-            if max(red, max(green, blue)) >= 1.5 { clippingPixels += 1 }
         }
 
         let gpuMilliseconds: Double
@@ -383,10 +462,10 @@ struct RealMediaRegressionRunner {
             infinityCount: infinityCount,
             negativeCount: negativeCount,
             nonZeroSampleCount: nonZeroSampleCount,
-            meanLuminance: luminanceSum / Double(max(luminance.count, 1)),
+            meanLuminance: luminanceSum / Double(sampledPixelCount),
             minimumValue: minimumValue.isFinite ? minimumValue : 0,
             maximumValue: maximumValue.isFinite ? maximumValue : 0,
-            clippingFraction: Double(clippingPixels) / Double(max(width * height, 1)),
+            clippingFraction: Double(clippingPixels) / Double(sampledPixelCount),
             luminance: luminance
         )
         return FrameExecution(output: output, gpuMilliseconds: gpuMilliseconds, cpuMilliseconds: cpuMilliseconds)
@@ -468,7 +547,8 @@ struct RealMediaRegressionRunner {
         processor: HDRProcessor,
         frameCount: Int,
         output: RegressionOutputSummary,
-        timing: RegressionTimingSummary
+        timing: RegressionTimingSummary,
+        enforcePrecisionGates: Bool = true
     ) -> [String] {
         var failures: [String] = []
         if processor.lastGPUCompletedSequence < UInt64(frameCount) {
@@ -481,10 +561,16 @@ struct RealMediaRegressionRunner {
         if output.infinityCount > 0 { failures.append("presentation output contains infinity") }
         if output.negativeCount > 0 { failures.append("presentation output contains negative values") }
         if output.nonZeroSampleCount == 0 { failures.append("presentation output is entirely zero") }
-        if output.maximumClippingFraction > gates.maximumUnexpectedClippingFraction {
-            failures.append("unexpected clipping fraction \(output.maximumClippingFraction) exceeds gate")
+        if let profile = gates.profiles[fixture.gateProfile],
+           output.maximumClippingFraction > profile.maximumClippingFraction {
+            failures.append(
+                "unexpected clipping fraction \(output.maximumClippingFraction) exceeds " +
+                    "\(fixture.gateProfile) gate \(profile.maximumClippingFraction)"
+            )
+        } else if gates.profiles[fixture.gateProfile] == nil {
+            failures.append("missing clipping gate profile \(fixture.gateProfile)")
         }
-        if fixture.staticContent {
+        if enforcePrecisionGates && fixture.staticContent {
             if output.staticFlickerP95 > gates.maximumStaticFlickerP95 {
                 failures.append("static fixture flicker p95 \(output.staticFlickerP95) exceeds gate")
             }
@@ -492,16 +578,32 @@ struct RealMediaRegressionRunner {
                 failures.append("static fixture flicker maximum \(output.staticFlickerMaximum) exceeds gate")
             }
         }
-        if fixture.expectedPixelFormatFamily == .p010,
+        if enforcePrecisionGates && fixture.expectedPixelFormatFamily == .p010,
            output.inputDistinguishableLuminanceLevels < max(
                fixture.minimumInputLuminanceLevels,
                gates.minimumP010InputLuminanceLevels
            ) {
             failures.append("P010 input precision levels \(output.inputDistinguishableLuminanceLevels) below gate")
         }
-        if fixture.expectedPixelFormatFamily == .p010,
+        if enforcePrecisionGates && fixture.expectedPixelFormatFamily == .p010,
            output.outputDistinguishableLuminanceLevels < gates.minimumP010OutputLuminanceLevels {
             failures.append("P010 output precision levels \(output.outputDistinguishableLuminanceLevels) below gate")
+        }
+        if enforcePrecisionGates, let minimum = fixture.minimumNearBlackOutputLevels {
+            guard let actual = output.nearBlackOutputLuminanceLevels else {
+                failures.append("near-black precision region did not produce output samples")
+                return failures
+            }
+            if actual < minimum {
+                failures.append("near-black output levels \(actual) below gate \(minimum)")
+            }
+            let orderingViolations = output.nearBlackOrderingViolations ?? Int.max
+            if orderingViolations > gates.maximumNearBlackOrderingViolations {
+                failures.append(
+                    "near-black output ordering violations \(orderingViolations) exceed gate " +
+                        "\(gates.maximumNearBlackOrderingViolations)"
+                )
+            }
         }
         let traces = processor.temporalCompletionTrace
         if traces.count < frameCount {
@@ -525,7 +627,12 @@ struct RealMediaRegressionRunner {
 
     private func outputSummary(
         inputLevels: Int,
-        frames: [RegressionFrameOutput]
+        frames: [RegressionFrameOutput],
+        nearBlackInputSamples: [Float]?,
+        precisionRegion: RegressionRegion?,
+        bitDepth: Int,
+        width: Int,
+        height: Int
     ) -> RegressionOutputSummary {
         let allLuminance = frames.flatMap(\.luminance)
         let outputLevels = clusterCount(allLuminance, tolerance: 1.0 / 4096.0)
@@ -535,6 +642,35 @@ struct RealMediaRegressionRunner {
         let allDeltas = frameDeltas.flatMap { $0 }
         let staticFlickerP95 = percentile(allDeltas, fraction: 0.95)
         let staticFlickerMaximum = allDeltas.max() ?? 0
+        let nearBlackOutputSamples: [Float]?
+        if let precisionRegion {
+            nearBlackOutputSamples = frames.flatMap {
+                samples(
+                    in: $0.luminance,
+                    width: width,
+                    height: height,
+                    region: precisionRegion
+                )
+            }
+        } else {
+            nearBlackOutputSamples = nil
+        }
+        let nearBlackInputLevels = nearBlackInputSamples.map {
+            clusterCount($0, tolerance: bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
+        }
+        let nearBlackOutputLevels = nearBlackOutputSamples.map {
+            clusterCount($0, tolerance: 1.0 / 4096.0)
+        }
+        let nearBlackOrderingViolations: Int?
+        if let nearBlackInputSamples, let nearBlackOutputSamples {
+            nearBlackOrderingViolations = orderingViolations(
+                input: nearBlackInputSamples,
+                output: nearBlackOutputSamples,
+                tolerance: 1.0 / 4096.0
+            )
+        } else {
+            nearBlackOrderingViolations = nil
+        }
         return RegressionOutputSummary(
             finiteSampleCount: frames.reduce(0) { $0 + $1.finiteSampleCount },
             nanCount: frames.reduce(0) { $0 + $1.nanCount },
@@ -546,6 +682,9 @@ struct RealMediaRegressionRunner {
             maximumClippingFraction: frames.map(\.clippingFraction).max() ?? 0,
             inputDistinguishableLuminanceLevels: inputLevels,
             outputDistinguishableLuminanceLevels: outputLevels,
+            nearBlackInputLuminanceLevels: nearBlackInputLevels,
+            nearBlackOutputLuminanceLevels: nearBlackOutputLevels,
+            nearBlackOrderingViolations: nearBlackOrderingViolations,
             staticFlickerP95: staticFlickerP95,
             staticFlickerMaximum: staticFlickerMaximum
         )
@@ -586,32 +725,112 @@ struct RealMediaRegressionRunner {
 
     private func inputLuminanceLevelCount(
         frames: [DecodedFrame],
-        bitDepth: Int
+        bitDepth: Int,
+        maxSamples: Int? = nil
     ) throws -> Int {
+        let samples = try inputLuminanceSamples(
+            frames: frames,
+            bitDepth: bitDepth,
+            region: nil,
+            maxSamples: maxSamples
+        )
+        return clusterCount(samples, tolerance: bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
+    }
+
+    private func inputLuminanceSamples(
+        frames: [DecodedFrame],
+        bitDepth: Int,
+        region: RegressionRegion?,
+        maxSamples: Int? = nil
+    ) throws -> [Float] {
         var samples: [Float] = []
         for frame in frames {
             let pixelBuffer = frame.pixelBuffer
             CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
-            defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
             let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
             let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+            let selectedRegion = region ?? RegressionRegion(x: 0, y: 0, width: width, height: height)
+            guard selectedRegion.isValid,
+                  selectedRegion.x + selectedRegion.width <= width,
+                  selectedRegion.y + selectedRegion.height <= height else {
+                CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
+                throw RunnerError.invalidPrecisionRegion
+            }
             let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
-            guard let base = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else { continue }
+            guard let base = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
+                CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
+                continue
+            }
+            let sampleStride = samplingStride(
+                width: selectedRegion.width,
+                height: selectedRegion.height,
+                maxSamples: maxSamples
+            )
+            let xEnd = selectedRegion.x + selectedRegion.width
+            let yEnd = selectedRegion.y + selectedRegion.height
             if bitDepth == 10 {
                 let pointer = base.assumingMemoryBound(to: UInt16.self)
-                for y in 0..<height {
+                for y in stride(from: selectedRegion.y, to: yEnd, by: sampleStride) {
                     let row = pointer.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
-                    for x in 0..<width { samples.append(Float(row[x] >> 6) / 1023) }
+                    for x in stride(from: selectedRegion.x, to: xEnd, by: sampleStride) {
+                        samples.append(Float(row[x] >> 6) / 1023)
+                    }
                 }
             } else {
                 let pointer = base.assumingMemoryBound(to: UInt8.self)
-                for y in 0..<height {
+                for y in stride(from: selectedRegion.y, to: yEnd, by: sampleStride) {
                     let row = pointer.advanced(by: y * rowBytes)
-                    for x in 0..<width { samples.append(Float(row[x]) / 255) }
+                    for x in stride(from: selectedRegion.x, to: xEnd, by: sampleStride) {
+                        samples.append(Float(row[x]) / 255)
+                    }
                 }
             }
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
         }
-        return clusterCount(samples, tolerance: bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
+        return samples
+    }
+
+    private func samplingStride(width: Int, height: Int, maxSamples: Int?) -> Int {
+        guard let maxSamples, maxSamples > 0 else { return 1 }
+        let sampleCount = max(width, 1) * max(height, 1)
+        guard sampleCount > maxSamples else { return 1 }
+        return max(1, Int(ceil(sqrt(Double(sampleCount) / Double(maxSamples)))))
+    }
+
+    private func samples(
+        in values: [Float],
+        width: Int,
+        height: Int,
+        region: RegressionRegion
+    ) -> [Float] {
+        guard region.isValid,
+              region.x + region.width <= width,
+              region.y + region.height <= height else { return [] }
+        var selected: [Float] = []
+        selected.reserveCapacity(region.width * region.height)
+        for y in region.y..<(region.y + region.height) {
+            let start = y * width + region.x
+            selected.append(contentsOf: values[start..<(start + region.width)])
+        }
+        return selected
+    }
+
+    private func orderingViolations(
+        input: [Float],
+        output: [Float],
+        tolerance: Float
+    ) -> Int {
+        guard input.count == output.count else { return Int.max }
+        let pairs = zip(input, output)
+            .filter { $0.0.isFinite && $0.1.isFinite }
+            .sorted { lhs, rhs in lhs.0 < rhs.0 }
+        var violations = 0
+        var maximumOutput = -Float.infinity
+        for (_, value) in pairs {
+            if value + tolerance < maximumOutput { violations += 1 }
+            maximumOutput = max(maximumOutput, value)
+        }
+        return violations
     }
 
     private func unwrapFirstPixelBuffer(_ frames: [DecodedFrame]) throws -> CVPixelBuffer {
@@ -669,5 +888,181 @@ struct RealMediaRegressionRunner {
         guard !sorted.isEmpty else { return 0 }
         let index = min(sorted.count - 1, max(0, Int((Double(sorted.count - 1) * fraction).rounded())))
         return sorted[index]
+    }
+
+    func runExternal(
+        source: ExternalRealMediaSource,
+        fileURL: URL,
+        probe: ExternalMediaProbe
+    ) async throws -> ExternalMediaSourceResult {
+        let asset = AVURLAsset(url: fileURL)
+        guard try await asset.load(.isPlayable) else {
+            throw RunnerError.playerItemNotReady("external asset is not playable")
+        }
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        guard tracks.count == 1 else {
+            throw RunnerError.playerItemNotReady("external asset expected one video track, found \(tracks.count)")
+        }
+        guard let totalDuration = probe.duration else {
+            throw ExternalMediaInspectionError.invalidProbe("duration is missing")
+        }
+
+        var windowResults: [ExternalMediaWindowResult] = []
+        for window in source.windows {
+            let resolved = try window.resolve(totalDuration: totalDuration)
+            let fixture = externalFixture(source: source, probe: probe)
+            let frames = try await decodeFrames(
+                asset: asset,
+                fixture: fixture,
+                startTime: resolved.start,
+                duration: resolved.duration,
+                precision: externalPrecision(source: source)
+            )
+            let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
+            let resolvedColor = try HDRColorMetadataResolver.resolve(
+                pixelBuffer: firstPixelBuffer,
+                fallbackPolicy: .requireMetadata
+            )
+            let metadataFailures = validateExternalMetadata(
+                source: source,
+                resolvedColor: resolvedColor
+            )
+            let inputLevels = try inputLuminanceLevelCount(
+                frames: frames,
+                bitDepth: resolvedColor.pixelFormat.bitDepth,
+                maxSamples: Self.externalDiagnosticSampleLimit
+            )
+            let nearest = try await runMode(
+                fixture: fixture,
+                frames: frames,
+                inputLevels: inputLevels,
+                nearBlackInputSamples: nil,
+                mode: .nearest,
+                validateFixtureMetadata: false,
+                enforcePrecisionGates: false,
+                diagnosticLuminanceSampleLimit: Self.externalDiagnosticSampleLimit
+            )
+            let candidate = try await runMode(
+                fixture: fixture,
+                frames: frames,
+                inputLevels: inputLevels,
+                nearBlackInputSamples: nil,
+                mode: .sitingAwareBilinear,
+                validateFixtureMetadata: false,
+                enforcePrecisionGates: false,
+                diagnosticLuminanceSampleLimit: Self.externalDiagnosticSampleLimit
+            )
+            let nearestResult = addingFailures(metadataFailures, to: nearest.result)
+            let candidateResult = addingFailures(metadataFailures, to: candidate.result)
+            windowResults.append(
+                ExternalMediaWindowResult(
+                    window: window,
+                    resolvedStart: resolved.start,
+                    resolvedDuration: resolved.duration,
+                    nearest: nearestResult,
+                    candidate: candidateResult,
+                    comparison: compare(nearest: nearest, candidate: candidate)
+                )
+            )
+        }
+
+        let failures = windowResults.flatMap { $0.nearest.failures + $0.candidate.failures }
+        return ExternalMediaSourceResult(
+            id: source.id,
+            fileName: source.fileName,
+            sha256: source.sha256,
+            provenance: source.provenance,
+            probe: probe,
+            windows: windowResults,
+            status: failures.isEmpty ? "pass" : "fail",
+            failure: failures.isEmpty ? nil : failures.joined(separator: "; ")
+        )
+    }
+
+    private func externalFixture(
+        source: ExternalRealMediaSource,
+        probe: ExternalMediaProbe
+    ) -> RealMediaRegressionFixture {
+        let bitDepth = source.expected.bitDepth ?? probe.bitDepth ?? 8
+        let range = source.expected.range ?? probe.range ?? .video
+        let timing = source.expected.timing ?? .cfr
+        let frameRate = source.expected.frameRate ?? probe.averageFrameRate ?? 24
+        let allowedSiting = source.expected.allowedChromaSiting
+        return RealMediaRegressionFixture(
+            id: source.id,
+            codec: source.expected.codec ?? .h264,
+            sourceBitDepth: bitDepth,
+            expectedDecodeBitDepth: bitDepth,
+            expectedPixelFormatFamily: bitDepth == 10 ? .p010 : .nv12,
+            range: range,
+            frameRate: frameRate,
+            timing: timing,
+            contentClass: .motion,
+            profile: "external",
+            expectedTransfer: .bt709,
+            expectedMatrix: .bt709,
+            chromaSiting: RegressionChromaSitingExpectation(
+                required: allowedSiting != nil,
+                allowed: allowedSiting
+            ),
+            gateProfile: "motion",
+            minimumFrames: gates.minimumDecodedFrames,
+            minimumDistinctFrameDurations: source.expected.minimumDistinctFrameDurations ??
+                (timing == .vfr ? 2 : 1),
+            staticContent: false,
+            minimumInputLuminanceLevels: 1,
+            precisionRegion: nil,
+            minimumNearBlackOutputLevels: nil
+        )
+    }
+
+    private func externalPrecision(source: ExternalRealMediaSource) -> HDRDecodePrecision {
+        switch source.expected.bitDepth {
+        case 10: return .tenBitPreferred
+        case 8: return .eightBit
+        default: return .automatic
+        }
+    }
+
+    private func validateExternalMetadata(
+        source: ExternalRealMediaSource,
+        resolvedColor: ResolvedColorDescription
+    ) -> [String] {
+        var failures: [String] = []
+        if let bitDepth = source.expected.bitDepth, resolvedColor.pixelFormat.bitDepth != bitDepth {
+            failures.append("PRECISION_DOWNGRADE expected=\(bitDepth) actual=\(resolvedColor.pixelFormat.bitDepth)")
+        }
+        if let range = source.expected.range {
+            let actual: RegressionRange = resolvedColor.pixelFormat.isFullRange ? .full : .video
+            if actual != range { failures.append("range expected=\(range.rawValue) actual=\(actual.rawValue)") }
+        }
+        if let allowed = source.expected.allowedChromaSiting,
+           !allowed.contains(resolvedColor.chromaGeometry.resolvedSiting) {
+            failures.append(
+                "chroma siting \(resolvedColor.chromaGeometry.resolvedSiting.rawValue) is outside external allow-list"
+            )
+        }
+        return failures
+    }
+
+    private func addingFailures(
+        _ additional: [String],
+        to result: RegressionModeResult
+    ) -> RegressionModeResult {
+        let failures = result.failures + additional
+        return RegressionModeResult(
+            mode: result.mode,
+            metadata: result.metadata,
+            frameCount: result.frameCount,
+            timestamps: result.timestamps,
+            timing: result.timing,
+            output: result.output,
+            gpuCompletedSequence: result.gpuCompletedSequence,
+            adaptiveCommittedSequence: result.adaptiveCommittedSequence,
+            traceCount: result.traceCount,
+            outputTextureAllocations: result.outputTextureAllocations,
+            passed: failures.isEmpty,
+            failures: failures
+        )
     }
 }

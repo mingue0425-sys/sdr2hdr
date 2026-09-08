@@ -1,0 +1,59 @@
+{
+  "id": "pexels-3615892",
+  "fileName": "development/pexels-3615892.mp4",
+  "sha256": "b75f496cab61a9d2955c7f7c309d4c8b38ba6813d046fe09c26610b37f2260fc",
+  "sourceFamily": "pexels-creator-bedrijfsfilmspecialist.nl",
+  "split": "development",
+  "category": "smoke-fog",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 25.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/fog-over-the-woods-3615892/",
+    "downloadURL": "https://videos.pexels.com/video-files/3615892/3615892-uhd_2560_1440_25fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Bedrijfsfilmspecialist.nl",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2560,
+      "height": 1440
+    },
+    "frameRateRational": "25/1",
+    "duration": 11.12,
+    "chromaLocation": "left",
+    "bytes": 11026847,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 278,
+      "minDelta": 0.03999999999999915,
+      "maxDelta": 0.040000000000000924,
+      "medianDelta": 0.040000000000000036,
+      "distinctRoundedDeltas": 1
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

@@ -1,0 +1,9 @@
+{
+  "filesVerified": 17,
+  "familiesVerified": 16,
+  "familySplitLeakage": false,
+  "sha256AllMatch": true,
+  "individualEntriesMatch": true,
+  "virginFrozenAccessed": false,
+  "objectiveEvaluations": 0
+}

@@ -1,0 +1,59 @@
+{
+  "id": "pexels-854053",
+  "fileName": "development/pexels-854053.mp4",
+  "sha256": "9fe0664a28de4979367e7a4dd4e155c872cb7932abc427adc9240fa9bc740cab",
+  "sourceFamily": "pexels-creator-coverr",
+  "split": "development",
+  "category": "screen-ui-text",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 25.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/typing-of-codes-854053/",
+    "downloadURL": "https://videos.pexels.com/video-files/854053/854053-hd_1920_1080_25fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Coverr",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "frameRateRational": "25/1",
+    "duration": 15.08,
+    "chromaLocation": "left",
+    "bytes": 5547478,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 377,
+      "minDelta": 0.03999999999999915,
+      "maxDelta": 0.040000000000000924,
+      "medianDelta": 0.040000000000000036,
+      "distinctRoundedDeltas": 1
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

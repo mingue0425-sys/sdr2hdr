@@ -1,0 +1,59 @@
+{
+  "id": "pexels-13702779",
+  "fileName": "validation/pexels-13702779.mp4",
+  "sha256": "06e80672b76a051e34d483041f0c982bddd4c89e0ec17fccf8b3534817957686",
+  "sourceFamily": "pexels-creator-florian-delée",
+  "split": "validation",
+  "category": "dark-film-like",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 25.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/a-man-with-led-lanterns-walking-around-a-vandalized-house-at-night-13702779/",
+    "downloadURL": "https://videos.pexels.com/video-files/13702779/13702779-uhd_2560_1440_25fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Florian Delée",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2560,
+      "height": 1440
+    },
+    "frameRateRational": "25/1",
+    "duration": 17.48,
+    "chromaLocation": "left",
+    "bytes": 29783550,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 437,
+      "minDelta": 0.03999999999999915,
+      "maxDelta": 0.0400000000000027,
+      "medianDelta": 0.040000000000000036,
+      "distinctRoundedDeltas": 1
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

@@ -1,0 +1,84 @@
+{
+  "id": "netflix-chimera-bar",
+  "fileName": "development/netflix-chimera-bar.mp4",
+  "sha256": "073deb261ebe6ea9b84fe658184f43d0a7bf6fb960195eddfe350cf0a7b51a84",
+  "sourceFamily": "netflix-chimera",
+  "split": "development",
+  "category": "dark-film-like",
+  "licenseNote": "CC BY-NC-ND 4.0, Netflix Inc. 2015; restricted local noncommercial evaluation subset. Original 10-bit source excerpt and attribution retained. Do not redistribute derived media.",
+  "expected": {
+    "codec": "hevc",
+    "profile": "Main 10",
+    "bitDepth": 10,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 60.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 1.2000000000000002
+    }
+  ],
+  "provenance": {
+    "url": "https://media.xiph.org/video/derf/",
+    "downloadURL": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_4096x2160_60fps_10bit_420.y4m",
+    "licenseURL": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_Copyright.txt",
+    "creator": "Netflix Inc.",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p10le",
+    "resolution": {
+      "width": 4096,
+      "height": 2160
+    },
+    "frameRateRational": "60/1",
+    "duration": 3.0,
+    "chromaLocation": "left",
+    "bytes": 46539408,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 180,
+      "minDelta": 0.016665999999999848,
+      "maxDelta": 0.0166670000000001,
+      "medianDelta": 0.016666999999999987,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher copyright document specifies 10-bit YCbCr 4:2:0 BT.709; downloaded Y4M C420p10, retained original samples. Not 8-bit upconversion.",
+  "sdrEvidence": "Publisher documents BT.709 SDR; derivative BT.709 signaling repaired without changing samples.",
+  "acquisitionKind": "original-excerpt-plus-local-hevc",
+  "original": {
+    "fileName": "development/netflix-chimera-bar-original-prefix.y4m",
+    "sha256": "f47c629d289debb7b094b10ffa74b2ee9b01e63d8bca683a586d35a9aecc59a7",
+    "bytes": 4777575524,
+    "header": "YUV4MPEG2 W4096 H2160 F60:1 Ip A1:1 C420p10",
+    "lumaSampleMin": 48,
+    "lumaSampleMax": 764,
+    "low2BitCounts": {
+      "0": 22707,
+      "1": 22746,
+      "2": 22824,
+      "3": 22933
+    },
+    "note": "Nonzero low bits corroborate stored precision but alone do not prove camera precision. Publisher explicitly supplies 10-bit BT709 YCbCr 420."
+  },
+  "derivation": {
+    "originalAsset": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_4096x2160_60fps_10bit_420.y4m",
+    "byteRange": "0-4777575523",
+    "frameCount": 180,
+    "encode": "libx265 fast CRF16 yuv420p10le, hvc1, no scaling",
+    "metadataPatch": "hevc_metadata colour_primaries=1 transfer_characteristics=1 matrix_coefficients=1 video_full_range_flag=0",
+    "rangeEvidence": "Video range operational assumption for untagged Y4M, explicitly set on derivative; source license does not declare range.",
+    "chromaLocationEvidence": "Derivative encoder signals left; original chroma location unspecified.",
+    "fpsConflict": "Publisher license says 59.94; downloaded Y4M header says F60:1. Preserved file clock at 60, did not retime."
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "pexels-11114560",
+  "fileName": "validation/pexels-11114560.mp4",
+  "sha256": "780b46b37d833e0f5bdae0325eecc1e10cc92fd53c5c2c7d7d09a3aabc1959e2",
+  "sourceFamily": "pexels-creator-mustafa-akkuş",
+  "split": "validation",
+  "category": "bright-outdoor",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 29.97002997002997,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/clouds-over-istanbul-11114560/",
+    "downloadURL": "https://videos.pexels.com/video-files/11114560/11114560-hd_2560_1440_30fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Mustafa Akkuş",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2560,
+      "height": 1440
+    },
+    "frameRateRational": "30000/1001",
+    "duration": 14.68,
+    "chromaLocation": "left",
+    "bytes": 21324507,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 440,
+      "minDelta": 0.03336599999999912,
+      "maxDelta": 0.03336700000000015,
+      "medianDelta": 0.03336700000000015,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file",
+  "additionalCategories": [
+    "gradient"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "blender-bbb",
+  "fileName": "development/blender-bbb.mp4",
+  "sha256": "3aa2d8946ec7cf3b50b7148fb3338ca421e6ec34987b20a4044845d674794e3e",
+  "sourceFamily": "blender-bbb",
+  "split": "development",
+  "category": "animation-cg",
+  "licenseNote": "CC BY 3.0; (c) copyright 2008, Blender Foundation / www.bigbuckbunny.org. Sunflower 60fps published rendition; production lineage differs from Elephants Dream.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": null,
+    "primaries": null,
+    "transfer": null,
+    "matrix": null,
+    "frameRate": 60.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://download.blender.org/demo/movies/",
+    "downloadURL": "https://download.blender.org/demo/movies/BBB/bbb_sunflower_1080p_60fps_normal.mp4.zip",
+    "licenseURL": "https://peach.blender.org/about/",
+    "creator": "Blender Foundation",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "frameRateRational": "60/1",
+    "duration": 634.533333,
+    "chromaLocation": "left",
+    "bytes": 355856562,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 38072,
+      "minDelta": 0.016665999999986525,
+      "maxDelta": 0.016667000000097687,
+      "medianDelta": 0.016666999999984,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "Published SDR animation; incomplete original color tags; unknowns are not guessed.",
+  "acquisitionKind": "published-file",
+  "metadataCaveat": "Source range and colorimetry untagged; excluded from confirmed range/BT709 coverage."
+}
