@@ -29,6 +29,22 @@ struct RealMediaRegressionRunner {
         let frames: [RegressionFrameOutput]
     }
 
+    static func actualInputFormat(for pixelBuffer: CVPixelBuffer) throws -> HDRInputPixelFormat {
+        let formatType = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        guard let format = HDRInputPixelFormat(coreVideoFormat: formatType) else {
+            throw RunnerError.unsupportedPixelFormat(String(format: "0x%08x", formatType))
+        }
+        return format
+    }
+
+    static func precisionMismatchMessage(
+        expectedDecodeBitDepth: Int,
+        actualInputFormat: HDRInputPixelFormat
+    ) -> String? {
+        guard actualInputFormat.bitDepth != expectedDecodeBitDepth else { return nil }
+        return "PRECISION_DOWNGRADE expected=\(expectedDecodeBitDepth) actual=\(actualInputFormat.bitDepth)"
+    }
+
     enum RunnerError: Error, LocalizedError {
         case playerItemNotReady(String)
         case insufficientFrames(id: String, count: Int, required: Int)
@@ -103,12 +119,14 @@ struct RealMediaRegressionRunner {
             throw RunnerError.playerItemNotReady("expected one video track, found \(tracks.count)")
         }
         let frames = try await decodeFrames(asset: asset, fixture: fixture)
-        let inputLevels = try inputLuminanceLevelCount(frames: frames, bitDepth: fixture.sourceBitDepth)
+        let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
+        let actualInputFormat = try Self.actualInputFormat(for: firstPixelBuffer)
+        let inputLevels = try inputLuminanceLevelCount(frames: frames, inputFormat: actualInputFormat)
         let nearBlackInputSamples: [Float]?
         if let region = fixture.precisionRegion {
             nearBlackInputSamples = try inputLuminanceSamples(
                 frames: frames,
-                bitDepth: fixture.sourceBitDepth,
+                inputFormat: actualInputFormat,
                 region: region
             )
         } else {
@@ -118,6 +136,7 @@ struct RealMediaRegressionRunner {
         let nearest = try await runMode(
             fixture: fixture,
             frames: frames,
+            inputFormat: actualInputFormat,
             inputLevels: inputLevels,
             nearBlackInputSamples: nearBlackInputSamples,
             mode: .nearest
@@ -125,6 +144,7 @@ struct RealMediaRegressionRunner {
         let candidate = try await runMode(
             fixture: fixture,
             frames: frames,
+            inputFormat: actualInputFormat,
             inputLevels: inputLevels,
             nearBlackInputSamples: nearBlackInputSamples,
             mode: .sitingAwareBilinear
@@ -218,6 +238,7 @@ struct RealMediaRegressionRunner {
     private func runMode(
         fixture: RealMediaRegressionFixture,
         frames: [DecodedFrame],
+        inputFormat: HDRInputPixelFormat,
         inputLevels: Int,
         nearBlackInputSamples: [Float]?,
         mode: RegressionMode,
@@ -231,11 +252,14 @@ struct RealMediaRegressionRunner {
             fallbackPolicy: .requireMetadata
         )
         var failures = validateFixtureMetadata ?
-            validateMetadata(fixture: fixture, resolvedColor: resolvedColor) : []
+            validateMetadata(
+                fixture: fixture,
+                resolvedColor: resolvedColor,
+                actualInputFormat: inputFormat
+            ) : []
         let timestamps = frames.map { $0.presentationTime.seconds }
         failures.append(contentsOf: validateTimestamps(timestamps, fixture: fixture))
 
-        let inputFormat = resolvedColor.pixelFormat
         var configuration = HDRConfiguration.calibratedV4
         configuration.chromaReconstructionMode = mode == .nearest ? .nearest : .sitingAwareBilinear
         let processor = try HDRProcessor(device: device, configuration: configuration)
@@ -264,7 +288,7 @@ struct RealMediaRegressionRunner {
             frames: frameExecutions.map(\.output),
             nearBlackInputSamples: nearBlackInputSamples,
             precisionRegion: fixture.precisionRegion,
-            bitDepth: fixture.sourceBitDepth,
+            bitDepth: inputFormat.bitDepth,
             width: width,
             height: height
         )
@@ -473,18 +497,21 @@ struct RealMediaRegressionRunner {
 
     private func validateMetadata(
         fixture: RealMediaRegressionFixture,
-        resolvedColor: ResolvedColorDescription
+        resolvedColor: ResolvedColorDescription,
+        actualInputFormat: HDRInputPixelFormat
     ) -> [String] {
         var failures: [String] = []
-        let inputFormat = resolvedColor.pixelFormat
-        if inputFormat.bitDepth != fixture.expectedDecodeBitDepth {
-            failures.append("PRECISION_DOWNGRADE expected=\(fixture.expectedDecodeBitDepth) actual=\(inputFormat.bitDepth)")
+        if let precisionMismatch = Self.precisionMismatchMessage(
+            expectedDecodeBitDepth: fixture.expectedDecodeBitDepth,
+            actualInputFormat: actualInputFormat
+        ) {
+            failures.append(precisionMismatch)
         }
-        let family: RegressionPixelFormatFamily = inputFormat.isP010 ? .p010 : .nv12
+        let family: RegressionPixelFormatFamily = actualInputFormat.isP010 ? .p010 : .nv12
         if family != fixture.expectedPixelFormatFamily {
             failures.append("pixel format family expected=\(fixture.expectedPixelFormatFamily.rawValue) actual=\(family.rawValue)")
         }
-        let actualRange: RegressionRange = inputFormat.isFullRange ? .full : .video
+        let actualRange: RegressionRange = actualInputFormat.isFullRange ? .full : .video
         if actualRange != fixture.range {
             failures.append("range expected=\(fixture.range.rawValue) actual=\(actualRange.rawValue)")
         }
@@ -504,13 +531,12 @@ struct RealMediaRegressionRunner {
         if !matrixMatchesManifest {
             failures.append("matrix metadata is not BT.709")
         }
-        if fixture.chromaSiting.required && resolvedColor.chromaGeometry.resolvedSiting == .unspecified {
-            failures.append("chroma metadata was required but resolved to unspecified")
-        }
-        if let allowed = fixture.chromaSiting.allowed,
-           !allowed.contains(resolvedColor.chromaGeometry.resolvedSiting) {
-            failures.append("chroma siting \(resolvedColor.chromaGeometry.resolvedSiting.rawValue) is outside the manifest allowed set")
-        }
+        failures.append(contentsOf: RegressionChromaMetadataGate.failures(
+            required: fixture.chromaSiting.required,
+            metadataWasExplicit: resolvedColor.chromaGeometry.metadataWasExplicit,
+            resolvedSiting: resolvedColor.chromaGeometry.resolvedSiting,
+            allowed: fixture.chromaSiting.allowed
+        ))
         return failures
     }
 
@@ -725,69 +751,32 @@ struct RealMediaRegressionRunner {
 
     private func inputLuminanceLevelCount(
         frames: [DecodedFrame],
-        bitDepth: Int,
+        inputFormat: HDRInputPixelFormat,
         maxSamples: Int? = nil
     ) throws -> Int {
         let samples = try inputLuminanceSamples(
             frames: frames,
-            bitDepth: bitDepth,
+            inputFormat: inputFormat,
             region: nil,
             maxSamples: maxSamples
         )
-        return clusterCount(samples, tolerance: bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
+        return clusterCount(samples, tolerance: inputFormat.bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
     }
 
     private func inputLuminanceSamples(
         frames: [DecodedFrame],
-        bitDepth: Int,
+        inputFormat: HDRInputPixelFormat,
         region: RegressionRegion?,
         maxSamples: Int? = nil
     ) throws -> [Float] {
-        var samples: [Float] = []
-        for frame in frames {
-            let pixelBuffer = frame.pixelBuffer
-            CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
-            let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
-            let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
-            let selectedRegion = region ?? RegressionRegion(x: 0, y: 0, width: width, height: height)
-            guard selectedRegion.isValid,
-                  selectedRegion.x + selectedRegion.width <= width,
-                  selectedRegion.y + selectedRegion.height <= height else {
-                CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
-                throw RunnerError.invalidPrecisionRegion
-            }
-            let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
-            guard let base = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else {
-                CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
-                continue
-            }
-            let sampleStride = samplingStride(
-                width: selectedRegion.width,
-                height: selectedRegion.height,
+        return try frames.flatMap { frame in
+            try RegressionInputLuminanceReader.samples(
+                from: frame.pixelBuffer,
+                inputFormat: inputFormat,
+                region: region,
                 maxSamples: maxSamples
             )
-            let xEnd = selectedRegion.x + selectedRegion.width
-            let yEnd = selectedRegion.y + selectedRegion.height
-            if bitDepth == 10 {
-                let pointer = base.assumingMemoryBound(to: UInt16.self)
-                for y in stride(from: selectedRegion.y, to: yEnd, by: sampleStride) {
-                    let row = pointer.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
-                    for x in stride(from: selectedRegion.x, to: xEnd, by: sampleStride) {
-                        samples.append(Float(row[x] >> 6) / 1023)
-                    }
-                }
-            } else {
-                let pointer = base.assumingMemoryBound(to: UInt8.self)
-                for y in stride(from: selectedRegion.y, to: yEnd, by: sampleStride) {
-                    let row = pointer.advanced(by: y * rowBytes)
-                    for x in stride(from: selectedRegion.x, to: xEnd, by: sampleStride) {
-                        samples.append(Float(row[x]) / 255)
-                    }
-                }
-            }
-            CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
         }
-        return samples
     }
 
     private func samplingStride(width: Int, height: Int, maxSamples: Int?) -> Int {
@@ -919,22 +908,25 @@ struct RealMediaRegressionRunner {
                 precision: externalPrecision(source: source)
             )
             let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
+            let actualInputFormat = try Self.actualInputFormat(for: firstPixelBuffer)
             let resolvedColor = try HDRColorMetadataResolver.resolve(
                 pixelBuffer: firstPixelBuffer,
                 fallbackPolicy: .requireMetadata
             )
             let metadataFailures = validateExternalMetadata(
                 source: source,
-                resolvedColor: resolvedColor
+                resolvedColor: resolvedColor,
+                actualInputFormat: actualInputFormat
             )
             let inputLevels = try inputLuminanceLevelCount(
                 frames: frames,
-                bitDepth: resolvedColor.pixelFormat.bitDepth,
+                inputFormat: actualInputFormat,
                 maxSamples: Self.externalDiagnosticSampleLimit
             )
             let nearest = try await runMode(
                 fixture: fixture,
                 frames: frames,
+                inputFormat: actualInputFormat,
                 inputLevels: inputLevels,
                 nearBlackInputSamples: nil,
                 mode: .nearest,
@@ -945,6 +937,7 @@ struct RealMediaRegressionRunner {
             let candidate = try await runMode(
                 fixture: fixture,
                 frames: frames,
+                inputFormat: actualInputFormat,
                 inputLevels: inputLevels,
                 nearBlackInputSamples: nil,
                 mode: .sitingAwareBilinear,
@@ -1026,14 +1019,19 @@ struct RealMediaRegressionRunner {
 
     private func validateExternalMetadata(
         source: ExternalRealMediaSource,
-        resolvedColor: ResolvedColorDescription
+        resolvedColor: ResolvedColorDescription,
+        actualInputFormat: HDRInputPixelFormat
     ) -> [String] {
         var failures: [String] = []
-        if let bitDepth = source.expected.bitDepth, resolvedColor.pixelFormat.bitDepth != bitDepth {
-            failures.append("PRECISION_DOWNGRADE expected=\(bitDepth) actual=\(resolvedColor.pixelFormat.bitDepth)")
+        if let bitDepth = source.expected.bitDepth,
+           let precisionMismatch = Self.precisionMismatchMessage(
+               expectedDecodeBitDepth: bitDepth,
+               actualInputFormat: actualInputFormat
+           ) {
+            failures.append(precisionMismatch)
         }
         if let range = source.expected.range {
-            let actual: RegressionRange = resolvedColor.pixelFormat.isFullRange ? .full : .video
+            let actual: RegressionRange = actualInputFormat.isFullRange ? .full : .video
             if actual != range { failures.append("range expected=\(range.rawValue) actual=\(actual.rawValue)") }
         }
         if let allowed = source.expected.allowedChromaSiting,
@@ -1064,5 +1062,180 @@ struct RealMediaRegressionRunner {
             passed: failures.isEmpty,
             failures: failures
         )
+    }
+}
+
+/// Reads diagnostic luma samples using the format reported by the decoded
+/// pixel buffer. The caller must resolve the format before asking for samples;
+/// the second format check here prevents a stale manifest expectation from
+/// changing the memory interpretation of a buffer after a precision downgrade.
+enum RegressionInputLuminanceReader {
+    enum ReaderError: Error, Equatable, LocalizedError {
+        case unsupportedPixelFormat(OSType)
+        case formatMismatch(expected: String, actual: String)
+        case lockFailed(Int32)
+        case missingPlane(Int)
+        case invalidRegion
+        case invalidPlaneLayout
+        case missingBaseAddress
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedPixelFormat(let format):
+                return "unsupported decoded pixel format: \(format)"
+            case .formatMismatch(let expected, let actual):
+                return "input reader format mismatch expected=\(expected) actual=\(actual)"
+            case .lockFailed(let status):
+                return "pixel buffer lock failed with status \(status)"
+            case .missingPlane(let plane):
+                return "pixel buffer plane \(plane) is unavailable"
+            case .invalidRegion:
+                return "input luminance sample region is invalid"
+            case .invalidPlaneLayout:
+                return "input pixel buffer plane layout is invalid"
+            case .missingBaseAddress:
+                return "input pixel buffer base address is unavailable"
+            }
+        }
+    }
+
+    static func samples(
+        from pixelBuffer: CVPixelBuffer,
+        inputFormat: HDRInputPixelFormat,
+        region: RegressionRegion?,
+        maxSamples: Int? = nil
+    ) throws -> [Float] {
+        let actualPixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        guard let actualFormat = HDRInputPixelFormat(coreVideoFormat: actualPixelFormat) else {
+            throw ReaderError.unsupportedPixelFormat(actualPixelFormat)
+        }
+        guard actualFormat == inputFormat else {
+            throw ReaderError.formatMismatch(
+                expected: inputFormat.diagnosticName,
+                actual: actualFormat.diagnosticName
+            )
+        }
+
+        let width: Int
+        let height: Int
+        if inputFormat.isYUV {
+            width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0)
+            height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0)
+        } else {
+            width = CVPixelBufferGetWidth(pixelBuffer)
+            height = CVPixelBufferGetHeight(pixelBuffer)
+        }
+        let selectedRegion = region ?? RegressionRegion(x: 0, y: 0, width: width, height: height)
+        guard selectedRegion.isValid,
+              selectedRegion.x + selectedRegion.width <= width,
+              selectedRegion.y + selectedRegion.height <= height else {
+            throw ReaderError.invalidRegion
+        }
+
+        let lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        guard lockStatus == kCVReturnSuccess else {
+            throw ReaderError.lockFailed(lockStatus)
+        }
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+
+        let rowBytes: Int
+        let baseAddress: UnsafeMutableRawPointer?
+        if inputFormat.isYUV {
+            rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+            baseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0)
+        } else {
+            rowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
+            baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer)
+        }
+        guard let baseAddress else {
+            throw inputFormat.isYUV ? ReaderError.missingPlane(0) : ReaderError.missingBaseAddress
+        }
+
+        switch inputFormat {
+        case .nv12VideoRange, .nv12FullRange:
+            guard rowBytes >= width else { throw ReaderError.invalidPlaneLayout }
+            let values = baseAddress.assumingMemoryBound(to: UInt8.self)
+            return collect(
+                region: selectedRegion,
+                maxSamples: maxSamples
+            ) { x, y in
+                let row = values.advanced(by: y * rowBytes)
+                return Float(row[x]) / 255.0
+            }
+        case .p010VideoRange, .p010FullRange:
+            guard rowBytes % MemoryLayout<UInt16>.stride == 0,
+                  rowBytes >= width * MemoryLayout<UInt16>.stride else {
+                throw ReaderError.invalidPlaneLayout
+            }
+            let values = baseAddress.assumingMemoryBound(to: UInt16.self)
+            return collect(
+                region: selectedRegion,
+                maxSamples: maxSamples
+            ) { x, y in
+                let row = values.advanced(by: y * rowBytes / MemoryLayout<UInt16>.stride)
+                return Float(row[x] >> 6) / 1023.0
+            }
+        case .bgra8:
+            guard rowBytes >= width * 4 else { throw ReaderError.invalidPlaneLayout }
+            let values = baseAddress.assumingMemoryBound(to: UInt8.self)
+            return collect(
+                region: selectedRegion,
+                maxSamples: maxSamples
+            ) { x, y in
+                let row = values.advanced(by: y * rowBytes)
+                let offset = x * 4
+                let blue = Float(row[offset]) / 255.0
+                let green = Float(row[offset + 1]) / 255.0
+                let red = Float(row[offset + 2]) / 255.0
+                return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            }
+        }
+    }
+
+    private static func collect(
+        region: RegressionRegion,
+        maxSamples: Int?,
+        valueAt: (Int, Int) -> Float
+    ) -> [Float] {
+        let sampleStride = samplingStride(
+            width: region.width,
+            height: region.height,
+            maxSamples: maxSamples
+        )
+        var values: [Float] = []
+        values.reserveCapacity(max(1, (region.width * region.height) / (sampleStride * sampleStride)))
+        for y in Swift.stride(from: region.y, to: region.y + region.height, by: sampleStride) {
+            for x in Swift.stride(from: region.x, to: region.x + region.width, by: sampleStride) {
+                values.append(valueAt(x, y))
+            }
+        }
+        return values
+    }
+
+    private static func samplingStride(width: Int, height: Int, maxSamples: Int?) -> Int {
+        guard let maxSamples, maxSamples > 0 else { return 1 }
+        let sampleCount = max(width, 1) * max(height, 1)
+        guard sampleCount > maxSamples else { return 1 }
+        return max(1, Int(ceil(sqrt(Double(sampleCount) / Double(maxSamples)))))
+    }
+}
+
+enum RegressionChromaMetadataGate {
+    static func failures(
+        required: Bool,
+        metadataWasExplicit: Bool,
+        resolvedSiting: HDRChromaSiting,
+        allowed: [HDRChromaSiting]?
+    ) -> [String] {
+        var failures: [String] = []
+        if required && !metadataWasExplicit {
+            failures.append("explicit chroma metadata required")
+        }
+        if let allowed, !allowed.contains(resolvedSiting) {
+            failures.append(
+                "chroma siting \(resolvedSiting.rawValue) is outside the manifest allowed set"
+            )
+        }
+        return failures
     }
 }

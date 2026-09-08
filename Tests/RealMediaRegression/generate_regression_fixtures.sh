@@ -19,12 +19,14 @@ require_tool python3
 FFMPEG_ENCODERS="$(ffmpeg -hide_banner -encoders 2>/dev/null || true)"
 HAS_H264=0
 HAS_HEVC=0
-if printf '%s\n' "$FFMPEG_ENCODERS" | rg -q '(^|[[:space:]])libx264([[:space:]]|$)'; then HAS_H264=1; fi
-if printf '%s\n' "$FFMPEG_ENCODERS" | rg -q '(^|[[:space:]])libx265([[:space:]]|$)'; then HAS_HEVC=1; fi
+UNSUPPORTED_COUNT=0
+if printf '%s\n' "$FFMPEG_ENCODERS" | grep -Eq '(^|[[:space:]])libx264([[:space:]]|$)'; then HAS_H264=1; fi
+if printf '%s\n' "$FFMPEG_ENCODERS" | grep -Eq '(^|[[:space:]])libx265([[:space:]]|$)'; then HAS_HEVC=1; fi
 
 mark_unsupported() {
   local id="$1"
   shift
+  UNSUPPORTED_COUNT=$((UNSUPPORTED_COUNT + 1))
   printf '%s\n' "$*" > "$OUTPUT_DIR/$id.UNSUPPORTED"
   echo "UNSUPPORTED_GENERATOR_CAPABILITY fixture=$id reason=$*"
 }
@@ -254,5 +256,10 @@ generate_one h264-8-video-vfr-motion h264 8 video 24 vfr motion
 generate_one hevc-main10-video-vfr-motion hevc 10 video 24 vfr motion
 generate_one hevc-main10-video-24-near-black hevc 10 video 24 cfr near-black
 generate_one h264-8-video-24-chroma-edge h264 8 video 24 cfr chroma-edge
+
+if [ "$UNSUPPORTED_COUNT" -gt 0 ]; then
+  echo "REAL-MEDIA REGRESSION FIXTURES: FAIL (unsupported capabilities: $UNSUPPORTED_COUNT; mandatory matrix does not allow skips)" >&2
+  exit 1
+fi
 
 echo "REAL-MEDIA REGRESSION FIXTURES: GENERATED"

@@ -160,6 +160,11 @@ final class RealMediaRegressionTests: XCTestCase {
             failures.isEmpty,
             failures.map { "\($0.id): \($0.skipReason ?? "mode failure")" }.joined(separator: "; ")
         )
+        let mandatoryGateFailures = MandatoryRegressionMatrixGate.failures(for: fixtureResults)
+        XCTAssertTrue(
+            mandatoryGateFailures.isEmpty,
+            mandatoryGateFailures.joined(separator: "; ")
+        )
         print(
             "REAL_MEDIA_REGRESSION_SUMMARY fixtures=\(fixtureResults.count) " +
                 "failures=\(report.failures) skipped=\(report.skipped) " +

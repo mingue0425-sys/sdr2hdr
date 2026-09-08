@@ -46,7 +46,9 @@ for fixture in manifest["fixtures"]:
     fixture_id = fixture["id"]
     marker = fixture_dir / f"{fixture_id}.UNSUPPORTED"
     if marker.exists():
-        results.append({"id": fixture_id, "status": "skipped", "reason": marker.read_text(encoding="utf-8").strip()})
+        reason = marker.read_text(encoding="utf-8").strip()
+        failures.append(f"{fixture_id}: UNSUPPORTED_GENERATOR_CAPABILITY: {reason}")
+        results.append({"id": fixture_id, "status": "fail", "reason": reason})
         continue
     path = fixture_dir / f"{fixture_id}.mp4"
     if not path.exists():

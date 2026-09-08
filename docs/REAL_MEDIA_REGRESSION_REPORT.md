@@ -62,8 +62,10 @@ VFR fixtures contain two distinct timestamp deltas, verified by both ffprobe
 and decoded AVFoundation presentation timestamps.
 
 If an encoder is missing, the generator creates an explicit `.UNSUPPORTED`
-marker and the runner reports a capability skip. It never substitutes another
-codec or silently treats a precision downgrade as a pass.
+marker and exits nonzero. The fixture verifier and mandatory regression gate
+treat that marker as a failure; a capability skip can never make the mandatory
+matrix pass. The generator never substitutes another codec or silently treats
+a precision downgrade as a pass.
 
 ## Gates and measurements
 
@@ -180,7 +182,7 @@ outside the repository and is not part of the corpus report.
 The CI workflow now syntax-checks the generator, verifier, manifest, and gates,
 then runs `./RUN_MACOS_VERIFY.sh regression` before the broader Swift/Metal
 tests. The latest local full Swift test suite passed in both configurations with
-262 tests, 0 failures, and 12 environment/data-dependent skips. Remote CI
+268 tests, 0 failures, and 12 environment/data-dependent skips. Remote CI
 status is reported by the pull request for the branch.
 
 ## Production invariants

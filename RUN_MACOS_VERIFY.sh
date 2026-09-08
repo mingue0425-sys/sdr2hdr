@@ -649,18 +649,23 @@ if [ "$MODE" = "regression" ] || [ "$MODE" = "regression-full" ]; then
       swift test -c release --disable-index-store \
         --filter RealMediaRegressionTests/testManifestDrivenRegressionMatrixRunsBothModes
   fi
-  if [ -f "$ROOT/results/real-media-regression.json" ] && \
-     python3 - "$ROOT/results/real-media-regression.json" <<'PY'
+  regression_reports=("$ROOT/results/real-media-regression.json")
+  if [ "$MODE" = "regression-full" ]; then
+    regression_reports+=("$ROOT/results/real-media-regression-release.json")
+  fi
+  python3 - "${regression_reports[@]}" <<'PY'
 import json
 import sys
-document = json.load(open(sys.argv[1], encoding="utf-8"))
-raise SystemExit(0 if document.get("skipped", 0) > 0 else 1)
+
+for report_name in sys.argv[1:]:
+    with open(report_name, encoding="utf-8") as handle:
+        document = json.load(handle)
+    if document.get("skipped", 0) != 0:
+        raise SystemExit(f"mandatory regression contains skipped fixtures: {report_name}")
+    if document.get("failures", 0) != 0:
+        raise SystemExit(f"mandatory regression contains failed fixtures: {report_name}")
 PY
-  then
-    echo 'REAL-MEDIA REGRESSION VERIFY: PASS WITH EXPLICIT CAPABILITY SKIPS'
-  else
-    echo 'REAL-MEDIA REGRESSION VERIFY: PASS'
-  fi
+  echo 'REAL-MEDIA REGRESSION VERIFY: PASS'
   echo 'Production nearest and siting-aware candidate were both evaluated for every available manifest fixture.'
   echo 'Virgin Frozen accessed: NO'
   echo 'Objective evaluations: 0'

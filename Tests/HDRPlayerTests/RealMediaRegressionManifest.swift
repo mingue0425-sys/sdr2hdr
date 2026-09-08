@@ -363,3 +363,71 @@ struct RealMediaRegressionReport: Codable, Sendable {
     let skipped: Int
     let fixtures: [RealMediaRegressionFixtureResult]
 }
+
+enum MandatoryRegressionMatrixGate {
+    static func failures(for results: [RealMediaRegressionFixtureResult]) -> [String] {
+        var failures: [String] = []
+        let skipped = results.filter { $0.status == "skipped" }
+        if !skipped.isEmpty {
+            failures.append(
+                "mandatory fixtures skipped: " + skipped.map(\.id).sorted().joined(separator: ", ")
+            )
+        }
+
+        let failed = results.filter { $0.status == "fail" }
+        if !failed.isEmpty {
+            failures.append(
+                "mandatory fixture failures: " + failed.map(\.id).sorted().joined(separator: ", ")
+            )
+        }
+
+        let passing = results.filter { $0.status == "pass" }
+        let coverage: [(String, Bool)] = [
+            (
+                "H.264",
+                passing.contains { $0.manifest.codec == .h264 && $0.manifest.sourceBitDepth == 8 }
+            ),
+            (
+                "HEVC 8-bit",
+                passing.contains { $0.manifest.codec == .hevc && $0.manifest.sourceBitDepth == 8 }
+            ),
+            (
+                "Main10/P010",
+                passing.contains {
+                    $0.manifest.expectedPixelFormatFamily == .p010 && $0.manifest.sourceBitDepth == 10
+                }
+            ),
+            (
+                "full-range",
+                passing.contains { $0.manifest.range == .full }
+            ),
+            (
+                "VFR H.264",
+                passing.contains { $0.manifest.codec == .h264 && $0.manifest.timing == .vfr }
+            ),
+            (
+                "VFR Main10",
+                passing.contains {
+                    $0.manifest.codec == .hevc &&
+                        $0.manifest.timing == .vfr &&
+                        $0.manifest.sourceBitDepth == 10
+                }
+            ),
+            (
+                "near-black P010",
+                passing.contains {
+                    $0.manifest.contentClass == .nearBlack &&
+                        $0.manifest.expectedPixelFormatFamily == .p010
+                }
+            ),
+            (
+                "chroma-edge",
+                passing.contains { $0.manifest.contentClass == .chromaEdge }
+            )
+        ]
+        for (label, covered) in coverage where !covered {
+            failures.append("mandatory coverage missing: \(label)")
+        }
+        return failures
+    }
+}
