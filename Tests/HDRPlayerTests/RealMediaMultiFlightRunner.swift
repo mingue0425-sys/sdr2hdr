@@ -240,7 +240,7 @@ extension RealMediaRegressionRunner {
         if schedulingWorkBytes > 0 {
             guard let buffer = device.makeBuffer(
                 length: schedulingWorkBytes,
-                options: .storageModePrivate
+                options: .storageModeShared
             ) else {
                 throw RunnerError.missingTexture
             }
