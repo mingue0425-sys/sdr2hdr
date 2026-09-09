@@ -150,6 +150,13 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
 }
 
 extension RealMediaRegressionRunner {
+    private func logMultiFlightProgress(_ message: String) {
+        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
+            return
+        }
+        print("MULTIFLIGHT_PROGRESS \(message)")
+    }
+
     /// Encodes the same production-equivalent processing and presentation
     /// chain used by the serial regression path, but leaves retirement to the
     /// caller. No CPU frame conversion is introduced.
@@ -508,6 +515,7 @@ extension RealMediaRegressionRunner {
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
         let collector = RealMediaMultiFlightCompletionCollector()
+        logMultiFlightProgress("event-create id=\(fixture.id) depth=\(flightDepth)")
         guard let overlapGate = device.makeSharedEvent() else {
             throw RunnerError.commandBufferFailed(
                 "Metal shared event unavailable for overlap proof"
@@ -549,6 +557,9 @@ extension RealMediaRegressionRunner {
                 completionGate: index < flightDepth ? overlapGate : nil,
                 completionGateValue: overlapGateValue
             )
+            logMultiFlightProgress(
+                "encode-ready id=\(fixture.id) depth=\(flightDepth) frame=\(index)"
+            )
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
@@ -561,6 +572,9 @@ extension RealMediaRegressionRunner {
                 )
             }
             value.commandBuffer.commit()
+            logMultiFlightProgress(
+                "committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)"
+            )
             pending.append(value)
             submittedCount += 1
             submittedFrameIndices.append(value.frameIndex)
@@ -577,6 +591,9 @@ extension RealMediaRegressionRunner {
                 submittedCount - collector.count
             )
             if !overlapGateReleased, pending.count == flightDepth {
+                logMultiFlightProgress(
+                    "release-overlap id=\(fixture.id) depth=\(flightDepth)"
+                )
                 overlapGate.signaledValue = overlapGateValue
                 overlapGateReleased = true
             }
