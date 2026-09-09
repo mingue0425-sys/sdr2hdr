@@ -168,7 +168,8 @@ struct RealMediaRegressionRunner {
         startTime: Double = 0,
         duration: Double? = nil,
         precision: HDRDecodePrecision? = nil,
-        resolvedPrecision: HDRResolvedDecodePrecision? = nil
+        resolvedPrecision: HDRResolvedDecodePrecision? = nil,
+        requiredFrameCount: Int? = nil
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
         let output: AVPlayerItemVideoOutput
@@ -209,9 +210,13 @@ struct RealMediaRegressionRunner {
         output.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
         player.play()
 
+        let targetFrameCount = max(
+            requiredFrameCount ?? max(fixture.minimumFrames, gates.minimumDecodedFrames),
+            1
+        )
         var frames: [DecodedFrame] = []
         let deadline = Date().addingTimeInterval(15)
-        while frames.count < max(fixture.minimumFrames, gates.minimumDecodedFrames) && Date() < deadline {
+        while frames.count < targetFrameCount && Date() < deadline {
             let itemTime = output.itemTime(forHostTime: CACurrentMediaTime())
             if itemTime.isNumeric && output.hasNewPixelBuffer(forItemTime: itemTime) {
                 var displayTime = CMTime.invalid
@@ -227,18 +232,18 @@ struct RealMediaRegressionRunner {
                     }
                 }
             }
-            if let duration, frames.count >= fixture.minimumFrames,
+            if let duration, frames.count >= targetFrameCount,
                itemTime.isNumeric, itemTime.seconds >= startTime + duration {
                 break
             }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
         player.pause()
-        guard frames.count >= fixture.minimumFrames else {
+        guard frames.count >= targetFrameCount else {
             throw RunnerError.insufficientFrames(
                 id: fixture.id,
                 count: frames.count,
-                required: fixture.minimumFrames
+                required: targetFrameCount
             )
         }
         return frames

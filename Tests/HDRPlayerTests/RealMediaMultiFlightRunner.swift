@@ -72,6 +72,23 @@ struct RealMediaPendingFrame {
     let cpuStart: CFTimeInterval
 }
 
+struct RealMediaMultiFlightResourceSnapshot: Codable, Sendable {
+    let phase: String
+    let frameIndex: Int?
+    let outputTextureSlotsPerSize: Int
+    let outputTextureAllocations: Int
+    let activeOutputLeases: Int
+    let outputLeaseIDs: [Int]
+    let outputTextureIdentities: [String]
+    let temporalEstimateBufferAllocations: Int
+    let temporalEstimateBufferLeaseIDs: [Int]
+    let temporalEstimateBufferIdentities: [String]
+    let temporalGeneration: UInt64
+    let submissionSequence: UInt64
+    let lastGPUCompletedSequence: UInt64
+    let lastAdaptiveCommittedSequence: UInt64
+}
+
 struct RealMediaCompletedFrame {
     let frameIndex: Int
     let presentationTime: CMTime
@@ -120,6 +137,13 @@ struct RealMediaMultiFlightModeResult: Codable, Sendable {
     let maxSimultaneousLeases: Int
     let textureAllocations: Int
     let temporalEstimateBufferAllocations: Int
+    let resourceSnapshots: [RealMediaMultiFlightResourceSnapshot]
+    let temporalBufferIdentityCollision: Bool
+    let schedulingWorkEnabled: Bool
+    let schedulingWorkBytes: Int
+    let schedulingWorkPasses: Int
+    let schedulingWorkStorageMode: String
+    let schedulingWorkEncoder: String
     let serialParity: RealMediaMultiFlightSerialParity
 }
 
@@ -249,6 +273,7 @@ extension RealMediaRegressionRunner {
         processor: HDRProcessor,
         renderer: HDRPresentationRenderer,
         schedulingWorkBytes: Int = 0,
+        schedulingWorkPasses: Int = RealMediaMultiFlightSchedulingWork.passes,
         completionWaiter: RealMediaCompletionWaiter? = nil
     ) throws -> RealMediaPendingFrame {
         let cpuStart = CACurrentMediaTime()
@@ -329,7 +354,7 @@ extension RealMediaRegressionRunner {
             }
             schedulingWorkBuffer = buffer
             let workRange = 0..<schedulingWorkBytes
-            for pass in 0..<RealMediaMultiFlightSchedulingWork.passes {
+            for pass in 0..<max(schedulingWorkPasses, 1) {
                 blit.fill(
                     buffer: buffer,
                     range: workRange,
@@ -475,7 +500,8 @@ extension RealMediaRegressionRunner {
     /// and runs serial, two-flight, and three-flight processing against
     /// exactly the same decoded frames.
     func decodeRegressionFrames(
-        _ fixture: RealMediaRegressionFixture
+        _ fixture: RealMediaRegressionFixture,
+        requiredFrameCount: Int? = nil
     ) async throws -> [DecodedFrame] {
         let fixtureURL = fixtureDirectory.appendingPathComponent("\(fixture.id).mp4")
         guard FileManager.default.fileExists(atPath: fixtureURL.path) else {
@@ -495,13 +521,22 @@ extension RealMediaRegressionRunner {
                 "expected one video track, found \(tracks.count)"
             )
         }
-        return try await decodeFrames(asset: asset, fixture: fixture)
+        return try await decodeFrames(
+            asset: asset,
+            fixture: fixture,
+            requiredFrameCount: requiredFrameCount
+        )
     }
 
     func runMultiFlight(
         _ fixture: RealMediaRegressionFixture,
         decodedFrames frames: [DecodedFrame],
-        flightDepth: Int
+        flightDepth: Int,
+        modes: [RegressionMode] = [.nearest, .sitingAwareBilinear],
+        schedulingWorkEnabled: Bool = true,
+        schedulingWorkBytes: Int = RealMediaMultiFlightSchedulingWork.bytes,
+        schedulingWorkPasses: Int = RealMediaMultiFlightSchedulingWork.passes,
+        enforceOverlapGate: Bool = true
     ) async throws -> RealMediaMultiFlightFixtureResult {
         guard flightDepth == 2 || flightDepth == 3 else {
             throw RunnerError.commandBufferFailed("multi-flight depth must be 2 or 3")
@@ -519,6 +554,9 @@ extension RealMediaRegressionRunner {
                 count: 0,
                 required: fixture.minimumFrames
             )
+        }
+        guard !modes.isEmpty else {
+            throw RunnerError.commandBufferFailed("multi-flight diagnostic mode list is empty")
         }
         let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
         let inputFormat = try Self.actualInputFormat(for: firstPixelBuffer)
@@ -545,42 +583,56 @@ extension RealMediaRegressionRunner {
             nearBlackInputSamples: nearBlackInputSamples,
             mode: .nearest
         )
-        let serialCandidate = try await runSerialModeForMultiFlight(
-            fixture: fixture,
-            frames: frames,
-            inputFormat: inputFormat,
-            inputLevels: inputLevels,
-            nearBlackInputSamples: nearBlackInputSamples,
-            mode: .sitingAwareBilinear
-        )
+        let serialCandidate: (result: RegressionModeResult, frames: [RegressionFrameOutput])?
+        if modes.contains(.sitingAwareBilinear) {
+            serialCandidate = try await runSerialModeForMultiFlight(
+                fixture: fixture,
+                frames: frames,
+                inputFormat: inputFormat,
+                inputLevels: inputLevels,
+                nearBlackInputSamples: nearBlackInputSamples,
+                mode: .sitingAwareBilinear
+            )
+        } else {
+            serialCandidate = nil
+        }
 
-        let nearest = try await runMultiFlightMode(
-            fixture: fixture,
-            frames: frames,
-            inputFormat: inputFormat,
-            inputLevels: inputLevels,
-            nearBlackInputSamples: nearBlackInputSamples,
-            mode: .nearest,
-            flightDepth: flightDepth,
-            serial: serialNearest
-        )
-        let candidate = try await runMultiFlightMode(
-            fixture: fixture,
-            frames: frames,
-            inputFormat: inputFormat,
-            inputLevels: inputLevels,
-            nearBlackInputSamples: nearBlackInputSamples,
-            mode: .sitingAwareBilinear,
-            flightDepth: flightDepth,
-            serial: serialCandidate
-        )
-        let modes = [nearest, candidate]
-        let failures = modes.flatMap { $0.result.failures }
+        var modeResults: [RealMediaMultiFlightModeResult] = []
+        modeResults.reserveCapacity(modes.count)
+        for mode in modes {
+            let serial: (result: RegressionModeResult, frames: [RegressionFrameOutput])
+            if mode == .nearest {
+                serial = serialNearest
+            } else if let serialCandidate {
+                serial = serialCandidate
+            } else {
+                throw RunnerError.commandBufferFailed(
+                    "missing serial control for \(mode.rawValue)"
+                )
+            }
+            modeResults.append(
+                try await runMultiFlightMode(
+                    fixture: fixture,
+                    frames: frames,
+                    inputFormat: inputFormat,
+                    inputLevels: inputLevels,
+                    nearBlackInputSamples: nearBlackInputSamples,
+                    mode: mode,
+                    flightDepth: flightDepth,
+                    serial: serial,
+                    schedulingWorkEnabled: schedulingWorkEnabled,
+                    schedulingWorkBytes: schedulingWorkBytes,
+                    schedulingWorkPasses: schedulingWorkPasses,
+                    enforceOverlapGate: enforceOverlapGate
+                )
+            )
+        }
+        let failures = modeResults.flatMap { $0.result.failures }
         return RealMediaMultiFlightFixtureResult(
             manifest: fixture,
             id: fixture.id,
             flightDepth: flightDepth,
-            modes: modes,
+            modes: modeResults,
             passed: failures.isEmpty,
             failures: failures
         )
@@ -594,7 +646,11 @@ extension RealMediaRegressionRunner {
         nearBlackInputSamples: [Float]?,
         mode: RegressionMode,
         flightDepth: Int,
-        serial: (result: RegressionModeResult, frames: [RegressionFrameOutput])
+        serial: (result: RegressionModeResult, frames: [RegressionFrameOutput]),
+        schedulingWorkEnabled: Bool,
+        schedulingWorkBytes: Int,
+        schedulingWorkPasses: Int,
+        enforceOverlapGate: Bool
     ) async throws -> RealMediaMultiFlightModeResult {
         let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
         let resolvedColor = try HDRColorMetadataResolver.resolve(
@@ -627,7 +683,49 @@ extension RealMediaRegressionRunner {
         var submissionGenerations: [UInt64] = []
         var maxObservedInFlight = 0
         var maxPending = 0
+        var maxSimultaneousLeases = 0
         var submittedCount = 0
+        var resourceSnapshots: [RealMediaMultiFlightResourceSnapshot] = []
+
+        func captureResourceSnapshot(_ phase: String, frameIndex: Int?) {
+            let evidence = processor.runtimeResourceEvidence
+            let activeOutput = evidence.outputTextures.filter { $0.inFlight }
+            let snapshot = RealMediaMultiFlightResourceSnapshot(
+                phase: phase,
+                frameIndex: frameIndex,
+                outputTextureSlotsPerSize: evidence.outputTextureSlotsPerSize,
+                outputTextureAllocations: evidence.outputTextures.count,
+                activeOutputLeases: activeOutput.count,
+                outputLeaseIDs: activeOutput.map(\.id).sorted(),
+                outputTextureIdentities: activeOutput.map(\.identity).sorted(),
+                temporalEstimateBufferAllocations: evidence.temporalEstimateBuffers.count,
+                temporalEstimateBufferLeaseIDs: evidence.temporalEstimateBuffers.map(\.leaseID).sorted(),
+                temporalEstimateBufferIdentities: evidence.temporalEstimateBuffers.map(\.identity).sorted(),
+                temporalGeneration: processor.temporalGeneration,
+                submissionSequence: processor.temporalSubmissionSequence,
+                lastGPUCompletedSequence: processor.lastGPUCompletedSequence,
+                lastAdaptiveCommittedSequence: processor.lastAdaptiveCommittedSequence
+            )
+            resourceSnapshots.append(snapshot)
+            maxSimultaneousLeases = max(maxSimultaneousLeases, activeOutput.count)
+            let frameLabel = frameIndex.map(String.init) ?? "none"
+            let outputLeaseIDs = snapshot.outputLeaseIDs.map(String.init).joined(separator: ",")
+            let temporalLeaseIDs = snapshot.temporalEstimateBufferLeaseIDs
+                .map(String.init)
+                .joined(separator: ",")
+            logMultiFlightProgress(
+                "resource-snapshot phase=\(phase) frame=\(frameLabel) " +
+                    "activeLeases=\(snapshot.activeOutputLeases) allocations=\(snapshot.outputTextureAllocations) " +
+                    "outputLeaseIDs=\(outputLeaseIDs) " +
+                    "temporalAllocations=\(snapshot.temporalEstimateBufferAllocations) " +
+                    "temporalLeaseIDs=\(temporalLeaseIDs) " +
+                    "submissionSequence=\(snapshot.submissionSequence) " +
+                    "lastGPUCompletedSequence=\(snapshot.lastGPUCompletedSequence) " +
+                    "lastAdaptiveCommittedSequence=\(snapshot.lastAdaptiveCommittedSequence)"
+            )
+        }
+
+        captureResourceSnapshot("resources-ready", frameIndex: nil)
 
         func retireOldest() async throws {
             guard !pending.isEmpty else { return }
@@ -659,6 +757,10 @@ extension RealMediaRegressionRunner {
                 try await retireOldest()
             }
 
+            if index == 1 {
+                captureResourceSnapshot("before-frame-1-process", frameIndex: index)
+            }
+
             let value = try makePendingFrame(
                 decoded,
                 index: index,
@@ -666,11 +768,13 @@ extension RealMediaRegressionRunner {
                 height: height,
                 processor: processor,
                 renderer: renderer,
-                schedulingWorkBytes: index < flightDepth
-                    ? RealMediaMultiFlightSchedulingWork.bytes
+                schedulingWorkBytes: schedulingWorkEnabled && index < flightDepth
+                    ? schedulingWorkBytes
                     : 0,
+                schedulingWorkPasses: schedulingWorkPasses,
                 completionWaiter: RealMediaCompletionWaiter()
             )
+            captureResourceSnapshot("after-processor", frameIndex: index)
             logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
@@ -687,6 +791,7 @@ extension RealMediaRegressionRunner {
             }
             value.commandBuffer.commit()
             logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
+            captureResourceSnapshot("after-commit", frameIndex: index)
             pending.append(value)
             submittedCount += 1
             submittedFrameIndices.append(value.frameIndex)
@@ -745,7 +850,8 @@ extension RealMediaRegressionRunner {
             completionEvents: completionEvents,
             readbackFrameIndices: completedFrames.map(\.frameIndex),
             maxObservedInFlight: maxObservedInFlight,
-            maxPending: maxPending
+            maxPending: maxPending,
+            enforceOverlapGate: enforceOverlapGate
         ))
         if !serial.result.failures.isEmpty {
             failures.append(
@@ -799,9 +905,19 @@ extension RealMediaRegressionRunner {
             readbackFrameIndices: completedFrames.map(\.frameIndex),
             maxObservedInFlight: maxObservedInFlight,
             maxPending: maxPending,
-            maxSimultaneousLeases: maxPending,
+            maxSimultaneousLeases: maxSimultaneousLeases,
             textureAllocations: processor.runtimeMetrics.outputTextureAllocations,
             temporalEstimateBufferAllocations: processor.runtimeMetrics.temporalEstimateBufferAllocations,
+            resourceSnapshots: resourceSnapshots,
+            temporalBufferIdentityCollision: resourceSnapshots.contains { snapshot in
+                let identities = snapshot.temporalEstimateBufferIdentities
+                return Set(identities).count != identities.count
+            },
+            schedulingWorkEnabled: schedulingWorkEnabled,
+            schedulingWorkBytes: schedulingWorkEnabled ? schedulingWorkBytes : 0,
+            schedulingWorkPasses: schedulingWorkEnabled ? max(schedulingWorkPasses, 1) : 0,
+            schedulingWorkStorageMode: "shared",
+            schedulingWorkEncoder: "blit",
             serialParity: serialParity
         )
     }
@@ -817,7 +933,8 @@ extension RealMediaRegressionRunner {
         completionEvents: [RealMediaMultiFlightCompletionEvidence],
         readbackFrameIndices: [Int],
         maxObservedInFlight: Int,
-        maxPending: Int
+        maxPending: Int,
+        enforceOverlapGate: Bool
     ) -> [String] {
         var failures: [String] = []
         let expectedIndices = Array(0..<frames.count)
@@ -834,7 +951,7 @@ extension RealMediaRegressionRunner {
         if maxPending > flightDepth {
             failures.append("pending queue exceeded configured depth")
         }
-        if maxObservedInFlight < flightDepth {
+        if enforceOverlapGate && maxObservedInFlight < flightDepth {
             failures.append(
                 "actual overlap reached \(maxObservedInFlight); \(flightDepth) required"
             )

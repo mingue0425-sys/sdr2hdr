@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|real-media|real-media-validation) ;;
+  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-diagnostic|real-media|real-media-validation) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|real-media|real-media-validation] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-diagnostic|real-media|real-media-validation] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -738,6 +738,252 @@ for fixture in document.get("fixtures", []):
 PY
   echo 'REAL-MEDIA MULTIFLIGHT VERIFY: PASS'
   echo 'Serial control was retained; two-flight and three-flight paths exercised NV12 and P010.'
+  echo 'Virgin Frozen accessed: NO'
+  echo 'Objective evaluations: 0'
+  exit 0
+fi
+
+if [ "$MODE" = "multiflight-diagnostic" ]; then
+  FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-real-media-multiflight-diagnostic.XXXXXX")"
+  DIAGNOSTIC_DIR="$ROOT/results/multiflight-vmapple-diagnostic"
+  DIAGNOSTIC_RESULT="$ROOT/results/multiflight-vmapple-diagnostic.json"
+  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  command -v ffmpeg >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA MULTIFLIGHT DIAGNOSTIC: FAIL (ffmpeg is required)' >&2
+    exit 2
+  }
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA MULTIFLIGHT DIAGNOSTIC: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  mkdir -p "$DIAGNOSTIC_DIR"
+  rm -f "$DIAGNOSTIC_RESULT"
+  for case_name in A B C D; do
+    rm -f "$DIAGNOSTIC_DIR/$case_name.log" \
+      "$DIAGNOSTIC_DIR/$case_name.result.json" \
+      "$DIAGNOSTIC_DIR/$case_name.metadata.json" \
+      "$DIAGNOSTIC_DIR/$case_name.timing.json"
+  done
+
+  stage 'multi-flight diagnostic compressed fixture generation' \
+    bash Tests/RealMediaRegression/generate_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'multi-flight diagnostic ffprobe fixture contracts' \
+    bash Tests/RealMediaRegression/verify_regression_fixtures.sh "$FIXTURE_DIR"
+
+  DIAGNOSTIC_FIXTURE="${HDR_MULTIFLIGHT_DIAGNOSTIC_FIXTURE:-h264-8-video-24-chroma-edge}"
+  DIAGNOSTIC_FRAMES="${HDR_MULTIFLIGHT_DIAGNOSTIC_FRAMES:-2}"
+  DIAGNOSTIC_FLIGHT_DEPTH="${HDR_MULTIFLIGHT_DIAGNOSTIC_FLIGHT_DEPTH:-2}"
+  DIAGNOSTIC_MODES="${HDR_MULTIFLIGHT_DIAGNOSTIC_MODES:-nearest}"
+  DIAGNOSTIC_PHASE="${HDR_MULTIFLIGHT_DIAGNOSTIC_PHASE:-minimal}"
+  DIAGNOSTIC_WORK_BYTES="${HDR_MULTIFLIGHT_SCHEDULING_WORK_BYTES:-$((32 * 1024 * 1024))}"
+  DIAGNOSTIC_WORK_PASSES="${HDR_MULTIFLIGHT_SCHEDULING_WORK_PASSES:-8}"
+  DIAGNOSTIC_OS="$(sw_vers -productVersion 2>/dev/null || printf 'unknown')"
+  DIAGNOSTIC_KERNEL="$(uname -sr 2>/dev/null || printf 'unknown')"
+  DIAGNOSTIC_ARCH="$(uname -m 2>/dev/null || printf 'unknown')"
+  MULTIFLIGHT_BASELINE="$(git merge-base origin/main HEAD 2>/dev/null || \
+    git merge-base main HEAD 2>/dev/null || echo 'manifest-baseline')"
+
+  for case_name in A B C D; do
+    case "$case_name" in
+      A) debug_layer=1; scheduling_work=1 ;;
+      B) debug_layer=0; scheduling_work=1 ;;
+      C) debug_layer=1; scheduling_work=0 ;;
+      D) debug_layer=0; scheduling_work=0 ;;
+    esac
+    log_path="$DIAGNOSTIC_DIR/$case_name.log"
+    result_path="$DIAGNOSTIC_DIR/$case_name.result.json"
+    metadata_path="$DIAGNOSTIC_DIR/$case_name.metadata.json"
+    timing_path="$DIAGNOSTIC_DIR/$case_name.timing.json"
+    start_timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    set +e
+    env \
+      MTL_DEBUG_LAYER="$debug_layer" \
+      HDR_MULTIFLIGHT_SCHEDULING_WORK="$scheduling_work" \
+      HDR_MULTIFLIGHT_SCHEDULING_WORK_BYTES="$DIAGNOSTIC_WORK_BYTES" \
+      HDR_MULTIFLIGHT_SCHEDULING_WORK_PASSES="$DIAGNOSTIC_WORK_PASSES" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_CASE="$case_name" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_FIXTURE="$DIAGNOSTIC_FIXTURE" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_FRAMES="$DIAGNOSTIC_FRAMES" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_FLIGHT_DEPTH="$DIAGNOSTIC_FLIGHT_DEPTH" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_MODES="$DIAGNOSTIC_MODES" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_PHASE="$DIAGNOSTIC_PHASE" \
+      HDR_MULTIFLIGHT_DEEP_PROGRESS=1 \
+      HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS=1 \
+      HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+      HDR_REAL_MEDIA_MULTIFLIGHT_BASELINE="$MULTIFLIGHT_BASELINE" \
+      HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_OS="$DIAGNOSTIC_OS" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_KERNEL="$DIAGNOSTIC_KERNEL" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_ARCH="$DIAGNOSTIC_ARCH" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_RESULT="$result_path" \
+      HDR_MULTIFLIGHT_DIAGNOSTIC_METADATA="$metadata_path" \
+      swift test -c debug --disable-index-store \
+        --filter RealMediaMultiFlightDiagnosticTests/testVMAppleDiagnosticCase \
+        >"$log_path" 2>&1
+    status=$?
+    set -e
+    end_timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    python3 - "$timing_path" "$status" "$start_timestamp" "$end_timestamp" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+path.write_text(json.dumps({
+    "exitCode": int(sys.argv[2]),
+    "processStartTimestamp": sys.argv[3],
+    "processEndTimestamp": sys.argv[4],
+}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+    echo "MULTIFLIGHT_DIAGNOSTIC_CASE case=$case_name exit=$status log=$log_path"
+  done
+
+  python3 - "$DIAGNOSTIC_RESULT" "$DIAGNOSTIC_DIR" "$DIAGNOSTIC_FIXTURE" \
+    "$DIAGNOSTIC_FRAMES" "$DIAGNOSTIC_FLIGHT_DEPTH" "$DIAGNOSTIC_WORK_BYTES" \
+    "$DIAGNOSTIC_WORK_PASSES" "$DIAGNOSTIC_MODES" "$DIAGNOSTIC_PHASE" "$DIAGNOSTIC_OS" \
+    "$DIAGNOSTIC_KERNEL" "$DIAGNOSTIC_ARCH" <<'PY'
+import json
+import pathlib
+import sys
+
+result_path = pathlib.Path(sys.argv[1])
+diagnostic_dir = pathlib.Path(sys.argv[2])
+fixture = sys.argv[3]
+frames = int(sys.argv[4])
+flight_depth = int(sys.argv[5])
+work_bytes = int(sys.argv[6])
+work_passes = int(sys.argv[7])
+mode_names = [mode.strip() for mode in sys.argv[8].split(",") if mode.strip()]
+phase = sys.argv[9]
+fallback_environment = {
+    "os": sys.argv[10],
+    "kernel": sys.argv[11],
+    "architecture": sys.argv[12],
+    "metalDevice": "unknown",
+    "fixture": fixture,
+    "frames": frames,
+    "flightDepth": flight_depth,
+    "mode": mode_names[0] if mode_names else "nearest",
+}
+
+def read_json(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def signal_for(exit_code, log_lines):
+    if exit_code is None:
+        return None
+    if 129 <= exit_code <= 192:
+        return exit_code - 128
+    if exit_code == 5 and any(
+        "SIGTRAP" in line or "signal 5" in line or "signal: 5" in line
+        for line in log_lines
+    ):
+        return 5
+    return None
+
+cases = []
+for case_name, debug_layer, scheduling_work in (
+    ("A", True, True),
+    ("B", False, True),
+    ("C", True, False),
+    ("D", False, False),
+):
+    log_path = diagnostic_dir / f"{case_name}.log"
+    result_payload = read_json(diagnostic_dir / f"{case_name}.result.json")
+    metadata_payload = read_json(diagnostic_dir / f"{case_name}.metadata.json")
+    timing_payload = read_json(diagnostic_dir / f"{case_name}.timing.json") or {}
+    try:
+        log_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except FileNotFoundError:
+        log_lines = []
+    deep_markers = [line for line in log_lines if "MULTIFLIGHT_DEEP_PROGRESS " in line]
+    regular_markers = [line for line in log_lines if "MULTIFLIGHT_PROGRESS " in line]
+    all_markers = [
+        line for line in log_lines
+        if "MULTIFLIGHT_DEEP_PROGRESS " in line or "MULTIFLIGHT_PROGRESS " in line
+    ]
+    last_marker = (all_markers or [None])[-1]
+    raw_exit = timing_payload.get("exitCode")
+    signal = signal_for(raw_exit, log_lines)
+    payload_status = result_payload.get("status") if result_payload else None
+    if payload_status in {"PASS", "FAIL", "ERROR"} and signal is None and raw_exit == 0:
+        test_result = payload_status
+    elif signal is not None:
+        test_result = "SIGNAL"
+    else:
+        test_result = "FAIL"
+    environment = (metadata_payload or {}).get("environment") or fallback_environment
+    if result_payload and result_payload.get("environment"):
+        environment = result_payload["environment"]
+    case_record = {
+        "case": case_name,
+        "environment": environment,
+        "metalDebugLayer": debug_layer,
+        "metalDebugLayerValue": "1" if debug_layer else "0",
+        "schedulingWork": scheduling_work,
+        "schedulingWorkEnabled": scheduling_work,
+        "schedulingWorkBytes": work_bytes if scheduling_work else 0,
+        "schedulingWorkPasses": work_passes if scheduling_work else 0,
+        "schedulingWorkStorageMode": "shared",
+        "schedulingWorkEncoder": "blit",
+        "presentationAudit": (result_payload or {}).get("presentationAudit", {
+            "perCommandWritableDiagnosticBuffer": True,
+            "fallbackSourceTextureReadOnly": True,
+            "diagnosticBufferLifetimeUntilGPUCompletion": True,
+        }),
+        "processStartTimestamp": timing_payload.get("processStartTimestamp"),
+        "processEndTimestamp": timing_payload.get("processEndTimestamp"),
+        "exitCode": raw_exit,
+        "signal": signal,
+        "testResult": test_result,
+        "classification": "PASS" if test_result == "PASS" else "FAIL",
+        "lastProgressMarker": last_marker,
+        "deepProgressMarkerCount": len(deep_markers),
+        "result": (result_payload or {}).get("result"),
+        "error": (result_payload or {}).get("error"),
+        "log": str(log_path),
+    }
+    cases.append(case_record)
+
+by_case = {case["case"]: case for case in cases}
+passed = {name: by_case[name]["testResult"] == "PASS" for name in "ABCD"}
+if passed == {"A": False, "B": True, "C": False, "D": True}:
+    classification = "METAL_VALIDATION_LAYER_VMAPPLE_INTERACTION"
+elif passed == {"A": False, "B": False, "C": True, "D": True}:
+    classification = "TEST_SCHEDULING_WORK_VMAPPLE_INCOMPATIBILITY"
+elif all(not value for value in passed.values()):
+    classification = "REAL_MULTIFLIGHT_CONCURRENCY_REGRESSION_SUSPECTED"
+elif passed == {"A": False, "B": True, "C": True, "D": True}:
+    classification = "VALIDATION_PLUS_SCHEDULING_WORK_INTERACTION"
+elif all(passed.values()):
+    classification = "MINIMAL_REPRO_NOT_REPRODUCED"
+else:
+    classification = "MATRIX_PATTERN_UNCLASSIFIED"
+
+devices = sorted({case["environment"].get("metalDevice", "unknown") for case in cases})
+document = {
+    "schemaVersion": 1,
+    "phase": phase,
+    "environment": {
+        "os": fallback_environment["os"],
+        "kernel": fallback_environment["kernel"],
+        "architecture": fallback_environment["architecture"],
+        "metalDevices": devices,
+    },
+    "fixture": fixture,
+    "frames": frames,
+    "flightDepth": flight_depth,
+        "mode": mode_names[0] if len(mode_names) == 1 else mode_names,
+    "classification": classification,
+    "cases": cases,
+}
+result_path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+  echo "REAL-MEDIA MULTIFLIGHT DIAGNOSTIC: evidence written to $DIAGNOSTIC_RESULT"
+  echo 'This diagnostic mode records case failures; it does not convert SIGTRAP or exit status 5 into PASS.'
   echo 'Virgin Frozen accessed: NO'
   echo 'Objective evaluations: 0'
   exit 0

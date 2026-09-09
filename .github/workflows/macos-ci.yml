@@ -58,6 +58,18 @@ jobs:
         env:
           MTL_DEBUG_LAYER: 1
         run: ./RUN_MACOS_VERIFY.sh multiflight
+      - name: VMAPPLE multi-flight diagnostic matrix
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh multiflight-diagnostic
+      - name: Upload VMAPPLE multi-flight diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiflight-vmapple-diagnostic
+          if-no-files-found: warn
+          path: |
+            results/multiflight-vmapple-diagnostic.json
+            results/multiflight-vmapple-diagnostic/
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
