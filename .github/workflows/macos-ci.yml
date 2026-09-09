@@ -48,6 +48,11 @@ jobs:
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
+      - name: Release build and tests
+        run: |
+          swift build -c release --disable-index-store
+          swift test -c release --disable-index-store
+
       - name: V4 runtime Metal benchmark
         run: swift test -c debug --disable-index-store --filter CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
