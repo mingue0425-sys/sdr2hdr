@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010|regression|regression-full|real-media|real-media-validation) ;;
+  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|real-media|real-media-validation) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010|regression|regression-full|real-media|real-media-validation] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|real-media|real-media-validation] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -581,7 +581,7 @@ if [ "${VERIFY_SCRIPT_LIBRARY_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
-if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
+if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ] || [ "$MODE" = "automatic-decode" ]; then
   FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-tiny-e2e.XXXXXX")"
   FIXTURE_PATH="$FIXTURE_DIR/tiny-sdr.mp4"
   P010_FIXTURE_PATH="$FIXTURE_DIR/tiny-p010-sdr.mp4"
@@ -594,6 +594,24 @@ if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
     echo 'SELF-CONTAINED REAL-MEDIA VERIFY: FAIL (ffprobe is required)' >&2
     exit 2
   }
+  if [ "$MODE" = "automatic-decode" ]; then
+    AUTOMATIC_FIXTURE_DIR="$FIXTURE_DIR/automatic-regression"
+    stage 'automatic decode precision fixture generation' \
+      bash Tests/RealMediaRegression/generate_regression_fixtures.sh "$AUTOMATIC_FIXTURE_DIR"
+    stage 'automatic decode precision fixture contracts' \
+      bash Tests/RealMediaRegression/verify_regression_fixtures.sh "$AUTOMATIC_FIXTURE_DIR"
+    stage 'automatic H.264/HEVC source precision selection and Metal integration' env \
+      HDR_AUTOMATIC_H264_FIXTURE="$AUTOMATIC_FIXTURE_DIR/h264-8-video-24-dark-gradient.mp4" \
+      HDR_AUTOMATIC_HEVC8_FIXTURE="$AUTOMATIC_FIXTURE_DIR/hevc-8-video-30-chroma-edge.mp4" \
+      HDR_AUTOMATIC_MAIN10_FIXTURE="$AUTOMATIC_FIXTURE_DIR/hevc-main10-video-24-dark-gradient.mp4" \
+      swift test -c debug --disable-index-store \
+        --filter RealMediaIntegrationTests/testAutomatic
+    echo 'AUTOMATIC DECODE PRECISION VERIFY: PASS'
+    echo 'Source format descriptions were inspected before AVPlayerItemVideoOutput creation.'
+    echo 'Virgin Frozen accessed: NO'
+    echo 'Objective evaluations: 0'
+    exit 0
+  fi
   if [ "$MODE" = "self-contained" ]; then
     stage 'self-contained tiny 8-bit media fixture' bash Tests/verify_tiny_media_fixture.sh "$FIXTURE_PATH"
     stage 'real-media AVFoundation 8-bit production nearest integration' env \

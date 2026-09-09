@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+@testable import HDRPlayerKit
 
 struct ExternalMediaProbe: Codable, Equatable, Sendable {
     let codec: String?
@@ -27,12 +28,31 @@ struct ExternalMediaWindowResult: Codable, Sendable {
     let comparison: RegressionModeComparison
 }
 
+struct ExternalMediaAutomaticDecision: Codable, Equatable, Sendable {
+    let requested: HDRDecodePrecision
+    let resolved: HDRResolvedDecodePrecision
+    let sourceBitDepth: Int?
+    let sourceCodec: String?
+    let reason: HDRDecodePrecisionDecisionReason
+    let fallbackUsed: Bool
+
+    init(_ decision: HDRDecodePrecisionDecision) {
+        requested = decision.requested
+        resolved = decision.resolved
+        sourceBitDepth = decision.sourceBitDepth
+        sourceCodec = decision.sourceCodec
+        reason = decision.reason
+        fallbackUsed = decision.fallbackUsed
+    }
+}
+
 struct ExternalMediaSourceResult: Codable, Sendable {
     let id: String
     let fileName: String
     let sha256: String
     let provenance: ExternalMediaProvenance
     let probe: ExternalMediaProbe
+    let automaticDecision: ExternalMediaAutomaticDecision?
     let windows: [ExternalMediaWindowResult]
     let status: String
     let failure: String?

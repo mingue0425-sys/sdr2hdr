@@ -167,13 +167,22 @@ struct RealMediaRegressionRunner {
         fixture: RealMediaRegressionFixture,
         startTime: Double = 0,
         duration: Double? = nil,
-        precision: HDRDecodePrecision? = nil
+        precision: HDRDecodePrecision? = nil,
+        resolvedPrecision: HDRResolvedDecodePrecision? = nil
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
-        let output = HDRVideoOutputConfiguration.makeVideoOutput(
-            precision: precision ?? fixture.decodePrecision,
-            range: fixture.range.decodeRange
-        )
+        let output: AVPlayerItemVideoOutput
+        if let resolvedPrecision {
+            output = HDRVideoOutputConfiguration.makeVideoOutput(
+                resolvedPrecision: resolvedPrecision,
+                range: fixture.range.decodeRange
+            )
+        } else {
+            output = HDRVideoOutputConfiguration.makeVideoOutput(
+                precision: precision ?? fixture.decodePrecision,
+                range: fixture.range.decodeRange
+            )
+        }
         output.suppressesPlayerRendering = true
         item.add(output)
 
@@ -916,6 +925,10 @@ struct RealMediaRegressionRunner {
         guard let totalDuration = probe.duration else {
             throw ExternalMediaInspectionError.invalidProbe("duration is missing")
         }
+        let automaticDecision = await HDRDecodePrecisionResolver.resolve(
+            asset: asset,
+            requested: .automatic
+        )
 
         var windowResults: [ExternalMediaWindowResult] = []
         for window in source.windows {
@@ -926,7 +939,7 @@ struct RealMediaRegressionRunner {
                 fixture: fixture,
                 startTime: resolved.start,
                 duration: resolved.duration,
-                precision: externalPrecision(source: source)
+                resolvedPrecision: automaticDecision.resolved
             )
             let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
             let actualInputFormat = try Self.actualInputFormat(for: firstPixelBuffer)
@@ -937,7 +950,8 @@ struct RealMediaRegressionRunner {
             let metadataFailures = validateExternalMetadata(
                 source: source,
                 resolvedColor: resolvedColor,
-                actualInputFormat: actualInputFormat
+                actualInputFormat: actualInputFormat,
+                automaticDecision: automaticDecision
             )
             let inputLevels = try inputLuminanceLevelCount(
                 frames: frames,
@@ -987,6 +1001,7 @@ struct RealMediaRegressionRunner {
             sha256: source.sha256,
             provenance: source.provenance,
             probe: probe,
+            automaticDecision: ExternalMediaAutomaticDecision(automaticDecision),
             windows: windowResults,
             status: failures.isEmpty ? "pass" : "fail",
             failure: failures.isEmpty ? nil : failures.joined(separator: "; ")
@@ -1030,20 +1045,20 @@ struct RealMediaRegressionRunner {
         )
     }
 
-    private func externalPrecision(source: ExternalRealMediaSource) -> HDRDecodePrecision {
-        switch source.expected.bitDepth {
-        case 10: return .tenBitPreferred
-        case 8: return .eightBit
-        default: return .automatic
-        }
-    }
-
     private func validateExternalMetadata(
         source: ExternalRealMediaSource,
         resolvedColor: ResolvedColorDescription,
-        actualInputFormat: HDRInputPixelFormat
+        actualInputFormat: HDRInputPixelFormat,
+        automaticDecision: HDRDecodePrecisionDecision
     ) -> [String] {
         var failures: [String] = []
+        if let expectedBitDepth = source.expected.bitDepth,
+           automaticDecision.resolved.bitDepth != expectedBitDepth {
+            failures.append(
+                "AUTOMATIC_DECODE_PRECISION_MISMATCH expected=\(expectedBitDepth) " +
+                "resolved=\(automaticDecision.resolved.bitDepth) reason=\(automaticDecision.reason.rawValue)"
+            )
+        }
         if let bitDepth = source.expected.bitDepth,
            let precisionMismatch = Self.precisionMismatchMessage(
                expectedDecodeBitDepth: bitDepth,

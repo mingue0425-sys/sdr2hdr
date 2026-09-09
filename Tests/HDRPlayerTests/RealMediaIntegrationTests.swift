@@ -146,6 +146,30 @@ final class RealMediaIntegrationTests: XCTestCase {
         try await runP010RealMediaE2E(reconstructionMode: .sitingAwareBilinear)
     }
 
+    func testAutomaticH264EightBitSelectsNV12AndProcesses() async throws {
+        try await runAutomaticRealMediaE2E(
+            environmentKey: "HDR_AUTOMATIC_H264_FIXTURE",
+            expectedBitDepth: 8,
+            expectedCodec: "avc1"
+        )
+    }
+
+    func testAutomaticHEVCEightBitSelectsNV12AndProcesses() async throws {
+        try await runAutomaticRealMediaE2E(
+            environmentKey: "HDR_AUTOMATIC_HEVC8_FIXTURE",
+            expectedBitDepth: 8,
+            expectedCodec: "hvc1"
+        )
+    }
+
+    func testAutomaticHEVCMain10SelectsP010AndProcesses() async throws {
+        try await runAutomaticRealMediaE2E(
+            environmentKey: "HDR_AUTOMATIC_MAIN10_FIXTURE",
+            expectedBitDepth: 10,
+            expectedCodec: "hvc1"
+        )
+    }
+
     private func runP010RealMediaE2E(
         reconstructionMode: HDRChromaReconstructionMode
     ) async throws {
@@ -265,14 +289,125 @@ final class RealMediaIntegrationTests: XCTestCase {
         )
     }
 
+    private func runAutomaticRealMediaE2E(
+        environmentKey: String,
+        expectedBitDepth: Int,
+        expectedCodec: String
+    ) async throws {
+        guard let fixturePath = ProcessInfo.processInfo.environment[environmentKey] else {
+            throw XCTSkip("set \(environmentKey) to run automatic decode precision integration")
+        }
+        let fixtureURL = URL(fileURLWithPath: fixturePath)
+        guard FileManager.default.fileExists(atPath: fixtureURL.path) else {
+            throw XCTSkip("automatic precision fixture does not exist: \(fixtureURL.path)")
+        }
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let asset = AVURLAsset(url: fixtureURL)
+        let isPlayable = try await asset.load(.isPlayable)
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        XCTAssertTrue(isPlayable)
+        XCTAssertEqual(tracks.count, 1)
+
+        let playbackController = try await PlaybackController.make(
+            url: fixtureURL,
+            configuration: HDRConfiguration.calibratedV4,
+            device: device,
+            decodePrecision: .automatic
+        )
+        defer { playbackController.stop() }
+        let decision = playbackController.decodePrecisionDecision
+        XCTAssertEqual(decision.sourceCodec, expectedCodec)
+        XCTAssertEqual(decision.sourceBitDepth, expectedBitDepth)
+        XCTAssertFalse(decision.fallbackUsed, decision.diagnosticDescription)
+        XCTAssertEqual(
+            decision.resolved.bitDepth,
+            expectedBitDepth,
+            decision.diagnosticDescription
+        )
+
+        let outputKey = kCVPixelBufferPixelFormatTypeKey as String
+        let requestedOutput = HDRVideoOutputConfiguration.pixelBufferAttributes(
+            forResolvedPrecision: decision.resolved
+        )[outputKey] as? OSType
+        let expectedPixelFormat = expectedBitDepth == 10
+            ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+            : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        XCTAssertEqual(requestedOutput, expectedPixelFormat)
+
+        let frames = try await decodeFrames(
+            asset: asset,
+            minimumCount: 3,
+            maximumCount: 6,
+            resolvedPrecision: decision.resolved
+        )
+        XCTAssertGreaterThanOrEqual(frames.count, 3)
+        let firstPixelBuffer = try XCTUnwrap(frames.first?.pixelBuffer)
+        let actualOSType = CVPixelBufferGetPixelFormatType(firstPixelBuffer)
+        let actualFormat = try XCTUnwrap(HDRInputPixelFormat(coreVideoFormat: actualOSType))
+        XCTAssertEqual(actualFormat.bitDepth, expectedBitDepth)
+        XCTAssertEqual(actualFormat.isP010, expectedBitDepth == 10)
+        XCTAssertEqual(actualOSType, expectedPixelFormat)
+
+        let metadata = try HDRColorMetadataResolver.resolve(
+            pixelBuffer: firstPixelBuffer,
+            fallbackPolicy: .requireMetadata
+        )
+        XCTAssertEqual(metadata.metadata.transferFunction, .bt709)
+        XCTAssertEqual(metadata.metadata.yCbCrMatrix, .bt709)
+
+        let configuration = HDRConfiguration.calibratedV4
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.temporalTraceEnabled = true
+        let renderer = try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
+        let width = CVPixelBufferGetWidth(firstPixelBuffer)
+        let height = CVPixelBufferGetHeight(firstPixelBuffer)
+        var observations: [OutputObservation] = []
+        for (index, frame) in frames.enumerated() {
+            observations.append(try processAndPresent(
+                frame,
+                index: index,
+                width: width,
+                height: height,
+                device: device,
+                processor: processor,
+                renderer: renderer
+            ))
+        }
+
+        XCTAssertEqual(processor.configuration, configuration)
+        XCTAssertGreaterThanOrEqual(processor.lastGPUCompletedSequence, UInt64(frames.count))
+        XCTAssertGreaterThanOrEqual(processor.lastAdaptiveCommittedSequence, UInt64(frames.count))
+        XCTAssertTrue(observations.allSatisfy { $0.maximumLuminance.isFinite })
+        XCTAssertGreaterThan(observations.reduce(0) { $0 + $1.finiteSampleCount }, 0)
+        XCTAssertGreaterThan(observations.reduce(0) { $0 + $1.nonZeroSampleCount }, 0)
+
+        print(
+            "AUTOMATIC_DECODE_E2E codec=\(expectedCodec) sourceBitDepth=\(expectedBitDepth) " +
+            "decision=\(decision.resolved.rawValue) actual=\(actualFormat.diagnosticName) " +
+            "frames=\(frames.count) gpuSequence=\(processor.lastGPUCompletedSequence) " +
+            "adaptiveSequence=\(processor.lastAdaptiveCommittedSequence)"
+        )
+    }
+
     private func decodeFrames(
         asset: AVAsset,
         minimumCount: Int,
         maximumCount: Int,
-        precision: HDRDecodePrecision = .automatic
+        precision: HDRDecodePrecision = .automatic,
+        resolvedPrecision: HDRResolvedDecodePrecision? = nil
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
-        let output = HDRVideoOutputConfiguration.makeVideoOutput(precision: precision)
+        let output: AVPlayerItemVideoOutput
+        if let resolvedPrecision {
+            output = HDRVideoOutputConfiguration.makeVideoOutput(
+                resolvedPrecision: resolvedPrecision
+            )
+        } else {
+            output = HDRVideoOutputConfiguration.makeVideoOutput(precision: precision)
+        }
         output.suppressesPlayerRendering = true
         item.add(output)
 
