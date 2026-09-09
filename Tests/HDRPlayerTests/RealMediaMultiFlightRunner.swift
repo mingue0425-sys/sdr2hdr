@@ -546,7 +546,13 @@ extension RealMediaRegressionRunner {
             var retired: RealMediaPendingFrame? = pending.removeFirst()
             defer { retired = nil }
             guard let value = retired else { return }
+            logMultiFlightProgress(
+                "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
+            )
             value.commandBuffer.waitUntilCompleted()
+            logMultiFlightProgress(
+                "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
+            )
             completedFrames.append(try completePendingFrame(value))
         }
 
