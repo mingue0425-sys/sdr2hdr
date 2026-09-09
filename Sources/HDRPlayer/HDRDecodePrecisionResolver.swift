@@ -273,7 +273,7 @@ public enum HDRDecodePrecisionResolver {
         let codec = codecs.count == 1 ? codecs.first : parsed.first?.codec
         let knownDepths = Set(parsed.compactMap(\.bitDepth))
 
-        if knownDepths.count > 1 {
+        if parsed.contains(where: { $0.evidence == .conflicting }) || knownDepths.count > 1 {
             return HDRSourcePrecisionEvidence(
                 codec: codec,
                 bitDepth: nil,
@@ -312,37 +312,391 @@ public enum HDRDecodePrecisionResolver {
         )
     }
 
-    /// Testable parser seam for avcC/hvcC profile evidence. It never indexes
-    /// past the supplied data and returns nil for unsupported or malformed
-    /// configurations.
+    /// Testable parser seam for avcC/hvcC SPS evidence. Profile identifiers
+    /// select syntax in the SPS, but never determine the coded bit depth by
+    /// themselves. It never indexes past the supplied data and returns nil
+    /// for unsupported, conflicting, or malformed configurations.
     static func bitDepthFromCodecConfiguration(codec: String, data: Data) -> Int? {
+        switch codecConfigurationBitDepthResult(codec: codec, data: data) {
+        case .resolved(let bitDepth):
+            return bitDepth
+        case .conflicting, .unsupported, .malformed:
+            return nil
+        }
+    }
+
+    private enum CodecConfigurationBitDepthResult {
+        case resolved(Int)
+        case conflicting
+        case unsupported
+        case malformed
+    }
+
+    private static func codecConfigurationBitDepthResult(
+        codec: String,
+        data: Data
+    ) -> CodecConfigurationBitDepthResult {
         switch codec {
         case "avc1", "avc3":
-            // ISO/IEC 14496-15: configurationVersion, AVCProfileIndication,
-            // profile_compatibility, AVCLevelIndication.
-            guard data.count >= 4 else { return nil }
-            switch data[data.startIndex + 1] {
-            case 66, 77, 88, 100:
-                return 8
-            case 110:
-                return 10
-            default:
-                return nil
-            }
-
+            return avcConfigurationBitDepthResult(data: data)
         case "hvc1", "hev1":
-            // hvcC byte 1 contains general_profile_space (bits 7...6),
-            // general_tier_flag (bit 5), and general_profile_idc (bits 4...0).
-            guard data.count >= 2 else { return nil }
-            let profileID = data[data.startIndex + 1] & 0x1f
-            switch profileID {
-            case 1: return 8 // Main
-            case 2: return 10 // Main 10
-            default: return nil
-            }
+            return hevcConfigurationBitDepthResult(data: data)
+        default:
+            return .unsupported
+        }
+    }
 
+    private static func avcConfigurationBitDepthResult(data: Data) -> CodecConfigurationBitDepthResult {
+        var cursor = ByteCursor(bytes: Array(data))
+        guard cursor.readByte() == 1,
+              cursor.readByte() != nil,
+              cursor.readByte() != nil,
+              cursor.readByte() != nil,
+              let lengthAndReserved = cursor.readByte(),
+              lengthAndReserved & 0xfc == 0xfc,
+              let spsAndReserved = cursor.readByte(),
+              spsAndReserved & 0xe0 == 0xe0 else {
+            return .malformed
+        }
+
+        let sequenceParameterSetCount = Int(spsAndReserved & 0x1f)
+        guard sequenceParameterSetCount > 0 else { return .malformed }
+        var spsUnits: [[UInt8]] = []
+        spsUnits.reserveCapacity(sequenceParameterSetCount)
+        for _ in 0..<sequenceParameterSetCount {
+            guard let length = cursor.readUInt16(), length > 0,
+                  let unit = cursor.readBytes(count: length) else {
+                return .malformed
+            }
+            guard unit.first.map({ $0 & 0x1f }) == 7 else { return .malformed }
+            spsUnits.append(unit)
+        }
+
+        guard let pictureParameterSetCount = cursor.readByte(), pictureParameterSetCount > 0 else {
+            return .malformed
+        }
+        for _ in 0..<pictureParameterSetCount {
+            guard let length = cursor.readUInt16(), length > 0,
+                  cursor.readBytes(count: length) != nil else {
+                return .malformed
+            }
+        }
+
+        return combineSPSResults(spsUnits.map(parseAVCSPS))
+    }
+
+    private static func hevcConfigurationBitDepthResult(data: Data) -> CodecConfigurationBitDepthResult {
+        var cursor = ByteCursor(bytes: Array(data))
+        // The fixed hvcC header ends with numOfArrays at byte 22.
+        guard cursor.readByte() == 1,
+              cursor.readBytes(count: 21) != nil,
+              let arrayCount = cursor.readByte(),
+              arrayCount > 0 else {
+            return .malformed
+        }
+
+        var spsUnits: [[UInt8]] = []
+        for _ in 0..<arrayCount {
+            guard let arrayHeader = cursor.readByte(),
+                  let nalUnitCount = cursor.readUInt16() else {
+                return .malformed
+            }
+            let nalUnitType = arrayHeader & 0x3f
+            for _ in 0..<nalUnitCount {
+                guard let length = cursor.readUInt16(), length > 0,
+                      let unit = cursor.readBytes(count: length) else {
+                    return .malformed
+                }
+                if nalUnitType == 33 {
+                    guard unit.count >= 3,
+                          unit[0] & 0x80 == 0,
+                          ((unit[0] & 0x7e) >> 1) == 33 else {
+                        return .malformed
+                    }
+                    spsUnits.append(unit)
+                }
+            }
+        }
+
+        guard !spsUnits.isEmpty else { return .malformed }
+        return combineSPSResults(spsUnits.map(parseHEVCSPS))
+    }
+
+    private static func combineSPSResults(
+        _ results: [CodecConfigurationBitDepthResult]
+    ) -> CodecConfigurationBitDepthResult {
+        guard !results.isEmpty else { return .malformed }
+        if results.contains(where: {
+            if case .malformed = $0 { return true }
+            return false
+        }) {
+            return .malformed
+        }
+        if results.contains(where: {
+            if case .conflicting = $0 { return true }
+            return false
+        }) {
+            return .conflicting
+        }
+        if results.contains(where: {
+            if case .unsupported = $0 { return true }
+            return false
+        }) {
+            return .unsupported
+        }
+        let depths = Set(results.compactMap { result -> Int? in
+            if case .resolved(let bitDepth) = result { return bitDepth }
+            return nil
+        })
+        guard depths.count == 1, let depth = depths.first else { return .conflicting }
+        return .resolved(depth)
+    }
+
+    private static func parseAVCSPS(_ nalUnit: [UInt8]) -> CodecConfigurationBitDepthResult {
+        guard nalUnit.count >= 2,
+              nalUnit[0] & 0x80 == 0,
+              nalUnit[0] & 0x1f == 7,
+              let rbsp = removeEmulationPreventionBytes(Array(nalUnit.dropFirst())),
+              var reader = RBSPBitReader(bytes: rbsp),
+              let profileID = reader.readBits(8),
+              reader.readBits(8) != nil,
+              reader.readBits(8) != nil,
+              reader.readUnsignedExpGolomb() != nil else {
+            return .malformed
+        }
+
+        let profile = Int(profileID)
+        guard let syntax = avcSPSProfileSyntax(for: profile) else {
+            return .unsupported
+        }
+        if syntax == .implicitEightBit {
+            // Baseline, Main, and Extended profiles have no explicit bit-depth
+            // fields in this syntax. Their normative default is zero, which is
+            // the 8-bit code depth; this is not a High10 profile inference.
+            return bitDepthResult(lumaMinus8: 0, chromaMinus8: 0)
+        }
+
+        guard let chromaFormatID = reader.readUnsignedExpGolomb(), chromaFormatID <= 3 else {
+            return .malformed
+        }
+        if chromaFormatID == 3, reader.readBits(1) == nil {
+            return .malformed
+        }
+        guard let lumaMinus8 = reader.readUnsignedExpGolomb(),
+              let chromaMinus8 = reader.readUnsignedExpGolomb() else {
+            return .malformed
+        }
+        return bitDepthResult(lumaMinus8: lumaMinus8, chromaMinus8: chromaMinus8)
+    }
+
+    private static func parseHEVCSPS(_ nalUnit: [UInt8]) -> CodecConfigurationBitDepthResult {
+        guard nalUnit.count >= 3,
+              nalUnit[0] & 0x80 == 0,
+              ((nalUnit[0] & 0x7e) >> 1) == 33,
+              let rbsp = removeEmulationPreventionBytes(Array(nalUnit.dropFirst(2))),
+              var reader = RBSPBitReader(bytes: rbsp),
+              reader.readBits(4) != nil,
+              let maxSubLayersMinus1Bits = reader.readBits(3),
+              maxSubLayersMinus1Bits <= 6,
+              reader.readBits(1) != nil else {
+            return .malformed
+        }
+
+        let maxSubLayersMinus1 = Int(maxSubLayersMinus1Bits)
+        guard skipHEVCProfileTierLevel(
+            reader: &reader,
+            maxSubLayersMinus1: maxSubLayersMinus1
+        ),
+        reader.readUnsignedExpGolomb() != nil,
+        let chromaFormatID = reader.readUnsignedExpGolomb(),
+        chromaFormatID <= 3 else {
+            return .malformed
+        }
+        if chromaFormatID == 3, reader.readBits(1) == nil {
+            return .malformed
+        }
+        guard reader.readUnsignedExpGolomb() != nil,
+              reader.readUnsignedExpGolomb() != nil,
+              let conformanceWindowFlag = reader.readBits(1) else {
+            return .malformed
+        }
+        if conformanceWindowFlag == 1 {
+            guard reader.readUnsignedExpGolomb() != nil,
+                  reader.readUnsignedExpGolomb() != nil,
+                  reader.readUnsignedExpGolomb() != nil,
+                  reader.readUnsignedExpGolomb() != nil else {
+                return .malformed
+            }
+        }
+        guard let lumaMinus8 = reader.readUnsignedExpGolomb(),
+              let chromaMinus8 = reader.readUnsignedExpGolomb() else {
+            return .malformed
+        }
+        return bitDepthResult(lumaMinus8: lumaMinus8, chromaMinus8: chromaMinus8)
+    }
+
+    private static func skipHEVCProfileTierLevel(
+        reader: inout RBSPBitReader,
+        maxSubLayersMinus1: Int
+    ) -> Bool {
+        guard reader.readBits(2) != nil,
+              reader.readBits(1) != nil,
+              reader.readBits(5) != nil,
+              reader.readBits(32) != nil,
+              reader.readBits(48) != nil,
+              reader.readBits(8) != nil else {
+            return false
+        }
+
+        var profilePresent = Array(repeating: false, count: maxSubLayersMinus1)
+        var levelPresent = Array(repeating: false, count: maxSubLayersMinus1)
+        for index in 0..<maxSubLayersMinus1 {
+            guard let profileFlag = reader.readBits(1),
+                  let levelFlag = reader.readBits(1) else {
+                return false
+            }
+            profilePresent[index] = profileFlag == 1
+            levelPresent[index] = levelFlag == 1
+        }
+        if maxSubLayersMinus1 > 0 {
+            for _ in maxSubLayersMinus1..<8 {
+                guard reader.readBits(2) != nil else { return false }
+            }
+            for index in 0..<maxSubLayersMinus1 {
+                if profilePresent[index] {
+                    guard reader.readBits(2) != nil,
+                          reader.readBits(1) != nil,
+                          reader.readBits(5) != nil,
+                          reader.readBits(32) != nil,
+                          reader.readBits(48) != nil else {
+                        return false
+                    }
+                }
+                if levelPresent[index], reader.readBits(8) == nil {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    private static func bitDepthResult(
+        lumaMinus8: UInt64,
+        chromaMinus8: UInt64
+    ) -> CodecConfigurationBitDepthResult {
+        guard lumaMinus8 == chromaMinus8 else { return .conflicting }
+        switch lumaMinus8 {
+        case 0: return .resolved(8)
+        case 2: return .resolved(10)
+        default: return .unsupported
+        }
+    }
+
+    private enum AVCSPSProfileSyntax {
+        case implicitEightBit
+        case explicitBitDepth
+    }
+
+    private static func avcSPSProfileSyntax(for profile: Int) -> AVCSPSProfileSyntax? {
+        switch profile {
+        case 66, 77, 88:
+            return .implicitEightBit
+        case 44, 83, 86, 100, 110, 118, 122, 128, 134, 135, 138, 139, 244:
+            return .explicitBitDepth
         default:
             return nil
+        }
+    }
+
+    private static func removeEmulationPreventionBytes(_ bytes: [UInt8]) -> [UInt8]? {
+        guard !bytes.isEmpty else { return nil }
+        var result: [UInt8] = []
+        result.reserveCapacity(bytes.count)
+        var zeroCount = 0
+        for index in bytes.indices {
+            let byte = bytes[index]
+            if zeroCount >= 2, byte == 0x03 {
+                guard index < bytes.count - 1, bytes[index + 1] <= 0x03 else {
+                    return nil
+                }
+                continue
+            }
+            result.append(byte)
+            if byte == 0 {
+                zeroCount = min(zeroCount + 1, 2)
+            } else {
+                zeroCount = 0
+            }
+        }
+        return result
+    }
+
+    private struct ByteCursor {
+        let bytes: [UInt8]
+        var offset: Int = 0
+
+        mutating func readByte() -> UInt8? {
+            guard offset < bytes.count else { return nil }
+            let value = bytes[offset]
+            offset += 1
+            return value
+        }
+
+        mutating func readUInt16() -> Int? {
+            guard let high = readByte(), let low = readByte() else { return nil }
+            return (Int(high) << 8) | Int(low)
+        }
+
+        mutating func readBytes(count: Int) -> [UInt8]? {
+            guard count > 0, count <= bytes.count - offset else { return nil }
+            let end = offset + count
+            let value = Array(bytes[offset..<end])
+            offset = end
+            return value
+        }
+    }
+
+    private struct RBSPBitReader {
+        let bytes: [UInt8]
+        let bitCount: Int
+        var bitOffset: Int = 0
+
+        init?(bytes: [UInt8]) {
+            guard bytes.count <= Int.max / 8 else { return nil }
+            self.bytes = bytes
+            self.bitCount = bytes.count * 8
+        }
+
+        mutating func readBits(_ count: Int) -> UInt64? {
+            guard count >= 0, count <= 64,
+                  bitOffset <= bitCount,
+                  count <= bitCount - bitOffset else {
+                return nil
+            }
+            guard count > 0 else { return 0 }
+            var value: UInt64 = 0
+            for _ in 0..<count {
+                let byteIndex = bitOffset / 8
+                let bitIndex = bitOffset % 8
+                let bit = (bytes[byteIndex] >> (7 - bitIndex)) & 1
+                value = (value << 1) | UInt64(bit)
+                bitOffset += 1
+            }
+            return value
+        }
+
+        mutating func readUnsignedExpGolomb() -> UInt64? {
+            var leadingZeroBits = 0
+            while true {
+                guard let bit = readBits(1) else { return nil }
+                if bit == 1 { break }
+                leadingZeroBits += 1
+                guard leadingZeroBits < 63 else { return nil }
+            }
+            guard let suffix = readBits(leadingZeroBits) else { return nil }
+            let prefix = (UInt64(1) << UInt64(leadingZeroBits)) - 1
+            guard UInt64.max - prefix >= suffix else { return nil }
+            return prefix + suffix
         }
     }
 
@@ -399,9 +753,17 @@ public enum HDRDecodePrecisionResolver {
         default: atomName = nil
         }
         if let atomName,
-           let data = codecConfigurationData(from: extensions, atomName: atomName),
-           let bitDepth = bitDepthFromCodecConfiguration(codec: codec, data: data) {
-            return ParsedDescription(codec: codec, bitDepth: bitDepth, evidence: .codecConfiguration)
+           let data = codecConfigurationData(from: extensions, atomName: atomName) {
+            switch codecConfigurationBitDepthResult(codec: codec, data: data) {
+            case .resolved(let bitDepth):
+                return ParsedDescription(codec: codec, bitDepth: bitDepth, evidence: .codecConfiguration)
+            case .conflicting:
+                return ParsedDescription(codec: codec, bitDepth: nil, evidence: .conflicting)
+            case .unsupported:
+                return ParsedDescription(codec: codec, bitDepth: nil, evidence: .unsupported)
+            case .malformed:
+                return ParsedDescription(codec: codec, bitDepth: nil, evidence: .unresolved)
+            }
         }
         return ParsedDescription(codec: codec, bitDepth: nil, evidence: .unresolved)
     }
