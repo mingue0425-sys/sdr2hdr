@@ -878,7 +878,10 @@ def signal_for(exit_code, log_lines):
     if 129 <= exit_code <= 192:
         return exit_code - 128
     if exit_code == 5 and any(
-        "SIGTRAP" in line or "signal 5" in line or "signal: 5" in line
+        "SIGTRAP" in line or
+        "signal 5" in line or
+        "signal: 5" in line or
+        "signal code 5" in line
         for line in log_lines
     ):
         return 5
