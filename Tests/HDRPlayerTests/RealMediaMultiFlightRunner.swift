@@ -154,7 +154,9 @@ extension RealMediaRegressionRunner {
         guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
             return
         }
-        print("MULTIFLIGHT_PROGRESS \(message)")
+        FileHandle.standardError.write(
+            Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8)
+        )
     }
 
     /// Encodes the same production-equivalent processing and presentation

@@ -10,7 +10,9 @@ final class RealMediaMultiFlightTests: XCTestCase {
         guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
             return
         }
-        print("MULTIFLIGHT_PROGRESS \(message)")
+        FileHandle.standardError.write(
+            Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8)
+        )
     }
 
     func testDeterministicMatrixRunsWithTwoAndThreeFlights() async throws {
