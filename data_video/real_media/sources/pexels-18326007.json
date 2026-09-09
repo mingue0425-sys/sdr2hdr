@@ -1,0 +1,59 @@
+{
+  "id": "pexels-18326007",
+  "fileName": "development/pexels-18326007.mp4",
+  "sha256": "a5ed78ca15e2bd4b301e6175fb3c7bb3f3265f21744f63042c41cada72361bb6",
+  "sourceFamily": "pexels-creator-eno-eltora",
+  "split": "development",
+  "category": "fast-motion",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 59.94005994005994,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/motocross-fpv-drone-18326007/",
+    "downloadURL": "https://videos.pexels.com/video-files/18326007/18326007-uhd_2562_1440_60fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Eno Eltora",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2562,
+      "height": 1440
+    },
+    "frameRateRational": "60000/1001",
+    "duration": 8.173333,
+    "chromaLocation": "left",
+    "bytes": 15315055,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 490,
+      "minDelta": 0.01668299999999867,
+      "maxDelta": 0.016684000000000587,
+      "medianDelta": 0.016683000000000447,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

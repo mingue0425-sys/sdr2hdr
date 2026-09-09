@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "baseline": "0a980d9",
+  "fixtures": [
+    {
+      "id": "h264-8-video-24-dark-gradient",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "cfr",
+      "contentClass": "dark-gradient",
+      "profile": "h264-8",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 8,
+      "gateProfile": "dark-static"
+    },
+    {
+      "id": "h264-8-video-30-neutral-color",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 30,
+      "timing": "cfr",
+      "contentClass": "neutral-color",
+      "profile": "h264-8",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "neutral-static"
+    },
+    {
+      "id": "h264-8-video-60-motion",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 60,
+      "timing": "cfr",
+      "contentClass": "motion",
+      "profile": "h264-8",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": false,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "motion"
+    },
+    {
+      "id": "h264-8-full-30-neutral-color",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "full",
+      "frameRate": 30,
+      "timing": "cfr",
+      "contentClass": "neutral-color",
+      "profile": "h264-8-full",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "neutral-static"
+    },
+    {
+      "id": "hevc-8-video-30-chroma-edge",
+      "codec": "hevc",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 30,
+      "timing": "cfr",
+      "contentClass": "chroma-edge",
+      "profile": "hevc-8",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "neutral-static"
+    },
+    {
+      "id": "hevc-main10-video-24-dark-gradient",
+      "codec": "hevc",
+      "sourceBitDepth": 10,
+      "expectedDecodeBitDepth": 10,
+      "expectedPixelFormatFamily": "p010",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "cfr",
+      "contentClass": "dark-gradient",
+      "profile": "hevc-main10",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 12,
+      "gateProfile": "dark-static"
+    },
+    {
+      "id": "hevc-main10-video-30-chroma-edge",
+      "codec": "hevc",
+      "sourceBitDepth": 10,
+      "expectedDecodeBitDepth": 10,
+      "expectedPixelFormatFamily": "p010",
+      "range": "video",
+      "frameRate": 30,
+      "timing": "cfr",
+      "contentClass": "chroma-edge",
+      "profile": "hevc-main10",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 3,
+      "gateProfile": "neutral-static"
+    },
+    {
+      "id": "hevc-main10-video-60-motion",
+      "codec": "hevc",
+      "sourceBitDepth": 10,
+      "expectedDecodeBitDepth": 10,
+      "expectedPixelFormatFamily": "p010",
+      "range": "video",
+      "frameRate": 60,
+      "timing": "cfr",
+      "contentClass": "motion",
+      "profile": "hevc-main10",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": false,
+      "minimumInputLuminanceLevels": 3,
+      "gateProfile": "motion"
+    },
+    {
+      "id": "h264-8-video-vfr-motion",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "vfr",
+      "contentClass": "motion",
+      "profile": "h264-8-vfr",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 2,
+      "staticContent": false,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "motion"
+    },
+    {
+      "id": "hevc-main10-video-vfr-motion",
+      "codec": "hevc",
+      "sourceBitDepth": 10,
+      "expectedDecodeBitDepth": 10,
+      "expectedPixelFormatFamily": "p010",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "vfr",
+      "contentClass": "motion",
+      "profile": "hevc-main10-vfr",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 2,
+      "staticContent": false,
+      "minimumInputLuminanceLevels": 3,
+      "gateProfile": "motion"
+    },
+    {
+      "id": "hevc-main10-video-24-near-black",
+      "codec": "hevc",
+      "sourceBitDepth": 10,
+      "expectedDecodeBitDepth": 10,
+      "expectedPixelFormatFamily": "p010",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "cfr",
+      "contentClass": "near-black",
+      "profile": "hevc-main10",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 16,
+      "gateProfile": "dark-static",
+      "precisionRegion": {
+        "x": 0,
+        "y": 0,
+        "width": 32,
+        "height": 36
+      },
+      "minimumNearBlackOutputLevels": 6
+    },
+    {
+      "id": "h264-8-video-24-chroma-edge",
+      "codec": "h264",
+      "sourceBitDepth": 8,
+      "expectedDecodeBitDepth": 8,
+      "expectedPixelFormatFamily": "nv12",
+      "range": "video",
+      "frameRate": 24,
+      "timing": "cfr",
+      "contentClass": "chroma-edge",
+      "profile": "h264-8",
+      "expectedTransfer": "bt709",
+      "expectedMatrix": "bt709",
+      "chromaSiting": {
+        "required": true,
+        "allowed": [
+          "left"
+        ]
+      },
+      "minimumFrames": 8,
+      "minimumDistinctFrameDurations": 1,
+      "staticContent": true,
+      "minimumInputLuminanceLevels": 6,
+      "gateProfile": "neutral-static"
+    }
+  ]
+}

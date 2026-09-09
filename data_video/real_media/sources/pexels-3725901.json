@@ -1,0 +1,59 @@
+{
+  "id": "pexels-3725901",
+  "fileName": "development/pexels-3725901.mp4",
+  "sha256": "84ce54198c8ff80097499a936ffac6d21e6bbd1ff4213170836c1d65987842b3",
+  "sourceFamily": "pexels-creator-k",
+  "split": "development",
+  "category": "bright-outdoor",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 24.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/daytime-traveling-of-motor-vehicles-on-a-concrete-road-3725901/",
+    "downloadURL": "https://videos.pexels.com/video-files/3725901/3725901-uhd_2732_1440_24fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "K",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 2732,
+      "height": 1440
+    },
+    "frameRateRational": "24/1",
+    "duration": 42.083333,
+    "chromaLocation": "left",
+    "bytes": 70789497,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 1010,
+      "minDelta": 0.041665999999999315,
+      "maxDelta": 0.04166700000000034,
+      "medianDelta": 0.0416669999999999,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

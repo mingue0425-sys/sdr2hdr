@@ -1,23 +1,38 @@
 {
   "evidence" : {
     "booleans" : {
-
+      "binCenterSemantics" : true,
+      "productionStrategy" : true,
+      "sampleCountParity" : true
     },
     "counts" : {
       "framesTested" : 1,
+      "histogramBinCount" : 64,
+      "histogramTotal" : 144,
+      "sampleGridHeight" : 9,
+      "sampleGridWidth" : 16,
       "samplePositions" : 144,
       "samplesTested" : 144
     },
     "numerical" : {
+      "expectedDarkP05BinCenter" : 0.0078125,
+      "p01MaxError" : 0,
       "p05MaxError" : 0,
       "p10MaxError" : 0,
       "p25MaxError" : 0,
+      "p50MaxError" : 0,
+      "p90MaxError" : 0,
+      "p99MaxError" : 0,
       "shadowFloorMaxError" : 0,
       "shadowTopMaxError" : 0
     },
-    "summary" : "16x9\/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+    "summary" : "16x9\/64-bin linear64 production quantization, bin-center percentiles, sample count, and repeated ramp statistics were executed and matched in this run"
   },
-  "model" : "16x9 sparse sampling, 16-bin histogram, bin-center quantization, causal delay",
+  "histogramBinCount" : 64,
+  "histogramStrategy" : "linear64",
+  "model" : "16x9 sparse sampling, linear64 64-bin histogram, bin-center quantization, causal delay",
+  "sampleGridHeight" : 9,
+  "sampleGridWidth" : 16,
   "status" : "PASS",
   "virginFrozenObjectiveEvaluated" : false
 }

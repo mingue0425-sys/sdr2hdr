@@ -222,7 +222,7 @@
           "required" : true
         },
         "counts" : {
-          "candidateCount" : 2,
+          "candidateCount" : 7,
           "consumedHLGPairCount" : 2,
           "objectiveEvaluationCount" : 0
         },
@@ -360,21 +360,32 @@
     {
       "evidence" : {
         "booleans" : {
-
+          "binCenterSemantics" : true,
+          "productionStrategy" : true,
+          "sampleCountParity" : true
         },
         "counts" : {
           "framesTested" : 1,
+          "histogramBinCount" : 64,
+          "histogramTotal" : 144,
+          "sampleGridHeight" : 9,
+          "sampleGridWidth" : 16,
           "samplePositions" : 144,
           "samplesTested" : 144
         },
         "numerical" : {
+          "expectedDarkP05BinCenter" : 0.0078125,
+          "p01MaxError" : 0,
           "p05MaxError" : 0,
           "p10MaxError" : 0,
           "p25MaxError" : 0,
+          "p50MaxError" : 0,
+          "p90MaxError" : 0,
+          "p99MaxError" : 0,
           "shadowFloorMaxError" : 0,
           "shadowTopMaxError" : 0
         },
-        "summary" : "16x9\/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+        "summary" : "16x9\/64-bin linear64 production quantization, bin-center percentiles, sample count, and repeated ramp statistics were executed and matched in this run"
       },
       "executed" : true,
       "id" : "percentile-production-offline-parity",
@@ -504,16 +515,16 @@
           "framesTested" : 300
         },
         "numerical" : {
-          "baselineCPUP95Milliseconds" : 0.06354169454425573,
-          "baselineGPUP50Milliseconds" : 0.7046250393614173,
-          "baselineGPUP95Milliseconds" : 1.9809583318419755,
-          "candidateCPUP95Milliseconds" : 0.07091666338965297,
-          "candidateGPUP50Milliseconds" : 0.7018750184215605,
-          "candidateGPUP95Milliseconds" : 1.838749973103404,
+          "baselineCPUP95Milliseconds" : 0.05220837192609906,
+          "baselineGPUP50Milliseconds" : 0.45166665222495794,
+          "baselineGPUP95Milliseconds" : 0.6582500063814223,
+          "candidateCPUP95Milliseconds" : 0.052333343774080276,
+          "candidateGPUP50Milliseconds" : 0.44999999227002263,
+          "candidateGPUP95Milliseconds" : 0.7671666680835187,
           "framesTested" : 300,
           "warmupFrames" : 30
         },
-        "summary" : "runtime within tolerance: GPU p50 0.705→0.702 ms, GPU p95 1.981→1.839 ms, CPU p95 0.064→0.071 ms"
+        "summary" : "runtime within tolerance: GPU p50 0.452→0.450 ms, GPU p95 0.658→0.767 ms, CPU p95 0.052→0.052 ms"
       },
       "executed" : true,
       "id" : "runtime-measurement",
@@ -640,7 +651,7 @@
     ],
     "version" : "pre-v6-frozen-coverage-v1"
   },
-  "generatedAt" : "2026-09-03T13:54:51Z",
+  "generatedAt" : "2026-09-08T21:14:15Z",
   "holdoutProvenance" : {
     "consumedPairIDs" : [
       "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
@@ -699,6 +710,81 @@
         ],
         "sdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
         "source" : "manifest-v4-virgin-evidence"
+      },
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.8775;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=40;HDR=40",
+        "hdrPath" : "external-media:[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+        "id" : "hlg-k-choreo-8k-뉴진스-직캠-how-sweet-newjeans-choreography-공간음향-ver-musicbank-240524-pxmhfo-0vxk-f642",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+        "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+        "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "external-media:[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+        "source" : "local-unmanifested"
+      },
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.9068;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=40;HDR=40",
+        "hdrPath" : "external-media:[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+        "id" : "hlg-k-choreo-8k-에스파-aespa-lemonade-aespa-choreography-musicbank-260529-0fcm13lr2xu-f642",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+        "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+        "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "external-media:[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+        "source" : "local-unmanifested"
+      },
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.8713;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=40;HDR=40",
+        "hdrPath" : "external-media:[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+        "id" : "hlg-k-choreo-8k-뉴진스-직캠-new-jeans-newjeans-choreography-musicbank-230714-yftayxdtjqi-f642",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+        "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+        "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "external-media:[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+        "source" : "local-unmanifested"
+      },
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.9082;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=40;HDR=40",
+        "hdrPath" : "external-media:[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+        "id" : "hlg-k-choreo-8k-아이브-직캠-blackhole-ive-choreography-공간음향-ver-musicbank-260306-a2riqfaohlo-f642",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+        "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+        "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "external-media:[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+        "source" : "local-unmanifested"
+      },
+      {
+        "accepted" : true,
+        "alignmentStatus" : "ALIGNED;median=0.9052;matchRatio=1.0000",
+        "decodeStatus" : "PASS_SDR=40;HDR=40",
+        "hdrPath" : "external-media:[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+        "id" : "hlg-k-choreo-8k-르세라핌-직캠-hot-le-sserafim-choreography-공간음향-ver-musicbank-250314-9audaaixoxa-f642",
+        "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+        "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+        "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+        "rejectionReasons" : [
+
+        ],
+        "sdrPath" : "external-media:[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+        "source" : "local-unmanifested"
       }
     ],
     "consumedHLGPairIDs" : [

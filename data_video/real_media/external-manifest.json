@@ -1,0 +1,1123 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "pexels-16934543",
+      "fileName": "development/pexels-16934543.mp4",
+      "sha256": "5ef83ab5ff29498dc7d06337aa8517ed85636f9c05e82719088c62acc748c103",
+      "sourceFamily": "pexels-creator-mohammed-abubakr",
+      "split": "development",
+      "category": "night-neon",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 30.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/a-street-with-a-building-and-a-street-light-16934543/",
+        "downloadURL": "https://videos.pexels.com/video-files/16934543/16934543-hd_1080_1920_30fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Mohammed Abubakr",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1080,
+          "height": 1920
+        },
+        "frameRateRational": "30/1",
+        "duration": 8.0,
+        "chromaLocation": "left",
+        "bytes": 6265661,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 240,
+          "minDelta": 0.033332999999999835,
+          "maxDelta": 0.033334000000000086,
+          "medianDelta": 0.03333300000000006,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-3713695",
+      "fileName": "development/pexels-3713695.mp4",
+      "sha256": "be84bafb6a76edd276b951c832394fb8fb0256be92da77a1f0d02f8e17fd4efa",
+      "sourceFamily": "pexels-creator-cottonbro-studio",
+      "split": "development",
+      "category": "dark-film-like",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/a-man-standing-in-a-dark-room-3713695/",
+        "downloadURL": "https://videos.pexels.com/video-files/3713695/3713695-uhd_1440_2732_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "cottonbro studio",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1440,
+          "height": 2732
+        },
+        "frameRateRational": "25/1",
+        "duration": 19.64,
+        "chromaLocation": "left",
+        "bytes": 16703877,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 491,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.0400000000000027,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-13702779",
+      "fileName": "validation/pexels-13702779.mp4",
+      "sha256": "06e80672b76a051e34d483041f0c982bddd4c89e0ec17fccf8b3534817957686",
+      "sourceFamily": "pexels-creator-florian-delée",
+      "split": "validation",
+      "category": "dark-film-like",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/a-man-with-led-lanterns-walking-around-a-vandalized-house-at-night-13702779/",
+        "downloadURL": "https://videos.pexels.com/video-files/13702779/13702779-uhd_2560_1440_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Florian Delée",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "frameRateRational": "25/1",
+        "duration": 17.48,
+        "chromaLocation": "left",
+        "bytes": 29783550,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 437,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.0400000000000027,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-8729490",
+      "fileName": "development/pexels-8729490.mp4",
+      "sha256": "2c8c378c9d2bfccf58c3a2131861be33979e3455d27111eda7cc12b1c238bc65",
+      "sourceFamily": "pexels-creator-katya-wolf",
+      "split": "development",
+      "category": "skin-face",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 23.976023976023978,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/a-woman-with-a-beautiful-smile-8729490/",
+        "downloadURL": "https://videos.pexels.com/video-files/8729490/8729490-uhd_1440_2560_24fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Katya Wolf",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1440,
+          "height": 2560
+        },
+        "frameRateRational": "24000/1001",
+        "duration": 10.01,
+        "chromaLocation": "left",
+        "bytes": 15892693,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 240,
+          "minDelta": 0.04170799999999897,
+          "maxDelta": 0.041709000000000884,
+          "medianDelta": 0.04170800000000008,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-10141043",
+      "fileName": "development/pexels-10141043.mp4",
+      "sha256": "5d4f4096f89fed28b3f4697d82793a65fc7a65ae10167ec515246a0de67e8967",
+      "sourceFamily": "pexels-creator-cottonbro-studio",
+      "split": "development",
+      "category": "skin-face",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/man-opening-eyes-10141043/",
+        "downloadURL": "https://videos.pexels.com/video-files/10141043/10141043-uhd_1440_2732_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "cottonbro studio",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1440,
+          "height": 2732
+        },
+        "frameRateRational": "25/1",
+        "duration": 17.56,
+        "chromaLocation": "left",
+        "bytes": 9071889,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 439,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.0400000000000027,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-10297595",
+      "fileName": "validation/pexels-10297595.mp4",
+      "sha256": "9ad31d41436f724b257a26d882e48da18df5abe9441352b67d810f48e3564131",
+      "sourceFamily": "pexels-creator-evgenij-mikhailov",
+      "split": "validation",
+      "category": "night-neon",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 29.97002997002997,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/traffic-at-night-in-moscow-10297595/",
+        "downloadURL": "https://videos.pexels.com/video-files/10297595/10297595-hd_2560_1440_30fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Evgenij Mikhailov",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "frameRateRational": "30000/1001",
+        "duration": 20.753333,
+        "chromaLocation": "left",
+        "bytes": 35295382,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 622,
+          "minDelta": 0.03336599999999734,
+          "maxDelta": 0.03336700000000192,
+          "medianDelta": 0.033366999999999924,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-3725901",
+      "fileName": "development/pexels-3725901.mp4",
+      "sha256": "84ce54198c8ff80097499a936ffac6d21e6bbd1ff4213170836c1d65987842b3",
+      "sourceFamily": "pexels-creator-k",
+      "split": "development",
+      "category": "bright-outdoor",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 24.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/daytime-traveling-of-motor-vehicles-on-a-concrete-road-3725901/",
+        "downloadURL": "https://videos.pexels.com/video-files/3725901/3725901-uhd_2732_1440_24fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "K",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2732,
+          "height": 1440
+        },
+        "frameRateRational": "24/1",
+        "duration": 42.083333,
+        "chromaLocation": "left",
+        "bytes": 70789497,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 1010,
+          "minDelta": 0.041665999999999315,
+          "maxDelta": 0.04166700000000034,
+          "medianDelta": 0.0416669999999999,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-11114560",
+      "fileName": "validation/pexels-11114560.mp4",
+      "sha256": "780b46b37d833e0f5bdae0325eecc1e10cc92fd53c5c2c7d7d09a3aabc1959e2",
+      "sourceFamily": "pexels-creator-mustafa-akkuş",
+      "split": "validation",
+      "category": "bright-outdoor",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 29.97002997002997,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/clouds-over-istanbul-11114560/",
+        "downloadURL": "https://videos.pexels.com/video-files/11114560/11114560-hd_2560_1440_30fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Mustafa Akkuş",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "frameRateRational": "30000/1001",
+        "duration": 14.68,
+        "chromaLocation": "left",
+        "bytes": 21324507,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 440,
+          "minDelta": 0.03336599999999912,
+          "maxDelta": 0.03336700000000015,
+          "medianDelta": 0.03336700000000015,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file",
+      "additionalCategories": [
+        "gradient"
+      ]
+    },
+    {
+      "id": "pexels-18326007",
+      "fileName": "development/pexels-18326007.mp4",
+      "sha256": "a5ed78ca15e2bd4b301e6175fb3c7bb3f3265f21744f63042c41cada72361bb6",
+      "sourceFamily": "pexels-creator-eno-eltora",
+      "split": "development",
+      "category": "fast-motion",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 59.94005994005994,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/motocross-fpv-drone-18326007/",
+        "downloadURL": "https://videos.pexels.com/video-files/18326007/18326007-uhd_2562_1440_60fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Eno Eltora",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2562,
+          "height": 1440
+        },
+        "frameRateRational": "60000/1001",
+        "duration": 8.173333,
+        "chromaLocation": "left",
+        "bytes": 15315055,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 490,
+          "minDelta": 0.01668299999999867,
+          "maxDelta": 0.016684000000000587,
+          "medianDelta": 0.016683000000000447,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-12955565",
+      "fileName": "development/pexels-12955565.mp4",
+      "sha256": "03e8d344dbf194cc9067d2a11cb0922f8fb258888cdb4ec6bb48be6ab0babfa9",
+      "sourceFamily": "pexels-creator-samed-gojak",
+      "split": "development",
+      "category": "fast-motion",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/an-electric-train-passing-by-12955565/",
+        "downloadURL": "https://videos.pexels.com/video-files/12955565/12955565-uhd_2560_1440_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Samed Gojak",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "frameRateRational": "25/1",
+        "duration": 22.24,
+        "chromaLocation": "left",
+        "bytes": 35227218,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 556,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.0400000000000027,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-3615892",
+      "fileName": "development/pexels-3615892.mp4",
+      "sha256": "b75f496cab61a9d2955c7f7c309d4c8b38ba6813d046fe09c26610b37f2260fc",
+      "sourceFamily": "pexels-creator-bedrijfsfilmspecialist.nl",
+      "split": "development",
+      "category": "smoke-fog",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/fog-over-the-woods-3615892/",
+        "downloadURL": "https://videos.pexels.com/video-files/3615892/3615892-uhd_2560_1440_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Bedrijfsfilmspecialist.nl",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "frameRateRational": "25/1",
+        "duration": 11.12,
+        "chromaLocation": "left",
+        "bytes": 11026847,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 278,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.040000000000000924,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-1281654",
+      "fileName": "validation/pexels-1281654.mp4",
+      "sha256": "50b1e830da8112371b9a914904f4b363b3b105c5c5f0721de88bf7cf28b0abf2",
+      "sourceFamily": "pexels-creator-zuzanna-musial",
+      "split": "validation",
+      "category": "high-saturation",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 30.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/video-of-red-flora-1281654/",
+        "downloadURL": "https://videos.pexels.com/video-files/1281654/1281654-hd_1920_1080_30fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Zuzanna Musial",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "frameRateRational": "30/1",
+        "duration": 15.5,
+        "chromaLocation": "left",
+        "bytes": 9353238,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 465,
+          "minDelta": 0.03333299999999895,
+          "maxDelta": 0.033334000000000086,
+          "medianDelta": 0.03333300000000072,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "pexels-854053",
+      "fileName": "development/pexels-854053.mp4",
+      "sha256": "9fe0664a28de4979367e7a4dd4e155c872cb7932abc427adc9240fa9bc740cab",
+      "sourceFamily": "pexels-creator-coverr",
+      "split": "development",
+      "category": "screen-ui-text",
+      "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 25.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://www.pexels.com/video/typing-of-codes-854053/",
+        "downloadURL": "https://videos.pexels.com/video-files/854053/854053-hd_1920_1080_25fps.mp4",
+        "licenseURL": "https://www.pexels.com/license/",
+        "creator": "Coverr",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "frameRateRational": "25/1",
+        "duration": 15.08,
+        "chromaLocation": "left",
+        "bytes": 5547478,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 377,
+          "minDelta": 0.03999999999999915,
+          "maxDelta": 0.040000000000000924,
+          "medianDelta": 0.040000000000000036,
+          "distinctRoundedDeltas": 1
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+      "acquisitionKind": "published-file"
+    },
+    {
+      "id": "blender-bbb",
+      "fileName": "development/blender-bbb.mp4",
+      "sha256": "3aa2d8946ec7cf3b50b7148fb3338ca421e6ec34987b20a4044845d674794e3e",
+      "sourceFamily": "blender-bbb",
+      "split": "development",
+      "category": "animation-cg",
+      "licenseNote": "CC BY 3.0; (c) copyright 2008, Blender Foundation / www.bigbuckbunny.org. Sunflower 60fps published rendition; production lineage differs from Elephants Dream.",
+      "expected": {
+        "codec": "h264",
+        "profile": "High",
+        "bitDepth": 8,
+        "range": null,
+        "primaries": null,
+        "transfer": null,
+        "matrix": null,
+        "frameRate": 60.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://download.blender.org/demo/movies/",
+        "downloadURL": "https://download.blender.org/demo/movies/BBB/bbb_sunflower_1080p_60fps_normal.mp4.zip",
+        "licenseURL": "https://peach.blender.org/about/",
+        "creator": "Blender Foundation",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p",
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "frameRateRational": "60/1",
+        "duration": 634.533333,
+        "chromaLocation": "left",
+        "bytes": 355856562,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 38072,
+          "minDelta": 0.016665999999986525,
+          "maxDelta": 0.016667000000097687,
+          "medianDelta": 0.016666999999984,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "Published SDR animation; incomplete original color tags; unknowns are not guessed.",
+      "acquisitionKind": "published-file",
+      "metadataCaveat": "Source range and colorimetry untagged; excluded from confirmed range/BT709 coverage."
+    },
+    {
+      "id": "blender-elephants-dream-hevc8",
+      "fileName": "validation/blender-elephants-dream-hevc8.mp4",
+      "sha256": "23362a66351c1e7743bed23a114e77f638d25574dd19078dcadb0daac3a824fe",
+      "sourceFamily": "blender-elephants-dream",
+      "split": "validation",
+      "category": "animation-cg",
+      "licenseNote": "CC BY 2.5; (c) copyright 2006, Blender Foundation / Netherlands Media Art Institute / www.elephantsdream.org. Original MPEG-4 Part 2 teaser retained. Local lossless 8-bit HEVC adaptation for supported decoder; not an independent native HEVC encode.",
+      "engineEvaluation": "metadata-only",
+      "expected": {
+        "codec": "hevc",
+        "profile": "Main",
+        "bitDepth": 8,
+        "range": "full",
+        "primaries": null,
+        "transfer": "smpte170m",
+        "matrix": "smpte170m",
+        "frameRate": 24.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 3
+        }
+      ],
+      "provenance": {
+        "url": "https://download.blender.org/demo/movies/",
+        "downloadURL": "https://download.blender.org/demo/movies/elephantsdream_teaser.mp4.zip",
+        "licenseURL": "https://orange.blender.org/blog/creative-commons-license-2/",
+        "creator": "Blender Foundation",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuvj420p",
+        "resolution": {
+          "width": 960,
+          "height": 540
+        },
+        "frameRateRational": "24/1",
+        "duration": 75.25,
+        "chromaLocation": "left",
+        "bytes": 152184192,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 1806,
+          "minDelta": 0.04166599999999221,
+          "maxDelta": 0.041667000000003895,
+          "medianDelta": 0.04166699999999679,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": false,
+      "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+      "sdrEvidence": "Published SDR animation; incomplete original color tags; unknowns are not guessed.",
+      "acquisitionKind": "published-file-plus-local-hevc",
+      "original": {
+        "fileName": "validation/blender-elephants-dream.mp4",
+        "sha256": "5fe4e42a4c6893f40c90d841ac3e638d7b68d31b04d4a91f22b2bb5071d8c2d6",
+        "codec": "mpeg4",
+        "pixelFormat": "yuv420p",
+        "range": "full"
+      },
+      "derivation": {
+        "encode": "libx265 lossless=1, yuv420p, full range, hvc1; no scaling or bit-depth conversion; audio omitted",
+        "colorEvidence": "Original primaries/transfer/matrix not fully tagged; derivative inherits decoder SMPTE170M transfer/matrix, not verified original mastering colorimetry.",
+        "sampleIntegrity": "provenance/elephants-lossless-check.json"
+      }
+    },
+    {
+      "id": "netflix-chimera-bar",
+      "fileName": "development/netflix-chimera-bar.mp4",
+      "sha256": "073deb261ebe6ea9b84fe658184f43d0a7bf6fb960195eddfe350cf0a7b51a84",
+      "sourceFamily": "netflix-chimera",
+      "split": "development",
+      "category": "dark-film-like",
+      "licenseNote": "CC BY-NC-ND 4.0, Netflix Inc. 2015; restricted local noncommercial evaluation subset. Original 10-bit source excerpt and attribution retained. Do not redistribute derived media.",
+      "expected": {
+        "codec": "hevc",
+        "profile": "Main 10",
+        "bitDepth": 10,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 60.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 1.2000000000000002
+        }
+      ],
+      "provenance": {
+        "url": "https://media.xiph.org/video/derf/",
+        "downloadURL": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_4096x2160_60fps_10bit_420.y4m",
+        "licenseURL": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_Copyright.txt",
+        "creator": "Netflix Inc.",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p10le",
+        "resolution": {
+          "width": 4096,
+          "height": 2160
+        },
+        "frameRateRational": "60/1",
+        "duration": 3.0,
+        "chromaLocation": "left",
+        "bytes": 46539408,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 180,
+          "minDelta": 0.016665999999999848,
+          "maxDelta": 0.0166670000000001,
+          "medianDelta": 0.016666999999999987,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher copyright document specifies 10-bit YCbCr 4:2:0 BT.709; downloaded Y4M C420p10, retained original samples. Not 8-bit upconversion.",
+      "sdrEvidence": "Publisher documents BT.709 SDR; derivative BT.709 signaling repaired without changing samples.",
+      "acquisitionKind": "original-excerpt-plus-local-hevc",
+      "original": {
+        "fileName": "development/netflix-chimera-bar-original-prefix.y4m",
+        "sha256": "f47c629d289debb7b094b10ffa74b2ee9b01e63d8bca683a586d35a9aecc59a7",
+        "bytes": 4777575524,
+        "header": "YUV4MPEG2 W4096 H2160 F60:1 Ip A1:1 C420p10",
+        "lumaSampleMin": 48,
+        "lumaSampleMax": 764,
+        "low2BitCounts": {
+          "0": 22707,
+          "1": 22746,
+          "2": 22824,
+          "3": 22933
+        },
+        "note": "Nonzero low bits corroborate stored precision but alone do not prove camera precision. Publisher explicitly supplies 10-bit BT709 YCbCr 420."
+      },
+      "derivation": {
+        "originalAsset": "https://media.xiph.org/video/derf/Chimera/Netflix_BarScene_4096x2160_60fps_10bit_420.y4m",
+        "byteRange": "0-4777575523",
+        "frameCount": 180,
+        "encode": "libx265 fast CRF16 yuv420p10le, hvc1, no scaling",
+        "metadataPatch": "hevc_metadata colour_primaries=1 transfer_characteristics=1 matrix_coefficients=1 video_full_range_flag=0",
+        "rangeEvidence": "Video range operational assumption for untagged Y4M, explicitly set on derivative; source license does not declare range.",
+        "chromaLocationEvidence": "Derivative encoder signals left; original chroma location unspecified.",
+        "fpsConflict": "Publisher license says 59.94; downloaded Y4M header says F60:1. Preserved file clock at 60, did not retime."
+      }
+    },
+    {
+      "id": "netflix-elfuente-narrator",
+      "fileName": "development/netflix-elfuente-narrator.mp4",
+      "sha256": "5ec70f25eb33e20827a8874fdfba8b222eb0dda609f6e64664798fe455c81cb9",
+      "sourceFamily": "netflix-elfuente",
+      "split": "development",
+      "category": "skin-face",
+      "licenseNote": "CC BY-NC-ND 4.0, Netflix Inc. 2015; restricted local noncommercial evaluation subset. Original 10-bit source excerpt and attribution retained. Do not redistribute derived media.",
+      "expected": {
+        "codec": "hevc",
+        "profile": "Main 10",
+        "bitDepth": 10,
+        "range": "video",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "frameRate": 60.0,
+        "timing": "cfr"
+      },
+      "windows": [
+        {
+          "startFraction": 0.35,
+          "duration": 1.2000000000000002
+        }
+      ],
+      "provenance": {
+        "url": "https://media.xiph.org/video/derf/",
+        "downloadURL": "https://media.xiph.org/video/derf/ElFuente/Netflix_Narrator_4096x2160_60fps_10bit_420.y4m",
+        "licenseURL": "https://media.xiph.org/video/derf/ElFuente/Netflix_Narrator_Copyright.txt",
+        "creator": "Netflix Inc.",
+        "accessDate": "2026-09-06",
+        "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+      },
+      "metadata": {
+        "pixelFormat": "yuv420p10le",
+        "resolution": {
+          "width": 4096,
+          "height": 2160
+        },
+        "frameRateRational": "60/1",
+        "duration": 3.0,
+        "chromaLocation": "left",
+        "bytes": 14087894,
+        "timingEvidence": {
+          "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+          "packets": 180,
+          "minDelta": 0.016665999999999848,
+          "maxDelta": 0.0166670000000001,
+          "medianDelta": 0.016666999999999987,
+          "distinctRoundedDeltas": 2
+        }
+      },
+      "pairStatus": "unpaired",
+      "qualityAnalysisOnly": true,
+      "engineEvaluationRun": true,
+      "sourcePrecisionEvidence": "Publisher copyright document specifies 10-bit YCbCr 4:2:0 BT.709; downloaded Y4M C420p10, retained original samples. Not 8-bit upconversion.",
+      "sdrEvidence": "Publisher documents BT.709 SDR; derivative BT.709 signaling repaired without changing samples.",
+      "acquisitionKind": "original-excerpt-plus-local-hevc",
+      "original": {
+        "fileName": "development/netflix-elfuente-narrator-original-prefix.y4m",
+        "sha256": "973cd4d43995fe5dbc4e2b3f3396d3a1fdd5bd79c84a430ac831f16488dc7557",
+        "bytes": 4777575524,
+        "header": "YUV4MPEG2 W4096 H2160 F60:1 Ip A1:1 C420p10",
+        "lumaSampleMin": 64,
+        "lumaSampleMax": 940,
+        "low2BitCounts": {
+          "0": 23037,
+          "1": 22713,
+          "2": 22897,
+          "3": 22563
+        },
+        "note": "Nonzero low bits corroborate stored precision but alone do not prove camera precision. Publisher explicitly supplies 10-bit BT709 YCbCr 420."
+      },
+      "derivation": {
+        "originalAsset": "https://media.xiph.org/video/derf/ElFuente/Netflix_Narrator_4096x2160_60fps_10bit_420.y4m",
+        "byteRange": "0-4777575523",
+        "frameCount": 180,
+        "encode": "libx265 fast CRF16 yuv420p10le, hvc1, no scaling",
+        "metadataPatch": "hevc_metadata colour_primaries=1 transfer_characteristics=1 matrix_coefficients=1 video_full_range_flag=0",
+        "rangeEvidence": "Video range operational assumption for untagged Y4M, explicitly set on derivative; source license does not declare range.",
+        "chromaLocationEvidence": "Derivative encoder signals left; original chroma location unspecified.",
+        "fpsConflict": "Publisher license says 59.94; downloaded Y4M header says F60:1. Preserved file clock at 60, did not retime."
+      }
+    }
+  ],
+  "pairs": [],
+  "policy": {
+    "virginFrozenAccessed": false,
+    "objectiveEvaluations": 0,
+    "frozen": false,
+    "hdrReferenceUse": "runtime/acquisition validation only; no HDR quality objective, tuning, promotion, or Frozen evaluation"
+  },
+  "coverage": {
+    "sourceFamilies": 16,
+    "files": 17,
+    "developmentFamilies": 11,
+    "validationFamilies": 5,
+    "genuine10bitFamilies": 2,
+    "matchedPairs": 0,
+    "vfrFamilies": 0,
+    "nativePublishedHEVCFamilies": 0
+  },
+  "limitations": [
+    "Only two independent genuine 10-bit SDR families; minimum target 3 not reached.",
+    "No matched SDR/HDR pairs downloaded; LIVE requires access application with identity/affiliation details. No form submitted.",
+    "No genuine VFR source acquired.",
+    "HEVC entries are explicitly local derivatives, not native external HEVC encodes.",
+    "10-bit source Y4M range unspecified; video range is an explicit derivative assumption.",
+    "Native camera/model and capture-session diversity cannot be fully established for stock footage; conservative creator grouping used.",
+    "External runtime validation covered 12 development sources and 4 validation sources; one validation source is metadata-only because its SMPTE 170M colorimetry is outside HDRCore's BT.709 SDR domain.",
+    "10-bit gradient-specific coverage remains incomplete; acquired 10-bit scenes are bar and outdoor narrator."
+  ],
+  "runtimeValidation": {
+    "date": "2026-09-06",
+    "runner": "RealMediaRegressionRunner",
+    "development": {
+      "sourceCount": 12,
+      "runtimePasses": 12,
+      "metadataOnly": 0,
+      "failures": 0
+    },
+    "validation": {
+      "sourceCount": 5,
+      "runtimePasses": 4,
+      "metadataOnly": 1,
+      "failures": 0
+    },
+    "modes": [
+      "nearest",
+      "sitingAwareBilinear"
+    ],
+    "qualityObjectiveEvaluations": 0
+  }
+}

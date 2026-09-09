@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010) ;;
+  fast|full|prime|self-contained|p010|regression|regression-full|real-media|real-media-validation) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|regression|regression-full|real-media|real-media-validation] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -617,6 +617,106 @@ if [ "$MODE" = "self-contained" ] || [ "$MODE" = "p010" ]; then
   fi
   echo 'AVFoundation decode, CVPixelBuffer metadata, HDRProcessor Metal, and offscreen presentation were exercised.'
   echo 'No dataset audit, correctness review, objective evaluation, or holdout media access was performed.'
+  exit 0
+fi
+
+if [ "$MODE" = "regression" ] || [ "$MODE" = "regression-full" ]; then
+  FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-real-media-regression.XXXXXX")"
+  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  command -v ffmpeg >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA REGRESSION VERIFY: FAIL (ffmpeg is required)' >&2
+    exit 2
+  }
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA REGRESSION VERIFY: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  stage 'manifest-driven compressed fixture generation' \
+    bash Tests/RealMediaRegression/generate_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'manifest-driven ffprobe fixture contracts' \
+    bash Tests/RealMediaRegression/verify_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'mandatory real-media regression matrix' env \
+    HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+    HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+    HDR_REAL_MEDIA_REGRESSION_RESULTS="$ROOT/results/real-media-regression.json" \
+    swift test -c debug --disable-index-store \
+      --filter RealMediaRegressionTests/testManifestDrivenRegressionMatrixRunsBothModes
+  if [ "$MODE" = "regression-full" ]; then
+    stage 'release real-media regression matrix' env \
+      HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+      HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+      HDR_REAL_MEDIA_REGRESSION_RESULTS="$ROOT/results/real-media-regression-release.json" \
+      swift test -c release --disable-index-store \
+        --filter RealMediaRegressionTests/testManifestDrivenRegressionMatrixRunsBothModes
+  fi
+  regression_reports=("$ROOT/results/real-media-regression.json")
+  if [ "$MODE" = "regression-full" ]; then
+    regression_reports+=("$ROOT/results/real-media-regression-release.json")
+  fi
+  python3 - "${regression_reports[@]}" <<'PY'
+import json
+import sys
+
+for report_name in sys.argv[1:]:
+    with open(report_name, encoding="utf-8") as handle:
+        document = json.load(handle)
+    if document.get("skipped", 0) != 0:
+        raise SystemExit(f"mandatory regression contains skipped fixtures: {report_name}")
+    if document.get("failures", 0) != 0:
+        raise SystemExit(f"mandatory regression contains failed fixtures: {report_name}")
+PY
+  echo 'REAL-MEDIA REGRESSION VERIFY: PASS'
+  echo 'Production nearest and siting-aware candidate were both evaluated for every available manifest fixture.'
+  echo 'Virgin Frozen accessed: NO'
+  echo 'Objective evaluations: 0'
+  exit 0
+fi
+
+if [ "$MODE" = "real-media" ] || [ "$MODE" = "real-media-validation" ]; then
+  if [ -z "${HDR_REAL_MEDIA_ROOT:-}" ]; then
+    echo 'EXTERNAL REAL-MEDIA: SKIPPED (HDR_REAL_MEDIA_ROOT not set)'
+    echo 'Virgin Frozen accessed: NO'
+    echo 'Objective evaluations: 0'
+    exit 0
+  fi
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'EXTERNAL REAL-MEDIA: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  EXTERNAL_MANIFEST="${HDR_EXTERNAL_MEDIA_MANIFEST:-$ROOT/data_video/real_media/external-manifest.json}"
+  [ -f "$EXTERNAL_MANIFEST" ] || {
+    echo "EXTERNAL REAL-MEDIA: FAIL (manifest missing: $EXTERNAL_MANIFEST)" >&2
+    exit 2
+  }
+  EXTERNAL_SPLIT='development'
+  EXTERNAL_FILTER='ExternalRealMediaRegressionTests/testExternalDevelopmentCorpusRunsWhenConfigured'
+  EXTERNAL_RESULT="$ROOT/results/external-real-media-development.json"
+  if [ "$MODE" = "real-media-validation" ]; then
+    EXTERNAL_SPLIT='validation'
+    EXTERNAL_FILTER='ExternalRealMediaRegressionTests/testExternalValidationCorpusRunsWhenConfigured'
+    EXTERNAL_RESULT="$ROOT/results/external-real-media-validation.json"
+  fi
+  SOURCE_COUNT="$(python3 - "$EXTERNAL_MANIFEST" "$EXTERNAL_SPLIT" <<'PY'
+import json
+import sys
+document = json.load(open(sys.argv[1], encoding='utf-8'))
+print(sum(1 for source in document.get('sources', []) if source.get('split') == sys.argv[2]))
+PY
+)"
+  if [ "$SOURCE_COUNT" = '0' ]; then
+    echo "EXTERNAL REAL-MEDIA: SKIPPED (manifest has no $EXTERNAL_SPLIT sources)"
+    echo 'Virgin Frozen accessed: NO'
+    echo 'Objective evaluations: 0'
+    exit 0
+  fi
+  stage "external real-media $EXTERNAL_SPLIT corpus" env \
+    HDR_REAL_MEDIA_ROOT="$HDR_REAL_MEDIA_ROOT" \
+    HDR_EXTERNAL_MEDIA_MANIFEST="$EXTERNAL_MANIFEST" \
+    HDR_EXTERNAL_MEDIA_RESULTS="$EXTERNAL_RESULT" \
+    swift test -c debug --disable-index-store --filter "$EXTERNAL_FILTER"
+  echo "EXTERNAL REAL-MEDIA VERIFY ($EXTERNAL_SPLIT): PASS"
+  echo 'Virgin Frozen accessed: NO'
+  echo 'Objective evaluations: 0'
   exit 0
 fi
 

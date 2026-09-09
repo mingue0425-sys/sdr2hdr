@@ -30,6 +30,81 @@
       ],
       "sdrPath" : "repo:data_video\/virgin_candidates\/v6_kbs_dirty_work_hlg_sdr\/KBS_DirtyWork_SDR.mp4",
       "source" : "manifest-v4-virgin-evidence"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.8775;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=40;HDR=40",
+      "hdrPath" : "external-media:[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "id" : "hlg-k-choreo-8k-뉴진스-직캠-how-sweet-newjeans-choreography-공간음향-ver-musicbank-240524-pxmhfo-0vxk-f642",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+      "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+      "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "external-media:[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "source" : "local-unmanifested"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.9068;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=40;HDR=40",
+      "hdrPath" : "external-media:[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "id" : "hlg-k-choreo-8k-에스파-aespa-lemonade-aespa-choreography-musicbank-260529-0fcm13lr2xu-f642",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+      "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+      "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "external-media:[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "source" : "local-unmanifested"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.8713;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=40;HDR=40",
+      "hdrPath" : "external-media:[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f642.mp4",
+      "id" : "hlg-k-choreo-8k-뉴진스-직캠-new-jeans-newjeans-choreography-musicbank-230714-yftayxdtjqi-f642",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+      "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+      "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "external-media:[K-Choreo 8K HDR] 뉴진스 직캠 'New Jeans' (NewJeans Choreography) @MusicBank 230714 [yFTAYXDTjqI].f628.mp4",
+      "source" : "local-unmanifested"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.9082;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=40;HDR=40",
+      "hdrPath" : "external-media:[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f642.mp4",
+      "id" : "hlg-k-choreo-8k-아이브-직캠-blackhole-ive-choreography-공간음향-ver-musicbank-260306-a2riqfaohlo-f642",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+      "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+      "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "external-media:[K-Choreo 8K HDR] 아이브 직캠 'BLACKHOLE' (IVE Choreography) 🎧공간음향.Ver @MusicBank 260306 [a2RiqFAohlo].f628.mp4",
+      "source" : "local-unmanifested"
+    },
+    {
+      "accepted" : true,
+      "alignmentStatus" : "ALIGNED;median=0.9052;matchRatio=1.0000",
+      "decodeStatus" : "PASS_SDR=40;HDR=40",
+      "hdrPath" : "external-media:[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f642.mp4",
+      "id" : "hlg-k-choreo-8k-르세라핌-직캠-hot-le-sserafim-choreography-공간음향-ver-musicbank-250314-9audaaixoxa-f642",
+      "metadataStatus" : "PASS_SDR_BT709_AND_HDR_BT2020_HLG_10BIT",
+      "objectiveHistory" : "NONE_FOUND_IN_HISTORICAL_MANIFESTS",
+      "provenanceStatus" : "TOKEN_SOURCE_IDENTITY_PLUS_STRUCTURAL_ALIGNMENT",
+      "rejectionReasons" : [
+
+      ],
+      "sdrPath" : "external-media:[K-Choreo 8K HDR] 르세라핌 직캠 'HOT' (LE SSERAFIM Choreography) 🎧공간음향.Ver @MusicBank 250314 [9AUdaAiXoXA].f628.mp4",
+      "source" : "local-unmanifested"
     }
   ],
   "consumedHLGPairIDs" : [

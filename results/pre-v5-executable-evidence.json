@@ -223,7 +223,7 @@
           "required" : true
         },
         "counts" : {
-          "candidateCount" : 2,
+          "candidateCount" : 7,
           "consumedHLGPairCount" : 2,
           "objectiveEvaluationCount" : 0
         },
@@ -361,21 +361,32 @@
     {
       "evidence" : {
         "booleans" : {
-
+          "binCenterSemantics" : true,
+          "productionStrategy" : true,
+          "sampleCountParity" : true
         },
         "counts" : {
           "framesTested" : 1,
+          "histogramBinCount" : 64,
+          "histogramTotal" : 144,
+          "sampleGridHeight" : 9,
+          "sampleGridWidth" : 16,
           "samplePositions" : 144,
           "samplesTested" : 144
         },
         "numerical" : {
+          "expectedDarkP05BinCenter" : 0.0078125,
+          "p01MaxError" : 0,
           "p05MaxError" : 0,
           "p10MaxError" : 0,
           "p25MaxError" : 0,
+          "p50MaxError" : 0,
+          "p90MaxError" : 0,
+          "p99MaxError" : 0,
           "shadowFloorMaxError" : 0,
           "shadowTopMaxError" : 0
         },
-        "summary" : "16x9\/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+        "summary" : "16x9\/64-bin linear64 production quantization, bin-center percentiles, sample count, and repeated ramp statistics were executed and matched in this run"
       },
       "executed" : true,
       "id" : "percentile-production-offline-parity",
@@ -505,16 +516,16 @@
           "framesTested" : 300
         },
         "numerical" : {
-          "baselineCPUP95Milliseconds" : 0.05512504139915109,
-          "baselineGPUP50Milliseconds" : 0.41199999395757914,
-          "baselineGPUP95Milliseconds" : 0.4194166394881904,
-          "candidateCPUP95Milliseconds" : 0.052708317525684834,
-          "candidateGPUP50Milliseconds" : 0.41158334352076054,
-          "candidateGPUP95Milliseconds" : 0.41995831998065114,
+          "baselineCPUP95Milliseconds" : 0.05220837192609906,
+          "baselineGPUP50Milliseconds" : 0.45166665222495794,
+          "baselineGPUP95Milliseconds" : 0.6582500063814223,
+          "candidateCPUP95Milliseconds" : 0.052333343774080276,
+          "candidateGPUP50Milliseconds" : 0.44999999227002263,
+          "candidateGPUP95Milliseconds" : 0.7671666680835187,
           "framesTested" : 300,
           "warmupFrames" : 30
         },
-        "summary" : "runtime within tolerance: GPU p50 0.412→0.412 ms, GPU p95 0.419→0.420 ms, CPU p95 0.055→0.053 ms"
+        "summary" : "runtime within tolerance: GPU p50 0.452→0.450 ms, GPU p95 0.658→0.767 ms, CPU p95 0.052→0.052 ms"
       },
       "executed" : true,
       "id" : "runtime-measurement",

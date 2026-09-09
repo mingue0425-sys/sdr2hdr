@@ -1,0 +1,71 @@
+{
+  "id": "blender-elephants-dream-hevc8",
+  "fileName": "validation/blender-elephants-dream-hevc8.mp4",
+  "sha256": "23362a66351c1e7743bed23a114e77f638d25574dd19078dcadb0daac3a824fe",
+  "sourceFamily": "blender-elephants-dream",
+  "split": "validation",
+  "category": "animation-cg",
+  "licenseNote": "CC BY 2.5; (c) copyright 2006, Blender Foundation / Netherlands Media Art Institute / www.elephantsdream.org. Original MPEG-4 Part 2 teaser retained. Local lossless 8-bit HEVC adaptation for supported decoder; not an independent native HEVC encode.",
+  "expected": {
+    "codec": "hevc",
+    "profile": "Main",
+    "bitDepth": 8,
+    "range": "full",
+    "primaries": null,
+    "transfer": "smpte170m",
+    "matrix": "smpte170m",
+    "frameRate": 24.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://download.blender.org/demo/movies/",
+    "downloadURL": "https://download.blender.org/demo/movies/elephantsdream_teaser.mp4.zip",
+    "licenseURL": "https://orange.blender.org/blog/creative-commons-license-2/",
+    "creator": "Blender Foundation",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuvj420p",
+    "resolution": {
+      "width": 960,
+      "height": 540
+    },
+    "frameRateRational": "24/1",
+    "duration": 75.25,
+    "chromaLocation": "left",
+    "bytes": 152184192,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 1806,
+      "minDelta": 0.04166599999999221,
+      "maxDelta": 0.041667000000003895,
+      "medianDelta": 0.04166699999999679,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "Published SDR animation; incomplete original color tags; unknowns are not guessed.",
+  "acquisitionKind": "published-file-plus-local-hevc",
+  "original": {
+    "fileName": "validation/blender-elephants-dream.mp4",
+    "sha256": "5fe4e42a4c6893f40c90d841ac3e638d7b68d31b04d4a91f22b2bb5071d8c2d6",
+    "codec": "mpeg4",
+    "pixelFormat": "yuv420p",
+    "range": "full"
+  },
+  "derivation": {
+    "encode": "libx265 lossless=1, yuv420p, full range, hvc1; no scaling or bit-depth conversion; audio omitted",
+    "colorEvidence": "Original primaries/transfer/matrix not fully tagged; derivative inherits decoder SMPTE170M transfer/matrix, not verified original mastering colorimetry.",
+    "sampleIntegrity": "provenance/elephants-lossless-check.json"
+  }
+}

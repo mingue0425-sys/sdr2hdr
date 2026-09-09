@@ -1,0 +1,59 @@
+{
+  "id": "pexels-1281654",
+  "fileName": "validation/pexels-1281654.mp4",
+  "sha256": "50b1e830da8112371b9a914904f4b363b3b105c5c5f0721de88bf7cf28b0abf2",
+  "sourceFamily": "pexels-creator-zuzanna-musial",
+  "split": "validation",
+  "category": "high-saturation",
+  "licenseNote": "Pexels License; local evaluation only, no redistribution; no biometric/identity analysis. Browser verified 2026-09-06. Camera/master unknown; creator-level grouping is conservative.",
+  "expected": {
+    "codec": "h264",
+    "profile": "High",
+    "bitDepth": 8,
+    "range": "video",
+    "primaries": "bt709",
+    "transfer": "bt709",
+    "matrix": "bt709",
+    "frameRate": 30.0,
+    "timing": "cfr"
+  },
+  "windows": [
+    {
+      "startFraction": 0.35,
+      "duration": 3
+    }
+  ],
+  "provenance": {
+    "url": "https://www.pexels.com/video/video-of-red-flora-1281654/",
+    "downloadURL": "https://videos.pexels.com/video-files/1281654/1281654-hd_1920_1080_30fps.mp4",
+    "licenseURL": "https://www.pexels.com/license/",
+    "creator": "Zuzanna Musial",
+    "accessDate": "2026-09-06",
+    "discoveryMethod": "Computer Use browser; file acquisition via HTTPS"
+  },
+  "metadata": {
+    "pixelFormat": "yuv420p",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "frameRateRational": "30/1",
+    "duration": 15.5,
+    "chromaLocation": "left",
+    "bytes": 9353238,
+    "timingEvidence": {
+      "method": "sorted presentation packet timestamps across whole file; tolerance max(2 timebase ticks, 0.2% median interval)",
+      "packets": 465,
+      "minDelta": 0.03333299999999895,
+      "maxDelta": 0.033334000000000086,
+      "medianDelta": 0.03333300000000072,
+      "distinctRoundedDeltas": 2
+    }
+  },
+  "pairStatus": "unpaired",
+  "qualityAnalysisOnly": true,
+  "engineEvaluationRun": false,
+  "sourcePrecisionEvidence": "Publisher-delivered 8-bit file; upstream camera bit depth unknown.",
+  "sdrEvidence": "File tags BT.709; no PQ/HLG transfer.",
+  "acquisitionKind": "published-file"
+}

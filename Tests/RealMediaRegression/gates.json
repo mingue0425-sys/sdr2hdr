@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "minimumDecodedFrames": 8,
+  "minimumP010InputLuminanceLevels": 3,
+  "minimumP010OutputLuminanceLevels": 6,
+  "maximumSequenceMismatch": 0,
+  "maximumNearBlackOrderingViolations": 0,
+  "maximumStaticFlickerP95": 0.08,
+  "maximumStaticFlickerMaximum": 0.25,
+  "maximumTimestampBackwardsSeconds": 1e-06,
+  "maximumExpectedCFRDeltaVariationSeconds": 0.002,
+  "profiles": {
+    "dark-static": {
+      "maximumClippingFraction": 0.25
+    },
+    "neutral-static": {
+      "maximumClippingFraction": 0.5
+    },
+    "motion": {
+      "maximumClippingFraction": 0.75
+    }
+  }
+}
