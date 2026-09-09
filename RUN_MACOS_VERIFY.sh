@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|real-media|real-media-validation) ;;
+  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|real-media|real-media-validation) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|real-media|real-media-validation] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|real-media|real-media-validation] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -685,6 +685,58 @@ for report_name in sys.argv[1:]:
 PY
   echo 'REAL-MEDIA REGRESSION VERIFY: PASS'
   echo 'Production nearest and siting-aware candidate were both evaluated for every available manifest fixture.'
+  echo 'Virgin Frozen accessed: NO'
+  echo 'Objective evaluations: 0'
+  exit 0
+fi
+
+if [ "$MODE" = "multiflight" ]; then
+  FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-real-media-multiflight.XXXXXX")"
+  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  command -v ffmpeg >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA MULTIFLIGHT VERIFY: FAIL (ffmpeg is required)' >&2
+    exit 2
+  }
+  command -v ffprobe >/dev/null 2>&1 || {
+    echo 'REAL-MEDIA MULTIFLIGHT VERIFY: FAIL (ffprobe is required)' >&2
+    exit 2
+  }
+  stage 'multi-flight compressed fixture generation' \
+    bash Tests/RealMediaRegression/generate_regression_fixtures.sh "$FIXTURE_DIR"
+  stage 'multi-flight ffprobe fixture contracts' \
+    bash Tests/RealMediaRegression/verify_regression_fixtures.sh "$FIXTURE_DIR"
+  MULTIFLIGHT_BASELINE="$(git merge-base origin/main HEAD 2>/dev/null || \
+    git merge-base main HEAD 2>/dev/null || echo 'manifest-baseline')"
+  stage 'two-flight and three-flight real-media HDR processing' env \
+    HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+    HDR_REAL_MEDIA_MULTIFLIGHT_BASELINE="$MULTIFLIGHT_BASELINE" \
+    HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
+    HDR_REAL_MEDIA_MULTIFLIGHT_RESULTS="$ROOT/results/real-media-multiflight.json" \
+    swift test -c debug --disable-index-store \
+      --filter RealMediaMultiFlightTests/testDeterministicMatrixRunsWithTwoAndThreeFlights
+  python3 - "$ROOT/results/real-media-multiflight.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    document = json.load(handle)
+
+if document.get("failures", 0) != 0:
+    raise SystemExit("multi-flight regression contains failed mode runs")
+expected_runs = document.get("fixtureCount", 0) * 4
+if document.get("runCount") != expected_runs:
+    raise SystemExit(
+        f"multi-flight run count {document.get('runCount')} does not match {expected_runs}"
+    )
+for fixture in document.get("fixtures", []):
+    for mode in fixture.get("modes", []):
+        if mode.get("maxObservedInFlight", 0) < mode.get("flightDepth", 0):
+            raise SystemExit(
+                f"{fixture.get('id')} depth {fixture.get('flightDepth')} did not overlap"
+            )
+PY
+  echo 'REAL-MEDIA MULTIFLIGHT VERIFY: PASS'
+  echo 'Serial control was retained; two-flight and three-flight paths exercised NV12 and P010.'
   echo 'Virgin Frozen accessed: NO'
   echo 'Objective evaluations: 0'
   exit 0

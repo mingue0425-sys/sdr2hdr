@@ -47,6 +47,8 @@ jobs:
         run: ./RUN_MACOS_VERIFY.sh automatic-decode
       - name: Manifest-driven compressed-media regression matrix
         run: ./RUN_MACOS_VERIFY.sh regression
+      - name: Real-media multi-flight GPU regression
+        run: ./RUN_MACOS_VERIFY.sh multiflight
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
