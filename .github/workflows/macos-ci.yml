@@ -70,6 +70,30 @@ jobs:
           path: |
             results/multiflight-vmapple-diagnostic.json
             results/multiflight-vmapple-diagnostic/
+      - name: VMAPPLE pure Metal multi-flight isolation
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh pure-metal-multiflight
+      - name: Upload VMAPPLE pure Metal multi-flight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmapple-pure-metal-multiflight
+          if-no-files-found: warn
+          path: |
+            results/vmapple-pure-metal-multiflight.json
+            results/vmapple-pure-metal-multiflight/
+      - name: VMAPPLE HDR production stage isolation
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh hdr-stage-isolation
+      - name: Upload VMAPPLE HDR stage isolation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmapple-hdr-stage-isolation
+          if-no-files-found: warn
+          path: |
+            results/vmapple-hdr-stage-isolation.json
+            results/vmapple-hdr-stage-isolation/
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 
