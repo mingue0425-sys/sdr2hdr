@@ -597,7 +597,9 @@ extension RealMediaRegressionRunner {
                 height: height,
                 processor: processor,
                 renderer: renderer,
-                schedulingWorkBytes: 0,
+                schedulingWorkBytes: index < flightDepth
+                    ? RealMediaMultiFlightSchedulingWork.bytes
+                    : 0,
                 completionSignal: DispatchSemaphore(value: 0)
             )
             logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
