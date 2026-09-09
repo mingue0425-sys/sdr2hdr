@@ -159,6 +159,13 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
 }
 
 extension RealMediaRegressionRunner {
+    private func logMultiFlightProgress(_ message: String) {
+        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
+            return
+        }
+        FileHandle.standardError.write(Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8))
+    }
+
     /// Encodes the same production-equivalent processing and presentation
     /// chain used by the serial regression path, but leaves retirement to the
     /// caller. No CPU frame conversion is introduced.
@@ -527,6 +534,7 @@ extension RealMediaRegressionRunner {
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
         let collector = RealMediaMultiFlightCompletionCollector()
+        logMultiFlightProgress("resources-ready id=\(fixture.id) depth=\(flightDepth)")
         var pending: [RealMediaPendingFrame] = []
         var completedFrames: [RealMediaCompletedFrame] = []
         var submittedFrameIndices: [Int] = []
@@ -541,7 +549,13 @@ extension RealMediaRegressionRunner {
             var retired: RealMediaPendingFrame? = pending.removeFirst()
             defer { retired = nil }
             guard let value = retired else { return }
+            logMultiFlightProgress(
+                "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
+            )
             value.commandBuffer.waitUntilCompleted()
+            logMultiFlightProgress(
+                "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
+            )
             completedFrames.append(try completePendingFrame(value))
         }
 
@@ -561,6 +575,7 @@ extension RealMediaRegressionRunner {
                     ? RealMediaMultiFlightSchedulingWork.bytes
                     : 0
             )
+            logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
@@ -573,6 +588,7 @@ extension RealMediaRegressionRunner {
                 )
             }
             value.commandBuffer.commit()
+            logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             pending.append(value)
             submittedCount += 1
             submittedFrameIndices.append(value.frameIndex)
