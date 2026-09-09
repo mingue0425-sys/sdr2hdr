@@ -34,7 +34,8 @@ private struct BenchmarkOptions {
                 case "--preset": preset = arguments[index + 1].lowercased()
                 case "--precision":
                     switch arguments[index + 1].lowercased() {
-                    case "automatic", "8bit", "8-bit": precision = .eightBit
+                    case "automatic": precision = .automatic
+                    case "8bit", "8-bit": precision = .eightBit
                     case "10bit", "10-bit", "p010": precision = .tenBitPreferred
                     default: break
                     }

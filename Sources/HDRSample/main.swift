@@ -36,8 +36,14 @@ private func run(arguments: [String]) async throws {
     guard let track = try await asset.loadTracks(withMediaType: .video).first else {
         throw NSError(domain: "HDRSample", code: 3, userInfo: [NSLocalizedDescriptionKey: "No video track found"])
     }
+    let precisionDecision = await HDRDecodePrecisionResolver.resolve(
+        asset: asset,
+        requested: precision
+    )
     let reader = try AVAssetReader(asset: asset)
-    let outputSettings = HDRVideoOutputConfiguration.pixelBufferAttributes(for: precision)
+    let outputSettings = HDRVideoOutputConfiguration.pixelBufferAttributes(
+        forResolvedPrecision: precisionDecision.resolved
+    )
         .reduce(into: [String: Any]()) { result, item in
             result[item.key] = item.value
         }
@@ -57,11 +63,20 @@ private func run(arguments: [String]) async throws {
         throw HDRProcessorError.commandQueueCreationFailed
     }
 
+    print("decode precision decision: \(precisionDecision.diagnosticDescription)")
     var processed = 0
     while processed < requestedFrames, let sampleBuffer = output.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
               let commandBuffer = queue.makeCommandBuffer() else {
             throw HDRProcessorError.commandBufferCreationFailed
+        }
+        if processed == 0,
+           let actual = HDRInputPixelFormat(coreVideoFormat: CVPixelBufferGetPixelFormatType(pixelBuffer)),
+           actual.bitDepth != precisionDecision.resolved.bitDepth {
+            print(
+                "AUTOMATIC_DECODE_PRECISION_MISMATCH expected=\(precisionDecision.resolved.rawValue) " +
+                "actual=\(actual.diagnosticName)"
+            )
         }
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         _ = try processor.process(pixelBuffer: pixelBuffer, timestamp: timestamp, commandBuffer: commandBuffer)

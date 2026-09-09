@@ -18,12 +18,18 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate {
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            await self?.startPlayback()
+        }
+    }
+
+    private func startPlayback() async {
         do {
             guard let device = MTLCreateSystemDefaultDevice() else {
                 throw HDRPlayerError.metalUnavailable
             }
             let configuration = try options.baseConfiguration()
-            let controller = try PlaybackController(
+            let controller = try await PlaybackController.make(
                 url: options.inputURL,
                 configuration: configuration,
                 device: device,
@@ -98,6 +104,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate {
             print(window.metalView.displayCapabilities.logDescription)
             print(window.metalView.presentationDescription)
             print(controller.edrMappingDescription)
+            print("decode precision: \(controller.decodePrecisionDiagnosticDescription)")
             print("A/B mode: \(options.controlledAB ? "controlled dual-processor" : "quick single-processor")")
             metricsTimer = Timer.scheduledTimer(
                 timeInterval: 1,
