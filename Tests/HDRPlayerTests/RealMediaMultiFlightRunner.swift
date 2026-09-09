@@ -508,15 +508,19 @@ extension RealMediaRegressionRunner {
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
         let collector = RealMediaMultiFlightCompletionCollector()
-        guard let overlapGate = device.makeEvent() else {
+        guard let overlapGate = device.makeEvent(),
+              let releaseQueue = device.makeCommandQueue(),
+              let overlapReleaseMarker = device.makeBuffer(
+                  length: MemoryLayout<UInt32>.stride,
+                  options: .storageModeShared
+              ) else {
             throw RunnerError.commandBufferFailed(
-                "Metal event unavailable for overlap proof"
+                "Metal overlap synchronization resources unavailable"
             )
         }
         let overlapGateValue: UInt64 = 1
         var overlapGateReleased = false
         var overlapReleaseCommandBuffer: MTLCommandBuffer?
-        var overlapReleaseMarker: MTLBuffer?
 
         var pending: [RealMediaPendingFrame] = []
         var completedFrames: [RealMediaCompletedFrame] = []
@@ -579,8 +583,8 @@ extension RealMediaRegressionRunner {
                 submittedCount - collector.count
             )
             if !overlapGateReleased, pending.count == flightDepth {
-                guard let releaseQueue = device.makeCommandQueue(),
-                      let releaseCommandBuffer = releaseQueue.makeCommandBuffer() else {
+                guard let releaseCommandBuffer = releaseQueue.makeCommandBuffer(),
+                      let markerBlit = releaseCommandBuffer.makeBlitCommandEncoder() else {
                     throw RunnerError.commandBufferFailed(
                         "Metal overlap release command buffer unavailable"
                     )
@@ -589,16 +593,8 @@ extension RealMediaRegressionRunner {
                 // runtimes trap when a signal-only command buffer is
                 // submitted from a second queue. The marker is test-only
                 // work and does not touch any production resource.
-                guard let releaseMarker = device.makeBuffer(
-                    length: MemoryLayout<UInt32>.stride,
-                    options: .storageModeShared
-                ), let markerBlit = releaseCommandBuffer.makeBlitCommandEncoder() else {
-                    throw RunnerError.commandBufferFailed(
-                        "Metal overlap release marker unavailable"
-                    )
-                }
                 markerBlit.fill(
-                    buffer: releaseMarker,
+                    buffer: overlapReleaseMarker,
                     range: 0..<MemoryLayout<UInt32>.stride,
                     value: 0
                 )
@@ -608,7 +604,6 @@ extension RealMediaRegressionRunner {
                     value: overlapGateValue
                 )
                 releaseCommandBuffer.commit()
-                overlapReleaseMarker = releaseMarker
                 overlapReleaseCommandBuffer = releaseCommandBuffer
                 overlapGateReleased = true
             }
