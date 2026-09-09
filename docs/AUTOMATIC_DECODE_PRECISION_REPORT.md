@@ -5,7 +5,7 @@
 ```text
 baseline: main@db01ba7051a046d2c08e1be5ff6f4c0c165259e1
 branch: automatic-decode-precision-development
-validation implementation head: 6df88db
+validated functional head: db861c4eacc08a1102458ae1c2691011d64dc7f9
 ```
 
 This change makes `HDRDecodePrecision.automatic` source-aware for the actual
@@ -27,7 +27,12 @@ Evidence is accepted in this order:
 1. `kCMFormatDescriptionExtension_BitsPerComponent` when it is a finite,
    integral 8- or 10-bit value.
 2. Bounds-checked `avcC`/`hvcC` codec configuration evidence when the direct
-   component-depth extension is absent.
+   component-depth extension is absent. The fallback parses the actual SPS
+   `bit_depth_luma_minus8` and `bit_depth_chroma_minus8` fields after removing
+   emulation-prevention bytes; it does not infer coded depth from a profile ID.
+   AVC High10 alone does not imply 10-bit, and HEVC Main10 alone does not
+   imply 10-bit. Profile IDs are used only to select syntax and validate
+   compatibility.
 3. An unresolved or conflicting source fails closed to 8-bit with an explicit
    fallback reason.
 
@@ -63,6 +68,24 @@ Each decision carries `requested`, `resolved`, `sourceBitDepth`,
 `sourceCodec`, `reason`, `fallbackUsed`, and an optional inspection detail.
 The player reports the first actual decoded format and any mismatch in its
 debug diagnostics.
+
+The SPS parser is fail-closed and bounds-checked: truncated `avcC`/`hvcC`,
+malformed SPS data, malformed Exp-Golomb codes, luma/chroma depth conflicts,
+and unsupported depths resolve to `unknown` rather than reading out of bounds
+or claiming 10-bit precision. The EBSP-to-RBSP boundary regression preserves
+an actual `0x03` immediately after an inserted emulation-prevention byte:
+
+```text
+00 00 03 00 → 00 00 00
+00 00 03 01 → 00 00 01
+00 00 03 02 → 00 00 02
+00 00 03 03 → 00 00 03
+```
+
+In particular, `00 00 03 03` removes only the inserted byte. The regression
+test `testEmulationPreventionFollowedBy03IsNotDoubleRemoved` covers all four
+mapping cases, while the codec fixtures continue to exercise actual SPS
+parsing.
 
 ## Deterministic compressed-media E2E
 
@@ -110,6 +133,27 @@ The source corpus contains 17 entries across 16 source families. Existing
 family split and metadata-only policies were preserved. The external media
 bytes remain outside the repository.
 
+## External validation stability follow-up
+
+An earlier local run observed intermittent insufficient-frame acquisition from
+`AVPlayerItemVideoOutput` windows. The failing source varied between runs. No
+gate, threshold, timeout, manifest, or runner change was made.
+
+The controlled A/B rerun used the same corpus, windows, and command:
+
+```text
+baseline main@db01ba7: 5/5 PASS
+PR6 db861c4:            5/5 PASS
+```
+
+All four runtime validation sources decoded 8/8 required frames in every run;
+the fifth entry remained the documented metadata-only Elephants Dream source.
+Previously observed failing sources were `pexels-13702779`,
+`pexels-10297595`, and `pexels-11114560`; none reproduced in the ten A/B
+runs. The result is `FLAKE_NOT_REPRODUCED`: this experiment found no evidence
+that PR #6 caused the earlier one-frame acquisition failures, without proving
+that the acquisition harness can never flake.
+
 ## Regression coverage
 
 The deterministic 12-fixture matrix still passes with no skipped or failed
@@ -127,12 +171,13 @@ classes.
 ## Verification
 
 ```text
-Debug tests: PASS (283 tests, 15 environment/data-dependent skips)
-Release tests: PASS (283 tests, 15 environment/data-dependent skips)
+Debug tests: PASS (293 tests, 15 conditional skips)
+Release tests: PASS (293 tests, 15 conditional skips)
 Release build: PASS
 verify_script_cache_test.sh: PASS
 self-contained: PASS
 p010: PASS
+automatic-decode: PASS (H.264 8-bit → NV12; HEVC 8-bit → NV12; HEVC Main10 → P010; mismatch=0)
 regression: PASS (12/12, skipped=0, failures=0)
 regression-full: PASS (debug and release, 12/12, skipped=0, failures=0)
 real-media development: PASS (12 sources, failures=0)
@@ -182,6 +227,8 @@ bash Tests/verify_script_cache_test.sh
 ./RUN_MACOS_VERIFY.sh regression-full
 HDR_REAL_MEDIA_ROOT=/Volumes/game/sdr2hdr-v4-release/sdr2hdr-real-media ./RUN_MACOS_VERIFY.sh real-media
 HDR_REAL_MEDIA_ROOT=/Volumes/game/sdr2hdr-v4-release/sdr2hdr-real-media ./RUN_MACOS_VERIFY.sh real-media-validation
+baseline main@db01ba7: five repeated real-media-validation runs
+PR6 db861c4: five repeated real-media-validation runs
 git diff --check
 ```
 
