@@ -15,6 +15,13 @@ private enum RealMediaMultiFlightSchedulingWork {
     static let passes = 8
 }
 
+private func writeMultiFlightProgress(_ message: String) {
+    guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
+        return
+    }
+    FileHandle.standardError.write(Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8))
+}
+
 /// A frame whose HDR processing, offscreen presentation, and readback have
 /// been encoded but not yet retired. Keeping the HDRFrame here is part of the
 /// test: its lease must remain alive until the producing command completes.
@@ -116,13 +123,20 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
         submissionSequence: UInt64,
         commandBuffer: MTLCommandBuffer
     ) {
+        writeMultiFlightProgress(
+            "completion-enter frame=\(frameIndex) sequence=\(submissionSequence)"
+        )
+        let status = commandBuffer.status
+        writeMultiFlightProgress(
+            "completion-status frame=\(frameIndex) status=\(String(describing: status))"
+        )
         let event = RealMediaMultiFlightCompletionEvidence(
             frameIndex: frameIndex,
             generation: generation,
             submissionSequence: submissionSequence,
             completionOrdinal: 0,
-            status: String(describing: commandBuffer.status),
-            completed: commandBuffer.status == .completed,
+            status: String(describing: status),
+            completed: status == .completed,
             error: commandBuffer.error?.localizedDescription,
             // GPU timing properties are read after retirement in
             // completePendingFrame. Keeping the completion callback to
@@ -165,10 +179,7 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
 
 extension RealMediaRegressionRunner {
     private func logMultiFlightProgress(_ message: String) {
-        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
-            return
-        }
-        FileHandle.standardError.write(Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8))
+        writeMultiFlightProgress(message)
     }
 
     /// Encodes the same production-equivalent processing and presentation
