@@ -508,9 +508,9 @@ extension RealMediaRegressionRunner {
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
         let collector = RealMediaMultiFlightCompletionCollector()
-        guard let overlapGate = device.makeSharedEvent() else {
+        guard let overlapGate = device.makeEvent() else {
             throw RunnerError.commandBufferFailed(
-                "Metal shared event unavailable for overlap proof"
+                "Metal event unavailable for overlap proof"
             )
         }
         let overlapGateValue: UInt64 = 1
