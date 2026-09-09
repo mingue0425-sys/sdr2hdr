@@ -275,6 +275,22 @@ final class DecodePrecisionResolverTests: XCTestCase {
         )
     }
 
+    func testEmulationPreventionFollowedBy03IsNotDoubleRemoved() {
+        let cases: [([UInt8], [UInt8])] = [
+            ([0x00, 0x00, 0x03, 0x00], [0x00, 0x00, 0x00]),
+            ([0x00, 0x00, 0x03, 0x01], [0x00, 0x00, 0x01]),
+            ([0x00, 0x00, 0x03, 0x02], [0x00, 0x00, 0x02]),
+            ([0x00, 0x00, 0x03, 0x03], [0x00, 0x00, 0x03])
+        ]
+
+        for (encoded, expected) in cases {
+            XCTAssertEqual(
+                HDRDecodePrecisionResolver.removeEmulationPreventionBytesForTesting(encoded),
+                expected
+            )
+        }
+    }
+
     func testMalformedExpGolombCannotReadOutOfBounds() {
         let configuration = makeHEVCConfiguration(
             // Leave enough header bits to reach sps_seq_parameter_set_id,

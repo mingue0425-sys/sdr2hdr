@@ -608,6 +608,12 @@ public enum HDRDecodePrecisionResolver {
         }
     }
 
+    // Internal seam for validating EBSP/RBSP boundary semantics without
+    // coupling tests to a particular codec configuration fixture.
+    static func removeEmulationPreventionBytesForTesting(_ bytes: [UInt8]) -> [UInt8]? {
+        removeEmulationPreventionBytes(bytes)
+    }
+
     private static func removeEmulationPreventionBytes(_ bytes: [UInt8]) -> [UInt8]? {
         guard !bytes.isEmpty else { return nil }
         var result: [UInt8] = []
@@ -619,6 +625,7 @@ public enum HDRDecodePrecisionResolver {
                 guard index < bytes.count - 1, bytes[index + 1] <= 0x03 else {
                     return nil
                 }
+                zeroCount = 0
                 continue
             }
             result.append(byte)
