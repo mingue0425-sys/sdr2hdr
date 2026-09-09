@@ -138,12 +138,8 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
             status: String(describing: status),
             completed: status == .completed,
             error: commandBuffer.error?.localizedDescription,
-            // GPU timing properties are read after retirement in
-            // completePendingFrame. Keeping the completion callback to
-            // status/identity bookkeeping avoids querying optional timing
-            // data on Metal-managed callback threads.
-            gpuStartTime: 0,
-            gpuEndTime: 0,
+            gpuStartTime: commandBuffer.gpuStartTime,
+            gpuEndTime: commandBuffer.gpuEndTime,
             completionWallClock: CACurrentMediaTime()
         )
         lock.lock()
@@ -196,13 +192,20 @@ extension RealMediaRegressionRunner {
         completionSignal: DispatchSemaphore? = nil
     ) throws -> RealMediaPendingFrame {
         let cpuStart = CACurrentMediaTime()
+        logMultiFlightProgress(
+            "frame-start id=\(decoded.presentationTime.seconds) index=\(index)"
+        )
+        logMultiFlightProgress("command-buffer-start frame=\(index)")
         let commandBuffer = try processor.makeCommandBuffer()
+        logMultiFlightProgress("command-buffer-created frame=\(index)")
+        logMultiFlightProgress("processor-start frame=\(index)")
         let frame = try processor.process(
             pixelBuffer: decoded.pixelBuffer,
             timestamp: decoded.presentationTime,
             commandBuffer: commandBuffer,
             diagnosticFrameIndex: UInt64(index + 1)
         )
+        logMultiFlightProgress("processor-finished frame=\(index)")
         guard frame.texture.pixelFormat == .rgba16Float,
               frame.texture.width == width,
               frame.texture.height == height else {
@@ -220,6 +223,7 @@ extension RealMediaRegressionRunner {
         guard let outputTexture = device.makeTexture(descriptor: outputDescriptor) else {
             throw RunnerError.missingTexture
         }
+        logMultiFlightProgress("output-texture-created frame=\(index)")
         guard renderer.encodeOffscreen(
             texture: frame.texture,
             to: outputTexture,
@@ -234,6 +238,7 @@ extension RealMediaRegressionRunner {
         ) else {
             throw RunnerError.commandBufferFailed("offscreen presentation encoding failed")
         }
+        logMultiFlightProgress("presentation-encoded frame=\(index)")
 
         let readbackLength = width * height * 4 * MemoryLayout<UInt16>.stride
         guard let readback = device.makeBuffer(
@@ -242,6 +247,7 @@ extension RealMediaRegressionRunner {
         ), let blit = commandBuffer.makeBlitCommandEncoder() else {
             throw RunnerError.missingTexture
         }
+        logMultiFlightProgress("readback-created frame=\(index)")
         blit.copy(
             from: outputTexture,
             sourceSlice: 0,
@@ -270,6 +276,7 @@ extension RealMediaRegressionRunner {
                     value: UInt8(truncatingIfNeeded: pass)
                 )
             }
+            logMultiFlightProgress("scheduling-work-encoded frame=\(index)")
         } else {
             schedulingWorkBuffer = nil
         }
