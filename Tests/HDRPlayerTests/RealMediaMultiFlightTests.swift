@@ -6,32 +6,17 @@ import XCTest
 
 @MainActor
 final class RealMediaMultiFlightTests: XCTestCase {
-    private func logProgress(_ message: String) {
-        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
-            return
-        }
-        FileHandle.standardError.write(
-            Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8)
-        )
-    }
-
     func testDeterministicMatrixRunsWithTwoAndThreeFlights() async throws {
-        logProgress("test-start")
         let environment = ProcessInfo.processInfo.environment
-        logProgress("environment-read")
         guard let fixturePath = environment["HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR"] else {
             throw XCTSkip("set HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR to run multi-flight regression")
         }
-        logProgress("fixture-path-found")
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device unavailable")
         }
-        logProgress("device-created")
 
         let manifest = try loadManifest()
-        logProgress("manifest-loaded")
         let gates = try loadGates()
-        logProgress("gates-loaded")
         let runner = RealMediaRegressionRunner(
             manifest: manifest,
             gates: gates,
@@ -64,9 +49,7 @@ final class RealMediaMultiFlightTests: XCTestCase {
         var decodedFixtures: [(fixture: RealMediaRegressionFixture, frames: [RealMediaRegressionRunner.DecodedFrame])] = []
         decodedFixtures.reserveCapacity(selectedFixtures.count)
         for fixture in selectedFixtures {
-            logProgress("decode-start id=\(fixture.id)")
             let frames = try await runner.decodeRegressionFrames(fixture)
-            logProgress("decode-complete id=\(fixture.id) frames=\(frames.count)")
             decodedFixtures.append((fixture: fixture, frames: frames))
         }
 
@@ -75,13 +58,11 @@ final class RealMediaMultiFlightTests: XCTestCase {
         for decodedFixture in decodedFixtures {
             let fixture = decodedFixture.fixture
             for depth in [2, 3] {
-                logProgress("run-start id=\(fixture.id) depth=\(depth)")
                 let result = try await runner.runMultiFlight(
                     fixture,
                     decodedFrames: decodedFixture.frames,
                     flightDepth: depth
                 )
-                logProgress("run-complete id=\(fixture.id) depth=\(depth)")
                 results.append(result)
                 for mode in result.modes {
                     print(
