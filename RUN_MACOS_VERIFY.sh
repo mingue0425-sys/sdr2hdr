@@ -709,7 +709,6 @@ if [ "$MODE" = "multiflight" ]; then
     git merge-base main HEAD 2>/dev/null || echo 'manifest-baseline')"
   stage 'two-flight and three-flight real-media HDR processing' env \
     HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
-    HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS=1 \
     HDR_REAL_MEDIA_MULTIFLIGHT_BASELINE="$MULTIFLIGHT_BASELINE" \
     HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
     HDR_REAL_MEDIA_MULTIFLIGHT_RESULTS="$ROOT/results/real-media-multiflight.json" \

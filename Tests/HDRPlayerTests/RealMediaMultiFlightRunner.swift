@@ -7,6 +7,14 @@ import QuartzCore
 @testable import HDRCore
 import HDRPlayerKit
 
+private enum RealMediaMultiFlightSchedulingWork {
+    // This is test-only GPU work. It keeps the first flight batch observable
+    // as in-flight without using a cross-queue event or changing production
+    // resources. The buffer is retained by the pending frame until retirement.
+    static let bytes = 32 * 1024 * 1024
+    static let passes = 8
+}
+
 /// A frame whose HDR processing, offscreen presentation, and readback have
 /// been encoded but not yet retired. Keeping the HDRFrame here is part of the
 /// test: its lease must remain alive until the producing command completes.
@@ -19,6 +27,7 @@ struct RealMediaPendingFrame {
     let frame: HDRFrame
     let outputTexture: MTLTexture
     let readback: MTLBuffer
+    let schedulingWorkBuffer: MTLBuffer?
     let width: Int
     let height: Int
     let cpuStart: CFTimeInterval
@@ -150,15 +159,6 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
 }
 
 extension RealMediaRegressionRunner {
-    private func logMultiFlightProgress(_ message: String) {
-        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
-            return
-        }
-        FileHandle.standardError.write(
-            Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8)
-        )
-    }
-
     /// Encodes the same production-equivalent processing and presentation
     /// chain used by the serial regression path, but leaves retirement to the
     /// caller. No CPU frame conversion is introduced.
@@ -169,8 +169,7 @@ extension RealMediaRegressionRunner {
         height: Int,
         processor: HDRProcessor,
         renderer: HDRPresentationRenderer,
-        completionGate: MTLEvent? = nil,
-        completionGateValue: UInt64 = 0
+        schedulingWorkBytes: Int = 0
     ) throws -> RealMediaPendingFrame {
         let cpuStart = CACurrentMediaTime()
         let commandBuffer = try processor.makeCommandBuffer()
@@ -230,17 +229,27 @@ extension RealMediaRegressionRunner {
             destinationBytesPerRow: width * 4 * MemoryLayout<UInt16>.stride,
             destinationBytesPerImage: readbackLength
         )
-        blit.endEncoding()
-        if let completionGate, completionGateValue > 0 {
-            // This is test-only scheduling control. It holds the first
-            // configured batch after all real HDR work has been encoded so
-            // the overlap assertion cannot be defeated by a tiny fixture
-            // completing before the next submission is made.
-            commandBuffer.encodeWaitForEvent(
-                completionGate,
-                value: completionGateValue
-            )
+        let schedulingWorkBuffer: MTLBuffer?
+        if schedulingWorkBytes > 0 {
+            guard let buffer = device.makeBuffer(
+                length: schedulingWorkBytes,
+                options: .storageModePrivate
+            ) else {
+                throw RunnerError.missingTexture
+            }
+            schedulingWorkBuffer = buffer
+            let workRange = 0..<schedulingWorkBytes
+            for pass in 0..<RealMediaMultiFlightSchedulingWork.passes {
+                blit.fill(
+                    buffer: buffer,
+                    range: workRange,
+                    value: UInt8(truncatingIfNeeded: pass)
+                )
+            }
+        } else {
+            schedulingWorkBuffer = nil
         }
+        blit.endEncoding()
 
         return RealMediaPendingFrame(
             frameIndex: index,
@@ -251,6 +260,7 @@ extension RealMediaRegressionRunner {
             frame: frame,
             outputTexture: outputTexture,
             readback: readback,
+            schedulingWorkBuffer: schedulingWorkBuffer,
             width: width,
             height: height,
             cpuStart: cpuStart
@@ -517,21 +527,6 @@ extension RealMediaRegressionRunner {
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
         let collector = RealMediaMultiFlightCompletionCollector()
-        guard let overlapGate = device.makeEvent(),
-              let releaseQueue = device.makeCommandQueue(),
-              let overlapReleaseMarker = device.makeBuffer(
-                  length: MemoryLayout<UInt32>.stride,
-                  options: .storageModeShared
-              ) else {
-            throw RunnerError.commandBufferFailed(
-                "Metal overlap synchronization resources unavailable"
-            )
-        }
-        logMultiFlightProgress("resources-ready id=\(fixture.id) depth=\(flightDepth)")
-        let overlapGateValue: UInt64 = 1
-        var overlapGateReleased = false
-        var overlapReleaseCommandBuffer: MTLCommandBuffer?
-
         var pending: [RealMediaPendingFrame] = []
         var completedFrames: [RealMediaCompletedFrame] = []
         var submittedFrameIndices: [Int] = []
@@ -546,13 +541,7 @@ extension RealMediaRegressionRunner {
             var retired: RealMediaPendingFrame? = pending.removeFirst()
             defer { retired = nil }
             guard let value = retired else { return }
-            logMultiFlightProgress(
-                "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
-            )
             value.commandBuffer.waitUntilCompleted()
-            logMultiFlightProgress(
-                "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
-            )
             completedFrames.append(try completePendingFrame(value))
         }
 
@@ -568,10 +557,10 @@ extension RealMediaRegressionRunner {
                 height: height,
                 processor: processor,
                 renderer: renderer,
-                completionGate: index < flightDepth ? overlapGate : nil,
-                completionGateValue: overlapGateValue
+                schedulingWorkBytes: index < flightDepth
+                    ? RealMediaMultiFlightSchedulingWork.bytes
+                    : 0
             )
-            logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
@@ -584,69 +573,24 @@ extension RealMediaRegressionRunner {
                 )
             }
             value.commandBuffer.commit()
-            logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             pending.append(value)
             submittedCount += 1
             submittedFrameIndices.append(value.frameIndex)
             submittedSequences.append(value.submissionSequence)
             submissionGenerations.append(value.generation)
             maxPending = max(maxPending, pending.count)
-            // The first batch is held by the test-only shared event until
-            // every configured flight has been committed. Therefore this
-            // count represents command buffers that are genuinely submitted
-            // and not yet allowed to complete, rather than only a software
-            // queue depth.
+            // The first batch carries test-only GPU work until every
+            // configured flight has been committed. Therefore this count
+            // represents command buffers that are genuinely submitted and
+            // not yet complete, rather than only a software queue depth.
             maxObservedInFlight = max(
                 maxObservedInFlight,
                 submittedCount - collector.count
             )
-            if !overlapGateReleased, pending.count == flightDepth {
-                logMultiFlightProgress("release-start id=\(fixture.id) depth=\(flightDepth)")
-                guard let releaseCommandBuffer = releaseQueue.makeCommandBuffer(),
-                      let markerBlit = releaseCommandBuffer.makeBlitCommandEncoder() else {
-                    throw RunnerError.commandBufferFailed(
-                        "Metal overlap release command buffer unavailable"
-                    )
-                }
-                logMultiFlightProgress("release-encoder-ready id=\(fixture.id) depth=\(flightDepth)")
-                // Keep the release buffer non-empty. Some macOS Metal
-                // runtimes trap when a signal-only command buffer is
-                // submitted from a second queue. The marker is test-only
-                // work and does not touch any production resource.
-                markerBlit.fill(
-                    buffer: overlapReleaseMarker,
-                    range: 0..<MemoryLayout<UInt32>.stride,
-                    value: 0
-                )
-                markerBlit.endEncoding()
-                logMultiFlightProgress("release-marker-encoded id=\(fixture.id) depth=\(flightDepth)")
-                releaseCommandBuffer.encodeSignalEvent(
-                    overlapGate,
-                    value: overlapGateValue
-                )
-                logMultiFlightProgress("release-signal-encoded id=\(fixture.id) depth=\(flightDepth)")
-                releaseCommandBuffer.commit()
-                logMultiFlightProgress("release-committed id=\(fixture.id) depth=\(flightDepth)")
-                overlapReleaseCommandBuffer = releaseCommandBuffer
-                overlapGateReleased = true
-            }
         }
         while !pending.isEmpty {
             try retireOldest()
         }
-        if let overlapReleaseCommandBuffer {
-            try withExtendedLifetime(overlapReleaseMarker) {
-                overlapReleaseCommandBuffer.waitUntilCompleted()
-                guard overlapReleaseCommandBuffer.status == .completed,
-                      overlapReleaseCommandBuffer.error == nil else {
-                    throw RunnerError.commandBufferFailed(
-                        "Metal overlap release command buffer failed: " +
-                            (overlapReleaseCommandBuffer.error?.localizedDescription ?? "unknown status")
-                    )
-                }
-            }
-        }
-
         let completionEvents = collector.events
         let completedFramesByIndex = completedFrames.sorted { $0.frameIndex < $1.frameIndex }
         let frameExecutions = completedFramesByIndex.map {
