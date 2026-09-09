@@ -22,6 +22,37 @@ private func writeMultiFlightProgress(_ message: String) {
     FileHandle.standardError.write(Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8))
 }
 
+/// Bridges a Metal completion callback to the main-actor regression runner
+/// without blocking that actor. Metal may deliver the callback on a thread
+/// that needs the same run-loop while the test is retiring a pending frame.
+final class RealMediaCompletionWaiter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var completed = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if completed {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                self.continuation = continuation
+                lock.unlock()
+            }
+        }
+    }
+
+    func signal() {
+        lock.lock()
+        completed = true
+        let continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume()
+    }
+}
+
 /// A frame whose HDR processing, offscreen presentation, and readback have
 /// been encoded but not yet retired. Keeping the HDRFrame here is part of the
 /// test: its lease must remain alive until the producing command completes.
@@ -35,7 +66,7 @@ struct RealMediaPendingFrame {
     let outputTexture: MTLTexture
     let readback: MTLBuffer
     let schedulingWorkBuffer: MTLBuffer?
-    let completionSignal: DispatchSemaphore?
+    let completionWaiter: RealMediaCompletionWaiter?
     let width: Int
     let height: Int
     let cpuStart: CFTimeInterval
@@ -138,8 +169,10 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
             status: String(describing: status),
             completed: status == .completed,
             error: commandBuffer.error?.localizedDescription,
-            gpuStartTime: commandBuffer.gpuStartTime,
-            gpuEndTime: commandBuffer.gpuEndTime,
+            // Timing is queried by recordGPUTiming after the async waiter has
+            // resumed on the runner's actor, never from the Metal callback.
+            gpuStartTime: 0,
+            gpuEndTime: 0,
             completionWallClock: CACurrentMediaTime()
         )
         lock.lock()
@@ -171,6 +204,33 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
         defer { lock.unlock() }
         return storage.count
     }
+
+    func recordGPUTiming(
+        frameIndex: Int,
+        submissionSequence: UInt64,
+        commandBuffer: MTLCommandBuffer
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let index = storage.firstIndex(where: {
+            $0.frameIndex == frameIndex && $0.submissionSequence == submissionSequence
+        }) else {
+            return
+        }
+        let event = storage[index]
+        storage[index] = RealMediaMultiFlightCompletionEvidence(
+            frameIndex: event.frameIndex,
+            generation: event.generation,
+            submissionSequence: event.submissionSequence,
+            completionOrdinal: event.completionOrdinal,
+            status: event.status,
+            completed: event.completed,
+            error: event.error,
+            gpuStartTime: commandBuffer.gpuStartTime,
+            gpuEndTime: commandBuffer.gpuEndTime,
+            completionWallClock: event.completionWallClock
+        )
+    }
 }
 
 extension RealMediaRegressionRunner {
@@ -189,7 +249,7 @@ extension RealMediaRegressionRunner {
         processor: HDRProcessor,
         renderer: HDRPresentationRenderer,
         schedulingWorkBytes: Int = 0,
-        completionSignal: DispatchSemaphore? = nil
+        completionWaiter: RealMediaCompletionWaiter? = nil
     ) throws -> RealMediaPendingFrame {
         let cpuStart = CACurrentMediaTime()
         logMultiFlightProgress(
@@ -292,7 +352,7 @@ extension RealMediaRegressionRunner {
             outputTexture: outputTexture,
             readback: readback,
             schedulingWorkBuffer: schedulingWorkBuffer,
-            completionSignal: completionSignal,
+            completionWaiter: completionWaiter,
             width: width,
             height: height,
             cpuStart: cpuStart
@@ -494,7 +554,7 @@ extension RealMediaRegressionRunner {
             mode: .sitingAwareBilinear
         )
 
-        let nearest = try runMultiFlightMode(
+        let nearest = try await runMultiFlightMode(
             fixture: fixture,
             frames: frames,
             inputFormat: inputFormat,
@@ -504,7 +564,7 @@ extension RealMediaRegressionRunner {
             flightDepth: flightDepth,
             serial: serialNearest
         )
-        let candidate = try runMultiFlightMode(
+        let candidate = try await runMultiFlightMode(
             fixture: fixture,
             frames: frames,
             inputFormat: inputFormat,
@@ -535,7 +595,7 @@ extension RealMediaRegressionRunner {
         mode: RegressionMode,
         flightDepth: Int,
         serial: (result: RegressionModeResult, frames: [RegressionFrameOutput])
-    ) throws -> RealMediaMultiFlightModeResult {
+    ) async throws -> RealMediaMultiFlightModeResult {
         let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
         let resolvedColor = try HDRColorMetadataResolver.resolve(
             pixelBuffer: firstPixelBuffer,
@@ -569,7 +629,7 @@ extension RealMediaRegressionRunner {
         var maxPending = 0
         var submittedCount = 0
 
-        func retireOldest() throws {
+        func retireOldest() async throws {
             guard !pending.isEmpty else { return }
             var retired: RealMediaPendingFrame? = pending.removeFirst()
             defer { retired = nil }
@@ -577,24 +637,26 @@ extension RealMediaRegressionRunner {
             logMultiFlightProgress(
                 "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
-            if let completionSignal = value.completionSignal {
-                guard completionSignal.wait(timeout: .now() + 60) == .success else {
-                    throw RunnerError.commandBufferFailed(
-                        "timed out waiting for completion handler"
-                    )
-                }
-            } else {
-                value.commandBuffer.waitUntilCompleted()
+            guard let completionWaiter = value.completionWaiter else {
+                throw RunnerError.commandBufferFailed(
+                    "multi-flight frame has no completion waiter"
+                )
             }
+            await completionWaiter.wait()
             logMultiFlightProgress(
                 "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
             completedFrames.append(try completePendingFrame(value))
+            collector.recordGPUTiming(
+                frameIndex: value.frameIndex,
+                submissionSequence: value.submissionSequence,
+                commandBuffer: value.commandBuffer
+            )
         }
 
         for (index, decoded) in frames.enumerated() {
             while pending.count >= flightDepth {
-                try retireOldest()
+                try await retireOldest()
             }
 
             let value = try makePendingFrame(
@@ -607,13 +669,13 @@ extension RealMediaRegressionRunner {
                 schedulingWorkBytes: index < flightDepth
                     ? RealMediaMultiFlightSchedulingWork.bytes
                     : 0,
-                completionSignal: DispatchSemaphore(value: 0)
+                completionWaiter: RealMediaCompletionWaiter()
             )
             logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
-            let completionSignal = value.completionSignal
+            let completionWaiter = value.completionWaiter
             value.commandBuffer.addCompletedHandler { commandBuffer in
                 collector.record(
                     frameIndex: frameIndex,
@@ -621,7 +683,7 @@ extension RealMediaRegressionRunner {
                     submissionSequence: submissionSequence,
                     commandBuffer: commandBuffer
                 )
-                completionSignal?.signal()
+                completionWaiter?.signal()
             }
             value.commandBuffer.commit()
             logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
@@ -641,7 +703,7 @@ extension RealMediaRegressionRunner {
             )
         }
         while !pending.isEmpty {
-            try retireOldest()
+            try await retireOldest()
         }
         let completionEvents = collector.events
         let completedFramesByIndex = completedFrames.sorted { $0.frameIndex < $1.frameIndex }
