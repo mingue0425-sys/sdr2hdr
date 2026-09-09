@@ -28,6 +28,7 @@ struct RealMediaPendingFrame {
     let outputTexture: MTLTexture
     let readback: MTLBuffer
     let schedulingWorkBuffer: MTLBuffer?
+    let completionSignal: DispatchSemaphore?
     let width: Int
     let height: Int
     let cpuStart: CFTimeInterval
@@ -176,7 +177,8 @@ extension RealMediaRegressionRunner {
         height: Int,
         processor: HDRProcessor,
         renderer: HDRPresentationRenderer,
-        schedulingWorkBytes: Int = 0
+        schedulingWorkBytes: Int = 0,
+        completionSignal: DispatchSemaphore? = nil
     ) throws -> RealMediaPendingFrame {
         let cpuStart = CACurrentMediaTime()
         let commandBuffer = try processor.makeCommandBuffer()
@@ -268,6 +270,7 @@ extension RealMediaRegressionRunner {
             outputTexture: outputTexture,
             readback: readback,
             schedulingWorkBuffer: schedulingWorkBuffer,
+            completionSignal: completionSignal,
             width: width,
             height: height,
             cpuStart: cpuStart
@@ -552,7 +555,15 @@ extension RealMediaRegressionRunner {
             logMultiFlightProgress(
                 "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
-            value.commandBuffer.waitUntilCompleted()
+            if let completionSignal = value.completionSignal {
+                guard completionSignal.wait(timeout: .now() + 60) == .success else {
+                    throw RunnerError.commandBufferFailed(
+                        "timed out waiting for completion handler"
+                    )
+                }
+            } else {
+                value.commandBuffer.waitUntilCompleted()
+            }
             logMultiFlightProgress(
                 "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
@@ -571,12 +582,14 @@ extension RealMediaRegressionRunner {
                 height: height,
                 processor: processor,
                 renderer: renderer,
-                schedulingWorkBytes: 0
+                schedulingWorkBytes: 0,
+                completionSignal: DispatchSemaphore(value: 0)
             )
             logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
+            let completionSignal = value.completionSignal
             value.commandBuffer.addCompletedHandler { commandBuffer in
                 collector.record(
                     frameIndex: frameIndex,
@@ -584,6 +597,7 @@ extension RealMediaRegressionRunner {
                     submissionSequence: submissionSequence,
                     commandBuffer: commandBuffer
                 )
+                completionSignal?.signal()
             }
             value.commandBuffer.commit()
             logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
