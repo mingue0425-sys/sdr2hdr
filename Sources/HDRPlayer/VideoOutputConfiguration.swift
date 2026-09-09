@@ -1,10 +1,10 @@
 @preconcurrency import AVFoundation
 import CoreVideo
 
-public enum HDRDecodePrecision: String, CaseIterable, Equatable, Sendable {
-    /// Keeps the established 8-bit NV12 contract. This is the conservative
-    /// default because AVPlayerItemVideoOutput cannot probe source bit depth
-    /// after its output settings have been created.
+public enum HDRDecodePrecision: String, CaseIterable, Codable, Equatable, Sendable {
+    /// Inspects the source format description before the output is created.
+    /// Callers that do not have an asset to inspect use the documented
+    /// conservative NV12 fallback.
     case automatic
     case eightBit
     case tenBitPreferred
@@ -15,7 +15,7 @@ public enum HDRDecodePrecision: String, CaseIterable, Equatable, Sendable {
 /// full-range case is used by the manifest-driven regression harness so a
 /// full-range source is not silently normalized through an 8-bit video-range
 /// request.
-public enum HDRDecodeRange: String, CaseIterable, Equatable, Sendable {
+public enum HDRDecodeRange: String, CaseIterable, Codable, Equatable, Sendable {
     case video
     case full
 }
@@ -36,15 +36,27 @@ public enum HDRVideoOutputConfiguration {
         for precision: HDRDecodePrecision,
         range: HDRDecodeRange = .video
     ) -> [String: any Sendable] {
+        let resolved: HDRResolvedDecodePrecision = precision == .tenBitPreferred ? .tenBit : .eightBit
+        return pixelBufferAttributes(forResolvedPrecision: resolved, range: range)
+    }
+
+    /// Creates output settings only from a resolved decision. Automatic
+    /// source inspection belongs to `HDRDecodePrecisionResolver`; this API
+    /// makes it impossible for an already-resolved ten-bit decision to be
+    /// silently converted back to the automatic fallback.
+    public static func pixelBufferAttributes(
+        forResolvedPrecision resolvedPrecision: HDRResolvedDecodePrecision,
+        range: HDRDecodeRange = .video
+    ) -> [String: any Sendable] {
         let pixelFormat: OSType
-        switch (precision, range) {
-        case (.tenBitPreferred, .video):
+        switch (resolvedPrecision, range) {
+        case (.tenBit, .video):
             pixelFormat = kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
-        case (.tenBitPreferred, .full):
+        case (.tenBit, .full):
             pixelFormat = kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
-        case (_, .video):
+        case (.eightBit, .video):
             pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        case (_, .full):
+        case (.eightBit, .full):
             pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
         }
         return [
@@ -59,5 +71,17 @@ public enum HDRVideoOutputConfiguration {
         range: HDRDecodeRange = .video
     ) -> AVPlayerItemVideoOutput {
         AVPlayerItemVideoOutput(outputSettings: pixelBufferAttributes(for: precision, range: range))
+    }
+
+    public static func makeVideoOutput(
+        resolvedPrecision: HDRResolvedDecodePrecision,
+        range: HDRDecodeRange = .video
+    ) -> AVPlayerItemVideoOutput {
+        AVPlayerItemVideoOutput(
+            outputSettings: pixelBufferAttributes(
+                forResolvedPrecision: resolvedPrecision,
+                range: range
+            )
+        )
     }
 }

@@ -43,6 +43,8 @@ jobs:
           command -v ffprobe
       - name: Self-contained real-media integration
         run: ./RUN_MACOS_VERIFY.sh self-contained
+      - name: Automatic source precision real-media integration
+        run: ./RUN_MACOS_VERIFY.sh automatic-decode
       - name: Manifest-driven compressed-media regression matrix
         run: ./RUN_MACOS_VERIFY.sh regression
       - name: Swift tests

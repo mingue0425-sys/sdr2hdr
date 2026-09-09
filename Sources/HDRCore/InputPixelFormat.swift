@@ -5,14 +5,14 @@ import CoreVideo
 /// The format is kept separate from the shader pipeline choice so every
 /// consumer (metadata resolution, texture creation, diagnostics, and the
 /// temporal estimator) makes the same bit-depth/range decision.
-internal enum HDRInputPixelFormat: Equatable, Sendable {
+public enum HDRInputPixelFormat: Equatable, Sendable {
     case nv12VideoRange
     case nv12FullRange
     case p010VideoRange
     case p010FullRange
     case bgra8
 
-    init?(coreVideoFormat: OSType) {
+    public init?(coreVideoFormat: OSType) {
         switch coreVideoFormat {
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
             self = .nv12VideoRange
@@ -29,7 +29,7 @@ internal enum HDRInputPixelFormat: Equatable, Sendable {
         }
     }
 
-    var isYUV: Bool {
+    public var isYUV: Bool {
         switch self {
         case .nv12VideoRange, .nv12FullRange, .p010VideoRange, .p010FullRange:
             return true
@@ -38,7 +38,7 @@ internal enum HDRInputPixelFormat: Equatable, Sendable {
         }
     }
 
-    var isP010: Bool {
+    public var isP010: Bool {
         switch self {
         case .p010VideoRange, .p010FullRange:
             return true
@@ -47,11 +47,11 @@ internal enum HDRInputPixelFormat: Equatable, Sendable {
         }
     }
 
-    var bitDepth: Int {
+    public var bitDepth: Int {
         isP010 ? 10 : 8
     }
 
-    var isFullRange: Bool {
+    public var isFullRange: Bool {
         switch self {
         case .nv12FullRange, .p010FullRange:
             return true
@@ -60,7 +60,7 @@ internal enum HDRInputPixelFormat: Equatable, Sendable {
         }
     }
 
-    var diagnosticName: String {
+    public var diagnosticName: String {
         switch self {
         case .nv12VideoRange: return "NV12 8-bit video-range"
         case .nv12FullRange: return "NV12 8-bit full-range"
@@ -70,7 +70,7 @@ internal enum HDRInputPixelFormat: Equatable, Sendable {
         }
     }
 
-    var diagnosticRangeName: String {
+    public var diagnosticRangeName: String {
         isYUV ? (isFullRange ? "full" : "video") : "rgb"
     }
 }

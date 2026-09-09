@@ -148,6 +148,7 @@ final class ExternalRealMediaRegressionTests: XCTestCase {
                             sha256: source.sha256,
                             provenance: source.provenance,
                             probe: probe,
+                            automaticDecision: nil,
                             windows: [],
                             status: "metadata-only",
                             failure: "runtime skipped by manifest: source colorimetry is outside HDRCore's supported BT.709 SDR domain"
@@ -169,6 +170,7 @@ final class ExternalRealMediaRegressionTests: XCTestCase {
                         frameCount: nil,
                         width: nil, height: nil
                     ),
+                    automaticDecision: nil,
                     windows: [],
                     status: "fail",
                     failure: error.localizedDescription
@@ -177,6 +179,22 @@ final class ExternalRealMediaRegressionTests: XCTestCase {
         }
         results.sort { $0.id < $1.id }
         let sourceByID = Dictionary(uniqueKeysWithValues: manifest.sources.map { ($0.id, $0) })
+        let automaticDecisions = results.compactMap(\.automaticDecision)
+        let automaticNV12 = automaticDecisions.filter { $0.resolved == .eightBit }.count
+        let automaticP010 = automaticDecisions.filter { $0.resolved == .tenBit }.count
+        let automaticFallbacks = automaticDecisions.filter(\.fallbackUsed).count
+        let automaticMismatches = results.filter { result in
+            guard let decision = result.automaticDecision,
+                  let expected = sourceByID[result.id]?.expected.bitDepth else {
+                return false
+            }
+            return decision.resolved.bitDepth != expected
+        }.count
+        print(
+            "AUTOMATIC_DECODE_DISTRIBUTION split=\(split.rawValue) " +
+            "nv12=\(automaticNV12) p010=\(automaticP010) fallback=\(automaticFallbacks) " +
+            "mismatch=\(automaticMismatches)"
+        )
         let pairResults: [ExternalMediaPairResult] = manifest.pairs
             .sorted { $0.pairID < $1.pairID }
             .compactMap { pair in
@@ -189,7 +207,7 @@ final class ExternalRealMediaRegressionTests: XCTestCase {
         let pairFailures = pairResults.filter { $0.status == "fail" }
         let report = ExternalRealMediaReport(
             manifestVersion: manifest.version,
-            baseline: "0a980d9",
+            baseline: "db01ba7",
             split: split,
             sourceCount: results.count,
             failures: results.filter { $0.status == "fail" }.count + pairFailures.count,

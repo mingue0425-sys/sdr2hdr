@@ -98,6 +98,24 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public private(set) var activeV6PresetIsOn: Bool
     public private(set) var activeV62Candidate: HDRV62ToneCurveCandidate
     public private(set) var activeV62PresetIsOn: Bool
+    /// The source-aware decision used to create `videoOutput`. Synchronous
+    /// compatibility initialization records the conservative fallback;
+    /// production playback uses `make(...)` so an asset is inspected first.
+    public private(set) var decodePrecisionDecision: HDRDecodePrecisionDecision
+    public private(set) var actualDecodedPixelFormat: HDRInputPixelFormat? = nil
+    public private(set) var actualDecodedPrecision: HDRResolvedDecodePrecision? = nil
+    public private(set) var decodePrecisionMismatch: String? = nil
+
+    public var decodePrecisionDiagnosticDescription: String {
+        var description = decodePrecisionDecision.diagnosticDescription
+        if let actualDecodedPixelFormat {
+            description += " actualDecodedPixelFormat=\(actualDecodedPixelFormat.diagnosticName)"
+        }
+        if let decodePrecisionMismatch {
+            description += " mismatch=\(decodePrecisionMismatch)"
+        }
+        return description
+    }
 
     public var activePresetName: String {
         if controlledV6ComparisonEnabled || quickV6ModeActive {
@@ -241,7 +259,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     private var quickV62ModeActive = false
     private let controlledABComparisonEnabled: Bool
 
-    public init(
+    public convenience init(
         url: URL?,
         configuration: HDRConfiguration,
         device: MTLDevice,
@@ -252,8 +270,88 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
         decodePrecision: HDRDecodePrecision = .automatic
     ) throws {
+        let fallbackDecision = HDRDecodePrecisionResolver.fallbackDecision(for: decodePrecision)
+        try self.init(
+            url: url,
+            configuration: configuration,
+            device: device,
+            controlledAB: controlledAB,
+            diagnosticsEnabled: diagnosticsEnabled,
+            controlledV6: controlledV6,
+            v6Candidate: v6Candidate,
+            v62Candidate: v62Candidate,
+            resolvedDecodePrecision: fallbackDecision.resolved,
+            precisionDecision: fallbackDecision,
+            assetOverride: nil
+        )
+    }
+
+    /// Asynchronously prepares the source-aware decode decision before the
+    /// AVPlayerItemVideoOutput is created. The synchronous initializer above
+    /// remains for test-pattern and source-less compatibility callers.
+    public static func make(
+        url: URL?,
+        configuration: HDRConfiguration,
+        device: MTLDevice,
+        controlledAB: Bool = false,
+        diagnosticsEnabled: Bool = false,
+        controlledV6: Bool = false,
+        v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
+        v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
+        decodePrecision: HDRDecodePrecision = .automatic
+    ) async throws -> PlaybackController {
+        guard let url else {
+            return try PlaybackController(
+                url: nil,
+                configuration: configuration,
+                device: device,
+                controlledAB: controlledAB,
+                diagnosticsEnabled: diagnosticsEnabled,
+                controlledV6: controlledV6,
+                v6Candidate: v6Candidate,
+                v62Candidate: v62Candidate,
+                decodePrecision: decodePrecision
+            )
+        }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw HDRPlayerError.fileNotFound(url)
+        }
+        let asset = AVURLAsset(url: url)
+        let decision = await HDRDecodePrecisionResolver.resolve(
+            asset: asset,
+            requested: decodePrecision
+        )
+        return try PlaybackController(
+            url: url,
+            configuration: configuration,
+            device: device,
+            controlledAB: controlledAB,
+            diagnosticsEnabled: diagnosticsEnabled,
+            controlledV6: controlledV6,
+            v6Candidate: v6Candidate,
+            v62Candidate: v62Candidate,
+            resolvedDecodePrecision: decision.resolved,
+            precisionDecision: decision,
+            assetOverride: asset
+        )
+    }
+
+    private init(
+        url: URL?,
+        configuration: HDRConfiguration,
+        device: MTLDevice,
+        controlledAB: Bool,
+        diagnosticsEnabled: Bool,
+        controlledV6: Bool,
+        v6Candidate: HDRV6ToneCurveCandidate,
+        v62Candidate: HDRV62ToneCurveCandidate,
+        resolvedDecodePrecision: HDRResolvedDecodePrecision,
+        precisionDecision: HDRDecodePrecisionDecision,
+        assetOverride: AVAsset?
+    ) throws {
         self.baseConfiguration = configuration
         self.isTestPattern = url == nil
+        self.decodePrecisionDecision = precisionDecision
         let useControlledV6 = controlledV6 && !controlledAB
         self.controlledABComparisonEnabled = controlledAB
         self.controlledV6ComparisonEnabled = useControlledV6
@@ -317,9 +415,9 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             guard FileManager.default.fileExists(atPath: url.path) else {
                 throw HDRPlayerError.fileNotFound(url)
             }
-            let asset = AVURLAsset(url: url)
+            let asset = assetOverride ?? AVURLAsset(url: url)
             let item = AVPlayerItem(asset: asset)
-            let output = Self.makeVideoOutput(precision: decodePrecision)
+            let output = Self.makeVideoOutput(resolvedPrecision: resolvedDecodePrecision)
             output.suppressesPlayerRendering = true
             self.asset = asset
             self.item = item
@@ -692,6 +790,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                     case .process:
                         do {
                             let pixelBuffer = acquired.pixelBuffer
+                            validateDecodedPrecisionIfNeeded(pixelBuffer)
                             logPixelBufferIfNeeded(pixelBuffer)
                             let frameIndex = nextDiagnosticFrameIndex()
                             let frames = try processFrame(
@@ -952,6 +1051,30 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         didLogPixelFormat = true
         let format = pixelFormatString(CVPixelBufferGetPixelFormatType(pixelBuffer))
         print("video pixel format: \(format) \(CVPixelBufferGetWidth(pixelBuffer))x\(CVPixelBufferGetHeight(pixelBuffer))")
+        print("decode precision decision: \(decodePrecisionDiagnosticDescription)")
+    }
+
+    private func validateDecodedPrecisionIfNeeded(_ pixelBuffer: CVPixelBuffer) {
+        guard actualDecodedPixelFormat == nil else { return }
+        let formatType = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        guard let actualFormat = HDRInputPixelFormat(coreVideoFormat: formatType) else {
+            let mismatchPrefix = decodePrecisionDecision.requested == .automatic
+                ? "AUTOMATIC_DECODE_PRECISION_MISMATCH"
+                : "DECODE_PRECISION_MISMATCH"
+            decodePrecisionMismatch = "\(mismatchPrefix) unsupported actualPixelFormat=\(pixelFormatString(formatType))"
+            return
+        }
+        actualDecodedPixelFormat = actualFormat
+        actualDecodedPrecision = actualFormat.bitDepth == 10 ? .tenBit : .eightBit
+        let expectedIsP010 = decodePrecisionDecision.resolved == .tenBit
+        guard actualDecodedPrecision != decodePrecisionDecision.resolved ||
+                !actualFormat.isYUV || actualFormat.isP010 != expectedIsP010 else { return }
+        let mismatchPrefix = decodePrecisionDecision.requested == .automatic
+            ? "AUTOMATIC_DECODE_PRECISION_MISMATCH"
+            : "DECODE_PRECISION_MISMATCH"
+        decodePrecisionMismatch =
+            "\(mismatchPrefix) requested=\(decodePrecisionDecision.resolved.rawValue) " +
+            "actual=\(actualFormat.diagnosticName)"
     }
 
     private func pixelFormatString(_ format: OSType) -> String {
@@ -966,8 +1089,10 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         onError?(error)
     }
 
-    private static func makeVideoOutput(precision: HDRDecodePrecision) -> AVPlayerItemVideoOutput {
-        HDRVideoOutputConfiguration.makeVideoOutput(precision: precision)
+    private static func makeVideoOutput(
+        resolvedPrecision: HDRResolvedDecodePrecision
+    ) -> AVPlayerItemVideoOutput {
+        HDRVideoOutputConfiguration.makeVideoOutput(resolvedPrecision: resolvedPrecision)
     }
 
     @objc private func playerItemDidEnd(_ notification: Notification) {

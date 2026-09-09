@@ -106,7 +106,7 @@ struct RealMediaRegressionManifest: Codable, Equatable, Sendable {
     let fixtures: [RealMediaRegressionFixture]
 
     static let expectedVersion = 1
-    static let expectedBaseline = "0a980d9"
+    static let expectedBaseline = "db01ba7"
 
     func validate() throws {
         guard version == Self.expectedVersion else {
