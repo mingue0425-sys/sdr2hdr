@@ -124,8 +124,12 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
             status: String(describing: commandBuffer.status),
             completed: commandBuffer.status == .completed,
             error: commandBuffer.error?.localizedDescription,
-            gpuStartTime: commandBuffer.gpuStartTime,
-            gpuEndTime: commandBuffer.gpuEndTime,
+            // GPU timing properties are read after retirement in
+            // completePendingFrame. Keeping the completion callback to
+            // status/identity bookkeeping avoids querying optional timing
+            // data on Metal-managed callback threads.
+            gpuStartTime: 0,
+            gpuEndTime: 0,
             completionWallClock: CACurrentMediaTime()
         )
         lock.lock()
