@@ -150,6 +150,15 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
 }
 
 extension RealMediaRegressionRunner {
+    private func logMultiFlightProgress(_ message: String) {
+        guard ProcessInfo.processInfo.environment["HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS"] == "1" else {
+            return
+        }
+        FileHandle.standardError.write(
+            Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8)
+        )
+    }
+
     /// Encodes the same production-equivalent processing and presentation
     /// chain used by the serial regression path, but leaves retirement to the
     /// caller. No CPU frame conversion is introduced.
@@ -518,6 +527,7 @@ extension RealMediaRegressionRunner {
                 "Metal overlap synchronization resources unavailable"
             )
         }
+        logMultiFlightProgress("resources-ready id=\(fixture.id) depth=\(flightDepth)")
         let overlapGateValue: UInt64 = 1
         var overlapGateReleased = false
         var overlapReleaseCommandBuffer: MTLCommandBuffer?
@@ -555,6 +565,7 @@ extension RealMediaRegressionRunner {
                 completionGate: index < flightDepth ? overlapGate : nil,
                 completionGateValue: overlapGateValue
             )
+            logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             let frameIndex = value.frameIndex
             let generation = value.generation
             let submissionSequence = value.submissionSequence
@@ -567,6 +578,7 @@ extension RealMediaRegressionRunner {
                 )
             }
             value.commandBuffer.commit()
+            logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
             pending.append(value)
             submittedCount += 1
             submittedFrameIndices.append(value.frameIndex)
@@ -583,12 +595,14 @@ extension RealMediaRegressionRunner {
                 submittedCount - collector.count
             )
             if !overlapGateReleased, pending.count == flightDepth {
+                logMultiFlightProgress("release-start id=\(fixture.id) depth=\(flightDepth)")
                 guard let releaseCommandBuffer = releaseQueue.makeCommandBuffer(),
                       let markerBlit = releaseCommandBuffer.makeBlitCommandEncoder() else {
                     throw RunnerError.commandBufferFailed(
                         "Metal overlap release command buffer unavailable"
                     )
                 }
+                logMultiFlightProgress("release-encoder-ready id=\(fixture.id) depth=\(flightDepth)")
                 // Keep the release buffer non-empty. Some macOS Metal
                 // runtimes trap when a signal-only command buffer is
                 // submitted from a second queue. The marker is test-only
@@ -599,11 +613,14 @@ extension RealMediaRegressionRunner {
                     value: 0
                 )
                 markerBlit.endEncoding()
+                logMultiFlightProgress("release-marker-encoded id=\(fixture.id) depth=\(flightDepth)")
                 releaseCommandBuffer.encodeSignalEvent(
                     overlapGate,
                     value: overlapGateValue
                 )
+                logMultiFlightProgress("release-signal-encoded id=\(fixture.id) depth=\(flightDepth)")
                 releaseCommandBuffer.commit()
+                logMultiFlightProgress("release-committed id=\(fixture.id) depth=\(flightDepth)")
                 overlapReleaseCommandBuffer = releaseCommandBuffer
                 overlapGateReleased = true
             }
