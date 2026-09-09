@@ -47,6 +47,13 @@ jobs:
         run: ./RUN_MACOS_VERIFY.sh automatic-decode
       - name: Manifest-driven compressed-media regression matrix
         run: ./RUN_MACOS_VERIFY.sh regression
+      - name: Metal runner diagnostics
+        run: |
+          sw_vers
+          uname -a
+          uname -m
+          system_profiler SPDisplaysDataType || true
+          sysctl hw.memsize hw.ncpu || true
       - name: Real-media multi-flight GPU regression
         env:
           MTL_DEBUG_LAYER: 1
