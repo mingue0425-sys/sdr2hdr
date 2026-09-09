@@ -22,6 +22,85 @@ final class ChromaReconstructionTests: XCTestCase {
         XCTAssertEqual(configuration.sceneHistogramStrategy, .production)
     }
 
+    func testDV420SitingAwareFallsBackToNearest() {
+        let decision = HDRChromaReconstructionResolver.resolve(
+            requested: .sitingAwareBilinear,
+            siting: .dv420
+        )
+
+        XCTAssertEqual(decision.requested, .sitingAwareBilinear)
+        XCTAssertEqual(decision.effective, .nearest)
+        XCTAssertEqual(decision.siting, .dv420)
+        XCTAssertTrue(decision.fallbackUsed)
+        XCTAssertEqual(
+            decision.fallbackReason,
+            .dv420RequiresComponentSpecificPhase
+        )
+    }
+
+    func testDV420NearestDoesNotReportFallback() {
+        let decision = HDRChromaReconstructionResolver.resolve(
+            requested: .nearest,
+            siting: .dv420
+        )
+
+        XCTAssertEqual(decision.requested, .nearest)
+        XCTAssertEqual(decision.effective, .nearest)
+        XCTAssertEqual(decision.siting, .dv420)
+        XCTAssertFalse(decision.fallbackUsed)
+        XCTAssertNil(decision.fallbackReason)
+    }
+
+    func testSupportedSitingAwareModesRemainBilinear() {
+        for siting in [
+            HDRChromaSiting.center,
+            .left,
+            .topLeft,
+            .top,
+            .bottomLeft,
+            .bottom
+        ] {
+            let decision = HDRChromaReconstructionResolver.resolve(
+                requested: .sitingAwareBilinear,
+                siting: siting
+            )
+
+            XCTAssertEqual(decision.effective, .sitingAwareBilinear, "siting=\(siting)")
+            XCTAssertFalse(decision.fallbackUsed, "siting=\(siting)")
+            XCTAssertNil(decision.fallbackReason, "siting=\(siting)")
+        }
+    }
+
+    func testUnspecifiedSitingRetainsCenteredCandidatePolicy() {
+        let decision = HDRChromaReconstructionResolver.resolve(
+            requested: .sitingAwareBilinear,
+            siting: .unspecified
+        )
+
+        XCTAssertEqual(decision.effective, .sitingAwareBilinear)
+        XCTAssertFalse(decision.fallbackUsed)
+        XCTAssertNil(decision.fallbackReason)
+    }
+
+    func testDV420SitingAwareDecisionIsDeterministic() {
+        let expected = HDRChromaReconstructionDecision(
+            requested: .sitingAwareBilinear,
+            effective: .nearest,
+            siting: .dv420,
+            fallbackReason: .dv420RequiresComponentSpecificPhase
+        )
+
+        for _ in 0..<10 {
+            XCTAssertEqual(
+                HDRChromaReconstructionResolver.resolve(
+                    requested: .sitingAwareBilinear,
+                    siting: .dv420
+                ),
+                expected
+            )
+        }
+    }
+
     func testChromaLocationMetadataResolvesCenterAndLeft() throws {
         let centerBuffer = try makeNV12(width: 8, height: 4, chromaLocation: .center)
         let center = try HDRColorMetadataResolver.resolve(
@@ -68,6 +147,20 @@ final class ChromaReconstructionTests: XCTestCase {
         XCTAssertEqual(fallback.chromaGeometry.resolvedSiting, HDRChromaSiting.center)
         XCTAssertEqual(fallback.chromaGeometry.metadataWasExplicit, false)
         XCTAssertTrue(fallback.chromaGeometry.metadataDescription.contains("mixed"))
+    }
+
+    func testChromaLocationMetadataResolvesDV420() throws {
+        let buffer = try makeNV12(width: 8, height: 4, chromaLocation: .dv420)
+        let resolved = try HDRColorMetadataResolver.resolve(
+            pixelBuffer: buffer,
+            fallbackPolicy: .requireMetadata
+        )
+
+        XCTAssertEqual(resolved.chromaGeometry.resolvedSiting, .dv420)
+        XCTAssertEqual(resolved.chromaGeometry.sampleCenterX, 0.5)
+        XCTAssertEqual(resolved.chromaGeometry.sampleCenterY, 1)
+        XCTAssertTrue(resolved.chromaGeometry.metadataWasExplicit)
+        XCTAssertEqual(resolved.chromaGeometry.metadataDescription, "dv420")
     }
 
     func testMissingChromaMetadataUsesDocumentedCenterFallback() throws {
@@ -167,6 +260,87 @@ final class ChromaReconstructionTests: XCTestCase {
         let output = try processChromaFixture(format: .p010, device: device)
         XCTAssertLessThanOrEqual(output.maximumError, 0.012)
         print("CHROMA_P010_SCALAR_PARITY maxError=\(output.maximumError)")
+    }
+
+    func testDV420FallbackMatchesNearestNV12() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let fallback = try processChromaFixture(
+            format: .nv12,
+            mode: .sitingAwareBilinear,
+            chromaLocation: .dv420,
+            device: device
+        ).pixels
+        let nearest = try processChromaFixture(
+            format: .nv12,
+            mode: .nearest,
+            chromaLocation: .dv420,
+            device: device
+        ).pixels
+
+        let maximumDifference = maximumDelta(fallback, nearest)
+        print("CHROMA_DV420_NV12_FALLBACK maxDelta=\(maximumDifference)")
+        XCTAssertLessThanOrEqual(maximumDifference, 1e-6)
+    }
+
+    func testDV420FallbackMatchesNearestP010() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let fallback = try processChromaFixture(
+            format: .p010,
+            mode: .sitingAwareBilinear,
+            chromaLocation: .dv420,
+            device: device
+        ).pixels
+        let nearest = try processChromaFixture(
+            format: .p010,
+            mode: .nearest,
+            chromaLocation: .dv420,
+            device: device
+        ).pixels
+
+        let maximumDifference = maximumDelta(fallback, nearest)
+        print("CHROMA_DV420_P010_FALLBACK maxDelta=\(maximumDifference)")
+        XCTAssertLessThanOrEqual(maximumDifference, 1e-6)
+    }
+
+    func testDV420DiagnosticReportsRequestedAndEffectiveModes() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let pixelBuffer = try makeNV12(
+            width: 8,
+            height: 4,
+            chromaLocation: .dv420
+        )
+        var configuration = HDRConfiguration.calibratedV4
+        configuration.chromaReconstructionMode = .sitingAwareBilinear
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.debugInstrumentationEnabled = true
+        let commandBuffer = try processor.makeCommandBuffer()
+        _ = try processor.process(
+            pixelBuffer: pixelBuffer,
+            timestamp: CMTime(value: 0, timescale: 24),
+            commandBuffer: commandBuffer,
+            diagnosticFrameIndex: 1
+        )
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        let diagnostic = try XCTUnwrap(processor.lastFrameDiagnostic)
+        XCTAssertEqual(diagnostic.resolvedChromaSiting, HDRChromaSiting.dv420.rawValue)
+        XCTAssertEqual(diagnostic.requestedChromaReconstructionMode, "siting-aware-bilinear")
+        XCTAssertEqual(diagnostic.effectiveChromaReconstructionMode, "nearest")
+        XCTAssertEqual(diagnostic.chromaReconstructionMode, "nearest")
+        XCTAssertEqual(
+            diagnostic.chromaReconstructionFallbackReason,
+            HDRChromaReconstructionFallbackReason.dv420RequiresComponentSpecificPhase.rawValue
+        )
     }
 
     func testPrecisionAndReconstructionMatrixSeparatesNV12AndP010Effects() throws {
@@ -300,6 +474,59 @@ final class ChromaReconstructionTests: XCTestCase {
         XCTAssertGreaterThan(maximumDifference, 0.0001)
     }
 
+    func testDV420FallbackKeepsTemporalEstimatorAlignedWithNearest() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let chromaCodes = (0..<2).flatMap { row in
+            (0..<4).map { column in
+                SIMD2(
+                    UInt8(column.isMultiple(of: 2) ? 64 : 240),
+                    UInt8(row.isMultiple(of: 2) ? 64 : 192)
+                )
+            }
+        }
+
+        func run(mode: HDRChromaReconstructionMode) throws -> HDRSceneStatistics {
+            let buffer = try makeNV12(
+                width: 8,
+                height: 4,
+                yCode: 128,
+                chromaCodes: chromaCodes,
+                chromaLocation: .dv420
+            )
+            var configuration = HDRConfiguration.calibratedV4
+            configuration.chromaReconstructionMode = mode
+            let processor = try HDRProcessor(device: device, configuration: configuration)
+            let commandBuffer = try processor.makeCommandBuffer()
+            _ = try processor.process(
+                pixelBuffer: buffer,
+                timestamp: CMTime(value: 0, timescale: 24),
+                commandBuffer: commandBuffer,
+                diagnosticFrameIndex: 1
+            )
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+            XCTAssertEqual(commandBuffer.status, .completed)
+            XCTAssertNil(commandBuffer.error)
+            return processor.causalSceneStatistics
+        }
+
+        let fallback = try run(mode: .sitingAwareBilinear)
+        let nearest = try run(mode: .nearest)
+        let maximumDifference = [
+            abs(fallback.p01 - nearest.p01),
+            abs(fallback.p05 - nearest.p05),
+            abs(fallback.p10 - nearest.p10),
+            abs(fallback.p25 - nearest.p25),
+            abs(fallback.p50 - nearest.p50),
+            abs(fallback.p90 - nearest.p90),
+            abs(fallback.p99 - nearest.p99)
+        ].max() ?? 0
+        print("CHROMA_DV420_TEMPORAL_FALLBACK maxDelta=\(maximumDifference)")
+        XCTAssertLessThanOrEqual(maximumDifference, 1e-6)
+    }
+
     private enum FixtureFormat: CustomStringConvertible {
         case nv12
         case p010
@@ -374,6 +601,7 @@ final class ChromaReconstructionTests: XCTestCase {
     private func processChromaFixture(
         format: FixtureFormat,
         mode: HDRChromaReconstructionMode = .sitingAwareBilinear,
+        chromaLocation: HDRChromaSiting = .left,
         device: MTLDevice
     ) throws -> MetalFixtureResult {
         let width = 8
@@ -399,7 +627,7 @@ final class ChromaReconstructionTests: XCTestCase {
                 height: height,
                 yCode: yCode8,
                 chromaCodes: chromaValues.map { SIMD2(UInt8($0.x / 4), UInt8($0.y / 4)) },
-                chromaLocation: .left
+                chromaLocation: chromaLocation
             )
             plane = ScalarChromaPlane(
                 width: 4,
@@ -417,7 +645,7 @@ final class ChromaReconstructionTests: XCTestCase {
                 height: height,
                 yCode: yCode10,
                 chromaCodes: chromaValues,
-                chromaLocation: .left
+                chromaLocation: chromaLocation
             )
             plane = ScalarChromaPlane(
                 width: 4,
@@ -434,6 +662,10 @@ final class ChromaReconstructionTests: XCTestCase {
         var configuration = HDRConfiguration.calibratedV4
         configuration.toneCurveRevision = .legacyV2
         configuration.chromaReconstructionMode = mode
+        let effectiveMode = HDRChromaReconstructionResolver.resolve(
+            requested: mode,
+            siting: chromaLocation
+        ).effective
         let processor = try HDRProcessor(device: device, configuration: configuration)
         processor.automaticTemporalEstimationEnabled = false
         let commandBuffer = try processor.makeCommandBuffer()
@@ -454,7 +686,7 @@ final class ChromaReconstructionTests: XCTestCase {
         for y in 0..<height {
             for x in 0..<width {
                 let chroma: SIMD2<Float>
-                switch mode {
+                switch effectiveMode {
                 case .nearest:
                     chroma = plane.nearest(lumaX: x, lumaY: y)
                 case .sitingAwareBilinear:
