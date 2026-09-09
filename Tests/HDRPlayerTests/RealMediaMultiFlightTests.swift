@@ -14,16 +14,22 @@ final class RealMediaMultiFlightTests: XCTestCase {
     }
 
     func testDeterministicMatrixRunsWithTwoAndThreeFlights() async throws {
+        logProgress("test-start")
         let environment = ProcessInfo.processInfo.environment
+        logProgress("environment-read")
         guard let fixturePath = environment["HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR"] else {
             throw XCTSkip("set HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR to run multi-flight regression")
         }
+        logProgress("fixture-path-found")
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device unavailable")
         }
+        logProgress("device-created")
 
         let manifest = try loadManifest()
+        logProgress("manifest-loaded")
         let gates = try loadGates()
+        logProgress("gates-loaded")
         let runner = RealMediaRegressionRunner(
             manifest: manifest,
             gates: gates,
