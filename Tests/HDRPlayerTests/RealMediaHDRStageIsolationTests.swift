@@ -43,6 +43,27 @@ private func synchronouslyWaitUntilCompleted(_ commandBuffer: MTLCommandBuffer) 
     commandBuffer.waitUntilCompleted()
 }
 
+private func writeHDRStageProgress(_ message: String) {
+    FileHandle.standardError.write(Data("HDR_STAGE_PROGRESS \(message)\n".utf8))
+}
+
+private final class HDRStageCompletionCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = 0
+
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func increment() {
+        lock.lock()
+        storage += 1
+        lock.unlock()
+    }
+}
+
 @MainActor
 final class RealMediaHDRStageIsolationTests: XCTestCase {
     func testVMAppleHDRStage() async {
@@ -65,10 +86,19 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             XCTFail("unknown HDR stage: \(stageName)")
             return
         }
-        let usesAsyncWaiter = environment["HDR_PRODUCTION_COMPLETION_MODE"] == "async-waiter"
-        let completionMode = usesAsyncWaiter
-            ? "completionHandler+asyncWaiter"
-            : "waitUntilCompleted"
+        let completionSetting = environment["HDR_PRODUCTION_COMPLETION_MODE"] ?? "waitUntilCompleted"
+        let usesAsyncWaiter = completionSetting == "async-waiter"
+        let usesExternalCompletionHandler = completionSetting != "waitUntilCompleted"
+        let completionMode: String
+        switch completionSetting {
+        case "completion-handler-direct-wait":
+            completionMode = "completionHandler+directWait"
+        case "async-waiter":
+            completionMode = "completionHandler+asyncWaiter"
+        default:
+            completionMode = "waitUntilCompleted"
+        }
+        writeHDRStageProgress("stage=\(stage.rawValue) phase=test-enter completionMode=\(completionMode)")
 
         let requiredFrames = max(
             Int(environment["HDR_PRODUCTION_STAGE_FRAMES"] ?? "2") ?? 2,
@@ -107,7 +137,9 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 stage: stage,
                 frames: Array(frames.prefix(requiredFrames)),
                 device: device,
-                usesAsyncWaiter: usesAsyncWaiter
+                usesAsyncWaiter: usesAsyncWaiter,
+                usesExternalCompletionHandler: usesExternalCompletionHandler,
+                completionMode: completionMode
             )
         } catch {
             emitResult(
@@ -129,7 +161,9 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         stage: HDRStageIsolationStage,
         frames: [RealMediaRegressionRunner.DecodedFrame],
         device: MTLDevice,
-        usesAsyncWaiter: Bool
+        usesAsyncWaiter: Bool,
+        usesExternalCompletionHandler: Bool,
+        completionMode: String
     ) async throws {
         guard frames.count >= 2 else {
             throw RealMediaRegressionRunner.RunnerError.insufficientFrames(
@@ -150,22 +184,23 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             : nil
         var pending: [HDRStagePendingFrame] = []
         pending.reserveCapacity(2)
+        let completionCounter = HDRStageCompletionCounter()
 
-        print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=resources-ready")
+        writeHDRStageProgress("stage=\(stage.rawValue) phase=resources-ready")
         for (index, decoded) in frames.prefix(2).enumerated() {
             guard let commandBuffer = try? processor.makeCommandBuffer() else {
                 throw RealMediaRegressionRunner.RunnerError.commandBufferFailed(
                     "could not create command buffer for frame \(index)"
                 )
             }
-            print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=processor-start frame=\(index)")
+            writeHDRStageProgress("stage=\(stage.rawValue) phase=processor-start frame=\(index)")
             let frame = try processor.process(
                 pixelBuffer: decoded.pixelBuffer,
                 timestamp: decoded.presentationTime,
                 commandBuffer: commandBuffer,
                 diagnosticFrameIndex: UInt64(index + 1)
             )
-            print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=processor-finished frame=\(index)")
+            writeHDRStageProgress("stage=\(stage.rawValue) phase=processor-finished frame=\(index)")
 
             var presentationTexture: MTLTexture?
             var readback: MTLBuffer?
@@ -198,7 +233,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                     )
                 }
                 presentationTexture = target
-                print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=presentation-encoded frame=\(index)")
+                writeHDRStageProgress("stage=\(stage.rawValue) phase=presentation-encoded frame=\(index)")
             }
 
             if stage.includesRawBlit {
@@ -223,12 +258,13 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 )
                 blit.endEncoding()
                 readback = destination
-                print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=raw-blit-encoded frame=\(index)")
+                writeHDRStageProgress("stage=\(stage.rawValue) phase=raw-blit-encoded frame=\(index)")
             }
 
-            if let completionWaiter {
+            if usesExternalCompletionHandler {
                 commandBuffer.addCompletedHandler { _ in
-                    completionWaiter.signal()
+                    completionCounter.increment()
+                    completionWaiter?.signal()
                 }
             }
 
@@ -243,11 +279,11 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             )
         }
 
-        print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=commit count=\(pending.count)")
+        writeHDRStageProgress("stage=\(stage.rawValue) phase=commit count=\(pending.count)")
         for value in pending {
             value.commandBuffer.commit()
         }
-        print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=committed count=\(pending.count)")
+        writeHDRStageProgress("stage=\(stage.rawValue) phase=committed count=\(pending.count)")
         if usesAsyncWaiter {
             for value in pending {
                 await value.completionWaiter?.wait()
@@ -279,13 +315,18 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 }
             }
         }
-        print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=completed count=\(pending.count)")
+        if usesExternalCompletionHandler {
+            guard completionCounter.value == pending.count else {
+                throw RealMediaRegressionRunner.RunnerError.commandBufferFailed(
+                    "external completion handler count=\(completionCounter.value), expected \(pending.count)"
+                )
+            }
+        }
+        writeHDRStageProgress("stage=\(stage.rawValue) phase=completed count=\(pending.count)")
         emitResult(
             HDRStageIsolationResult(
                 stage: stage.rawValue,
-                completionMode: usesAsyncWaiter
-                    ? "completionHandler+asyncWaiter"
-                    : "waitUntilCompleted",
+                completionMode: completionMode,
                 status: "PASS",
                 frames: pending.count,
                 commandBuffersCommitted: pending.count,
@@ -313,6 +354,8 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
 
     private func emitResult(_ result: HDRStageIsolationResult) {
         guard let data = try? JSONEncoder().encode(result) else { return }
-        print("HDR_STAGE_RESULT \(String(decoding: data, as: UTF8.self))")
+        FileHandle.standardError.write(
+            Data("HDR_STAGE_RESULT \(String(decoding: data, as: UTF8.self))\n".utf8)
+        )
     }
 }
