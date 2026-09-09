@@ -125,6 +125,9 @@ internal struct HDRDebugFrameContext: Sendable {
     let inputChromaLocation: String
     let resolvedChromaSiting: String
     let chromaReconstructionMode: String
+    let requestedChromaReconstructionMode: String
+    let effectiveChromaReconstructionMode: String
+    let chromaReconstructionFallbackReason: String?
     let temporalAdaptation: Float
     let temporalSubmissionSequence: UInt64
     let sceneShadowFloor: Float
@@ -266,6 +269,9 @@ internal final class DebugStatisticsStore: @unchecked Sendable {
             inputChromaLocation: context.inputChromaLocation,
             resolvedChromaSiting: context.resolvedChromaSiting,
             chromaReconstructionMode: context.chromaReconstructionMode,
+            requestedChromaReconstructionMode: context.requestedChromaReconstructionMode,
+            effectiveChromaReconstructionMode: context.effectiveChromaReconstructionMode,
+            chromaReconstructionFallbackReason: context.chromaReconstructionFallbackReason,
             sceneShadowFloor: context.sceneShadowFloor,
             sceneShadowTop: context.sceneShadowTop,
             sceneStatisticsValid: context.sceneStatisticsValid,

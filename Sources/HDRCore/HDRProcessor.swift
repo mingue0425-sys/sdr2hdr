@@ -977,6 +977,11 @@ public final class HDRProcessor {
             throw HDRProcessorError.metadata(error)
         }
 
+        let chromaReconstructionDecision = HDRChromaReconstructionResolver.resolve(
+            requested: configuration.chromaReconstructionMode,
+            siting: resolvedColor.chromaGeometry.resolvedSiting
+        )
+
         let inputTextures = try context.textureCache.makeTextures(for: pixelBuffer)
         let lease = try outputPool.acquire(width: width, height: height)
         let outputLeaseLifetime = OutputLeaseLifetime(pool: outputPool, id: lease.id)
@@ -1061,7 +1066,8 @@ public final class HDRProcessor {
             color: resolvedColor,
             temporalSnapshot: processState.temporalSnapshot,
             shadowCoordinates: processState.sceneSnapshot,
-            diagnosticROI: diagnosticROI
+            diagnosticROI: diagnosticROI,
+            chromaReconstructionDecision: chromaReconstructionDecision
         )
         var parameters = parameterSnapshot.parameters
         let debugFrameContext = debugEnabled ? HDRDebugFrameContext(
@@ -1077,9 +1083,10 @@ public final class HDRProcessor {
             inputRange: inputTextures.pixelFormat.diagnosticRangeName,
             inputChromaLocation: resolvedColor.chromaGeometry.metadataDescription,
             resolvedChromaSiting: resolvedColor.chromaGeometry.resolvedSiting.rawValue,
-            chromaReconstructionMode: configuration.chromaReconstructionMode == .nearest
-                ? "nearest"
-                : "siting-aware-bilinear",
+            chromaReconstructionMode: chromaReconstructionDecision.effective.diagnosticName,
+            requestedChromaReconstructionMode: chromaReconstructionDecision.requested.diagnosticName,
+            effectiveChromaReconstructionMode: chromaReconstructionDecision.effective.diagnosticName,
+            chromaReconstructionFallbackReason: chromaReconstructionDecision.fallbackReason?.rawValue,
             temporalAdaptation: parameters.temporalAdaptation,
             temporalSubmissionSequence: temporalSubmission?.sequence ?? 0,
             sceneShadowFloor: parameters.sceneShadowFloor,
@@ -1262,7 +1269,8 @@ public final class HDRProcessor {
             sequence: UInt64,
             statistics: HDRSceneStatistics
         ),
-        diagnosticROI: HDRDiagnosticROI?
+        diagnosticROI: HDRDiagnosticROI?,
+        chromaReconstructionDecision: HDRChromaReconstructionDecision
     ) -> (parameters: HDRShaderParameters, temporalVersion: UInt64, sceneVersion: UInt64) {
         // Capture the exact causal values encoded into this frame. Temporal
         // and scene statistics come from one atomic adaptive-state snapshot.
@@ -1339,7 +1347,7 @@ public final class HDRProcessor {
             developmentExpansionCombinedHighlightWeight: configuration.developmentExpansionCombinedHighlightWeight,
             developmentExpansionCombinedRangeWeight: configuration.developmentExpansionCombinedRangeWeight,
             developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight,
-            chromaReconstructionMode: configuration.chromaReconstructionMode.rawValue,
+            chromaReconstructionMode: chromaReconstructionDecision.effective.rawValue,
             chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
             chromaSampleCenterY: color.chromaGeometry.sampleCenterY
         )

@@ -14,6 +14,73 @@ public enum HDRChromaSiting: String, CaseIterable, Codable, Sendable {
     case unspecified
 }
 
+public enum HDRChromaReconstructionFallbackReason: String, Codable, Equatable, Sendable {
+    /// DV420 can carry component-specific and field-dependent phase. The
+    /// current progressive texture path cannot represent that information
+    /// with one shared bilinear sample center.
+    case dv420RequiresComponentSpecificPhase
+}
+
+public struct HDRChromaReconstructionDecision: Codable, Equatable, Sendable {
+    public let requested: HDRChromaReconstructionMode
+    public let effective: HDRChromaReconstructionMode
+    public let siting: HDRChromaSiting
+    public let fallbackReason: HDRChromaReconstructionFallbackReason?
+
+    public var fallbackUsed: Bool {
+        fallbackReason != nil
+    }
+
+    public init(
+        requested: HDRChromaReconstructionMode,
+        effective: HDRChromaReconstructionMode,
+        siting: HDRChromaSiting,
+        fallbackReason: HDRChromaReconstructionFallbackReason? = nil
+    ) {
+        self.requested = requested
+        self.effective = effective
+        self.siting = siting
+        self.fallbackReason = fallbackReason
+    }
+}
+
+public extension HDRChromaReconstructionMode {
+    var diagnosticName: String {
+        switch self {
+        case .nearest:
+            return "nearest"
+        case .sitingAwareBilinear:
+            return "siting-aware-bilinear"
+        }
+    }
+}
+
+public enum HDRChromaReconstructionResolver {
+    /// Resolves the requested mode before it reaches Metal. The geometry
+    /// resolver intentionally continues to preserve the source siting label;
+    /// this decision only determines whether the current reconstruction
+    /// implementation can safely consume that geometry.
+    public static func resolve(
+        requested: HDRChromaReconstructionMode,
+        siting: HDRChromaSiting
+    ) -> HDRChromaReconstructionDecision {
+        guard requested == .sitingAwareBilinear, siting == .dv420 else {
+            return HDRChromaReconstructionDecision(
+                requested: requested,
+                effective: requested,
+                siting: siting
+            )
+        }
+
+        return HDRChromaReconstructionDecision(
+            requested: requested,
+            effective: .nearest,
+            siting: siting,
+            fallbackReason: .dv420RequiresComponentSpecificPhase
+        )
+    }
+}
+
 /// Geometry passed to the Metal input path. `sampleCenterX/Y` are expressed in
 /// luma sample-edge coordinates for the first 2x2 block. For example, a
 /// centered sample is at (1, 1), while a left co-sited sample is at (0.5, 1).
@@ -91,10 +158,10 @@ internal enum HDRChromaSamplingGeometryResolver {
         case .bottom:
             center = (1, 1.5)
         case .dv420:
-            // DV420 alternates chroma field phase. A single progressive
-            // texture has no field selector, so use the documented left and
-            // vertically centered geometry and keep the exact source label in
-            // diagnostics.
+            // Retain a deterministic geometry for diagnostics and for the
+            // legacy nearest path. HDRChromaReconstructionResolver prevents
+            // this provisional shared center from being used by the current
+            // siting-aware bilinear implementation.
             center = (0.5, 1)
         case .unspecified:
             return .defaultCenter
