@@ -10,13 +10,16 @@ branch:
 real-media-multiflight-development
 
 validated functional head:
-9f2168e
+736b84cd00e53dd7ec11c75cf09a47c5b282fd50
 ~~~
 
 The branch is based on the current main baseline. The deterministic regression
 manifest retains its historical matrix identity, but the multi-flight result
-writer records the branch merge-base as the runtime baseline. No production HDR
-source was changed.
+writer records the branch merge-base as the runtime baseline. The production
+HDR algorithm and its tone, temporal, histogram, P010, EDR, and chroma-default
+contracts were unchanged. Multi-flight validation did expose a production
+resource-lifetime bug in presentation diagnostics; that isolated safety fix is
+described below.
 
 ## Existing Serial Control
 
@@ -87,12 +90,12 @@ depths, and two reconstruction modes (nearest and sitingAwareBilinear).
 | 2 | 14 | 2 for all | 2 for all | 8 | 6 |
 | 3 | 14 | 3 for all | 3 for all | 8 | 6 |
 
-The first depth-sized batch uses a test-only MTLSharedEvent wait. The event is
-attached after the real HDR and presentation work has been encoded, and is
-signaled only after all depth command buffers have been committed. This makes
-the overlap evidence deterministic for tiny 64×36 fixtures without adding a
-production wait or changing shader arithmetic. The runner still retires
-through the bounded queue and never submits beyond the configured depth.
+The first depth-sized batch appends test-only work to each command buffer: an
+8-pass fill over a retained 32 MiB shared buffer. This keeps the first batch
+observable as submitted and incomplete for tiny 64×36 fixtures without a
+cross-queue event, a production wait, or any shader arithmetic change. The
+runner still retires through the bounded queue and never submits beyond the
+configured depth.
 
 ## Completion Evidence
 
@@ -110,7 +113,9 @@ The observed Metal completion sequence in this run was 1...8 for every mode.
 The validator does not rely on that order; completion events are bound to
 generation and submission sequence and are checked as an unordered identity
 set. The completion collector records ordinal, status, error, GPU start/end
-times, and completion wall-clock time.
+times, and completion wall-clock time. Retirement waits use an asynchronous
+completion waiter, so the runner does not block the main actor while it waits
+for GPU completion; GPU timing is read after the waiter has fired.
 
 Final ledger values for all 28 mode executions were:
 
@@ -273,8 +278,8 @@ runner errors and cannot be read back or released as successful frames.
 Executed locally:
 
 ~~~text
-swift test -c debug --disable-index-store: PASS
-swift test -c release --disable-index-store: PASS
+swift test -c debug --disable-index-store: PASS (310 tests, 16 skipped, 0 failures)
+swift test -c release --disable-index-store: PASS (310 tests, 16 skipped, 0 failures)
 swift build -c release --disable-index-store: PASS
 swift test -c debug --disable-index-store --filter HDRMultiFlightOrderingTests: PASS
 bash Tests/verify_script_cache_test.sh: PASS
@@ -283,14 +288,32 @@ bash Tests/verify_script_cache_test.sh: PASS
 ./RUN_MACOS_VERIFY.sh automatic-decode: PASS
 ./RUN_MACOS_VERIFY.sh regression: PASS (12/12, skipped=0, failures=0)
 ./RUN_MACOS_VERIFY.sh regression-full: PASS (Debug and Release serial matrix)
-./RUN_MACOS_VERIFY.sh multiflight: PASS (28 mode runs, failures=0)
+MTL_DEBUG_LAYER=1 ./RUN_MACOS_VERIFY.sh multiflight: PASS (28 mode runs, failures=0)
 HDR_REAL_MEDIA_ROOT=/Volumes/game/sdr2hdr-v4-release/sdr2hdr-real-media ./RUN_MACOS_VERIFY.sh real-media: PASS
 HDR_REAL_MEDIA_ROOT=/Volumes/game/sdr2hdr-v4-release/sdr2hdr-real-media ./RUN_MACOS_VERIFY.sh real-media-validation: PASS
 git diff --check: PASS
 ~~~
 
-The workflow now invokes ./RUN_MACOS_VERIFY.sh multiflight on macOS pull
-requests. Remote CI status is pending until this branch is pushed.
+The workflow invokes ./RUN_MACOS_VERIFY.sh multiflight on macOS pull requests.
+The local Metal API Validation run also passed for the multi-flight matrix after
+the presentation resource-lifetime fix described below. The first remote run
+that failed was against the prior functional head; a new remote run for this
+head is required before the PR is considered CI-verified.
+
+## Presentation Resource Binding Finding
+
+The first CI attempts against the prior head terminated at the first
+retirement with signal 5. Inspection of the validated presentation path found
+that `presentationFragment` writes its diagnostic statistics through buffer(1),
+while `HDRPresentationRenderer` shared one writable fallback diagnostic buffer
+across concurrent command buffers. That allowed in-flight submissions to alias
+a writable Metal resource. The earlier resource-binding work keeps the
+unconditional texture, sampler, and buffer bindings valid; commit `736b84c`
+removes the shared writable fallback and allocates, zeroes, binds, and retains
+one diagnostic buffer per command buffer until completion. The read-only 1×1
+fallback texture remains shareable. This changes no presentation arithmetic or
+production HDR parameters. With the fix, the local multi-flight matrix passes
+under Metal API Validation; the new remote CI result is still pending.
 
 ## Production Invariants
 
@@ -306,9 +329,10 @@ production chroma default: nearest
 DV420 safe fallback preserved: YES
 ~~~
 
-Only test-support visibility, regression execution, and the verification
-workflow changed. The production HDR processor, shaders, tone curve, temporal
-coefficients, and resource-pool implementation were not modified.
+The multi-flight implementation is test support. The only production-source
+change is the presentation resource-binding safety fix above; the production
+HDR processor, tone curve, temporal coefficients, and resource-pool
+implementation were not modified.
 
 ## Protected Evaluation Isolation
 
@@ -323,7 +347,7 @@ Objective evaluations: 0
 - Natural Metal completion order on the local single queue was submission
   ordered. Reverse completion behavior is covered by deterministic state-store
   and processor tests, but a real GPU out-of-order completion was not observed.
-- The overlap proof uses a test-only shared-event gate because the compressed
+- The overlap proof uses test-only buffer-fill work because the compressed
   fixtures are intentionally tiny. The production command encoding itself is
   unchanged.
 - External multi-flight processing has not been added; external media remains
@@ -331,6 +355,9 @@ Objective evaluations: 0
 - No safe forced command-buffer failure seam was available.
 - Real playback display-link scheduling, frame dropping policy, and AVPlayer
   acquisition timing remain outside this PR.
+- The prior remote CI run failed under Metal validation before the writable
+  diagnostic resource fix. A new CI run for `736b84c` is required to close
+  remote validation of that fix.
 
 ## Recommended Next Step
 
@@ -343,7 +370,8 @@ independently.
 ## Git State
 
 ~~~text
-functional implementation head: 9f2168e
+functional implementation head: 736b84cd00e53dd7ec11c75cf09a47c5b282fd50
+production resource-lifetime fix: 736b84c
 docs commit: pending
 main was not modified or pushed from this work
 ~~~
