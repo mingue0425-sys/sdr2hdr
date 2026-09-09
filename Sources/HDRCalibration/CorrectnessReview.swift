@@ -236,6 +236,17 @@ private struct V4ParityArtifact: Codable, Sendable {
     let virginFrozenObjectiveEvaluated: Bool
 }
 
+private struct V4PercentileParityArtifact: Codable, Sendable {
+    let status: String
+    let model: String
+    let histogramStrategy: String
+    let histogramBinCount: Int
+    let sampleGridWidth: Int
+    let sampleGridHeight: Int
+    let evidence: V4CorrectnessEvidence
+    let virginFrozenObjectiveEvaluated: Bool
+}
+
 private struct V4HLGValidationArtifact: Codable, Sendable {
     let status: String
     let signal: [Float]
@@ -1430,32 +1441,63 @@ public enum V4CorrectnessReview {
     }
 
     private static func percentileParityCheck() -> V4CorrectnessCheck {
-        let dark = Array(repeating: Float(0.01), count: 144)
+        let strategy = HDRSceneHistogramStrategy.production
+        let binCount = strategy.binCount
+        let sampleGridWidth = HDRSceneStatistics.productionProxyWidth
+        let sampleGridHeight = HDRSceneStatistics.productionProxyHeight
+        let expectedSampleCount = sampleGridWidth * sampleGridHeight
+        let dark = Array(repeating: Float(0.01), count: expectedSampleCount)
         let runtimeDark = HDRSceneStatistics(productionLinearSamples: dark)
-        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 63))
-        let ramp = (0..<144).map { Float($0) / 143 }
+        var darkHistogram = Array(repeating: UInt32(0), count: binCount)
+        darkHistogram[0] = UInt32(dark.count)
+        let offlineDark = HDRSceneStatistics(histogram: darkHistogram, strategy: strategy)
+        let ramp = (0..<expectedSampleCount).map { Float($0) / Float(max(expectedSampleCount - 1, 1)) }
         let runtimeRamp = HDRSceneStatistics(productionLinearSamples: ramp)
-        let repeatedRamp = HDRSceneStatistics(productionLinearSamples: ramp)
+        let repeatedRamp = HDRSceneStatistics(linearSamples: ramp, strategy: strategy)
+        let darkErrors: [String: Double] = [
+            "p01MaxError": abs(Double(runtimeDark.p01 - offlineDark.p01)),
+            "p05MaxError": abs(Double(runtimeDark.p05 - offlineDark.p05)),
+            "p10MaxError": abs(Double(runtimeDark.p10 - offlineDark.p10)),
+            "p25MaxError": abs(Double(runtimeDark.p25 - offlineDark.p25)),
+            "p50MaxError": abs(Double(runtimeDark.p50 - offlineDark.p50)),
+            "p90MaxError": abs(Double(runtimeDark.p90 - offlineDark.p90)),
+            "p99MaxError": abs(Double(runtimeDark.p99 - offlineDark.p99)),
+            "shadowFloorMaxError": abs(Double(runtimeDark.shadowFloor - offlineDark.shadowFloor)),
+            "shadowTopMaxError": abs(Double(runtimeDark.shadowTop - offlineDark.shadowTop))
+        ]
+        let quantileErrorsPass = darkErrors.values.allSatisfy { $0 <= 0.000_001 }
         let passed = runtimeDark == offlineDark &&
-            abs(runtimeDark.p05 - 0.0078125) <= 0.000_001 &&
+            abs(runtimeDark.p05 - 0.5 / Float(binCount)) <= 0.000_001 &&
             runtimeRamp == repeatedRamp &&
-            HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count == 144 &&
-            abs(HDRSceneStatistics.productionLinearAverage(linearSamples: dark) - 0.01) <= 0.000_01
+            HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count == expectedSampleCount &&
+            abs(HDRSceneStatistics.productionLinearAverage(linearSamples: dark) - 0.01) <= 0.000_01 &&
+            quantileErrorsPass
+        let productionPositions = HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160)
         return V4CorrectnessCheck(
             id: "percentile-production-offline-parity",
             status: passed ? "PASS" : "FAIL",
             evidence: V4CorrectnessEvidence(
                 summary: passed
-                    ? "16x9/64-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run"
+                    ? "\(sampleGridWidth)x\(sampleGridHeight)/\(binCount)-bin \(strategy.rawValue) production quantization, bin-center percentiles, sample count, and repeated ramp statistics were executed and matched in this run"
                     : "production/offline percentile quantization check failed",
-                numerical: [
-                    "p05MaxError": abs(Double(runtimeDark.p05 - offlineDark.p05)),
-                    "p10MaxError": 0,
-                    "p25MaxError": 0,
-                    "shadowFloorMaxError": 0,
-                    "shadowTopMaxError": 0
+                numerical: darkErrors.merging(
+                    ["expectedDarkP05BinCenter": Double(0.5 / Float(binCount))],
+                    uniquingKeysWith: { _, rhs in rhs }
+                ),
+                counts: [
+                    "framesTested": 1,
+                    "samplesTested": dark.count,
+                    "samplePositions": productionPositions.count,
+                    "histogramBinCount": binCount,
+                    "histogramTotal": darkHistogram.reduce(0) { $0 + Int($1) },
+                    "sampleGridWidth": sampleGridWidth,
+                    "sampleGridHeight": sampleGridHeight
                 ],
-                counts: ["framesTested": 1, "samplesTested": dark.count, "samplePositions": HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count]
+                booleans: [
+                    "productionStrategy": true,
+                    "sampleCountParity": productionPositions.count == expectedSampleCount,
+                    "binCenterSemantics": abs(runtimeDark.p05 - 0.5 / Float(binCount)) <= 0.000_001
+                ]
             )
         )
     }
@@ -1841,10 +1883,15 @@ public enum V4CorrectnessReview {
             ),
             to: outputDirectory.appendingPathComponent("temporal-parity.json")
         )
+        let productionHistogramStrategy = HDRSceneHistogramStrategy.production
         try writeJSON(
-            V4ParityArtifact(
+            V4PercentileParityArtifact(
                 status: checkStatus("percentile-production-offline-parity"),
-                model: "16x9 sparse sampling, 64-bin histogram, bin-center quantization, causal delay",
+                model: "\(HDRSceneStatistics.productionProxyWidth)x\(HDRSceneStatistics.productionProxyHeight) sparse sampling, \(productionHistogramStrategy.rawValue) \(productionHistogramStrategy.binCount)-bin histogram, bin-center quantization, causal delay",
+                histogramStrategy: productionHistogramStrategy.rawValue,
+                histogramBinCount: productionHistogramStrategy.binCount,
+                sampleGridWidth: HDRSceneStatistics.productionProxyWidth,
+                sampleGridHeight: HDRSceneStatistics.productionProxyHeight,
                 evidence: report.checks.first(where: { $0.id == "percentile-production-offline-parity" })?.evidence ??
                     V4CorrectnessEvidence(summary: "missing check evidence"),
                 virginFrozenObjectiveEvaluated: false

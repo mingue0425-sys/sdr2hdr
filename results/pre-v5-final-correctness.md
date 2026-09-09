@@ -17,7 +17,7 @@
 
 - Status: FOUND
 - Searched roots: repo:data_video, workspace-parent
-- Candidate count: 2
+- Candidate count: 7
 - a metadata-verified, decoded, strongly aligned, objective-unexposed local HLG/BT.709 pair is available
 
 ## D. New HLG Audit
@@ -79,14 +79,14 @@
 - temporal-production-offline-parity: required=true, executed=true, status=PASS, evidence=production HDRProcessor and HDRCoreOfflineEvaluator were executed in this run for V2 and V4 causal sequences and matched within 1e-6
 - one-frame-causal-diagnostic: required=true, executed=true, status=PASS, evidence=first-frame diagnostic records state applied to the current frame before the completion update
 - temporalBurstParity: required=true, executed=true, status=PASS, evidence=frame-by-frame burst trace verifies each encoded frame against the serial reference state identified by its actual latest-completed state version
-- percentile-production-offline-parity: required=true, executed=true, status=PASS, evidence=16x9/16-bin production quantization, bin-center percentile, sample count, and repeated ramp statistics were executed and matched in this run
+- percentile-production-offline-parity: required=true, executed=true, status=PASS, evidence=16x9/64-bin linear64 production quantization, bin-center percentiles, sample count, and repeated ramp statistics were executed and matched in this run
 - hlg-bt2100-ootf: required=true, executed=true, status=PASS, evidence=gray and colored HLG vectors were evaluated in this run and matched one BT.2020-luminance-derived OOTF gain
 - strict-sdr-metadata: required=true, executed=true, status=PASS, evidence=explicit BT.709 SDR metadata was accepted and six missing/wrong primaries-transfer-matrix-range cases were rejected in this run
 - relation-preservation: required=true, executed=true, status=PASS, evidence=current manifest relations were evaluated directly; only main-calibration relations are accepted
 - eligible-only-diversity: required=true, executed=true, status=PASS, evidence=synthetic accepted+rejected audit records were aggregated in this run; rejected/Frozen record contributed to no diversity count
 - source-freeze-hash: required=true, executed=true, status=PASS, evidence=source and executable mutations changed their independent hashes; removing a required source caused the required-source hard failure
 - freeze-integrity: required=true, executed=true, status=PASS, evidence=candidate freeze guard was exercised with both dirty and clean working-tree states
-- runtime-measurement: required=true, executed=true, status=PASS, evidence=runtime within tolerance: GPU p50 0.705→0.702 ms, GPU p95 1.981→1.839 ms, CPU p95 0.064→0.071 ms
+- runtime-measurement: required=true, executed=true, status=PASS, evidence=runtime within tolerance: GPU p50 0.452→0.450 ms, GPU p95 0.658→0.767 ms, CPU p95 0.052→0.052 ms
 - promotion-gate-wiring: required=true, executed=true, status=PASS, evidence=gate machine was executed in this run for pass, transfer fail, runtime fail, frozen fail, not-measured, and hard-safety precedence states
 
 ## K. Temporal Parity

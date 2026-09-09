@@ -1747,18 +1747,35 @@ final class CalibrationTests: XCTestCase {
     }
 
     func testProductionPercentileEstimatorMatchesOfflineQuantization() {
-        let dark = Array(repeating: Float(0.01), count: 144)
+        let strategy = HDRSceneHistogramStrategy.production
+        let sampleCount = HDRSceneStatistics.productionProxyWidth * HDRSceneStatistics.productionProxyHeight
+        let dark = Array(repeating: Float(0.01), count: sampleCount)
         let runtimeDark = HDRSceneStatistics(productionLinearSamples: dark)
-        let offlineDark = HDRSceneStatistics(histogram: [144] + Array(repeating: 0, count: 63))
+        var offlineHistogram = Array(repeating: UInt32(0), count: strategy.binCount)
+        offlineHistogram[0] = UInt32(dark.count)
+        let offlineDark = HDRSceneStatistics(histogram: offlineHistogram, strategy: strategy)
         XCTAssertEqual(runtimeDark, offlineDark)
-        XCTAssertEqual(runtimeDark.p05, 0.0078125, accuracy: 0.000_001)
+        XCTAssertEqual(runtimeDark.p05, 0.5 / Float(strategy.binCount), accuracy: 0.000_001)
 
-        let ramp = (0..<144).map { Float($0) / 143 }
+        let ramp = (0..<sampleCount).map { Float($0) / Float(max(sampleCount - 1, 1)) }
         let runtimeRamp = HDRSceneStatistics(productionLinearSamples: ramp)
-        let repeated = HDRSceneStatistics(productionLinearSamples: ramp)
+        let repeated = HDRSceneStatistics(linearSamples: ramp, strategy: strategy)
         XCTAssertEqual(runtimeRamp, repeated)
-        XCTAssertEqual(HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count, 144)
+        XCTAssertEqual(strategy.binCount, HDRSceneStatistics.productionHistogramBinCount)
+        XCTAssertEqual(
+            HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count,
+            sampleCount
+        )
         XCTAssertEqual(HDRSceneStatistics.productionLinearAverage(linearSamples: dark), 0.01, accuracy: 0.000_01)
+    }
+
+    func testPercentileParityUsesProductionHistogramConfiguration() {
+        let strategy = HDRSceneHistogramStrategy.production
+        XCTAssertEqual(strategy.binCount, HDRSceneStatistics.productionHistogramBinCount)
+        XCTAssertEqual(
+            HDRSceneStatistics.productionProxyWidth * HDRSceneStatistics.productionProxyHeight,
+            HDRSceneStatistics.productionSamplePositions(width: 3840, height: 2160).count
+        )
     }
 
     func testCausalTemporalStateIsDeterministicForV2AndV4Sequences() {
