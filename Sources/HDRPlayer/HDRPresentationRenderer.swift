@@ -57,10 +57,9 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
     public let pipelineState: MTLRenderPipelineState
 
     private let samplerState: MTLSamplerState
-    // The fragment function declares these resources unconditionally. Keep
-    // valid fallback bindings for texture-less and diagnostics-OFF paths.
+    // The fragment function declares the texture resource unconditionally.
+    // This read-only fallback can be shared by in-flight submissions.
     private let fallbackSourceTexture: MTLTexture
-    private let fallbackDiagnosticBuffer: MTLBuffer
     private let diagnosticLock = NSLock()
     private var diagnosticsEnabledStorage = false
     private var lastPresentationDiagnosticStorage: HDRPresentationDiagnosticSnapshot?
@@ -150,22 +149,14 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         )
         fallbackTextureDescriptor.usage = [.shaderRead]
         fallbackTextureDescriptor.storageMode = .shared
-        guard let fallbackSourceTexture = device.makeTexture(descriptor: fallbackTextureDescriptor),
-              let fallbackDiagnosticBuffer = device.makeBuffer(
-                  length: MemoryLayout<HDRPresentationDebugStatsStorage>.stride,
-                  options: .storageModeShared
-              ) else {
+        guard let fallbackSourceTexture = device.makeTexture(descriptor: fallbackTextureDescriptor) else {
             throw HDRPlayerError.presentationPipelineCreationFailed(
-                "presentation fallback resource allocation failed"
+                "presentation fallback texture allocation failed"
             )
         }
-        fallbackDiagnosticBuffer.contents()
-            .assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self)
-            .initialize(to: HDRPresentationDebugStatsStorage())
 
         self.samplerState = sampler
         self.fallbackSourceTexture = fallbackSourceTexture
-        self.fallbackDiagnosticBuffer = fallbackDiagnosticBuffer
     }
 
     @discardableResult
@@ -263,14 +254,21 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         let geometry = AspectFitGeometry(sourceSize: sourceSize, drawableSize: drawableSize)
         let rect = geometry.normalizedRect
         let diagnosticsEnabled = self.diagnosticsEnabled
-        let diagnosticLifetime = diagnosticsEnabled ? device.makeBuffer(
+        // This buffer is a writable fragment resource even when diagnostics
+        // are disabled at runtime. Allocate one per command buffer so
+        // concurrent submissions never alias a writable resource. The
+        // lifetime object is captured by the completion handler below and
+        // therefore remains alive until the GPU has retired this submission.
+        guard let diagnosticBuffer = device.makeBuffer(
             length: MemoryLayout<HDRPresentationDebugStatsStorage>.stride,
             options: .storageModeShared
-        ).map(PresentationDebugBufferLifetime.init) : nil
-        if let diagnosticLifetime {
-            diagnosticLifetime.buffer.contents().assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self)
-                .initialize(to: HDRPresentationDebugStatsStorage())
+        ) else {
+            return false
         }
+        diagnosticBuffer.contents()
+            .assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self)
+            .initialize(to: HDRPresentationDebugStatsStorage())
+        let diagnosticLifetime = PresentationDebugBufferLifetime(diagnosticBuffer)
         // The UI stores ROI coordinates with a top-left origin; the vertex
         // shader's local UV has a bottom-left origin.
         let shaderROI = diagnosticROI.map {
@@ -293,32 +291,26 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
             diagnosticROIY: shaderROI?.y ?? 0,
             diagnosticROIWidth: shaderROI?.width ?? 0,
             diagnosticROIHeight: shaderROI?.height ?? 0,
-            diagnosticEnabled: diagnosticLifetime == nil ? 0 : 1
+            diagnosticEnabled: diagnosticsEnabled ? 1 : 0
         )
         encoder.setRenderPipelineState(pipelineState)
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentTexture(texture ?? fallbackSourceTexture, index: 0)
         encoder.setFragmentSamplerState(samplerState, index: 0)
-        encoder.setFragmentBuffer(
-            diagnosticLifetime?.buffer ?? fallbackDiagnosticBuffer,
-            offset: 0,
-            index: 1
-        )
+        encoder.setFragmentBuffer(diagnosticLifetime.buffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
         present?()
-        if let diagnosticLifetime {
-            commandBuffer.addCompletedHandler { [weak self, diagnosticLifetime] commandBuffer in
-                guard commandBuffer.status == .completed else { return }
-                self?.updatePresentationDiagnostic(
-                    from: diagnosticLifetime.buffer,
-                    frameIndex: diagnosticFrameIndex,
-                    masteringHeadroom: masteringHeadroom,
-                    displayHeadroom: displayHeadroom,
-                    roi: diagnosticROI
-                )
-            }
+        commandBuffer.addCompletedHandler { [weak self, diagnosticLifetime] commandBuffer in
+            guard diagnosticsEnabled, commandBuffer.status == .completed else { return }
+            self?.updatePresentationDiagnostic(
+                from: diagnosticLifetime.buffer,
+                frameIndex: diagnosticFrameIndex,
+                masteringHeadroom: masteringHeadroom,
+                displayHeadroom: displayHeadroom,
+                roi: diagnosticROI
+            )
         }
         return true
     }
@@ -358,9 +350,23 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentTexture(fallbackSourceTexture, index: 0)
         encoder.setFragmentSamplerState(samplerState, index: 0)
-        encoder.setFragmentBuffer(fallbackDiagnosticBuffer, offset: 0, index: 1)
+        guard let diagnosticBuffer = device.makeBuffer(
+            length: MemoryLayout<HDRPresentationDebugStatsStorage>.stride,
+            options: .storageModeShared
+        ) else {
+            encoder.endEncoding()
+            return
+        }
+        diagnosticBuffer.contents()
+            .assumingMemoryBound(to: HDRPresentationDebugStatsStorage.self)
+            .initialize(to: HDRPresentationDebugStatsStorage())
+        let diagnosticLifetime = PresentationDebugBufferLifetime(diagnosticBuffer)
+        encoder.setFragmentBuffer(diagnosticLifetime.buffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
+        commandBuffer.addCompletedHandler { [diagnosticLifetime] _ in
+            _ = diagnosticLifetime
+        }
     }
 
     private func updatePresentationDiagnostic(
