@@ -1398,6 +1398,7 @@ PY
     env \
       MTL_DEBUG_LAYER=0 \
       HDR_PRODUCTION_STAGE="$stage_name" \
+      HDR_PRODUCTION_COMPLETION_MODE=waitUntilCompleted \
       HDR_PRODUCTION_STAGE_FIXTURE="$HDR_STAGE_FIXTURE" \
       HDR_PRODUCTION_STAGE_FRAMES="$HDR_STAGE_FRAMES" \
       HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
@@ -1422,6 +1423,40 @@ pathlib.Path(sys.argv[1]).write_text(json.dumps({
 PY
     echo "HDR_STAGE stage=$stage_name exit=$status log=$log_path"
   done
+
+  completion_control_name="H4_completion_handler_async_waiter"
+  completion_control_log="$HDR_STAGE_DIR/$completion_control_name.log"
+  completion_control_timing="$HDR_STAGE_DIR/$completion_control_name.timing.json"
+  completion_control_start="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  set +e
+  env \
+    MTL_DEBUG_LAYER=0 \
+    HDR_PRODUCTION_STAGE=H4_full_path \
+    HDR_PRODUCTION_COMPLETION_MODE=async-waiter \
+    HDR_PRODUCTION_STAGE_FIXTURE="$HDR_STAGE_FIXTURE" \
+    HDR_PRODUCTION_STAGE_FRAMES="$HDR_STAGE_FRAMES" \
+    HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
+    HDR_REAL_MEDIA_REGRESSION_MANIFEST="$ROOT/Tests/RealMediaRegression/manifest.json" \
+    HDR_REAL_MEDIA_REGRESSION_GATES="$ROOT/Tests/RealMediaRegression/gates.json" \
+    swift test -c debug --disable-index-store \
+      --filter RealMediaHDRStageIsolationTests/testVMAppleHDRStage \
+      >"$completion_control_log" 2>&1
+  completion_control_status=$?
+  set -e
+  completion_control_end="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  python3 - "$completion_control_timing" "$completion_control_status" \
+    "$completion_control_start" "$completion_control_end" <<'PY'
+import json
+import pathlib
+import sys
+
+pathlib.Path(sys.argv[1]).write_text(json.dumps({
+    "exitCode": int(sys.argv[2]),
+    "processStartTimestamp": sys.argv[3],
+    "processEndTimestamp": sys.argv[4],
+}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+  echo "HDR_STAGE control=completion-handler+async-waiter exit=$completion_control_status log=$completion_control_log"
 
   set +e
   python3 - "$HDR_STAGE_RESULT" "$HDR_STAGE_DIR" "$HDR_STAGE_FIXTURE" \
@@ -1498,6 +1533,7 @@ for stage in stage_names:
         "status": status,
         "exitCode": exit_code,
         "signal": signal,
+        "completionMode": (payload or {}).get("completionMode", "waitUntilCompleted"),
         "frames": (payload or {}).get("frames", frames),
         "commandBuffersCommitted": (payload or {}).get("commandBuffersCommitted", 0),
         "commandBuffersCompleted": (payload or {}).get("commandBuffersCompleted", 0),
@@ -1507,12 +1543,61 @@ for stage in stage_names:
         "timing": timing,
     })
 
+control_log_path = directory / "H4_completion_handler_async_waiter.log"
+control_timing = read_json(directory / "H4_completion_handler_async_waiter.timing.json") or {}
+try:
+    control_lines = control_log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+except FileNotFoundError:
+    control_lines = []
+control_payload = None
+for line in control_lines:
+    if line.startswith("HDR_STAGE_RESULT "):
+        try:
+            control_payload = json.loads(line[len("HDR_STAGE_RESULT "):])
+        except json.JSONDecodeError:
+            control_payload = None
+control_exit_code = control_timing.get("exitCode")
+control_signal = signal_for(control_exit_code, control_lines)
+if control_payload and control_payload.get("status") == "PASS" and control_exit_code == 0 and control_signal is None:
+    control_status = "PASS"
+elif control_signal is not None:
+    control_status = "SIGNAL"
+else:
+    control_status = "FAIL"
+control_markers = [
+    line for line in control_lines
+    if line.startswith("HDR_STAGE_PROGRESS ") or
+       line.startswith("HDR_STAGE_RESULT ")
+]
+completion_control = {
+    "control": "completion-handler+async-waiter",
+    "stage": "H4_full_path",
+    "completionMode": (control_payload or {}).get(
+        "completionMode", "completionHandler+asyncWaiter"
+    ),
+    "status": control_status,
+    "exitCode": control_exit_code,
+    "signal": control_signal,
+    "frames": (control_payload or {}).get("frames", frames),
+    "commandBuffersCommitted": (control_payload or {}).get("commandBuffersCommitted", 0),
+    "commandBuffersCompleted": (control_payload or {}).get("commandBuffersCompleted", 0),
+    "error": (control_payload or {}).get("error"),
+    "lastMarker": control_markers[-1] if control_markers else None,
+    "log": str(control_log_path),
+    "timing": control_timing,
+}
+
 first_failing = next((stage["stage"] for stage in stages if stage["status"] != "PASS"), None)
-classification = "HDR_STAGES_ALL_PASS" if first_failing is None else f"HDR_STAGE_FAILURE:{first_failing}"
+if first_failing is not None:
+    classification = f"HDR_STAGE_FAILURE:{first_failing}"
+elif completion_control["status"] != "PASS":
+    classification = "HDR_COMPLETION_HANDLER_ASYNC_WAITER_FAILURE"
+else:
+    classification = "HDR_STAGES_ALL_PASS"
 document = {
     "schemaVersion": 1,
     "baseline": baseline,
-    "status": "PASS" if first_failing is None else "FAIL",
+    "status": "PASS" if first_failing is None and completion_control["status"] == "PASS" else "FAIL",
     "classification": classification,
     "pureMetalClassification": "PURE_METAL_MULTIFLIGHT_PASS",
     "environment": {
@@ -1524,10 +1609,12 @@ document = {
     },
     "stages": stages,
     "firstFailingStage": first_failing,
+    "completionControl": completion_control,
+    "firstFailingControl": None if completion_control["status"] == "PASS" else completion_control["control"],
 }
 result_path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 print(json.dumps({"classification": classification, "firstFailingStage": first_failing}, sort_keys=True))
-raise SystemExit(0 if first_failing is None else 1)
+raise SystemExit(0 if first_failing is None and completion_control["status"] == "PASS" else 1)
 PY
   hdr_stage_status=$?
   set -e

@@ -23,6 +23,7 @@ private enum HDRStageIsolationStage: String, CaseIterable {
 
 private struct HDRStageIsolationResult: Codable {
     let stage: String
+    let completionMode: String
     let status: String
     let frames: Int
     let commandBuffersCommitted: Int
@@ -35,6 +36,11 @@ private struct HDRStagePendingFrame {
     let frame: HDRFrame
     let presentationTexture: MTLTexture?
     let readback: MTLBuffer?
+    let completionWaiter: RealMediaCompletionWaiter?
+}
+
+private func synchronouslyWaitUntilCompleted(_ commandBuffer: MTLCommandBuffer) {
+    commandBuffer.waitUntilCompleted()
 }
 
 @MainActor
@@ -48,6 +54,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             emitResult(
                 HDRStageIsolationResult(
                     stage: stageName,
+                    completionMode: "unknown",
                     status: "ERROR",
                     frames: 0,
                     commandBuffersCommitted: 0,
@@ -58,6 +65,10 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             XCTFail("unknown HDR stage: \(stageName)")
             return
         }
+        let usesAsyncWaiter = environment["HDR_PRODUCTION_COMPLETION_MODE"] == "async-waiter"
+        let completionMode = usesAsyncWaiter
+            ? "completionHandler+asyncWaiter"
+            : "waitUntilCompleted"
 
         let requiredFrames = max(
             Int(environment["HDR_PRODUCTION_STAGE_FRAMES"] ?? "2") ?? 2,
@@ -92,11 +103,17 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 fixture,
                 requiredFrameCount: requiredFrames
             )
-            try run(stage: stage, frames: Array(frames.prefix(requiredFrames)), device: device)
+            try await run(
+                stage: stage,
+                frames: Array(frames.prefix(requiredFrames)),
+                device: device,
+                usesAsyncWaiter: usesAsyncWaiter
+            )
         } catch {
             emitResult(
                 HDRStageIsolationResult(
                     stage: stage.rawValue,
+                    completionMode: completionMode,
                     status: "ERROR",
                     frames: 0,
                     commandBuffersCommitted: 0,
@@ -111,8 +128,9 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
     private func run(
         stage: HDRStageIsolationStage,
         frames: [RealMediaRegressionRunner.DecodedFrame],
-        device: MTLDevice
-    ) throws {
+        device: MTLDevice,
+        usesAsyncWaiter: Bool
+    ) async throws {
         guard frames.count >= 2 else {
             throw RealMediaRegressionRunner.RunnerError.insufficientFrames(
                 id: stage.rawValue,
@@ -126,6 +144,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         var configuration = HDRConfiguration.calibratedV4
         configuration.chromaReconstructionMode = .nearest
         let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.temporalTraceEnabled = true
         let renderer = stage.includesPresentation
             ? try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
             : nil
@@ -150,6 +169,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
 
             var presentationTexture: MTLTexture?
             var readback: MTLBuffer?
+            let completionWaiter = usesAsyncWaiter ? RealMediaCompletionWaiter() : nil
             if stage.includesPresentation {
                 let descriptor = MTLTextureDescriptor.texture2DDescriptor(
                     pixelFormat: .rgba16Float,
@@ -206,12 +226,19 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=raw-blit-encoded frame=\(index)")
             }
 
+            if let completionWaiter {
+                commandBuffer.addCompletedHandler { _ in
+                    completionWaiter.signal()
+                }
+            }
+
             pending.append(
                 HDRStagePendingFrame(
                     commandBuffer: commandBuffer,
                     frame: frame,
                     presentationTexture: presentationTexture,
-                    readback: readback
+                    readback: readback,
+                    completionWaiter: completionWaiter
                 )
             )
         }
@@ -221,8 +248,14 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             value.commandBuffer.commit()
         }
         print("HDR_STAGE_PROGRESS stage=\(stage.rawValue) phase=committed count=\(pending.count)")
-        for value in pending {
-            value.commandBuffer.waitUntilCompleted()
+        if usesAsyncWaiter {
+            for value in pending {
+                await value.completionWaiter?.wait()
+            }
+        } else {
+            for value in pending {
+                synchronouslyWaitUntilCompleted(value.commandBuffer)
+            }
         }
         for value in pending {
             guard value.commandBuffer.status == .completed,
@@ -250,6 +283,9 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         emitResult(
             HDRStageIsolationResult(
                 stage: stage.rawValue,
+                completionMode: usesAsyncWaiter
+                    ? "completionHandler+asyncWaiter"
+                    : "waitUntilCompleted",
                 status: "PASS",
                 frames: pending.count,
                 commandBuffersCommitted: pending.count,
