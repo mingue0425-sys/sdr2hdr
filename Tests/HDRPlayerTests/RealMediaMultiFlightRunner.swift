@@ -525,6 +525,7 @@ extension RealMediaRegressionRunner {
         }
         let overlapGateValue: UInt64 = 1
         var overlapGateReleased = false
+        var overlapReleaseCommandBuffer: MTLCommandBuffer?
 
         var pending: [RealMediaPendingFrame] = []
         var completedFrames: [RealMediaCompletedFrame] = []
@@ -596,12 +597,33 @@ extension RealMediaRegressionRunner {
                 logMultiFlightProgress(
                     "release-overlap id=\(fixture.id) depth=\(flightDepth)"
                 )
-                overlapGate.signaledValue = overlapGateValue
+                guard let releaseQueue = device.makeCommandQueue(),
+                      let releaseCommandBuffer = releaseQueue.makeCommandBuffer() else {
+                    throw RunnerError.commandBufferFailed(
+                        "Metal overlap release command buffer unavailable"
+                    )
+                }
+                releaseCommandBuffer.encodeSignalEvent(
+                    overlapGate,
+                    value: overlapGateValue
+                )
+                releaseCommandBuffer.commit()
+                overlapReleaseCommandBuffer = releaseCommandBuffer
                 overlapGateReleased = true
             }
         }
         while !pending.isEmpty {
             try retireOldest()
+        }
+        if let overlapReleaseCommandBuffer {
+            overlapReleaseCommandBuffer.waitUntilCompleted()
+            guard overlapReleaseCommandBuffer.status == .completed,
+                  overlapReleaseCommandBuffer.error == nil else {
+                throw RunnerError.commandBufferFailed(
+                    "Metal overlap release command buffer failed: " +
+                        (overlapReleaseCommandBuffer.error?.localizedDescription ?? "unknown status")
+                )
+            }
         }
 
         let completionEvents = collector.events
