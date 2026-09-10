@@ -10,10 +10,10 @@ branch:
 real-media-multiflight-development
 
 validated implementation head:
-60be173d5ff03da0775fcc652f3ba90b2a581e97
+d025f993229f6e001b970e7b6c0c4367d3b109ea
 
 remote isolation run:
-34479807911 (head 2da37f29d315d67aa241da014a6f452afe439b44)
+34489118024 (head d025f993229f6e001b970e7b6c0c4367d3b109ea)
 ~~~
 
 The branch is based on the current main baseline. The deterministic regression
@@ -32,9 +32,9 @@ VMAPPLE BASIC METAL MULTIFLIGHT FAILURE: DISPROVEN
 TEST-OBSERVER COMPLETION-HANDLER INTERACTION: SUSPECTED
 ~~~
 
-The first two labels describe the evidence boundary, not a claim that the
-remote VMAPPLE runtime is fully explained. The observer interaction remains a
-diagnostic finding until the new portable remote run completes.
+The first two labels describe the evidence boundary, not a claim that every
+VMAPPLE callback path is portable. The mandatory portable remote run is now
+green; the observer interaction remains an evidence-only diagnostic finding.
 
 ## Existing Serial Control
 
@@ -119,8 +119,10 @@ The mandatory local Apple M2 runner completed all 28 executions with
 failures=0 under `MTL_DEBUG_LAYER=1` in three consecutive runs. The optional
 `multiflight-native-observer` mode also completed all 28 executions with
 failures=0 in three consecutive runs, including callback identity and ordinal
-checks. The remote run listed above predates this portable-retirement change;
-the new remote result is the merge gate for this revision.
+checks. The remote Apple Paravirtual run listed above also completed the
+mandatory portable matrix with failures=0 for all 28 executions. Its separate
+native external-observer diagnostic remains a known signal-5 failure and is
+not part of the portable production gate.
 
 `maxSubmittedBeforeRetirement` is a queue-state fact, not a claim that a
 profiler observed simultaneous GPU-core execution. For depth 2 the sequence is
@@ -130,20 +132,20 @@ profiler observed simultaneous GPU-core execution. For depth 2 the sequence is
 
 The remote run used macOS 15.7.9, Darwin 24.6.0, arm64, and an Apple
 Paravirtual device. The ladder was run as separate Swift-test processes, with
-the result and raw logs uploaded even when the mandatory multi-flight step
-failed.
+the result and raw logs uploaded for both the production gate and the
+observer-only diagnostics.
 
-The previous remote pure-Metal ladder, with two command buffers encoded before
-either is waited, was:
+The remote pure-Metal ladder, with two command buffers encoded before either is
+waited, was:
 
 ~~~text
-P1_empty:                   PASS debug0, PASS debug1
-P2_blit:                    PASS debug0, PASS debug1
-P3_compute:                 PASS debug0, PASS debug1
-P4_render:                  PASS debug0, PASS debug1
-P5_compute_render_blit:     PASS debug0, PASS debug1
-P6_shared_pipeline:         PASS debug0, PASS debug1
-P7_shared_readonly_texture: PASS debug0, PASS debug1
+P1_empty:                   PASS remote/local
+P2_blit:                    PASS remote/local
+P3_compute:                 PASS remote/local
+P4_render:                  PASS remote/local
+P5_compute_render_blit:     PASS remote/local
+P6_shared_pipeline:         PASS remote/local
+P7_shared_readonly_texture: PASS remote/local
 
 classification: PURE_METAL_MULTIFLIGHT_PASS
 ~~~
@@ -153,19 +155,19 @@ handler-body matrix. Each case is a separate Swift-test process so one crash
 cannot erase later evidence:
 
 ~~~text
-P8  one command buffer / one no-op handler:       PASS locally
-P9  two command buffers / one handler each:        PASS locally
-P10 one command buffer / two handlers:             PASS locally
-P11 one command buffer / three handlers:           PASS locally
-P12 two command buffers / two handlers each:       PASS locally
-P13 two command buffers / three handlers each:     PASS locally
+P8  one command buffer / one no-op handler:       PASS remote/local
+P9  two command buffers / one handler each:        PASS remote/local
+P10 one command buffer / two handlers:             PASS remote/local
+P11 one command buffer / three handlers:           PASS remote/local
+P12 two command buffers / two handlers each:       PASS remote/local
+P13 two command buffers / three handlers each:     PASS remote/local
 
-BODY0 no-op:             PASS locally
-BODY1 status-read:       PASS locally
-BODY2 locked-counter:    PASS locally
-BODY3 lifetime-capture:  PASS locally
-BODY4 semaphore:         PASS locally
-BODY5 continuation:      PASS locally
+BODY0 no-op:             PASS remote/local
+BODY1 status-read:       PASS remote/local
+BODY2 locked-counter:    PASS remote/local
+BODY3 lifetime-capture:  PASS remote/local
+BODY4 semaphore:         PASS remote/local
+BODY5 continuation:      PASS remote/local
 ~~~
 
 The artifact records expected handler cardinality from the test source and
@@ -182,8 +184,8 @@ H3_HDRProcessor_plus_presentation: PASS
 H4_full_path:                      PASS
 ~~~
 
-The previous completion-handler controls isolated the remaining failure from
-the production stages:
+The remote completion-handler controls isolated the remaining failure from the
+production stages:
 
 ~~~text
 H4 completionHandler+directWait:  SIGNAL 5 (exitCode=1)
@@ -192,14 +194,29 @@ H4 completionHandler+asyncWaiter: SIGNAL 5 (exitCode=1)
 classification: VMAPPLE_TEST_OBSERVER_COMPLETION_HANDLER_INCOMPATIBILITY
 ~~~
 
-Both controls reached `phase=committed count=2` before the signal. Thus the
-remote result does not support a basic VMAPPLE inability to encode or complete
-two empty, blit, compute, render, mixed, shared-pipeline, or shared read-only
-texture command buffers. It does show that the completion-handler path used by
-the old real multi-flight runner is still unresolved on that device. The new
-stage matrix adds H1 no-op/counter, H3 no-op, and H4 no-op/counter/async
-controls so the next remote artifact can distinguish cardinality from closure
-body and renderer-path interaction.
+The complete remote observer-control matrix was:
+
+~~~text
+H1 + no-op observer / direct wait:      SIGNAL 5
+H1 + counter observer / direct wait:    SIGNAL 5
+H3 + no-op observer / direct wait:      SIGNAL 5
+H4 + no-op observer / direct wait:      SIGNAL 5
+H4 + counter observer / direct wait:    SIGNAL 5
+H4 + counter observer / async waiter:   SIGNAL 5
+
+local observer controls: PASS
+first failing control: H1_completion_handler_noop
+~~~
+
+All six controls reached `phase=committed count=2` before signal 5; the first
+failing control was `H1_completion_handler_noop`. Thus the remote result does
+not support a basic VMAPPLE inability to encode or complete two empty, blit,
+compute, render, mixed, shared-pipeline, or shared read-only texture command
+buffers, and it does not implicate the production `waitUntilCompleted` path.
+It does show that adding the test external completion observer to the
+production command-buffer path remains unresolved on that device. The
+artifact records `observerDiagnostic.status=KNOWN_FAIL` and preserves the
+observer-specific raw logs.
 
 ## VMAPPLE Minimal Diagnostic Matrix
 
@@ -217,7 +234,10 @@ case B: MTL_DEBUG_LAYER=0, scheduling work ON  (32 MiB, 8 shared blit passes): S
 case C: MTL_DEBUG_LAYER=1, scheduling work OFF (0 bytes, 0 passes):           SIGNAL 5
 case D: MTL_DEBUG_LAYER=0, scheduling work OFF (0 bytes, 0 passes):           SIGNAL 5
 
-classification: HDR CORE MULTIFLIGHT FAILURE NOT REPRODUCED; "TEST-OBSERVER COMPLETION-HANDLER INTERACTION SUSPECTED"
+classification:
+  HDR CORE MULTIFLIGHT FAILURE NOT REPRODUCED
+  VMAPPLE BASIC METAL MULTIFLIGHT FAILURE DISPROVEN
+  TEST-OBSERVER COMPLETION-HANDLER INTERACTION SUSPECTED
 ~~~
 
 The process-independent matrix therefore did not vary with the Metal debug
@@ -225,11 +245,11 @@ layer or the test-only scheduling work. The deep markers show both output
 leases active at frame 1, output lease IDs 0 and 1, two temporal-estimator
 buffers with distinct identities, and presentation audit flags for
 per-command writable buffers, read-only fallback textures, and completion
-lifetime retention. The old runner then signaled during the first retirement
-window. Because P1–P7 and H1–H4 with waitUntilCompleted passed, this does not
-support an HDR-core or basic-Metal classification. It points specifically at
-the old test-observer completion path; the portable remote rerun is still the
-production gate.
+lifetime retention. The observer-enabled runner then signaled during the first
+retirement window. Because P1–P7 and H1–H4 with `waitUntilCompleted` passed,
+this does not support an HDR-core or basic-Metal classification. It points
+specifically at the test-observer completion path; the portable remote run is
+the production gate and is green.
 
 ## Completion Evidence
 
@@ -420,15 +440,19 @@ bash -n RUN_MACOS_VERIFY.sh: PASS
 ./RUN_MACOS_VERIFY.sh multiflight-diagnostic: PASS (native observer not reproduced locally)
 MTL_DEBUG_LAYER=1 ./RUN_MACOS_VERIFY.sh multiflight: PASS ×3 (28 mode runs each)
 MTL_DEBUG_LAYER=1 ./RUN_MACOS_VERIFY.sh multiflight-native-observer: PASS ×3 (28 mode runs each)
+remote CI 34489118024: PASS (all workflow steps; portable multiflight 28/28)
+remote pure-metal artifact: PASS (P1–P13, BODY0–BODY5)
+remote HDR stage artifact: H1–H4 PASS; observer controls KNOWN_FAIL (signal 5)
+remote observer diagnostic: KNOWN_FAIL (A–D signal 5; native external observer)
 git diff --check: PASS
 ~~~
 
 The workflow invokes `./RUN_MACOS_VERIFY.sh multiflight` as the mandatory
 portable gate. The pure-Metal cardinality/body probes and HDR observer controls
 run under `if: always()` and record failures without converting them into a
-production-stage failure. The next remote run must establish whether the
-portable retirement path passes on Apple Paravirtual; the previous run did not
-exercise this revised runner.
+production-stage failure. In remote CI run 34489118024 the portable retirement
+path passed; the observer-specific failures remain visible in their separate
+artifacts and do not change the production gate result.
 
 ## Presentation Resource Binding Finding
 
@@ -444,10 +468,10 @@ one diagnostic buffer per command buffer until completion. The read-only 1×1
 fallback texture remains shareable. This changes no presentation arithmetic or
 production HDR parameters. With the fix, the local multi-flight matrix passes
 under Metal API Validation. The remote ladder showed that P1–P7 and H1–H4
-also pass when completion is obtained with `waitUntilCompleted`, while the old
-completion-handler controls still signal. The resource-lifetime fix remains a
-valid safety fix, but it is not claimed to fix or explain the separate
-test-observer interaction.
+also pass when completion is obtained with `waitUntilCompleted`, while the
+observer controls still signal. The resource-lifetime fix remains a valid
+safety fix, but it is not claimed to fix or explain the separate test-observer
+interaction.
 
 ## Production Invariants
 
@@ -491,27 +515,121 @@ Objective evaluations: 0
 - No safe forced command-buffer failure seam was available.
 - Real playback display-link scheduling, frame dropping policy, and AVPlayer
   acquisition timing remain outside this PR.
-- The previous Apple Paravirtual run signaled in the old completion-handler
-  path even though the pure Metal ladder and `waitUntilCompleted` production
-  stages passed. The portable-retirement rerun is required before calling the
-  remote production gate green.
+- The Apple Paravirtual observer controls still signal even though the pure
+  Metal ladder, `waitUntilCompleted` production stages, and portable
+  real-media gate pass. The observer-specific runtime interaction remains a
+  known diagnostic limitation.
 
 ## Recommended Next Step
 
 Keep the serial regression path as the production-equivalent control and use
-this multi-flight harness for future pool, lease, and causal-state changes. The
-next remote run should be evaluated with the portable gate as the production
-criterion and the pure-Metal/HDR observer matrices as evidence-only diagnostics.
-Any production scheduler change should first add a separate playback
-integration seam so decode acquisition, frame dropping, and GPU overlap can be
-measured independently.
+this multi-flight harness for future pool, lease, and causal-state changes.
+Treat the portable gate as the remote production criterion and retain the
+pure-Metal/HDR observer matrices as evidence-only diagnostics. Any production
+scheduler change should first add a separate playback integration seam so
+decode acquisition, frame dropping, and GPU overlap can be measured
+independently.
 
 ## Git State
 
 ~~~text
-diagnostic implementation head: 60be173d5ff03da0775fcc652f3ba90b2a581e97
+diagnostic implementation head: d025f993229f6e001b970e7b6c0c4367d3b109ea
 production resource-lifetime fix: 736b84c
-remote isolation run: 34479807911 (superseded by next CI run)
-docs commit: this report update
+remote isolation run: 34489118024 (PASS; portable gate 28/28)
+remote observer diagnostics: KNOWN_FAIL (signal 5; artifacts retained)
+docs commit: docs(hdr): update remote CI findings
 main was not modified or pushed from this work
+~~~
+
+## Final Verdict
+
+~~~text
+baseline: main@45a88de44df9cc9a56b10a98e8bb3a83023308d6
+branch: real-media-multiflight-development
+head: d025f993229f6e001b970e7b6c0c4367d3b109ea
+
+PURE METAL:
+P1-P7: PASS remote/local
+P8: PASS remote/local
+P9: PASS remote/local
+P10: PASS remote/local
+P11: PASS remote/local
+P12: PASS remote/local
+P13: PASS remote/local
+
+first failing completion-handler probe:
+pure Metal: none
+HDR observer controls: H1_completion_handler_noop (remote signal 5)
+
+HANDLER BODY:
+no-op: PASS remote/local
+status-read: PASS remote/local
+locked-counter: PASS remote/local
+lifetime-capture: PASS remote/local
+semaphore: PASS remote/local
+continuation: PASS remote/local
+
+HDR HANDLER MATRIX:
+H1 internal-only: PASS remote/local
+H1 + no-op observer: remote SIGNAL 5; local PASS
+H1 + counter observer: remote SIGNAL 5; local PASS
+H3 internal-only: PASS remote/local
+H3 + no-op observer: remote SIGNAL 5; local PASS
+H4 internal-only: PASS remote/local
+H4 + no-op observer: remote SIGNAL 5; local PASS
+H4 + counter: remote SIGNAL 5; local PASS
+H4 + async waiter: remote SIGNAL 5; local PASS
+
+classification:
+HDR CORE MULTIFLIGHT FAILURE NOT REPRODUCED
+VMAPPLE BASIC METAL MULTIFLIGHT FAILURE DISPROVEN
+TEST-OBSERVER COMPLETION-HANDLER INTERACTION SUSPECTED
+
+PORTABLE MULTIFLIGHT:
+remote: PASS (28/28)
+local: PASS ×3 (28/28 each)
+depth2: PASS
+depth3: PASS
+NV12: PASS
+P010: PASS
+
+LOCAL NATIVE OBSERVER:
+result: PASS
+repetitions: ×3 (28/28 each)
+
+GENERATION:
+PASS
+
+TEXTURE LIFETIME:
+PASS
+
+REMOTE CI:
+PASS (34489118024; all workflow steps green)
+
+VMAPPLE observer diagnostic:
+KNOWN_FAIL
+reason: native external test observer completion-handler interaction; diagnostic-only
+
+production arithmetic changed:
+NO
+
+renderer safety fix:
+PRESERVED
+reason: per-command writable diagnostic buffer and GPU-completion lifetime retained
+
+diagnostic HDRProcessor instrumentation:
+RETAINED
+reason: environment-gated, test-only progress/resource evidence; arithmetic inert
+
+Virgin Frozen:
+NO
+
+Objective evaluations:
+0
+
+PR #8 merge recommendation:
+NO (await user decision while observer diagnostic remains known-fail)
+
+working tree:
+clean after docs commit
 ~~~
