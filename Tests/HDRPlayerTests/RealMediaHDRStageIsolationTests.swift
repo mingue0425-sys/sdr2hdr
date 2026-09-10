@@ -21,14 +21,55 @@ private enum HDRStageIsolationStage: String, CaseIterable {
     }
 }
 
+private enum HDRStageExternalHandlerBody: String {
+    case none
+    case noop
+    case counter
+}
+
 private struct HDRStageIsolationResult: Codable {
     let stage: String
     let completionMode: String
+    let externalHandlerBody: String
+    let expectedProductionHandlerCount: Int
+    let expectedExternalHandlerCount: Int
+    let expectedHandlerCount: Int
+    let handlerCountBasis: String
     let status: String
     let frames: Int
     let commandBuffersCommitted: Int
     let commandBuffersCompleted: Int
     let error: String?
+
+    init(
+        stage: String,
+        completionMode: String,
+        externalHandlerBody: String = HDRStageExternalHandlerBody.none.rawValue,
+        expectedProductionHandlerCount: Int = 0,
+        expectedExternalHandlerCount: Int = 0,
+        expectedHandlerCount: Int = 0,
+        handlerCountBasis: String =
+            "production code-path expectation per command buffer; " +
+                "Metal exposes no handler-count introspection",
+        status: String,
+        frames: Int,
+        commandBuffersCommitted: Int,
+        commandBuffersCompleted: Int,
+        error: String?
+    ) {
+        self.stage = stage
+        self.completionMode = completionMode
+        self.externalHandlerBody = externalHandlerBody
+        self.expectedProductionHandlerCount = expectedProductionHandlerCount
+        self.expectedExternalHandlerCount = expectedExternalHandlerCount
+        self.expectedHandlerCount = expectedHandlerCount
+        self.handlerCountBasis = handlerCountBasis
+        self.status = status
+        self.frames = frames
+        self.commandBuffersCommitted = commandBuffersCommitted
+        self.commandBuffersCompleted = commandBuffersCompleted
+        self.error = error
+    }
 }
 
 private struct HDRStagePendingFrame {
@@ -88,7 +129,11 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         }
         let completionSetting = environment["HDR_PRODUCTION_COMPLETION_MODE"] ?? "waitUntilCompleted"
         let usesAsyncWaiter = completionSetting == "async-waiter"
-        let usesExternalCompletionHandler = completionSetting != "waitUntilCompleted"
+        let externalHandlerBody = HDRStageExternalHandlerBody(
+            rawValue: environment["HDR_PRODUCTION_COMPLETION_BODY"] ??
+                (completionSetting == "waitUntilCompleted" ? "none" : "counter")
+        ) ?? .counter
+        let usesExternalCompletionHandler = externalHandlerBody != .none
         let completionMode: String
         switch completionSetting {
         case "completion-handler-direct-wait":
@@ -139,6 +184,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 device: device,
                 usesAsyncWaiter: usesAsyncWaiter,
                 usesExternalCompletionHandler: usesExternalCompletionHandler,
+                externalHandlerBody: externalHandlerBody,
                 completionMode: completionMode
             )
         } catch {
@@ -163,6 +209,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         device: MTLDevice,
         usesAsyncWaiter: Bool,
         usesExternalCompletionHandler: Bool,
+        externalHandlerBody: HDRStageExternalHandlerBody,
         completionMode: String
     ) async throws {
         guard frames.count >= 2 else {
@@ -185,6 +232,14 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
         var pending: [HDRStagePendingFrame] = []
         pending.reserveCapacity(2)
         let completionCounter = HDRStageCompletionCounter()
+        let expectedProductionHandlerCount = stage.includesPresentation ? 2 : 1
+        let expectedExternalHandlerCount = usesExternalCompletionHandler ? 1 : 0
+        writeHDRStageProgress(
+            "stage=\(stage.rawValue) phase=expected-handlers " +
+                "production=\(expectedProductionHandlerCount) " +
+                "external=\(expectedExternalHandlerCount) " +
+                "body=\(externalHandlerBody.rawValue)"
+        )
 
         writeHDRStageProgress("stage=\(stage.rawValue) phase=resources-ready")
         for (index, decoded) in frames.prefix(2).enumerated() {
@@ -262,9 +317,16 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             }
 
             if usesExternalCompletionHandler {
-                commandBuffer.addCompletedHandler { _ in
-                    completionCounter.increment()
-                    completionWaiter?.signal()
+                switch externalHandlerBody {
+                case .none:
+                    break
+                case .noop:
+                    commandBuffer.addCompletedHandler { _ in }
+                case .counter:
+                    commandBuffer.addCompletedHandler { _ in
+                        completionCounter.increment()
+                        completionWaiter?.signal()
+                    }
                 }
             }
 
@@ -315,7 +377,7 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
                 }
             }
         }
-        if usesExternalCompletionHandler {
+        if externalHandlerBody == .counter {
             guard completionCounter.value == pending.count else {
                 throw RealMediaRegressionRunner.RunnerError.commandBufferFailed(
                     "external completion handler count=\(completionCounter.value), expected \(pending.count)"
@@ -327,6 +389,10 @@ final class RealMediaHDRStageIsolationTests: XCTestCase {
             HDRStageIsolationResult(
                 stage: stage.rawValue,
                 completionMode: completionMode,
+                externalHandlerBody: externalHandlerBody.rawValue,
+                expectedProductionHandlerCount: expectedProductionHandlerCount,
+                expectedExternalHandlerCount: expectedExternalHandlerCount,
+                expectedHandlerCount: expectedProductionHandlerCount + expectedExternalHandlerCount,
                 status: "PASS",
                 frames: pending.count,
                 commandBuffersCommitted: pending.count,

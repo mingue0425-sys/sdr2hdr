@@ -6,15 +6,27 @@ private struct MetalProbeCounts: Codable {
     let commandBuffersCommitted: Int
     let commandBuffersCompleted: Int
     let completionHandlers: Int?
+    let expectedHandlerCount: Int?
+    let expectedHandlersPerCommandBuffer: Int?
+    let handlerBody: String?
+    let handlerCountBasis: String?
 
     init(
         commandBuffersCommitted: Int,
         commandBuffersCompleted: Int,
-        completionHandlers: Int? = nil
+        completionHandlers: Int? = nil,
+        expectedHandlerCount: Int? = nil,
+        expectedHandlersPerCommandBuffer: Int? = nil,
+        handlerBody: String? = nil,
+        handlerCountBasis: String? = nil
     ) {
         self.commandBuffersCommitted = commandBuffersCommitted
         self.commandBuffersCompleted = commandBuffersCompleted
         self.completionHandlers = completionHandlers
+        self.expectedHandlerCount = expectedHandlerCount
+        self.expectedHandlersPerCommandBuffer = expectedHandlersPerCommandBuffer
+        self.handlerBody = handlerBody
+        self.handlerCountBasis = handlerCountBasis
     }
 }
 
@@ -24,6 +36,10 @@ private struct MetalProbeResult: Codable {
     let commandBuffersCommitted: Int
     let commandBuffersCompleted: Int
     let completionHandlers: Int?
+    let expectedHandlerCount: Int?
+    let expectedHandlersPerCommandBuffer: Int?
+    let handlerBody: String?
+    let handlerCountBasis: String?
     let error: String?
 }
 
@@ -57,6 +73,44 @@ private final class CompletionCounter: @unchecked Sendable {
         lock.unlock()
     }
 }
+
+private final class CapturedHandlerLifetime: @unchecked Sendable {
+    private let counter = CompletionCounter()
+
+    var value: Int { counter.value }
+
+    func keepAlive() { counter.increment() }
+}
+
+private final class CompletionContinuationBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var installedStorage = false
+
+    var isInstalled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return installedStorage
+    }
+
+    func install(_ continuation: CheckedContinuation<Void, Never>) {
+        lock.lock()
+        self.continuation = continuation
+        installedStorage = true
+        lock.unlock()
+    }
+
+    func resume() {
+        lock.lock()
+        let continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume()
+    }
+}
+
+private let metalHandlerCountBasis =
+    "test-source registration expectation; Metal exposes no handler-count introspection"
 
 private let metalProbeShaderSource = """
 #include <metal_stdlib>
@@ -430,6 +484,281 @@ final class MetalConcurrentCommandBufferProbeTests: XCTestCase {
         }
     }
 
+    func testP8OneCommandBufferOneNoOpHandler() {
+        executeProbe("P8_one_cb_one_handler") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P8_one_cb_one_handler",
+                commandBufferCount: 1,
+                handlersPerCommandBuffer: 1
+            )
+        }
+    }
+
+    func testP9TwoCommandBuffersOneNoOpHandlerEach() {
+        executeProbe("P9_two_cb_one_handler_each") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P9_two_cb_one_handler_each",
+                commandBufferCount: 2,
+                handlersPerCommandBuffer: 1
+            )
+        }
+    }
+
+    func testP10OneCommandBufferTwoNoOpHandlers() {
+        executeProbe("P10_one_cb_two_handlers") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P10_one_cb_two_handlers",
+                commandBufferCount: 1,
+                handlersPerCommandBuffer: 2
+            )
+        }
+    }
+
+    func testP11OneCommandBufferThreeNoOpHandlers() {
+        executeProbe("P11_one_cb_three_handlers") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P11_one_cb_three_handlers",
+                commandBufferCount: 1,
+                handlersPerCommandBuffer: 3
+            )
+        }
+    }
+
+    func testP12TwoCommandBuffersTwoNoOpHandlersEach() {
+        executeProbe("P12_two_cb_two_handlers_each") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P12_two_cb_two_handlers_each",
+                commandBufferCount: 2,
+                handlersPerCommandBuffer: 2
+            )
+        }
+    }
+
+    func testP13TwoCommandBuffersThreeNoOpHandlersEach() {
+        executeProbe("P13_two_cb_three_handlers_each") {
+            try runNoOpHandlerCardinalityProbe(
+                probe: "P13_two_cb_three_handlers_each",
+                commandBufferCount: 2,
+                handlersPerCommandBuffer: 3
+            )
+        }
+    }
+
+    func testHandlerBody0NoOp() {
+        executeProbe("BODY0_noop") {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY0 command buffer")
+            }
+            commandBuffer.addCompletedHandler { _ in }
+            let counts = try commitAndWait([commandBuffer], probe: "BODY0_noop")
+            return MetalProbeCounts(
+                commandBuffersCommitted: counts.commandBuffersCommitted,
+                commandBuffersCompleted: counts.commandBuffersCompleted,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "no-op",
+                handlerCountBasis: metalHandlerCountBasis
+            )
+        }
+    }
+
+    func testHandlerBody1StatusRead() {
+        executeProbe("BODY1_status_read") {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY1 command buffer")
+            }
+            commandBuffer.addCompletedHandler { completedCommandBuffer in
+                _ = completedCommandBuffer.status
+            }
+            let counts = try commitAndWait([commandBuffer], probe: "BODY1_status_read")
+            return MetalProbeCounts(
+                commandBuffersCommitted: counts.commandBuffersCommitted,
+                commandBuffersCompleted: counts.commandBuffersCompleted,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "status-read",
+                handlerCountBasis: metalHandlerCountBasis
+            )
+        }
+    }
+
+    func testHandlerBody2LockedCounter() {
+        executeProbe("BODY2_locked_counter") {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY2 command buffer")
+            }
+            let counter = CompletionCounter()
+            commandBuffer.addCompletedHandler { _ in
+                counter.increment()
+            }
+            let counts = try commitAndWait([commandBuffer], probe: "BODY2_locked_counter")
+            guard counter.value == 1 else {
+                throw MetalProbeFailure(message: "BODY2 counter value was \(counter.value), expected 1")
+            }
+            return MetalProbeCounts(
+                commandBuffersCommitted: counts.commandBuffersCommitted,
+                commandBuffersCompleted: counts.commandBuffersCompleted,
+                completionHandlers: counter.value,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "locked-counter",
+                handlerCountBasis: metalHandlerCountBasis
+            )
+        }
+    }
+
+    func testHandlerBody3LifetimeCapture() {
+        executeProbe("BODY3_lifetime_capture") {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY3 command buffer")
+            }
+            let lifetime = CapturedHandlerLifetime()
+            commandBuffer.addCompletedHandler { _ in
+                lifetime.keepAlive()
+            }
+            let counts = try commitAndWait([commandBuffer], probe: "BODY3_lifetime_capture")
+            guard lifetime.value == 1 else {
+                throw MetalProbeFailure(
+                    message: "BODY3 lifetime callback count was \(lifetime.value), expected 1"
+                )
+            }
+            return MetalProbeCounts(
+                commandBuffersCommitted: counts.commandBuffersCommitted,
+                commandBuffersCompleted: counts.commandBuffersCompleted,
+                completionHandlers: lifetime.value,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "lifetime-capture",
+                handlerCountBasis: metalHandlerCountBasis
+            )
+        }
+    }
+
+    func testHandlerBody4Semaphore() {
+        executeProbe("BODY4_semaphore") {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY4 command buffer")
+            }
+            let semaphore = DispatchSemaphore(value: 0)
+            commandBuffer.addCompletedHandler { _ in
+                semaphore.signal()
+            }
+            let counts = try commitAndWait([commandBuffer], probe: "BODY4_semaphore")
+            guard semaphore.wait(timeout: .now() + 5) == .success else {
+                throw MetalProbeFailure(message: "BODY4 semaphore was not signaled")
+            }
+            return MetalProbeCounts(
+                commandBuffersCommitted: counts.commandBuffersCommitted,
+                commandBuffersCompleted: counts.commandBuffersCompleted,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "semaphore",
+                handlerCountBasis: metalHandlerCountBasis
+            )
+        }
+    }
+
+    func testHandlerBody5Continuation() async {
+        print("PURE_METAL_PROGRESS probe=BODY5_continuation phase=start")
+        do {
+            let device = try requireDevice()
+            guard let queue = device.makeCommandQueue(),
+                  let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "could not create BODY5 command buffer")
+            }
+            let continuation = CompletionContinuationBox()
+            commandBuffer.addCompletedHandler { _ in
+                continuation.resume()
+            }
+            let callbackTask = Task {
+                await withCheckedContinuation { (value: CheckedContinuation<Void, Never>) in
+                    continuation.install(value)
+                }
+            }
+            while !continuation.isInstalled {
+                await Task.yield()
+            }
+            commandBuffer.commit()
+            await commandBuffer.completed()
+            await callbackTask.value
+            guard commandBuffer.status == .completed, commandBuffer.error == nil else {
+                throw MetalProbeFailure(
+                    message: "BODY5 command buffer status=\(commandBuffer.status.rawValue) error=\(commandBuffer.error?.localizedDescription ?? "nil")"
+                )
+            }
+            let result = MetalProbeResult(
+                probe: "BODY5_continuation",
+                status: "PASS",
+                commandBuffersCommitted: 1,
+                commandBuffersCompleted: 1,
+                completionHandlers: 1,
+                expectedHandlerCount: 1,
+                expectedHandlersPerCommandBuffer: 1,
+                handlerBody: "continuation",
+                handlerCountBasis: metalHandlerCountBasis,
+                error: nil
+            )
+            print("PURE_METAL_PROBE_RESULT \(encodeJSON(result))")
+        } catch {
+            let result = MetalProbeResult(
+                probe: "BODY5_continuation",
+                status: "FAIL",
+                commandBuffersCommitted: 0,
+                commandBuffersCompleted: 0,
+                completionHandlers: nil,
+                expectedHandlerCount: nil,
+                expectedHandlersPerCommandBuffer: nil,
+                handlerBody: "continuation",
+                handlerCountBasis: metalHandlerCountBasis,
+                error: error.localizedDescription
+            )
+            print("PURE_METAL_PROBE_ERROR probe=BODY5_continuation error=\(error.localizedDescription)")
+            print("PURE_METAL_PROBE_RESULT \(encodeJSON(result))")
+            XCTFail("BODY5_continuation: \(error.localizedDescription)")
+        }
+    }
+
+    private func runNoOpHandlerCardinalityProbe(
+        probe: String,
+        commandBufferCount: Int,
+        handlersPerCommandBuffer: Int
+    ) throws -> MetalProbeCounts {
+        let device = try requireDevice()
+        guard let queue = device.makeCommandQueue() else {
+            throw MetalProbeFailure(message: "\(probe): could not create command queue")
+        }
+        var commandBuffers: [MTLCommandBuffer] = []
+        commandBuffers.reserveCapacity(commandBufferCount)
+        for index in 0..<commandBufferCount {
+            guard let commandBuffer = queue.makeCommandBuffer() else {
+                throw MetalProbeFailure(message: "\(probe): could not create command buffer \(index)")
+            }
+            for _ in 0..<handlersPerCommandBuffer {
+                commandBuffer.addCompletedHandler { _ in }
+            }
+            commandBuffers.append(commandBuffer)
+        }
+        let counts = try commitAndWait(commandBuffers, probe: probe)
+        return MetalProbeCounts(
+            commandBuffersCommitted: counts.commandBuffersCommitted,
+            commandBuffersCompleted: counts.commandBuffersCompleted,
+            expectedHandlerCount: commandBufferCount * handlersPerCommandBuffer,
+            expectedHandlersPerCommandBuffer: handlersPerCommandBuffer,
+            handlerBody: "no-op",
+            handlerCountBasis: metalHandlerCountBasis
+        )
+    }
+
     private let computeElementCount = 256
     private let renderWidth = 64
     private let renderHeight = 36
@@ -454,6 +783,10 @@ final class MetalConcurrentCommandBufferProbeTests: XCTestCase {
                 commandBuffersCommitted: counts.commandBuffersCommitted,
                 commandBuffersCompleted: counts.commandBuffersCompleted,
                 completionHandlers: counts.completionHandlers,
+                expectedHandlerCount: counts.expectedHandlerCount,
+                expectedHandlersPerCommandBuffer: counts.expectedHandlersPerCommandBuffer,
+                handlerBody: counts.handlerBody,
+                handlerCountBasis: counts.handlerCountBasis,
                 error: nil
             )
             print("PURE_METAL_PROBE_RESULT \(encodeJSON(result))")
@@ -464,6 +797,10 @@ final class MetalConcurrentCommandBufferProbeTests: XCTestCase {
                 commandBuffersCommitted: 0,
                 commandBuffersCompleted: 0,
                 completionHandlers: nil,
+                expectedHandlerCount: nil,
+                expectedHandlersPerCommandBuffer: nil,
+                handlerBody: nil,
+                handlerCountBasis: nil,
                 error: error.localizedDescription
             )
             print("PURE_METAL_PROBE_ERROR probe=\(name) error=\(error.localizedDescription)")
