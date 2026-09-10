@@ -18,13 +18,13 @@ struct RealMediaRegressionRunner {
         let presentationTime: CMTime
     }
 
-    private struct FrameExecution {
+    struct FrameExecution {
         let output: RegressionFrameOutput
         let gpuMilliseconds: Double
         let cpuMilliseconds: Double
     }
 
-    private struct ModeExecution {
+    struct ModeExecution {
         let result: RegressionModeResult
         let frames: [RegressionFrameOutput]
     }
@@ -75,9 +75,9 @@ struct RealMediaRegressionRunner {
     }
 
     private let manifest: RealMediaRegressionManifest
-    private let gates: RegressionGates
-    private let fixtureDirectory: URL
-    private let device: MTLDevice
+    let gates: RegressionGates
+    let fixtureDirectory: URL
+    let device: MTLDevice
 
     init(
         manifest: RealMediaRegressionManifest,
@@ -162,13 +162,14 @@ struct RealMediaRegressionRunner {
         )
     }
 
-    private func decodeFrames(
+    func decodeFrames(
         asset: AVAsset,
         fixture: RealMediaRegressionFixture,
         startTime: Double = 0,
         duration: Double? = nil,
         precision: HDRDecodePrecision? = nil,
-        resolvedPrecision: HDRResolvedDecodePrecision? = nil
+        resolvedPrecision: HDRResolvedDecodePrecision? = nil,
+        requiredFrameCount: Int? = nil
     ) async throws -> [DecodedFrame] {
         let item = AVPlayerItem(asset: asset)
         let output: AVPlayerItemVideoOutput
@@ -209,9 +210,13 @@ struct RealMediaRegressionRunner {
         output.requestNotificationOfMediaDataChange(withAdvanceInterval: 0.01)
         player.play()
 
+        let targetFrameCount = max(
+            requiredFrameCount ?? max(fixture.minimumFrames, gates.minimumDecodedFrames),
+            1
+        )
         var frames: [DecodedFrame] = []
         let deadline = Date().addingTimeInterval(15)
-        while frames.count < max(fixture.minimumFrames, gates.minimumDecodedFrames) && Date() < deadline {
+        while frames.count < targetFrameCount && Date() < deadline {
             let itemTime = output.itemTime(forHostTime: CACurrentMediaTime())
             if itemTime.isNumeric && output.hasNewPixelBuffer(forItemTime: itemTime) {
                 var displayTime = CMTime.invalid
@@ -227,18 +232,18 @@ struct RealMediaRegressionRunner {
                     }
                 }
             }
-            if let duration, frames.count >= fixture.minimumFrames,
+            if let duration, frames.count >= targetFrameCount,
                itemTime.isNumeric, itemTime.seconds >= startTime + duration {
                 break
             }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
         player.pause()
-        guard frames.count >= fixture.minimumFrames else {
+        guard frames.count >= targetFrameCount else {
             throw RunnerError.insufficientFrames(
                 id: fixture.id,
                 count: frames.count,
-                required: fixture.minimumFrames
+                required: targetFrameCount
             )
         }
         return frames
@@ -342,6 +347,28 @@ struct RealMediaRegressionRunner {
         return ModeExecution(result: result, frames: frameExecutions.map(\.output))
     }
 
+    /// Exposes the existing serial execution as a control for the separate
+    /// multi-flight regression path without duplicating its validation and
+    /// output-summary rules.
+    func runSerialModeForMultiFlight(
+        fixture: RealMediaRegressionFixture,
+        frames: [DecodedFrame],
+        inputFormat: HDRInputPixelFormat,
+        inputLevels: Int,
+        nearBlackInputSamples: [Float]?,
+        mode: RegressionMode
+    ) async throws -> (result: RegressionModeResult, frames: [RegressionFrameOutput]) {
+        let execution = try await runMode(
+            fixture: fixture,
+            frames: frames,
+            inputFormat: inputFormat,
+            inputLevels: inputLevels,
+            nearBlackInputSamples: nearBlackInputSamples,
+            mode: mode
+        )
+        return (execution.result, execution.frames)
+    }
+
     private func processAndPresent(
         _ decoded: DecodedFrame,
         index: Int,
@@ -351,160 +378,29 @@ struct RealMediaRegressionRunner {
         renderer: HDRPresentationRenderer,
         luminanceSampleLimit: Int? = nil
     ) throws -> FrameExecution {
-        let cpuStart = CACurrentMediaTime()
-        let commandBuffer = try processor.makeCommandBuffer()
-        let frame = try processor.process(
-            pixelBuffer: decoded.pixelBuffer,
-            timestamp: decoded.presentationTime,
-            commandBuffer: commandBuffer,
-            diagnosticFrameIndex: UInt64(index + 1)
-        )
-        guard frame.texture.pixelFormat == .rgba16Float,
-              frame.texture.width == width,
-              frame.texture.height == height else {
-            throw RunnerError.missingTexture
-        }
-
-        let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba16Float,
+        let pending = try makePendingFrame(
+            decoded,
+            index: index,
             width: width,
             height: height,
-            mipmapped: false
+            processor: processor,
+            renderer: renderer
         )
-        outputDescriptor.usage = [.renderTarget, .shaderRead]
-        outputDescriptor.storageMode = .private
-        guard let outputTexture = device.makeTexture(descriptor: outputDescriptor) else {
-            throw RunnerError.missingTexture
-        }
-        guard renderer.encodeOffscreen(
-            texture: frame.texture,
-            to: outputTexture,
-            commandBuffer: commandBuffer,
-            sourceSize: CGSize(width: width, height: height),
-            drawableSize: CGSize(width: width, height: height),
-            orientation: .identity,
-            fallbackToSDR: false,
-            masteringHeadroom: frame.metadata.masteringHeadroom,
-            displayHeadroom: 1.5,
-            diagnosticFrameIndex: UInt64(index + 1)
-        ) else {
-            throw RunnerError.commandBufferFailed("offscreen presentation encoding failed")
-        }
-
-        let readbackLength = width * height * 4 * MemoryLayout<UInt16>.stride
-        guard let readback = device.makeBuffer(length: readbackLength, options: .storageModeShared),
-              let blit = commandBuffer.makeBlitCommandEncoder() else {
-            throw RunnerError.missingTexture
-        }
-        blit.copy(
-            from: outputTexture,
-            sourceSlice: 0,
-            sourceLevel: 0,
-            sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-            sourceSize: MTLSize(width: width, height: height, depth: 1),
-            to: readback,
-            destinationOffset: 0,
-            destinationBytesPerRow: width * 4 * MemoryLayout<UInt16>.stride,
-            destinationBytesPerImage: readbackLength
-        )
-        blit.endEncoding()
+        let commandBuffer = pending.commandBuffer
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
-        guard commandBuffer.status == .completed, commandBuffer.error == nil else {
-            throw RunnerError.commandBufferFailed(commandBuffer.error?.localizedDescription ?? "unknown status")
-        }
-
-        let values = readback.contents().bindMemory(to: UInt16.self, capacity: width * height * 4)
-        var finiteSampleCount = 0
-        var nanCount = 0
-        var infinityCount = 0
-        var negativeCount = 0
-        var nonZeroSampleCount = 0
-        var minimumValue = Double.infinity
-        var maximumValue = -Double.infinity
-        let luminanceSampleStride = samplingStride(
-            width: width,
-            height: height,
-            maxSamples: luminanceSampleLimit
+        let completed = try completePendingFrame(
+            pending,
+            luminanceSampleLimit: luminanceSampleLimit
         )
-        let sampledWidth = (width + luminanceSampleStride - 1) / luminanceSampleStride
-        let sampledHeight = (height + luminanceSampleStride - 1) / luminanceSampleStride
-        let sampledPixelCount = max(sampledWidth * sampledHeight, 1)
-        var luminance: [Float] = []
-        luminance.reserveCapacity(sampledPixelCount)
-        var clippingPixels = 0
-        var luminanceSum = 0.0
-
-        for y in stride(from: 0, to: height, by: luminanceSampleStride) {
-            for x in stride(from: 0, to: width, by: luminanceSampleStride) {
-                let pixel = y * width + x
-                let red = Float(Float16(bitPattern: values[pixel * 4]))
-                let green = Float(Float16(bitPattern: values[pixel * 4 + 1]))
-                let blue = Float(Float16(bitPattern: values[pixel * 4 + 2]))
-                let alpha = Float(Float16(bitPattern: values[pixel * 4 + 3]))
-                if red.isNaN { nanCount += 1 }
-                else if red.isInfinite { infinityCount += 1 }
-                else {
-                    finiteSampleCount += 1
-                    if red < 0 { negativeCount += 1 }
-                    minimumValue = min(minimumValue, Double(red))
-                    maximumValue = max(maximumValue, Double(red))
-                }
-                if green.isNaN { nanCount += 1 }
-                else if green.isInfinite { infinityCount += 1 }
-                else {
-                    finiteSampleCount += 1
-                    if green < 0 { negativeCount += 1 }
-                    minimumValue = min(minimumValue, Double(green))
-                    maximumValue = max(maximumValue, Double(green))
-                }
-                if blue.isNaN { nanCount += 1 }
-                else if blue.isInfinite { infinityCount += 1 }
-                else {
-                    finiteSampleCount += 1
-                    if blue < 0 { negativeCount += 1 }
-                    minimumValue = min(minimumValue, Double(blue))
-                    maximumValue = max(maximumValue, Double(blue))
-                }
-                if alpha.isNaN { nanCount += 1 }
-                else if alpha.isInfinite { infinityCount += 1 }
-                else {
-                    finiteSampleCount += 1
-                    if alpha < 0 { negativeCount += 1 }
-                    minimumValue = min(minimumValue, Double(alpha))
-                    maximumValue = max(maximumValue, Double(alpha))
-                }
-                let pixelLuminance = 0.2627 * red + 0.6780 * green + 0.0593 * blue
-                luminance.append(pixelLuminance)
-                luminanceSum += Double(pixelLuminance)
-                if max(red, max(green, blue)) > 0.0001 { nonZeroSampleCount += 1 }
-                if max(red, max(green, blue)) >= 1.5 { clippingPixels += 1 }
-            }
-        }
-
-        let gpuMilliseconds: Double
-        if commandBuffer.gpuStartTime > 0, commandBuffer.gpuEndTime >= commandBuffer.gpuStartTime {
-            gpuMilliseconds = (commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1000
-        } else {
-            gpuMilliseconds = 0
-        }
-        let cpuMilliseconds = (CACurrentMediaTime() - cpuStart) * 1000
-        let output = RegressionFrameOutput(
-            finiteSampleCount: finiteSampleCount,
-            nanCount: nanCount,
-            infinityCount: infinityCount,
-            negativeCount: negativeCount,
-            nonZeroSampleCount: nonZeroSampleCount,
-            meanLuminance: luminanceSum / Double(sampledPixelCount),
-            minimumValue: minimumValue.isFinite ? minimumValue : 0,
-            maximumValue: maximumValue.isFinite ? maximumValue : 0,
-            clippingFraction: Double(clippingPixels) / Double(sampledPixelCount),
-            luminance: luminance
+        return FrameExecution(
+            output: completed.output,
+            gpuMilliseconds: completed.gpuMilliseconds,
+            cpuMilliseconds: completed.cpuMilliseconds
         )
-        return FrameExecution(output: output, gpuMilliseconds: gpuMilliseconds, cpuMilliseconds: cpuMilliseconds)
     }
 
-    private func validateMetadata(
+    func validateMetadata(
         fixture: RealMediaRegressionFixture,
         resolvedColor: ResolvedColorDescription,
         actualInputFormat: HDRInputPixelFormat
@@ -549,7 +445,7 @@ struct RealMediaRegressionRunner {
         return failures
     }
 
-    private func validateTimestamps(
+    func validateTimestamps(
         _ timestamps: [Double],
         fixture: RealMediaRegressionFixture
     ) -> [String] {
@@ -598,7 +494,7 @@ struct RealMediaRegressionRunner {
         }
     }
 
-    private func validateRuntime(
+    func validateRuntime(
         fixture: RealMediaRegressionFixture,
         processor: HDRProcessor,
         frameCount: Int,
@@ -681,7 +577,7 @@ struct RealMediaRegressionRunner {
         return failures
     }
 
-    private func outputSummary(
+    func outputSummary(
         inputLevels: Int,
         frames: [RegressionFrameOutput],
         nearBlackInputSamples: [Float]?,
@@ -746,7 +642,7 @@ struct RealMediaRegressionRunner {
         )
     }
 
-    private func timingSummary(
+    func timingSummary(
         timestamps: [Double],
         frameExecutions: [FrameExecution]
     ) -> RegressionTimingSummary {
@@ -779,7 +675,7 @@ struct RealMediaRegressionRunner {
         )
     }
 
-    private func inputLuminanceLevelCount(
+    func inputLuminanceLevelCount(
         frames: [DecodedFrame],
         inputFormat: HDRInputPixelFormat,
         maxSamples: Int? = nil
@@ -793,7 +689,7 @@ struct RealMediaRegressionRunner {
         return clusterCount(samples, tolerance: inputFormat.bitDepth == 10 ? 0.5 / 1023 : 0.5 / 255)
     }
 
-    private func inputLuminanceSamples(
+    func inputLuminanceSamples(
         frames: [DecodedFrame],
         inputFormat: HDRInputPixelFormat,
         region: RegressionRegion?,
@@ -809,7 +705,7 @@ struct RealMediaRegressionRunner {
         }
     }
 
-    private func samplingStride(width: Int, height: Int, maxSamples: Int?) -> Int {
+    func samplingStride(width: Int, height: Int, maxSamples: Int?) -> Int {
         guard let maxSamples, maxSamples > 0 else { return 1 }
         let sampleCount = max(width, 1) * max(height, 1)
         guard sampleCount > maxSamples else { return 1 }
@@ -852,7 +748,7 @@ struct RealMediaRegressionRunner {
         return violations
     }
 
-    private func unwrapFirstPixelBuffer(_ frames: [DecodedFrame]) throws -> CVPixelBuffer {
+    func unwrapFirstPixelBuffer(_ frames: [DecodedFrame]) throws -> CVPixelBuffer {
         guard let first = frames.first?.pixelBuffer else {
             throw RunnerError.insufficientFrames(id: "unknown", count: 0, required: 1)
         }
@@ -902,7 +798,7 @@ struct RealMediaRegressionRunner {
         return count
     }
 
-    private func percentile(_ values: [Double], fraction: Double) -> Double {
+    func percentile(_ values: [Double], fraction: Double) -> Double {
         let sorted = values.filter(\.isFinite).sorted()
         guard !sorted.isEmpty else { return 0 }
         let index = min(sorted.count - 1, max(0, Int((Double(sorted.count - 1) * fraction).rounded())))

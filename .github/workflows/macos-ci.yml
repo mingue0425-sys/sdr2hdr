@@ -47,6 +47,53 @@ jobs:
         run: ./RUN_MACOS_VERIFY.sh automatic-decode
       - name: Manifest-driven compressed-media regression matrix
         run: ./RUN_MACOS_VERIFY.sh regression
+      - name: Metal runner diagnostics
+        run: |
+          sw_vers
+          uname -a
+          uname -m
+          system_profiler SPDisplaysDataType || true
+          sysctl hw.memsize hw.ncpu || true
+      - name: Mandatory portable real-media multi-flight regression
+        env:
+          MTL_DEBUG_LAYER: 1
+        run: ./RUN_MACOS_VERIFY.sh multiflight
+      - name: VMAPPLE multi-flight diagnostic matrix
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh multiflight-diagnostic
+      - name: Upload VMAPPLE multi-flight diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiflight-vmapple-diagnostic
+          if-no-files-found: warn
+          path: |
+            results/multiflight-vmapple-diagnostic.json
+            results/multiflight-vmapple-diagnostic/
+      - name: VMAPPLE pure Metal and completion-handler isolation
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh pure-metal-multiflight
+      - name: Upload VMAPPLE pure Metal multi-flight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmapple-pure-metal-multiflight
+          if-no-files-found: warn
+          path: |
+            results/vmapple-pure-metal-multiflight.json
+            results/vmapple-pure-metal-multiflight/
+      - name: VMAPPLE HDR production stages and observer controls
+        if: always()
+        run: ./RUN_MACOS_VERIFY.sh hdr-stage-isolation
+      - name: Upload VMAPPLE HDR stage isolation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmapple-hdr-stage-isolation
+          if-no-files-found: warn
+          path: |
+            results/vmapple-hdr-stage-isolation.json
+            results/vmapple-hdr-stage-isolation/
       - name: Swift tests
         run: swift test -c debug --disable-index-store --skip HDRMetalReferenceTests --skip HDRV6ToneCurveTests/testV6MetalOutputMatchesScalarReference --skip HDRV62SceneAdaptiveTests/testV62MetalOutputMatchesCPUReference --skip CalibrationTests/testV4RuntimeBenchmarkCollectsRealGPUAndCPUSamples
 

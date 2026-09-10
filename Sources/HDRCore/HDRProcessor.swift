@@ -3,6 +3,35 @@ import CoreVideo
 import Foundation
 import Metal
 
+private let hdrMultiFlightDeepProgressEnabled =
+    ProcessInfo.processInfo.environment["HDR_MULTIFLIGHT_DEEP_PROGRESS"] == "1"
+
+private func writeHDRMultiFlightDeepProgress(_ message: @autoclosure () -> String) {
+    guard hdrMultiFlightDeepProgressEnabled else { return }
+    FileHandle.standardError.write(
+        Data("MULTIFLIGHT_DEEP_PROGRESS \(message())\n".utf8)
+    )
+}
+
+struct HDRTextureLeaseEvidence: Sendable {
+    let id: Int
+    let width: Int
+    let height: Int
+    let inFlight: Bool
+    let identity: String
+}
+
+struct HDRTemporalEstimateBufferEvidence: Sendable {
+    let leaseID: Int
+    let identity: String
+}
+
+struct HDRRuntimeResourceEvidence: Sendable {
+    let outputTextureSlotsPerSize: Int
+    let outputTextures: [HDRTextureLeaseEvidence]
+    let temporalEstimateBuffers: [HDRTemporalEstimateBufferEvidence]
+}
+
 public enum HDRProcessorError: Error, LocalizedError, Sendable {
     case commandQueueCreationFailed
     case commandBufferCreationFailed
@@ -85,6 +114,20 @@ private final class OutputTexturePool: @unchecked Sendable {
             total += Int64(entry.width) * Int64(entry.height) * 8
         }
         return (entries.count, bytes)
+    }
+
+    var evidence: [HDRTextureLeaseEvidence] {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries.map { entry in
+            HDRTextureLeaseEvidence(
+                id: entry.id,
+                width: entry.width,
+                height: entry.height,
+                inFlight: entry.inFlight,
+                identity: String(describing: ObjectIdentifier(entry.texture as AnyObject))
+            )
+        }
     }
 
     func prepare(width: Int, height: Int) throws {
@@ -518,6 +561,18 @@ private final class TemporalEstimateBufferPool: @unchecked Sendable {
         lock.withLock { buffers.count }
     }
 
+    var evidence: [HDRTemporalEstimateBufferEvidence] {
+        lock.withLock {
+            buffers.map { leaseID, buffer in
+                HDRTemporalEstimateBufferEvidence(
+                    leaseID: leaseID,
+                    identity: String(describing: ObjectIdentifier(buffer as AnyObject))
+                )
+            }
+            .sorted { $0.leaseID < $1.leaseID }
+        }
+    }
+
     func buffer(for leaseID: Int) throws -> MTLBuffer {
         lock.lock()
         defer { lock.unlock() }
@@ -719,6 +774,16 @@ public final class HDRProcessor {
         )
     }
 
+    /// Test-only resource evidence. It is intentionally a snapshot and has
+    /// no effect on command encoding or pool policy.
+    var runtimeResourceEvidence: HDRRuntimeResourceEvidence {
+        HDRRuntimeResourceEvidence(
+            outputTextureSlotsPerSize: 3,
+            outputTextures: outputPool.evidence,
+            temporalEstimateBuffers: temporalEstimateBuffers.evidence
+        )
+    }
+
     public init(
         device: MTLDevice,
         configuration: HDRConfiguration = .hdr,
@@ -907,6 +972,8 @@ public final class HDRProcessor {
         diagnosticFrameIndex: UInt64 = 0,
         diagnosticROI: HDRDiagnosticROI? = nil
     ) throws -> HDRFrame {
+        let progressFrame = diagnosticFrameIndex == 0 ? "auto" : String(diagnosticFrameIndex)
+        writeHDRMultiFlightDeepProgress("processor-enter frame=\(progressFrame)")
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
         guard width > 0, height > 0 else {
@@ -917,6 +984,7 @@ public final class HDRProcessor {
         // generation atomically. A concurrent update may still let this frame
         // render with the old constants, but its completion can no longer
         // mutate the new temporal generation.
+        writeHDRMultiFlightDeepProgress("adaptive-snapshot-start frame=\(progressFrame)")
         let processState: (
             configuration: HDRConfiguration,
             debugEnabled: Bool,
@@ -962,12 +1030,20 @@ public final class HDRProcessor {
                 adaptiveSnapshot.scene
             )
         }
+        writeHDRMultiFlightDeepProgress(
+            "adaptive-snapshot-done frame=\(progressFrame) " +
+                "submissionSequence=\(processState.temporalSubmission?.sequence ?? 0) " +
+                "generation=\(processState.temporalSubmission?.generation ?? temporalGenerationStorage) " +
+                "lastGPUCompletedSequence=\(self.adaptiveState.lastGPUCompletedSequence) " +
+                "lastAdaptiveCommittedSequence=\(self.adaptiveState.lastAdaptiveCommittedSequence)"
+        )
         let configuration = processState.configuration
         let debugEnabled = processState.debugEnabled
         let diagnosticPresetLabel = processState.diagnosticPresetLabel
         let configurationGeneration = processState.configurationGeneration
         let temporalSubmission = processState.temporalSubmission
         let resolvedColor: ResolvedColorDescription
+        writeHDRMultiFlightDeepProgress("metadata-resolution-start frame=\(progressFrame)")
         do {
             resolvedColor = try HDRColorMetadataResolver.resolve(
                 pixelBuffer: pixelBuffer,
@@ -976,14 +1052,41 @@ public final class HDRProcessor {
         } catch let error as HDRColorMetadataError {
             throw HDRProcessorError.metadata(error)
         }
+        writeHDRMultiFlightDeepProgress(
+            "metadata-resolution-done frame=\(progressFrame) " +
+                "chromaSiting=\(resolvedColor.chromaGeometry.resolvedSiting.rawValue)"
+        )
 
         let chromaReconstructionDecision = HDRChromaReconstructionResolver.resolve(
             requested: configuration.chromaReconstructionMode,
             siting: resolvedColor.chromaGeometry.resolvedSiting
         )
 
+        writeHDRMultiFlightDeepProgress("input-texture-create-start frame=\(progressFrame)")
         let inputTextures = try context.textureCache.makeTextures(for: pixelBuffer)
+        writeHDRMultiFlightDeepProgress(
+            "input-texture-create-done frame=\(progressFrame) " +
+                "format=\(inputTextures.pixelFormat.diagnosticName)"
+        )
+        if hdrMultiFlightDeepProgressEnabled {
+            let outputEvidenceBeforeAcquire = outputPool.evidence
+            writeHDRMultiFlightDeepProgress(
+                "output-pool-acquire-start frame=\(progressFrame) " +
+                    "activeLeases=\(outputEvidenceBeforeAcquire.filter { $0.inFlight }.count) " +
+                    "allocations=\(outputEvidenceBeforeAcquire.count) slotsPerSize=3 " +
+                    "leaseIDs=\(outputEvidenceBeforeAcquire.filter { $0.inFlight }.map { String($0.id) }.joined(separator: ","))"
+            )
+        }
         let lease = try outputPool.acquire(width: width, height: height)
+        if hdrMultiFlightDeepProgressEnabled {
+            let outputEvidenceAfterAcquire = outputPool.evidence
+            writeHDRMultiFlightDeepProgress(
+                "output-pool-acquire-done frame=\(progressFrame) leaseID=\(lease.id) " +
+                    "activeLeases=\(outputEvidenceAfterAcquire.filter { $0.inFlight }.count) " +
+                    "allocations=\(outputEvidenceAfterAcquire.count) slotsPerSize=3 " +
+                    "leaseIDs=\(outputEvidenceAfterAcquire.filter { $0.inFlight }.map { String($0.id) }.joined(separator: ","))"
+            )
+        }
         let outputLeaseLifetime = OutputLeaseLifetime(pool: outputPool, id: lease.id)
 
         let metalCommandBuffer: MTLCommandBuffer
@@ -1061,6 +1164,7 @@ public final class HDRProcessor {
                 pipeline = context.bgraPipeline
             }
         }
+        writeHDRMultiFlightDeepProgress("parameter-build-start frame=\(progressFrame)")
         let parameterSnapshot = makeShaderParameters(
             configuration: configuration,
             color: resolvedColor,
@@ -1070,6 +1174,11 @@ public final class HDRProcessor {
             chromaReconstructionDecision: chromaReconstructionDecision
         )
         var parameters = parameterSnapshot.parameters
+        writeHDRMultiFlightDeepProgress(
+            "parameter-build-done frame=\(progressFrame) " +
+                "temporalVersion=\(parameterSnapshot.temporalVersion) " +
+                "sceneVersion=\(parameterSnapshot.sceneVersion)"
+        )
         let debugFrameContext = debugEnabled ? HDRDebugFrameContext(
             frameIndex: diagnosticFrameIndex == 0
                 ? temporalSubmission?.sequence ?? 0
@@ -1113,17 +1222,34 @@ public final class HDRProcessor {
         // cannot leave partially encoded work with an already-released lease.
         let temporalEstimateBuffer: MTLBuffer?
         if temporalSubmission != nil {
+            writeHDRMultiFlightDeepProgress(
+                "temporal-estimator-buffer-start frame=\(progressFrame) " +
+                    "leaseID=\(lease.id) allocations=\(temporalEstimateBuffers.allocationCount)"
+            )
             let buffer = try temporalEstimateBuffers.buffer(for: lease.id)
             buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee =
                 TemporalLumaStatsStorage()
             temporalEstimateBuffer = buffer
+            if hdrMultiFlightDeepProgressEnabled {
+                let temporalEvidence = temporalEstimateBuffers.evidence
+                let temporalIdentitySummary = temporalEvidence.map {
+                    "\($0.leaseID):\($0.identity)"
+                }.joined(separator: ",")
+                writeHDRMultiFlightDeepProgress(
+                    "temporal-estimator-buffer-done frame=\(progressFrame) " +
+                        "leaseID=\(lease.id) allocations=\(temporalEvidence.count) " +
+                        "identities=\(temporalIdentitySummary)"
+                )
+            }
         } else {
             temporalEstimateBuffer = nil
         }
 
+        writeHDRMultiFlightDeepProgress("compute-encoder-start frame=\(progressFrame)")
         guard let encoder = metalCommandBuffer.makeComputeCommandEncoder() else {
             throw HDRProcessorError.commandEncoderCreationFailed
         }
+        writeHDRMultiFlightDeepProgress("compute-encoder-created frame=\(progressFrame)")
         encoder.setComputePipelineState(pipeline)
         if isYUV {
             encoder.setTexture(inputTextures.y, index: 0)
@@ -1173,6 +1299,7 @@ public final class HDRProcessor {
                 threadsPerThreadgroup: context.threadgroupSize(for: temporalPipeline)
             )
         }
+        writeHDRMultiFlightDeepProgress("compute-dispatch-done frame=\(progressFrame)")
         encoder.endEncoding()
 
         // Retain CVMetalTexture wrappers and the pixel buffer through GPU
@@ -1249,6 +1376,14 @@ public final class HDRProcessor {
         if ownsCommandBuffer {
             metalCommandBuffer.commit()
         }
+
+        writeHDRMultiFlightDeepProgress(
+            "processor-return frame=\(progressFrame) leaseID=\(lease.id) " +
+                "submissionSequence=\(temporalSubmission?.sequence ?? 0) " +
+                "generation=\(temporalSubmission?.generation ?? temporalGenerationStorage) " +
+                "lastGPUCompletedSequence=\(self.adaptiveState.lastGPUCompletedSequence) " +
+                "lastAdaptiveCommittedSequence=\(self.adaptiveState.lastAdaptiveCommittedSequence)"
+        )
 
         return HDRFrame(
             texture: lease.texture,
