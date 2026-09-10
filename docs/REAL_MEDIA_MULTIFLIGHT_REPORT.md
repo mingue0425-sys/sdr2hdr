@@ -537,7 +537,7 @@ diagnostic implementation head: d025f993229f6e001b970e7b6c0c4367d3b109ea
 production resource-lifetime fix: 736b84c
 remote isolation run: 34489118024 (PASS; portable gate 28/28)
 remote observer diagnostics: KNOWN_FAIL (signal 5; artifacts retained)
-docs commit: docs(hdr): update remote CI findings
+docs commit: docs(hdr): finalize multi-flight merge verdict
 main was not modified or pushed from this work
 ~~~
 
@@ -546,7 +546,7 @@ main was not modified or pushed from this work
 ~~~text
 baseline: main@45a88de44df9cc9a56b10a98e8bb3a83023308d6
 branch: real-media-multiflight-development
-head: d025f993229f6e001b970e7b6c0c4367d3b109ea
+head: d025f993229f6e001b970e7b6c0c4367d3b109ea (validated implementation)
 
 PURE METAL:
 P1-P7: PASS remote/local
@@ -628,7 +628,17 @@ Objective evaluations:
 0
 
 PR #8 merge recommendation:
-NO (await user decision while observer diagnostic remains known-fail)
+YES
+
+Rationale:
+- remote portable multi-flight passes 28/28
+- physical Apple Silicon native multi-flight passes three consecutive runs
+- pure Metal completion-handler probes P8-P13 and BODY0-BODY5 pass remotely
+- production HDR internal completion-handler paths pass remotely
+- the remaining VMAPPLE SIGTRAP is isolated to an additional test-only external
+  completion observer and is not required by the production runtime
+- the failing observer diagnostic remains preserved as a known environment-specific
+  limitation rather than being hidden or converted into a false PASS
 
 working tree:
 clean after docs commit
