@@ -22,6 +22,10 @@ private func writeMultiFlightProgress(_ message: String) {
     FileHandle.standardError.write(Data("MULTIFLIGHT_PROGRESS \(message)\n".utf8))
 }
 
+private func synchronouslyWaitForPortableRetirement(_ commandBuffer: MTLCommandBuffer) {
+    commandBuffer.waitUntilCompleted()
+}
+
 /// Bridges a Metal completion callback to the main-actor regression runner
 /// without blocking that actor. Metal may deliver the callback on a thread
 /// that needs the same run-loop while the test is retiring a pending frame.
@@ -101,7 +105,10 @@ struct RealMediaMultiFlightCompletionEvidence: Codable, Sendable {
     let frameIndex: Int
     let generation: UInt64
     let submissionSequence: UInt64
-    let completionOrdinal: Int
+    /// Nil for portable retirement evidence. An ordinal is only available
+    /// when the optional native external observer is enabled.
+    let completionOrdinal: Int?
+    let evidenceSource: String
     let status: String
     let completed: Bool
     let error: String?
@@ -129,10 +136,16 @@ struct RealMediaMultiFlightModeResult: Codable, Sendable {
     let submittedFrameIndices: [Int]
     let submittedSequences: [UInt64]
     let submissionGenerations: [UInt64]
-    let completionSequences: [UInt64]
+    /// External callback evidence is diagnostic-only and is empty for the
+    /// mandatory portable retirement path.
     let completionEvents: [RealMediaMultiFlightCompletionEvidence]
+    /// Retirement evidence is always present and is collected after the
+    /// oldest command buffer has been waited and inspected.
+    let retirementSequences: [UInt64]
+    let retirementEvents: [RealMediaMultiFlightCompletionEvidence]
     let readbackFrameIndices: [Int]
-    let maxObservedInFlight: Int
+    let maxSubmittedBeforeRetirement: Int
+    let submittedBeforeRetirement: [Int]
     let maxPending: Int
     let maxSimultaneousLeases: Int
     let textureAllocations: Int
@@ -144,6 +157,10 @@ struct RealMediaMultiFlightModeResult: Codable, Sendable {
     let schedulingWorkPasses: Int
     let schedulingWorkStorageMode: String
     let schedulingWorkEncoder: String
+    let completionObserver: String
+    let expectedProductionHandlerCount: Int
+    let expectedExternalHandlerCount: Int
+    let expectedHandlerCountBasis: String
     let serialParity: RealMediaMultiFlightSerialParity
 }
 
@@ -189,7 +206,8 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
             frameIndex: frameIndex,
             generation: generation,
             submissionSequence: submissionSequence,
-            completionOrdinal: 0,
+            completionOrdinal: nil,
+            evidenceSource: "native-external-observer",
             status: String(describing: status),
             completed: status == .completed,
             error: commandBuffer.error?.localizedDescription,
@@ -207,6 +225,7 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
                 generation: event.generation,
                 submissionSequence: event.submissionSequence,
                 completionOrdinal: storage.count + 1,
+                evidenceSource: event.evidenceSource,
                 status: event.status,
                 completed: event.completed,
                 error: event.error,
@@ -247,6 +266,7 @@ final class RealMediaMultiFlightCompletionCollector: @unchecked Sendable {
             generation: event.generation,
             submissionSequence: event.submissionSequence,
             completionOrdinal: event.completionOrdinal,
+            evidenceSource: event.evidenceSource,
             status: event.status,
             completed: event.completed,
             error: event.error,
@@ -485,13 +505,15 @@ extension RealMediaRegressionRunner {
 
     func runMultiFlight(
         _ fixture: RealMediaRegressionFixture,
-        flightDepth: Int
+        flightDepth: Int,
+        completionObserverEnabled: Bool = false
     ) async throws -> RealMediaMultiFlightFixtureResult {
         let frames = try await decodeRegressionFrames(fixture)
         return try await runMultiFlight(
             fixture,
             decodedFrames: frames,
-            flightDepth: flightDepth
+            flightDepth: flightDepth,
+            completionObserverEnabled: completionObserverEnabled
         )
     }
 
@@ -536,7 +558,8 @@ extension RealMediaRegressionRunner {
         schedulingWorkEnabled: Bool = true,
         schedulingWorkBytes: Int = RealMediaMultiFlightSchedulingWork.bytes,
         schedulingWorkPasses: Int = RealMediaMultiFlightSchedulingWork.passes,
-        enforceOverlapGate: Bool = true
+        enforceOverlapGate: Bool = true,
+        completionObserverEnabled: Bool = false
     ) async throws -> RealMediaMultiFlightFixtureResult {
         guard flightDepth == 2 || flightDepth == 3 else {
             throw RunnerError.commandBufferFailed("multi-flight depth must be 2 or 3")
@@ -623,7 +646,8 @@ extension RealMediaRegressionRunner {
                     schedulingWorkEnabled: schedulingWorkEnabled,
                     schedulingWorkBytes: schedulingWorkBytes,
                     schedulingWorkPasses: schedulingWorkPasses,
-                    enforceOverlapGate: enforceOverlapGate
+                    enforceOverlapGate: enforceOverlapGate,
+                    completionObserverEnabled: completionObserverEnabled
                 )
             )
         }
@@ -650,7 +674,8 @@ extension RealMediaRegressionRunner {
         schedulingWorkEnabled: Bool,
         schedulingWorkBytes: Int,
         schedulingWorkPasses: Int,
-        enforceOverlapGate: Bool
+        enforceOverlapGate: Bool,
+        completionObserverEnabled: Bool
     ) async throws -> RealMediaMultiFlightModeResult {
         let firstPixelBuffer = try unwrapFirstPixelBuffer(frames)
         let resolvedColor = try HDRColorMetadataResolver.resolve(
@@ -674,17 +699,27 @@ extension RealMediaRegressionRunner {
         let renderer = try HDRPresentationRenderer(device: device, colorPixelFormat: .rgba16Float)
         let width = CVPixelBufferGetWidth(firstPixelBuffer)
         let height = CVPixelBufferGetHeight(firstPixelBuffer)
-        let collector = RealMediaMultiFlightCompletionCollector()
+        let collector = completionObserverEnabled
+            ? RealMediaMultiFlightCompletionCollector()
+            : nil
+        let expectedProductionHandlerCount = 2 // HDRProcessor + presentation
+        let expectedExternalHandlerCount = completionObserverEnabled ? 1 : 0
+        let expectedHandlerCountBasis =
+            "production + optional observer code-path expectation per command buffer; " +
+                "Metal exposes no handler-count introspection"
         logMultiFlightProgress("resources-ready id=\(fixture.id) depth=\(flightDepth)")
         var pending: [RealMediaPendingFrame] = []
         var completedFrames: [RealMediaCompletedFrame] = []
         var submittedFrameIndices: [Int] = []
         var submittedSequences: [UInt64] = []
         var submissionGenerations: [UInt64] = []
-        var maxObservedInFlight = 0
+        var maxSubmittedBeforeRetirement = 0
+        var submittedBeforeRetirement: [Int] = []
         var maxPending = 0
         var maxSimultaneousLeases = 0
         var submittedCount = 0
+        var retiredCount = 0
+        var retirementEvents: [RealMediaMultiFlightCompletionEvidence] = []
         var resourceSnapshots: [RealMediaMultiFlightResourceSnapshot] = []
 
         func captureResourceSnapshot(_ phase: String, frameIndex: Int?) {
@@ -729,27 +764,60 @@ extension RealMediaRegressionRunner {
 
         func retireOldest() async throws {
             guard !pending.isEmpty else { return }
+            let committedNotRetired = submittedCount - retiredCount
+            maxSubmittedBeforeRetirement = max(
+                maxSubmittedBeforeRetirement,
+                committedNotRetired
+            )
+            submittedBeforeRetirement.append(committedNotRetired)
             var retired: RealMediaPendingFrame? = pending.removeFirst()
             defer { retired = nil }
             guard let value = retired else { return }
             logMultiFlightProgress(
                 "retire-start id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
-            guard let completionWaiter = value.completionWaiter else {
-                throw RunnerError.commandBufferFailed(
-                    "multi-flight frame has no completion waiter"
-                )
+            if let completionWaiter = value.completionWaiter {
+                await completionWaiter.wait()
+            } else {
+                // Portable retirement: all command buffers in the bounded
+                // batch have already been committed. This wait retires the
+                // oldest item; it does not serialize submission.
+                synchronouslyWaitForPortableRetirement(value.commandBuffer)
             }
-            await completionWaiter.wait()
             logMultiFlightProgress(
                 "retire-complete id=\(fixture.id) depth=\(flightDepth) frame=\(value.frameIndex)"
             )
-            completedFrames.append(try completePendingFrame(value))
-            collector.recordGPUTiming(
+            let retiredFrameIndex = value.frameIndex
+            let retiredSubmissionSequence = value.submissionSequence
+            // completePendingFrame performs the post-wait status and error
+            // inspection before consuming readback. Keeping that check in
+            // the shared helper also avoids moving a non-Sendable Metal error
+            // object across the main-actor retirement closure.
+            let completedFrame = try completePendingFrame(value)
+            let status = value.commandBuffer.status
+            let retirementEvent = RealMediaMultiFlightCompletionEvidence(
+                frameIndex: retiredFrameIndex,
+                generation: value.generation,
+                submissionSequence: retiredSubmissionSequence,
+                completionOrdinal: nil,
+                evidenceSource: completionObserverEnabled
+                    ? "native-external-observer-retirement"
+                    : "portable-retirement",
+                status: String(describing: status),
+                completed: status == .completed,
+                error: nil,
+                gpuStartTime: value.commandBuffer.gpuStartTime,
+                gpuEndTime: value.commandBuffer.gpuEndTime,
+                completionWallClock: CACurrentMediaTime()
+            )
+            retirementEvents.append(retirementEvent)
+            completedFrames.append(completedFrame)
+            collector?.recordGPUTiming(
                 frameIndex: value.frameIndex,
                 submissionSequence: value.submissionSequence,
                 commandBuffer: value.commandBuffer
             )
+            retiredCount += 1
         }
 
         for (index, decoded) in frames.enumerated() {
@@ -772,7 +840,9 @@ extension RealMediaRegressionRunner {
                     ? schedulingWorkBytes
                     : 0,
                 schedulingWorkPasses: schedulingWorkPasses,
-                completionWaiter: RealMediaCompletionWaiter()
+                completionWaiter: completionObserverEnabled
+                    ? RealMediaCompletionWaiter()
+                    : nil
             )
             captureResourceSnapshot("after-processor", frameIndex: index)
             logMultiFlightProgress("frame-encoded id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
@@ -780,14 +850,16 @@ extension RealMediaRegressionRunner {
             let generation = value.generation
             let submissionSequence = value.submissionSequence
             let completionWaiter = value.completionWaiter
-            value.commandBuffer.addCompletedHandler { commandBuffer in
-                collector.record(
-                    frameIndex: frameIndex,
-                    generation: generation,
-                    submissionSequence: submissionSequence,
-                    commandBuffer: commandBuffer
-                )
-                completionWaiter?.signal()
+            if completionObserverEnabled {
+                value.commandBuffer.addCompletedHandler { commandBuffer in
+                    collector?.record(
+                        frameIndex: frameIndex,
+                        generation: generation,
+                        submissionSequence: submissionSequence,
+                        commandBuffer: commandBuffer
+                    )
+                    completionWaiter?.signal()
+                }
             }
             value.commandBuffer.commit()
             logMultiFlightProgress("frame-committed id=\(fixture.id) depth=\(flightDepth) frame=\(index)")
@@ -798,19 +870,18 @@ extension RealMediaRegressionRunner {
             submittedSequences.append(value.submissionSequence)
             submissionGenerations.append(value.generation)
             maxPending = max(maxPending, pending.count)
-            // The first batch carries test-only GPU work until every
-            // configured flight has been committed. Therefore this count
-            // represents command buffers that are genuinely submitted and
-            // not yet complete, rather than only a software queue depth.
-            maxObservedInFlight = max(
-                maxObservedInFlight,
-                submittedCount - collector.count
+            // This is a queue-state fact: how many command buffers have been
+            // committed before the oldest one is retired. It does not claim
+            // simultaneous execution on GPU cores.
+            maxSubmittedBeforeRetirement = max(
+                maxSubmittedBeforeRetirement,
+                pending.count
             )
         }
         while !pending.isEmpty {
             try await retireOldest()
         }
-        let completionEvents = collector.events
+        let completionEvents = collector?.events ?? []
         let completedFramesByIndex = completedFrames.sorted { $0.frameIndex < $1.frameIndex }
         let frameExecutions = completedFramesByIndex.map {
             FrameExecution(
@@ -848,10 +919,12 @@ extension RealMediaRegressionRunner {
             submittedSequences: submittedSequences,
             submissionGenerations: submissionGenerations,
             completionEvents: completionEvents,
+            retirementEvents: retirementEvents,
             readbackFrameIndices: completedFrames.map(\.frameIndex),
-            maxObservedInFlight: maxObservedInFlight,
+            maxSubmittedBeforeRetirement: maxSubmittedBeforeRetirement,
             maxPending: maxPending,
-            enforceOverlapGate: enforceOverlapGate
+            enforceOverlapGate: enforceOverlapGate,
+            completionObserverEnabled: completionObserverEnabled
         ))
         if !serial.result.failures.isEmpty {
             failures.append(
@@ -900,10 +973,12 @@ extension RealMediaRegressionRunner {
             submittedFrameIndices: submittedFrameIndices,
             submittedSequences: submittedSequences,
             submissionGenerations: submissionGenerations,
-            completionSequences: completionEvents.map(\.submissionSequence),
             completionEvents: completionEvents,
+            retirementSequences: retirementEvents.map(\.submissionSequence),
+            retirementEvents: retirementEvents,
             readbackFrameIndices: completedFrames.map(\.frameIndex),
-            maxObservedInFlight: maxObservedInFlight,
+            maxSubmittedBeforeRetirement: maxSubmittedBeforeRetirement,
+            submittedBeforeRetirement: submittedBeforeRetirement,
             maxPending: maxPending,
             maxSimultaneousLeases: maxSimultaneousLeases,
             textureAllocations: processor.runtimeMetrics.outputTextureAllocations,
@@ -918,6 +993,12 @@ extension RealMediaRegressionRunner {
             schedulingWorkPasses: schedulingWorkEnabled ? max(schedulingWorkPasses, 1) : 0,
             schedulingWorkStorageMode: "shared",
             schedulingWorkEncoder: "blit",
+            completionObserver: completionObserverEnabled
+                ? "native-external-observer"
+                : "portable-retirement",
+            expectedProductionHandlerCount: expectedProductionHandlerCount,
+            expectedExternalHandlerCount: expectedExternalHandlerCount,
+            expectedHandlerCountBasis: expectedHandlerCountBasis,
             serialParity: serialParity
         )
     }
@@ -931,10 +1012,12 @@ extension RealMediaRegressionRunner {
         submittedSequences: [UInt64],
         submissionGenerations: [UInt64],
         completionEvents: [RealMediaMultiFlightCompletionEvidence],
+        retirementEvents: [RealMediaMultiFlightCompletionEvidence],
         readbackFrameIndices: [Int],
-        maxObservedInFlight: Int,
+        maxSubmittedBeforeRetirement: Int,
         maxPending: Int,
-        enforceOverlapGate: Bool
+        enforceOverlapGate: Bool,
+        completionObserverEnabled: Bool
     ) -> [String] {
         var failures: [String] = []
         let expectedIndices = Array(0..<frames.count)
@@ -951,34 +1034,77 @@ extension RealMediaRegressionRunner {
         if maxPending > flightDepth {
             failures.append("pending queue exceeded configured depth")
         }
-        if enforceOverlapGate && maxObservedInFlight < flightDepth {
+        if enforceOverlapGate && maxSubmittedBeforeRetirement < flightDepth {
             failures.append(
-                "actual overlap reached \(maxObservedInFlight); \(flightDepth) required"
+                "max submitted before retirement reached \(maxSubmittedBeforeRetirement); " +
+                    "\(flightDepth) required"
             )
         }
-        if completionEvents.count != frames.count {
+        if retirementEvents.count != frames.count {
             failures.append(
-                "completion evidence has \(completionEvents.count) events for \(frames.count) frames"
+                "retirement evidence has \(retirementEvents.count) events for \(frames.count) frames"
             )
         }
-        let completionFrameIndices = completionEvents.map(\.frameIndex).sorted()
-        if completionFrameIndices != expectedIndices {
-            failures.append("completion frame identities are not complete")
+        let retirementFrameIndices = retirementEvents.map(\.frameIndex)
+        if retirementFrameIndices != expectedIndices {
+            failures.append("retirement frame identities are not complete or ordered")
         }
-        let completionSequences = completionEvents.map(\.submissionSequence).sorted()
-        if completionSequences != expectedSequences {
-            failures.append("completion sequences are not complete")
+        let retirementSequences = retirementEvents.map(\.submissionSequence)
+        if retirementSequences != expectedSequences {
+            failures.append("retirement sequences are not complete or ordered")
+        }
+        let expectedRetirementEvidenceSource = completionObserverEnabled
+            ? "native-external-observer-retirement"
+            : "portable-retirement"
+        if retirementEvents.contains(where: {
+            $0.evidenceSource != expectedRetirementEvidenceSource
+        }) {
+            failures.append(
+                "retirement evidence source is not \(expectedRetirementEvidenceSource)"
+            )
+        }
+        if retirementEvents.contains(where: { !$0.completed || $0.error != nil }) {
+            failures.append("one or more retired command buffers did not complete cleanly")
         }
         if let expectedGeneration = submissionGenerations.first,
-           completionEvents.contains(where: { $0.generation != expectedGeneration }) {
-            failures.append("completion generation differs from submission generation")
+           retirementEvents.contains(where: { $0.generation != expectedGeneration }) {
+            failures.append("retirement generation differs from submission generation")
         }
-        if completionEvents.contains(where: { !$0.completed }) {
-            failures.append("one or more multi-flight command buffers did not complete")
-        }
-        let identities = completionEvents.map { "\($0.generation):\($0.submissionSequence)" }
-        if Set(identities).count != identities.count {
-            failures.append("completion evidence contains duplicate frame identities")
+        if completionObserverEnabled {
+            if completionEvents.count != frames.count {
+                failures.append(
+                    "external observer evidence has \(completionEvents.count) events for \(frames.count) frames"
+                )
+            }
+            let observerIdentities = completionEvents.map {
+                "\($0.generation):\($0.submissionSequence)"
+            }
+            if Set(observerIdentities).count != observerIdentities.count {
+                failures.append("external observer evidence contains duplicate identities")
+            }
+            let expectedObserverIdentities = zip(submissionGenerations, submittedSequences).map {
+                "\($0.0):\($0.1)"
+            }
+            if Set(observerIdentities) != Set(expectedObserverIdentities) {
+                failures.append("external observer evidence identities are incomplete")
+            }
+            if completionEvents.contains(where: {
+                $0.evidenceSource != "native-external-observer" ||
+                    $0.completionOrdinal == nil ||
+                    !$0.completed ||
+                    $0.error != nil
+            }) {
+                failures.append("native external observer evidence is incomplete")
+            }
+            let observerOrdinals = completionEvents.compactMap(\.completionOrdinal)
+            let expectedObserverOrdinals = completionEvents.isEmpty
+                ? []
+                : Array(1...completionEvents.count)
+            if observerOrdinals != expectedObserverOrdinals {
+                failures.append("native external observer completion ordinals are incomplete")
+            }
+        } else if !completionEvents.isEmpty {
+            failures.append("portable retirement unexpectedly registered an external observer")
         }
         if readbackFrameIndices != expectedIndices {
             failures.append("readback frame identities are not retired in submission order")
@@ -1017,6 +1143,15 @@ extension RealMediaRegressionRunner {
             }
         }
         let completionTraces = processor.temporalCompletionTrace
+        let productionCompletionSequences = completionTraces
+            .map(\.gpuCompletionSequence)
+            .sorted()
+        if productionCompletionSequences != expectedSequences {
+            failures.append(
+                "production completion trace identities are not complete: " +
+                    "\(productionCompletionSequences)"
+            )
+        }
         if completionTraces.contains(where: {
             $0.gpuCompletionSequence != $0.adaptiveCommittedSequence ||
                 $0.temporalStateVersionProduced != $0.adaptiveCommittedSequence ||

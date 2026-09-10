@@ -27,6 +27,7 @@ private struct RealMediaMultiFlightDiagnosticPayload: Codable, Sendable {
     let schedulingWorkStorageMode: String
     let schedulingWorkEncoder: String
     let presentationAudit: RealMediaMultiFlightPresentationAudit
+    let completionObserverEnabled: Bool
     let status: String
     let error: String?
     let result: RealMediaMultiFlightFixtureResult?
@@ -81,6 +82,8 @@ final class RealMediaMultiFlightDiagnosticTests: XCTestCase {
             ) ?? 8,
             1
         )
+        let completionObserverEnabled =
+            processEnvironment["HDR_REAL_MEDIA_MULTIFLIGHT_NATIVE_OBSERVER"] == "1"
         let deviceName = MTLCreateSystemDefaultDevice()?.name ?? "unavailable"
         let environment = RealMediaMultiFlightDiagnosticEnvironment(
             os: processEnvironment["HDR_MULTIFLIGHT_DIAGNOSTIC_OS"] ??
@@ -153,7 +156,8 @@ final class RealMediaMultiFlightDiagnosticTests: XCTestCase {
                 schedulingWorkEnabled: schedulingWorkEnabled,
                 schedulingWorkBytes: schedulingWorkBytes,
                 schedulingWorkPasses: schedulingWorkPasses,
-                enforceOverlapGate: false
+                enforceOverlapGate: false,
+                completionObserverEnabled: completionObserverEnabled
             )
             writePayload(
                 RealMediaMultiFlightDiagnosticPayload(
@@ -168,6 +172,7 @@ final class RealMediaMultiFlightDiagnosticTests: XCTestCase {
                     schedulingWorkStorageMode: "shared",
                     schedulingWorkEncoder: "blit",
                     presentationAudit: realMediaMultiFlightPresentationAudit,
+                    completionObserverEnabled: completionObserverEnabled,
                     status: result.passed ? "PASS" : "FAIL",
                     error: result.passed ? nil : result.failures.joined(separator: "; "),
                     result: result
@@ -188,6 +193,7 @@ final class RealMediaMultiFlightDiagnosticTests: XCTestCase {
                     schedulingWorkStorageMode: "shared",
                     schedulingWorkEncoder: "blit",
                     presentationAudit: realMediaMultiFlightPresentationAudit,
+                    completionObserverEnabled: completionObserverEnabled,
                     status: "ERROR",
                     error: String(describing: error),
                     result: nil

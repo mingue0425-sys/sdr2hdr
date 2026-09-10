@@ -23,6 +23,8 @@ final class RealMediaMultiFlightTests: XCTestCase {
             fixtureDirectory: URL(fileURLWithPath: fixturePath),
             device: device
         )
+        let completionObserverEnabled =
+            environment["HDR_REAL_MEDIA_MULTIFLIGHT_NATIVE_OBSERVER"] == "1"
 
         // The complete 12-fixture serial matrix remains the mandatory decode
         // gate. Multi-flight focuses on the high-information concurrency
@@ -61,7 +63,8 @@ final class RealMediaMultiFlightTests: XCTestCase {
                 let result = try await runner.runMultiFlight(
                     fixture,
                     decodedFrames: decodedFixture.frames,
-                    flightDepth: depth
+                    flightDepth: depth,
+                    completionObserverEnabled: completionObserverEnabled
                 )
                 results.append(result)
                 for mode in result.modes {
@@ -69,7 +72,7 @@ final class RealMediaMultiFlightTests: XCTestCase {
                         "REAL_MEDIA_MULTIFLIGHT id=\(result.id) depth=\(depth) " +
                             "mode=\(mode.mode.rawValue) status=\(mode.result.passed ? "PASS" : "FAIL") " +
                             "frames=\(mode.result.frameCount) " +
-                            "maxObservedInFlight=\(mode.maxObservedInFlight) " +
+                            "maxSubmittedBeforeRetirement=\(mode.maxSubmittedBeforeRetirement) " +
                             "gpuSequence=\(mode.result.gpuCompletedSequence) " +
                             "adaptiveSequence=\(mode.result.adaptiveCommittedSequence) " +
                             "allocations=\(mode.result.outputTextureAllocations)"
@@ -105,9 +108,9 @@ final class RealMediaMultiFlightTests: XCTestCase {
         )
         XCTAssertTrue(
             sortedResults.flatMap(\.modes).allSatisfy { mode in
-                mode.maxObservedInFlight >= mode.flightDepth
+                mode.maxSubmittedBeforeRetirement >= mode.flightDepth
             },
-            "multi-flight run did not demonstrate the configured overlap"
+            "multi-flight run did not commit the configured depth before retirement"
         )
 
         let passingModes = sortedResults.flatMap(\.modes).filter { $0.result.passed }
