@@ -689,7 +689,6 @@ final class MetalConcurrentCommandBufferProbeTests: XCTestCase {
                 await Task.yield()
             }
             commandBuffer.commit()
-            await commandBuffer.completed()
             await callbackTask.value
             guard commandBuffer.status == .completed, commandBuffer.error == nil else {
                 throw MetalProbeFailure(
