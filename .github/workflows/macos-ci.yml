@@ -54,7 +54,7 @@ jobs:
           uname -m
           system_profiler SPDisplaysDataType || true
           sysctl hw.memsize hw.ncpu || true
-      - name: Real-media multi-flight GPU regression
+      - name: Mandatory portable real-media multi-flight regression
         env:
           MTL_DEBUG_LAYER: 1
         run: ./RUN_MACOS_VERIFY.sh multiflight
@@ -70,7 +70,7 @@ jobs:
           path: |
             results/multiflight-vmapple-diagnostic.json
             results/multiflight-vmapple-diagnostic/
-      - name: VMAPPLE pure Metal multi-flight isolation
+      - name: VMAPPLE pure Metal and completion-handler isolation
         if: always()
         run: ./RUN_MACOS_VERIFY.sh pure-metal-multiflight
       - name: Upload VMAPPLE pure Metal multi-flight evidence
@@ -82,7 +82,7 @@ jobs:
           path: |
             results/vmapple-pure-metal-multiflight.json
             results/vmapple-pure-metal-multiflight/
-      - name: VMAPPLE HDR production stage isolation
+      - name: VMAPPLE HDR production stages and observer controls
         if: always()
         run: ./RUN_MACOS_VERIFY.sh hdr-stage-isolation
       - name: Upload VMAPPLE HDR stage isolation evidence

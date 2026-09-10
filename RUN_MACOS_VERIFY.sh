@@ -5,9 +5,9 @@ MODE="${1:-full}"
 ROOT="${2:-$(pwd)}"
 
 case "$MODE" in
-  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-diagnostic|pure-metal-multiflight|hdr-stage-isolation|real-media|real-media-validation) ;;
+  fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-native-observer|multiflight-diagnostic|pure-metal-multiflight|hdr-stage-isolation|real-media|real-media-validation) ;;
   *)
-    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-diagnostic|pure-metal-multiflight|hdr-stage-isolation|real-media|real-media-validation] [repo-root]" >&2
+    echo "usage: $0 [fast|full|prime|self-contained|p010|automatic-decode|regression|regression-full|multiflight|multiflight-native-observer|multiflight-diagnostic|pure-metal-multiflight|hdr-stage-isolation|real-media|real-media-validation] [repo-root]" >&2
     exit 2
     ;;
 esac
@@ -690,7 +690,13 @@ PY
   exit 0
 fi
 
-if [ "$MODE" = "multiflight" ]; then
+if [ "$MODE" = "multiflight" ] || [ "$MODE" = "multiflight-native-observer" ]; then
+  MULTIFLIGHT_NATIVE_OBSERVER=0
+  MULTIFLIGHT_RESULT="$ROOT/results/real-media-multiflight.json"
+  if [ "$MODE" = "multiflight-native-observer" ]; then
+    MULTIFLIGHT_NATIVE_OBSERVER=1
+    MULTIFLIGHT_RESULT="$ROOT/results/real-media-multiflight-native-observer.json"
+  fi
   FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdr2hdr-real-media-multiflight.XXXXXX")"
   trap 'rm -rf "$FIXTURE_DIR"' EXIT
   command -v ffmpeg >/dev/null 2>&1 || {
@@ -710,12 +716,13 @@ if [ "$MODE" = "multiflight" ]; then
   stage 'two-flight and three-flight real-media HDR processing' env \
     HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
     HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS=1 \
+    HDR_REAL_MEDIA_MULTIFLIGHT_NATIVE_OBSERVER="$MULTIFLIGHT_NATIVE_OBSERVER" \
     HDR_REAL_MEDIA_MULTIFLIGHT_BASELINE="$MULTIFLIGHT_BASELINE" \
     HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
-    HDR_REAL_MEDIA_MULTIFLIGHT_RESULTS="$ROOT/results/real-media-multiflight.json" \
+    HDR_REAL_MEDIA_MULTIFLIGHT_RESULTS="$MULTIFLIGHT_RESULT" \
     swift test -c debug --disable-index-store \
       --filter RealMediaMultiFlightTests/testDeterministicMatrixRunsWithTwoAndThreeFlights
-  python3 - "$ROOT/results/real-media-multiflight.json" <<'PY'
+  python3 - "$MULTIFLIGHT_RESULT" <<'PY'
 import json
 import sys
 
@@ -731,13 +738,18 @@ if document.get("runCount") != expected_runs:
     )
 for fixture in document.get("fixtures", []):
     for mode in fixture.get("modes", []):
-        if mode.get("maxObservedInFlight", 0) < mode.get("flightDepth", 0):
+        if mode.get("maxSubmittedBeforeRetirement", 0) < mode.get("flightDepth", 0):
             raise SystemExit(
-                f"{fixture.get('id')} depth {fixture.get('flightDepth')} did not overlap"
+                f"{fixture.get('id')} depth {fixture.get('flightDepth')} did not commit the full depth before retirement"
             )
 PY
   echo 'REAL-MEDIA MULTIFLIGHT VERIFY: PASS'
-  echo 'Serial control was retained; two-flight and three-flight paths exercised NV12 and P010.'
+  if [ "$MULTIFLIGHT_NATIVE_OBSERVER" = "1" ]; then
+    echo 'Native external completion observer was enabled for this optional local-only matrix.'
+  else
+    echo 'Portable retirement used waitUntilCompleted after the full flight depth was committed.'
+  fi
+  echo 'Two-flight and three-flight paths exercised NV12 and P010.'
   echo 'Virgin Frozen accessed: NO'
   echo 'Objective evaluations: 0'
   exit 0
@@ -809,6 +821,7 @@ if [ "$MODE" = "multiflight-diagnostic" ]; then
       HDR_MULTIFLIGHT_DIAGNOSTIC_PHASE="$DIAGNOSTIC_PHASE" \
       HDR_MULTIFLIGHT_DEEP_PROGRESS=1 \
       HDR_REAL_MEDIA_MULTIFLIGHT_PROGRESS=1 \
+      HDR_REAL_MEDIA_MULTIFLIGHT_NATIVE_OBSERVER=1 \
       HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
       HDR_REAL_MEDIA_MULTIFLIGHT_BASELINE="$MULTIFLIGHT_BASELINE" \
       HDR_REAL_MEDIA_REGRESSION_CANDIDATE="$(git rev-parse HEAD 2>/dev/null || printf 'working-tree')" \
@@ -932,6 +945,9 @@ for case_name, debug_layer, scheduling_work in (
         "schedulingWorkPasses": work_passes if scheduling_work else 0,
         "schedulingWorkStorageMode": "shared",
         "schedulingWorkEncoder": "blit",
+        "completionObserverEnabled": (result_payload or {}).get(
+            "completionObserverEnabled", True
+        ),
         "presentationAudit": (result_payload or {}).get("presentationAudit", {
             "perCommandWritableDiagnosticBuffer": True,
             "fallbackSourceTextureReadOnly": True,
@@ -953,7 +969,14 @@ for case_name, debug_layer, scheduling_work in (
 
 by_case = {case["case"]: case for case in cases}
 passed = {name: by_case[name]["testResult"] == "PASS" for name in "ABCD"}
-if passed == {"A": False, "B": True, "C": False, "D": True}:
+observer_enabled = all(
+    by_case[name]["completionObserverEnabled"] for name in "ABCD"
+)
+if observer_enabled and all(not value for value in passed.values()):
+    classification = "VMAPPLE_TEST_OBSERVER_COMPLETION_HANDLER_INTERACTION_SUSPECTED"
+elif observer_enabled and all(passed.values()):
+    classification = "VMAPPLE_TEST_OBSERVER_COMPLETION_HANDLER_NOT_REPRODUCED"
+elif passed == {"A": False, "B": True, "C": False, "D": True}:
     classification = "METAL_VALIDATION_LAYER_VMAPPLE_INTERACTION"
 elif passed == {"A": False, "B": False, "C": True, "D": True}:
     classification = "TEST_SCHEDULING_WORK_VMAPPLE_INCOMPATIBILITY"
@@ -980,6 +1003,7 @@ document = {
     "frames": frames,
     "flightDepth": flight_depth,
         "mode": mode_names[0] if len(mode_names) == 1 else mode_names,
+    "completionObserver": "native-external-observer" if observer_enabled else "unknown",
     "classification": classification,
     "cases": cases,
 }
@@ -1058,6 +1082,34 @@ PY
     testP6SharedPipelineStates
     testP7SharedReadOnlyTexture
   )
+  PURE_METAL_OBSERVER_PROBES=(
+    P8_one_cb_one_handler
+    P9_two_cb_one_handler_each
+    P10_one_cb_two_handlers
+    P11_one_cb_three_handlers
+    P12_two_cb_two_handlers_each
+    P13_two_cb_three_handlers_each
+    BODY0_noop
+    BODY1_status_read
+    BODY2_locked_counter
+    BODY3_lifetime_capture
+    BODY4_semaphore
+    BODY5_continuation
+  )
+  PURE_METAL_OBSERVER_TESTS=(
+    testP8OneCommandBufferOneNoOpHandler
+    testP9TwoCommandBuffersOneNoOpHandlerEach
+    testP10OneCommandBufferTwoNoOpHandlers
+    testP11OneCommandBufferThreeNoOpHandlers
+    testP12TwoCommandBuffersTwoNoOpHandlersEach
+    testP13TwoCommandBuffersThreeNoOpHandlersEach
+    testHandlerBody0NoOp
+    testHandlerBody1StatusRead
+    testHandlerBody2LockedCounter
+    testHandlerBody3LifetimeCapture
+    testHandlerBody4Semaphore
+    testHandlerBody5Continuation
+  )
 
   stage 'pure Metal device inventory' run_pure_metal_probe P0_device_inventory testP0DeviceInventory 0
   for index in "${!PURE_METAL_PROBES[@]}"; do
@@ -1130,6 +1182,16 @@ for probe in sys.argv[2:]:
 PY
   )
 
+  # These cases intentionally remain diagnostic-only. A VMAPPLE failure here
+  # must be recorded in the artifact, not hidden, but it must not convert the
+  # production-relevant P1-P7 ladder into a false production failure.
+  for index in "${!PURE_METAL_OBSERVER_PROBES[@]}"; do
+    run_pure_metal_probe \
+      "${PURE_METAL_OBSERVER_PROBES[$index]}" \
+      "${PURE_METAL_OBSERVER_TESTS[$index]}" \
+      0
+  done
+
   set +e
   python3 - "$PURE_METAL_RESULT" "$PURE_METAL_DIR" "$PURE_METAL_OS" \
     "$PURE_METAL_KERNEL" "$PURE_METAL_ARCH" "$PURE_METAL_BASELINE" \
@@ -1153,6 +1215,22 @@ probe_specs = [
     ("P5_compute_render_blit", "COMPUTE + RENDER + BLIT", "testP5ComputeRenderBlitCommandBuffers"),
     ("P6_shared_pipeline", "SHARED PIPELINE STATES", "testP6SharedPipelineStates"),
     ("P7_shared_readonly_texture", "SHARED READ-ONLY TEXTURE", "testP7SharedReadOnlyTexture"),
+]
+observer_probe_specs = [
+    ("P8_one_cb_one_handler", "ONE COMMAND BUFFER, ONE NO-OP HANDLER", "testP8OneCommandBufferOneNoOpHandler"),
+    ("P9_two_cb_one_handler_each", "TWO COMMAND BUFFERS, ONE NO-OP HANDLER EACH", "testP9TwoCommandBuffersOneNoOpHandlerEach"),
+    ("P10_one_cb_two_handlers", "ONE COMMAND BUFFER, TWO NO-OP HANDLERS", "testP10OneCommandBufferTwoNoOpHandlers"),
+    ("P11_one_cb_three_handlers", "ONE COMMAND BUFFER, THREE NO-OP HANDLERS", "testP11OneCommandBufferThreeNoOpHandlers"),
+    ("P12_two_cb_two_handlers_each", "TWO COMMAND BUFFERS, TWO NO-OP HANDLERS EACH", "testP12TwoCommandBuffersTwoNoOpHandlersEach"),
+    ("P13_two_cb_three_handlers_each", "TWO COMMAND BUFFERS, THREE NO-OP HANDLERS EACH", "testP13TwoCommandBuffersThreeNoOpHandlersEach"),
+]
+handler_body_specs = [
+    ("BODY0_noop", "NO-OP BODY", "testHandlerBody0NoOp"),
+    ("BODY1_status_read", "STATUS-READ BODY", "testHandlerBody1StatusRead"),
+    ("BODY2_locked_counter", "NSLOCK COUNTER BODY", "testHandlerBody2LockedCounter"),
+    ("BODY3_lifetime_capture", "LIFETIME CAPTURE BODY", "testHandlerBody3LifetimeCapture"),
+    ("BODY4_semaphore", "SEMAPHORE BODY", "testHandlerBody4Semaphore"),
+    ("BODY5_continuation", "CONTINUATION BODY", "testHandlerBody5Continuation"),
 ]
 
 def read_json(path):
@@ -1220,6 +1298,10 @@ def parse_record(probe, description, test_name, debug_layer):
         "commandBuffersCommitted": (payload or {}).get("commandBuffersCommitted", 0),
         "commandBuffersCompleted": (payload or {}).get("commandBuffersCompleted", 0),
         "completionHandlers": (payload or {}).get("completionHandlers"),
+        "expectedHandlerCount": (payload or {}).get("expectedHandlerCount"),
+        "expectedHandlersPerCommandBuffer": (payload or {}).get("expectedHandlersPerCommandBuffer"),
+        "handlerBody": (payload or {}).get("handlerBody"),
+        "handlerCountBasis": (payload or {}).get("handlerCountBasis"),
         "error": (payload or {}).get("error"),
         "lastMarker": markers[-1] if markers else None,
         "log": str(log_path),
@@ -1250,6 +1332,11 @@ for probe, description, test_name in probe_specs:
     if baseline_record["result"] == "PASS":
         debug_records.append(parse_record(probe, description, test_name, 1))
 
+observer_records = [
+    parse_record(probe, description, test_name, 0)
+    for probe, description, test_name in observer_probe_specs + handler_body_specs
+]
+
 first_failing = next(
     (record["probe"] for record in baseline_records if record["result"] != "PASS"),
     None,
@@ -1275,6 +1362,16 @@ elif all(record["result"] == "PASS" for record in baseline_records):
 else:
     classification = "PURE_METAL_PROBE_EXECUTION_FAILURE"
 
+first_failing_observer = next(
+    (record["probe"] for record in observer_records if record["result"] != "PASS"),
+    None,
+)
+observer_classification = (
+    "VMAPPLE_EXTERNAL_COMPLETION_OBSERVER_PASS"
+    if first_failing_observer is None
+    else "VMAPPLE_EXTERNAL_COMPLETION_OBSERVER_KNOWN_FAIL"
+)
+
 document = {
     "schemaVersion": 1,
     "baseline": baseline,
@@ -1287,6 +1384,20 @@ document = {
     "probes": baseline_records,
     "serialControl": serial_control,
     "debugLayerValidation": debug_records,
+    "completionHandlerIsolation": [
+        record for record in observer_records
+        if record["probe"].startswith("P")
+    ],
+    "handlerBodyMatrix": [
+        record for record in observer_records
+        if record["probe"].startswith("BODY")
+    ],
+    "observerClassification": observer_classification,
+    "firstFailingObserverProbe": first_failing_observer,
+    "observerDiagnostic": {
+        "portableProductionGate": "excluded; portable retirement is mandatory",
+        "resultIsEvidenceOnly": True,
+    },
     "firstFailingProbe": first_failing,
     "classification": classification,
     "commandBufferContract": {
@@ -1299,6 +1410,8 @@ result_path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", en
 print(json.dumps({
     "classification": classification,
     "firstFailingProbe": first_failing,
+    "observerClassification": observer_classification,
+    "firstFailingObserverProbe": first_failing_observer,
     "device": inventory,
 }, sort_keys=True))
 raise SystemExit(0 if classification == "PURE_METAL_MULTIFLIGHT_PASS" else 1)
@@ -1425,24 +1538,51 @@ PY
   done
 
   HDR_COMPLETION_CONTROL_NAMES=(
+    H1_completion_handler_noop
+    H1_completion_handler_counter
+    H3_completion_handler_noop
+    H4_completion_handler_noop
     H4_completion_handler_direct_wait
     H4_completion_handler_async_waiter
   )
+  HDR_COMPLETION_CONTROL_STAGES=(
+    H1_HDRProcessor_only
+    H1_HDRProcessor_only
+    H3_HDRProcessor_plus_presentation
+    H4_full_path
+    H4_full_path
+    H4_full_path
+  )
   HDR_COMPLETION_CONTROL_SETTINGS=(
+    completion-handler-direct-wait
+    completion-handler-direct-wait
+    completion-handler-direct-wait
+    completion-handler-direct-wait
     completion-handler-direct-wait
     async-waiter
   )
+  HDR_COMPLETION_CONTROL_BODIES=(
+    noop
+    counter
+    noop
+    noop
+    counter
+    counter
+  )
   for control_index in "${!HDR_COMPLETION_CONTROL_NAMES[@]}"; do
     completion_control_name="${HDR_COMPLETION_CONTROL_NAMES[$control_index]}"
+    completion_control_stage="${HDR_COMPLETION_CONTROL_STAGES[$control_index]}"
     completion_control_setting="${HDR_COMPLETION_CONTROL_SETTINGS[$control_index]}"
+    completion_control_body="${HDR_COMPLETION_CONTROL_BODIES[$control_index]}"
     completion_control_log="$HDR_STAGE_DIR/$completion_control_name.log"
     completion_control_timing="$HDR_STAGE_DIR/$completion_control_name.timing.json"
     completion_control_start="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     set +e
     env \
       MTL_DEBUG_LAYER=0 \
-      HDR_PRODUCTION_STAGE=H4_full_path \
+      HDR_PRODUCTION_STAGE="$completion_control_stage" \
       HDR_PRODUCTION_COMPLETION_MODE="$completion_control_setting" \
+      HDR_PRODUCTION_COMPLETION_BODY="$completion_control_body" \
       HDR_PRODUCTION_STAGE_FIXTURE="$HDR_STAGE_FIXTURE" \
       HDR_PRODUCTION_STAGE_FRAMES="$HDR_STAGE_FRAMES" \
       HDR_REAL_MEDIA_REGRESSION_FIXTURE_DIR="$FIXTURE_DIR" \
@@ -1511,6 +1651,14 @@ def signal_for(exit_code, lines):
         return exit_code - 128
     return None
 
+def expected_handler_counts(stage, external_body):
+    production = 2 if stage in {
+        "H3_HDRProcessor_plus_presentation",
+        "H4_full_path",
+    } else 1
+    external = 0 if external_body == "none" else 1
+    return production, external, production + external
+
 stages = []
 for stage in stage_names:
     log_path = directory / f"{stage}.log"
@@ -1539,12 +1687,32 @@ for stage in stage_names:
         if line.startswith("HDR_STAGE_PROGRESS ") or
            line.startswith("HDR_STAGE_RESULT ")
     ]
+    default_body = "none"
+    default_production, default_external, default_total = expected_handler_counts(
+        stage,
+        default_body,
+    )
     stages.append({
         "stage": stage,
         "status": status,
         "exitCode": exit_code,
         "signal": signal,
         "completionMode": (payload or {}).get("completionMode", "waitUntilCompleted"),
+        "externalHandlerBody": (payload or {}).get("externalHandlerBody", "none"),
+        "expectedProductionHandlerCount": (payload or {}).get(
+            "expectedProductionHandlerCount", default_production
+        ),
+        "expectedExternalHandlerCount": (payload or {}).get(
+            "expectedExternalHandlerCount", default_external
+        ),
+        "expectedHandlerCount": (payload or {}).get(
+            "expectedHandlerCount", default_total
+        ),
+        "handlerCountBasis": (payload or {}).get(
+            "handlerCountBasis",
+            "production code-path expectation per command buffer; "
+            "Metal exposes no handler-count introspection",
+        ),
         "frames": (payload or {}).get("frames", frames),
         "commandBuffersCommitted": (payload or {}).get("commandBuffersCommitted", 0),
         "commandBuffersCompleted": (payload or {}).get("commandBuffersCompleted", 0),
@@ -1555,11 +1723,15 @@ for stage in stage_names:
     })
 
 completion_control_specs = [
-    ("H4_completion_handler_direct_wait", "completionHandler+directWait"),
-    ("H4_completion_handler_async_waiter", "completionHandler+asyncWaiter"),
+    ("H1_completion_handler_noop", "H1_HDRProcessor_only", "completionHandler+directWait", "noop"),
+    ("H1_completion_handler_counter", "H1_HDRProcessor_only", "completionHandler+directWait", "counter"),
+    ("H3_completion_handler_noop", "H3_HDRProcessor_plus_presentation", "completionHandler+directWait", "noop"),
+    ("H4_completion_handler_noop", "H4_full_path", "completionHandler+directWait", "noop"),
+    ("H4_completion_handler_direct_wait", "H4_full_path", "completionHandler+directWait", "counter"),
+    ("H4_completion_handler_async_waiter", "H4_full_path", "completionHandler+asyncWaiter", "counter"),
 ]
 completion_controls = []
-for control_name, default_mode in completion_control_specs:
+for control_name, default_stage, default_mode, default_body in completion_control_specs:
     control_log_path = directory / f"{control_name}.log"
     control_timing = read_json(directory / f"{control_name}.timing.json") or {}
     try:
@@ -1586,10 +1758,30 @@ for control_name, default_mode in completion_control_specs:
         if line.startswith("HDR_STAGE_PROGRESS ") or
            line.startswith("HDR_STAGE_RESULT ")
     ]
+    control_body = (control_payload or {}).get("externalHandlerBody", default_body)
+    control_production, control_external, control_total = expected_handler_counts(
+        default_stage,
+        control_body,
+    )
     completion_controls.append({
-        "control": "completion-handler-direct-wait" if "direct_wait" in control_name else "completion-handler+async-waiter",
-        "stage": "H4_full_path",
+        "control": control_name,
+        "stage": (control_payload or {}).get("stage", default_stage),
         "completionMode": (control_payload or {}).get("completionMode", default_mode),
+        "externalHandlerBody": (control_payload or {}).get("externalHandlerBody", default_body),
+        "expectedProductionHandlerCount": (control_payload or {}).get(
+            "expectedProductionHandlerCount", control_production
+        ),
+        "expectedExternalHandlerCount": (control_payload or {}).get(
+            "expectedExternalHandlerCount", control_external
+        ),
+        "expectedHandlerCount": (control_payload or {}).get(
+            "expectedHandlerCount", control_total
+        ),
+        "handlerCountBasis": (control_payload or {}).get(
+            "handlerCountBasis",
+            "production + test observer code-path expectation per command buffer; "
+            "Metal exposes no handler-count introspection",
+        ),
         "status": control_status,
         "exitCode": control_exit_code,
         "signal": control_signal,
@@ -1602,7 +1794,7 @@ for control_name, default_mode in completion_control_specs:
         "timing": control_timing,
     })
 completion_control = next(
-    (control for control in completion_controls if control["control"] == "completion-handler+async-waiter"),
+    (control for control in completion_controls if control["control"] == "H4_completion_handler_async_waiter"),
     None,
 )
 first_failing_control = next(
@@ -1614,13 +1806,13 @@ first_failing = next((stage["stage"] for stage in stages if stage["status"] != "
 if first_failing is not None:
     classification = f"HDR_STAGE_FAILURE:{first_failing}"
 elif first_failing_control is not None:
-    classification = "HDR_COMPLETION_HANDLER_ASYNC_WAITER_FAILURE"
+    classification = "VMAPPLE_TEST_OBSERVER_COMPLETION_HANDLER_INCOMPATIBILITY"
 else:
     classification = "HDR_STAGES_ALL_PASS"
 document = {
     "schemaVersion": 1,
     "baseline": baseline,
-    "status": "PASS" if first_failing is None and first_failing_control is None else "FAIL",
+    "status": "PASS" if first_failing is None else "FAIL",
     "classification": classification,
     "pureMetalClassification": "PURE_METAL_MULTIFLIGHT_PASS",
     "environment": {
@@ -1635,10 +1827,18 @@ document = {
     "completionControls": completion_controls,
     "completionControl": completion_control,
     "firstFailingControl": first_failing_control,
+    "observerDiagnostic": {
+        "status": "KNOWN_FAIL" if first_failing_control is not None else "PASS",
+        "reason": "external test observer controls are diagnostic-only; production wait retirement is mandatory",
+    },
 }
 result_path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-print(json.dumps({"classification": classification, "firstFailingStage": first_failing}, sort_keys=True))
-raise SystemExit(0 if first_failing is None and first_failing_control is None else 1)
+print(json.dumps({
+    "classification": classification,
+    "firstFailingStage": first_failing,
+    "firstFailingControl": first_failing_control,
+}, sort_keys=True))
+raise SystemExit(0 if first_failing is None else 1)
 PY
   hdr_stage_status=$?
   set -e
