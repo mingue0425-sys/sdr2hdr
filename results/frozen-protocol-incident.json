@@ -12,6 +12,7 @@
   "videoDecoded": false,
   "metricsRun": false,
   "objectiveEvaluations": 0,
+  "recoveryGuardHardened": true,
   "oldFrozenEvaluationEligible": false,
   "newFrozenSet": {
     "status": "NOT_PREPARED",

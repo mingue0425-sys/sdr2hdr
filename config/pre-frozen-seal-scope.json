@@ -36,9 +36,20 @@
   ],
   "verificationFiles": [
     "Tests/verify_no_frozen_access.py",
-    "Tests/verify_pre_frozen_seal.py",
+    "RUN_MACOS_VERIFY.sh",
     ".github/workflows/macos-ci.yml"
   ],
+  "plannedVerificationFiles": [
+    "Tests/verify_pre_frozen_seal.py"
+  ],
+  "verificationFileBaselines": {
+    "RUN_MACOS_VERIFY.sh": "ed2896c094764557b1d0a64fb66bb34a59b128c367f6507e7aa64631d519b607"
+  },
+  "legacyVerificationExceptions": {
+    "RUN_MACOS_VERIFY.sh": [
+      "Frozen path injection"
+    ]
+  },
   "mediaPolicy": {
     "approvedExplicitMediaFiles": [
       "data_video/real_media/external-manifest.json"
@@ -46,6 +57,7 @@
     "frozenRootConfigured": false,
     "frozenPathInjectedOnlyForEvaluation": true,
     "broadMediaEnumeration": "FORBIDDEN",
+    "dataVideoDirectoryRoots": "FORBIDDEN",
     "oldVirginCandidateSet": "QUARANTINED_NON_VIRGIN_NOT_EVALUATION_ELIGIBLE"
   }
 }

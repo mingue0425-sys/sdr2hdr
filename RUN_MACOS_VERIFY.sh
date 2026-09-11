@@ -67,8 +67,15 @@ def add_file(path):
 
 add_text('version', version)
 add_text('scope', scope)
-for rel in ('Package.swift', 'data_video/manifest-v4.json', 'dataset/holdout-provenance-v5.json'):
+for rel in ('Package.swift', 'dataset/holdout-provenance-v5.json'):
     add_file(root / rel)
+
+for path in (
+    root / 'data_video/manifest-v4.json',
+    root / 'data_video/dataset-v4-lock.json',
+    root / 'data_video/real_media/external-manifest.json',
+):
+    add_file(path)
 
 source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
 if scope != 'audit':
@@ -85,19 +92,9 @@ for base in source_roots:
         for p in sorted(base.rglob('*.swift')):
             add_file(p)
 
-# Media/stat evidence. Every JSON control/provenance/lock file is a correctness
-# input and is hashed byte-for-byte. Large media remains metadata-based in fast
-# mode; backups are explicitly ignored.
-data = root/'data_video'
-if data.exists():
-    for p in sorted(x for x in data.rglob('*') if x.is_file()):
-        if '.bak' in p.name:
-            continue
-        if p.suffix.lower() == '.json':
-            add_file(p)
-            continue
-        st = p.stat()
-        add_text('media-stat', f'{p.relative_to(root)}|{st.st_size}|{st.st_mtime_ns}')
+# Only explicit development/validation control files participate in the cache
+# identity. Never walk the data_video tree: a future hidden subtree must not be
+# exposed merely because a verification cache is refreshed.
 
 print(h.hexdigest())
 PY
@@ -148,7 +145,12 @@ inputs_newest_mtime_ns() {
 import os, pathlib, sys
 root = pathlib.Path(sys.argv[1])
 scope = sys.argv[2]
-paths = [root/'Package.swift', root/'data_video/manifest-v4.json', root/'dataset/holdout-provenance-v5.json']
+paths = [root/'Package.swift', root/'dataset/holdout-provenance-v5.json']
+paths.extend([
+    root/'data_video/manifest-v4.json',
+    root/'data_video/dataset-v4-lock.json',
+    root/'data_video/real_media/external-manifest.json',
+])
 source_roots = [root/'Sources/HDRCalibration', root/'Sources/HDRCore']
 if scope != 'audit':
     paths.append(root/'Sources/HDRCalibrate/main.swift')
@@ -159,9 +161,6 @@ if scope != 'audit':
 for base in source_roots:
     if base.exists():
         paths.extend(sorted(base.rglob('*.swift')))
-data = root/'data_video'
-if data.exists():
-    paths.extend(sorted(p for p in data.rglob('*') if p.is_file() and '.bak' not in p.name))
 mt = 0
 for p in paths:
     if p.exists():

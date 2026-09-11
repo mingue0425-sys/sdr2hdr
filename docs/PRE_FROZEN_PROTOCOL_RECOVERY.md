@@ -58,6 +58,14 @@ The parent `data_video` directory is not a seal root. Broad commands such as
 `rg --files data_video`, `find data_video`, recursive repository walks, and
 runtime Frozen-root injection are prohibited.
 
+Scope hardening is category-specific: any `data_video/**` path is forbidden in
+production roots, shaders, result files, verification files, and planned
+verification files. A media path is accepted only as an exact file present in
+both `exactFiles` and `approvedExplicitMediaFiles`; directory roots and glob
+syntax are rejected. `Tests/verify_pre_frozen_seal.py` is a planned future
+file, not a current verification target and is not opened by this recovery
+change.
+
 ## Guard
 
 [`Tests/verify_no_frozen_access.py`](../Tests/verify_no_frozen_access.py) reads
@@ -67,8 +75,19 @@ validates path traversal, glob syntax, symlink use, scope mode, and static
 patterns for broad media enumeration and Frozen path injection.
 
 The recovery CI runs the guard against the committed scope and workflow. The
-future seal verifier must also be passed explicitly as a target once it is
-added; it must remain allowlist-only.
+scope itself is the primary verification-file list. It scans the current
+`RUN_MACOS_VERIFY.sh`, the workflow, and the guard path only; the guard source
+is validated for path/symlink policy but excluded from its own broad-command
+text scan so that its regex definitions cannot self-trigger. The existing
+`RUN_MACOS_VERIFY.sh` optional `V6_FROZEN_PLAN` hook is locked to its recorded
+baseline hash and cannot change under this scope. The future seal verifier is
+declared separately as planned and must be added to current verification only
+when it exists and remains allowlist-only.
+
+`Tests/verify_no_frozen_access_test.py` exercises positive allowlist cases and
+negative media-root, traversal, broad-shell-scan, recursive-walk, and symlink-
+safe target cases using temporary non-media fixtures. It never inspects the
+previous contaminated set or any new Frozen root.
 
 ## Exactly-once protocol
 
@@ -103,6 +122,10 @@ NEW_FROZEN_EXPOSED = NO
 NEW_FROZEN_ACCESS_STATE = NOT_AVAILABLE
 SEAL_SCOPE = ALLOWLIST_ONLY
 BROAD_MEDIA_ENUMERATION = BLOCKED
+DATA_VIDEO_DIRECTORY_ROOTS = FORBIDDEN
+APPROVED_EXPLICIT_MEDIA_FILES = ENFORCED
+VERIFICATION_FILES_STATIC_SCAN = PASS
+BROAD_REPOSITORY_ENUMERATION = BLOCKED_FOR_SEAL_VERIFICATION
 PRODUCTION_SOURCE_CHANGED = NO
 SHADER_CHANGED = NO
 PRODUCTION_BEHAVIOR_CHANGED = NO
