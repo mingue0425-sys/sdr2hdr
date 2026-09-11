@@ -9,9 +9,10 @@ the validation corpus.
 ## Final verdict
 
 ```text
-baseline: main@e8924b24399f7cec245539f1d9cfdc323da778cf
+baselineMain: e8924b24399f7cec245539f1d9cfdc323da778cf
 branch: pre-frozen-promotion-readiness
-head: e8924b24399f7cec245539f1d9cfdc323da778cf implementation baseline
+validatedImplementationHead: 00d6fcc415790b6376a63d270dabd224b81ae369
+final PR/docs head: tracked in Git history; not embedded in the artifacts
 
 MERGED CORRECTNESS BASELINE
 PR #6: a1e4a6506723da53212b2ad86fcde11f44bc4a92
@@ -121,7 +122,33 @@ hash inputs are in `results/pre-frozen-baseline-fingerprint.json`.
 
 ## Provenance and scope
 
-The production implementation under audit starts at `main@e8924b2`. PR #6,
+The provenance fields use three deliberately different meanings:
+
+```text
+baselineMain:
+PR #9가 시작된 production baseline.
+
+validatedImplementationHead:
+PR #9의 production-facing cleanup과 readiness evidence를 포함하는
+마지막 implementation commit.
+
+final PR/docs head:
+Git history에서 추적한다. artifact의 self-referential SHA를 피하기 위해
+fingerprint 내부에는 저장하지 않는다.
+```
+
+The concrete values are:
+
+```text
+baselineMain:
+e8924b24399f7cec245539f1d9cfdc323da778cf
+
+validatedImplementationHead:
+00d6fcc415790b6376a63d270dabd224b81ae369
+```
+
+The production implementation under audit starts at
+`main@e8924b24399f7cec245539f1d9cfdc323da778cf`. PR #6,
 PR #7, and PR #8 are recorded by full merge SHA above; no abbreviated SHA is
 used for the provenance fields in the JSON artifacts. The regression fixture
 manifest deliberately retains its historical baseline label `db01ba7`; its

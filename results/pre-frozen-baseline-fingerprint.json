@@ -3,7 +3,7 @@
   "git": {
     "branch": "pre-frozen-promotion-readiness",
     "baselineMain": "e8924b24399f7cec245539f1d9cfdc323da778cf",
-    "head": "e8924b24399f7cec245539f1d9cfdc323da778cf",
+    "validatedImplementationHead": "00d6fcc415790b6376a63d270dabd224b81ae369",
     "pr6Merge": "a1e4a6506723da53212b2ad86fcde11f44bc4a92",
     "pr7Merge": "45a88de44df9cc9a56b10a98e8bb3a83023308d6",
     "pr8Merge": "e8924b24399f7cec245539f1d9cfdc323da778cf"
