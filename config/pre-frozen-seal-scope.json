@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "scopeMode": "ALLOWLIST_ONLY",
+  "scopeFile": "config/pre-frozen-seal-scope.json",
+  "productionRoots": [
+    "Sources/HDRCore",
+    "Sources/HDRPlayer"
+  ],
+  "shaderFiles": [
+    "Sources/HDRCore/Shaders/SDRToHDR.metal",
+    "Sources/HDRPlayer/Shaders/Presentation.metal"
+  ],
+  "exactFiles": [
+    "Package.swift",
+    "Tests/RealMediaRegression/manifest.json",
+    "Tests/RealMediaRegression/gates.json",
+    "data_video/real_media/external-manifest.json"
+  ],
+  "resultFiles": [
+    "results/pre-frozen-readiness.json",
+    "results/pre-frozen-production-invariants.json",
+    "results/pre-frozen-baseline-fingerprint.json",
+    "results/real-media-regression.json",
+    "results/real-media-regression-release.json",
+    "results/real-media-multiflight.json",
+    "results/vmapple-pure-metal-multiflight.json",
+    "results/vmapple-hdr-stage-isolation.json",
+    "results/external-real-media-development.json",
+    "results/external-real-media-validation.json",
+    "results/performance-v1-final.json",
+    "results/performance-v1-final-fingerprint.json",
+    "results/pre-frozen-source-manifest.json",
+    "results/pre-frozen-seal.json",
+    "results/pre-frozen-seal-verification.json",
+    "results/frozen-protocol-incident.json"
+  ],
+  "verificationFiles": [
+    "Tests/verify_no_frozen_access.py",
+    "Tests/verify_pre_frozen_seal.py",
+    ".github/workflows/macos-ci.yml"
+  ],
+  "mediaPolicy": {
+    "approvedExplicitMediaFiles": [
+      "data_video/real_media/external-manifest.json"
+    ],
+    "frozenRootConfigured": false,
+    "frozenPathInjectedOnlyForEvaluation": true,
+    "broadMediaEnumeration": "FORBIDDEN",
+    "oldVirginCandidateSet": "QUARANTINED_NON_VIRGIN_NOT_EVALUATION_ELIGIBLE"
+  }
+}

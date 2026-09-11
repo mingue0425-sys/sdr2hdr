@@ -31,9 +31,14 @@ jobs:
           bash -n Tests/RealMediaRegression/verify_regression_fixtures.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
+          python3 Tests/verify_no_frozen_access.py \
+            --scope config/pre-frozen-seal-scope.json \
+            --workflow .github/workflows/macos-ci.yml
           python3 -m json.tool Tests/RealMediaRegression/manifest.json >/dev/null
           python3 -m json.tool Tests/RealMediaRegression/gates.json >/dev/null
           python3 -m json.tool data_video/real_media/external-manifest.json >/dev/null
+          python3 -m json.tool config/pre-frozen-seal-scope.json >/dev/null
+          python3 -m json.tool results/frozen-protocol-incident.json >/dev/null
       - name: Check self-contained media tools
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then

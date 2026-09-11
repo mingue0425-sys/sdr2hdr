@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "incident": "PATH_ENUMERATION",
+  "timestamp": "2026-09-11T11:06:01Z",
+  "baselineMain": "d7fb59e8ca8b085264dfe1fca92aa6b98efd3cf6",
+  "branch": "pre-frozen-seal-v2",
+  "scope": "previous virgin candidate root",
+  "frozenPathEnumeration": true,
+  "virginStatus": "CONTAMINATED_BY_PATH_ENUMERATION",
+  "mediaContentRead": false,
+  "metadataProbed": false,
+  "videoDecoded": false,
+  "metricsRun": false,
+  "objectiveEvaluations": 0,
+  "oldFrozenEvaluationEligible": false,
+  "newFrozenSet": {
+    "status": "NOT_PREPARED",
+    "opaqueDatasetId": null,
+    "exposedToDevelopmentAgent": null,
+    "accessState": "NOT_AVAILABLE"
+  }
+}
