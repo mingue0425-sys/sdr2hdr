@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "baselineProvenance": {
+    "main": "e8924b24399f7cec245539f1d9cfdc323da778cf",
+    "pr6AutomaticDecodePrecision": "a1e4a6506723da53212b2ad86fcde11f44bc4a92",
+    "pr7DV420": "45a88de44df9cc9a56b10a98e8bb3a83023308d6",
+    "pr8RealMediaMultiflight": "e8924b24399f7cec245539f1d9cfdc323da778cf"
+  },
+  "productionDefaults": {
+    "preset": "calibrated-v4",
+    "toneCurveRevision": "sceneRelativeV4",
+    "paperWhiteNits": 190.0,
+    "peakNits": 1008.6863,
+    "highlightStrength": 0.6208221,
+    "contrastStrength": 0.90542316,
+    "saturationCompensation": 0.43140942,
+    "shadowProtection": 0.4755874,
+    "temporalStability": 0.7308984,
+    "temporalMode": "causal asynchronous one-frame-late estimator",
+    "outputMode": "EDR",
+    "masteringHeadroom": 5.308875,
+    "effectiveEDROutputHeadroom": 5.308875,
+    "histogramStrategy": "linear64",
+    "histogramBinCount": 64,
+    "histogramProxy": "16x9",
+    "chromaReconstructionMode": "nearest",
+    "inputFallbackPolicy": "bt709VideoRange",
+    "automaticDecode": {
+      "enabled": true,
+      "sourceDescriptionEightBit": "NV12",
+      "sourceDescriptionTenBit": "P010",
+      "unresolvedSourceFallback": "8-bit/NV12",
+      "mismatchGate": 0,
+      "fallbackGate": 0
+    },
+    "p010Normalization": {
+      "storedCodeLayout": "10 valid MSBs in 16-bit sample; extract by /64 and round",
+      "codeDomain": "0...1023",
+      "videoRangeLumaBlack": 64,
+      "videoRangeLumaWhite": 940,
+      "videoRangeOffset": "64/1023",
+      "videoRangeScale": "1023/876",
+      "fullRange": "offset 0, scale 1",
+      "chromaCenter": "512/1023"
+    }
+  },
+  "resourceContracts": {
+    "outputTextureSlotsPerSize": 3,
+    "temporalEstimateSlotsPerSize": 3,
+    "threeSimultaneousLeases": "PASS",
+    "fourthLeaseWhileRetained": "rejected",
+    "reuseAfterRelease": "PASS",
+    "writablePresentationDiagnosticAlias": "NO",
+    "presentationDiagnosticDisabledPath": "renderer-owned shared fallback; no per-command allocation",
+    "presentationDiagnosticEnabledPath": "per-command writable buffer retained until GPU completion"
+  },
+  "dv420Policy": {
+    "safeFallback": "SUPPORTED",
+    "requestedMode": "siting-aware-bilinear",
+    "effectiveMode": "nearest",
+    "fallbackUsed": true,
+    "reason": "dv420RequiresComponentSpecificPhase",
+    "fullComponentSpecificReconstruction": "NOT_IMPLEMENTED",
+    "realMediaSourceCount": 0,
+    "realMediaFallbackCount": 0
+  },
+  "chromaSitingMatrix": [
+    {
+      "siting": "center",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "left",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "topLeft",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "top",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "bottomLeft",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "bottom",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "unspecified",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "siting-aware-bilinear", "fallbackUsed": false, "reason": null }
+    },
+    {
+      "siting": "dv420",
+      "nearest": { "effective": "nearest", "fallbackUsed": false, "reason": null },
+      "sitingAwareBilinear": { "effective": "nearest", "fallbackUsed": true, "reason": "dv420RequiresComponentSpecificPhase" }
+    }
+  ],
+  "auditGates": {
+    "runtimeCorrectness": "PASS",
+    "automaticDecode": "PASS",
+    "p010": "PASS",
+    "dv420SafeFallback": "PASS",
+    "multiflight": "PASS",
+    "generationSafety": "PASS",
+    "textureLifetime": "PASS",
+    "serialRegression": "PASS",
+    "externalCorpusFailures": 0,
+    "productionInvariantDrift": false,
+    "candidatePromotion": "KEEP_CANDIDATE",
+    "performanceOptimizationReady": true,
+    "preFrozenBaselineReady": true
+  },
+  "virginFrozenAccessed": false,
+  "objectiveEvaluations": 0
+}

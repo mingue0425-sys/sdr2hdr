@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "baseline": "main@e8924b24399f7cec245539f1d9cfdc323da778cf",
+  "branch": "pre-frozen-promotion-readiness",
+  "validatedImplementationHead": "00d6fcc415790b6376a63d270dabd224b81ae369",
+  "mergedCorrectnessBaseline": {
+    "pr6AutomaticDecodePrecision": "a1e4a6506723da53212b2ad86fcde11f44bc4a92",
+    "pr7DV420": "45a88de44df9cc9a56b10a98e8bb3a83023308d6",
+    "pr8RealMediaMultiflight": "e8924b24399f7cec245539f1d9cfdc323da778cf"
+  },
+  "runtimeCorrectness": "PASS",
+  "automaticDecode": {
+    "status": "PASS",
+    "h264EightBit": "NV12",
+    "hevcEightBit": "NV12",
+    "hevcMain10": "P010",
+    "precisionMismatch": 0,
+    "unexpectedFallback": 0,
+    "fixtureContracts": 12
+  },
+  "p010": {
+    "status": "PASS",
+    "fixture": "hevc-main10-video-24-near-black",
+    "nearBlackFinite": true,
+    "nearBlackNonZeroSamples": 17280,
+    "nearBlackInputCodeLevels": 16,
+    "nearBlackOutputCodeLevels": 20,
+    "nearBlackOrderingViolations": 0,
+    "uniqueYCodes": 435,
+    "codeRange": "64...940",
+    "normalization": "10-bit MSB extraction with current video/full-range coefficients",
+    "accidentalEightBitQuantization": false
+  },
+  "dv420": {
+    "safeFallback": "PASS",
+    "requested": "siting-aware-bilinear",
+    "effective": "nearest",
+    "fallbackUsed": true,
+    "reason": "dv420RequiresComponentSpecificPhase",
+    "nv12FallbackMaxDelta": 0.0,
+    "p010FallbackMaxDelta": 0.0,
+    "temporalFallbackMaxDelta": 0.0,
+    "realMediaSourceCount": 0,
+    "realMediaFallbackCount": 0,
+    "fullComponentSpecificReconstruction": "NOT_IMPLEMENTED"
+  },
+  "chromaCandidate": {
+    "nearest": "production default",
+    "sitingAwareBilinear": "development candidate",
+    "promotionDecision": "KEEP_CANDIDATE",
+    "syntheticEvidence": "positive: edge mean error 0.0078125 -> 0.00048828125 and edge displacement 0.25 -> 0.0",
+    "nv12Coverage": "PASS",
+    "p010Coverage": "PASS",
+    "realMediaCoverage": "PASS for execution and finite output; no independent ground-truth quality superiority established",
+    "regressionFree": "PASS",
+    "dv420Behavior": "safe nearest fallback preserved",
+    "multiFlightBehavior": "PASS",
+    "reason": "nearest has the broadest validated production behavior; candidate quality superiority is not established across the external corpus and P010 candidate p95 cost was higher in the existing M2 development benchmark"
+  },
+  "multiflight": {
+    "status": "PASS",
+    "portableRuns": 28,
+    "portableFailures": 0,
+    "depths": [2, 3],
+    "formats": ["NV12", "P010"],
+    "modes": ["nearest", "sitingAwareBilinear"],
+    "localAppleSilicon": "PASS",
+    "localAppleSiliconDebugLayer": true,
+    "retirement": "portable waitUntilCompleted after full flight depth commit"
+  },
+  "generationSafety": {
+    "status": "PASS",
+    "staleCompletionRejection": "PASS",
+    "resetIsolation": "PASS",
+    "gpuSequence": "monotonic and converges to final submission",
+    "adaptiveSequence": "monotonic and converges to final submission",
+    "transactionInvariant": "PASS"
+  },
+  "textureLifetime": {
+    "status": "PASS",
+    "slotsPerSize": 3,
+    "threeSimultaneousLeases": "PASS",
+    "fourthWhileRetained": "rejected",
+    "prematureReuse": "none observed",
+    "reuseAfterRelease": "PASS",
+    "allocationBound": "PASS"
+  },
+  "presentationResourceLifetime": {
+    "status": "PASS",
+    "writableResourceAlias": false,
+    "readOnlyFallbackSharing": true,
+    "enabledDiagnosticBufferLifetime": "captured until GPU completion",
+    "disabledDiagnosticPath": "single renderer-owned fallback buffer; no per-command allocation"
+  },
+  "vmapple": {
+    "pureMetal": "PASS: P1-P13 and BODY0-BODY5",
+    "hdrInternalCompletionPaths": "PASS: H1/H3/H4 stage isolation",
+    "externalObserver": "KNOWN_NON_PRODUCTION_LIMITATION",
+    "externalObserverLocalAudit": "not reproduced in local diagnostic run",
+    "externalObserverRemoteEvidence": "preserved from PR #8 as known environment-specific limitation",
+    "classification": "NON_BLOCKING / KNOWN_ENVIRONMENT_LIMITATION"
+  },
+  "externalCorpus": {
+    "development": {
+      "sourceCount": 12,
+      "failures": 0,
+      "automaticNV12": 10,
+      "automaticP010": 2,
+      "fallback": 0,
+      "precisionMismatch": 0,
+      "dv420": 0
+    },
+    "validation": {
+      "manifestSourceCount": 5,
+      "runtimeSourceCount": 4,
+      "metadataOnlySourceCount": 1,
+      "failures": 0,
+      "automaticNV12": 4,
+      "automaticP010": 0,
+      "fallback": 0,
+      "precisionMismatch": 0,
+      "dv420": 0
+    },
+    "manifestMutation": false,
+    "acquisitionFlake": "FLAKE_NOT_REPRODUCED / DEFERRED / NON_BLOCKING"
+  },
+  "diagnosticInstrumentation": {
+    "decision": "REMOVE",
+    "removedBehavior": "always-on presentation diagnostic buffer allocation and completion handler when diagnostics are disabled",
+    "retainedBehavior": "opt-in per-command writable buffer and GPU-completion lifetime when diagnostics are enabled",
+    "runtimeOverheadWhenDisabled": "one renderer-owned fallback buffer; no per-command diagnostic allocation or handler",
+    "productionArithmeticImpact": false
+  },
+  "ciGateHierarchy": {
+    "required": [
+      "build",
+      "debug tests",
+      "release tests",
+      "serial regression",
+      "automatic decode",
+      "portable multiflight"
+    ],
+    "diagnostic": [
+      "VMAPPLE observer controls",
+      "pure Metal extended probes",
+      "HDR stage isolation"
+    ],
+    "localNative": [
+      "physical Apple Silicon multiflight",
+      "external development corpus",
+      "external validation corpus"
+    ]
+  },
+  "blockers": [],
+  "nonBlockers": [
+    "VMAPPLE external test observer interaction",
+    "validation manifest metadata-only source outside HDRCore BT.709 runtime domain"
+  ],
+  "deferred": [
+    "full DV420 component-specific reconstruction",
+    "external real-media multiflight",
+    "display-link scheduling integration",
+    "forced command-buffer failure injection"
+  ],
+  "performanceOptimizationReady": true,
+  "preFrozenBaselineReady": true,
+  "virginFrozenAccessed": false,
+  "objectiveEvaluations": 0,
+  "artifactReferences": {
+    "invariants": "results/pre-frozen-production-invariants.json",
+    "fingerprint": "results/pre-frozen-baseline-fingerprint.json",
+    "regressionDebug": "results/real-media-regression.json",
+    "regressionRelease": "results/real-media-regression-release.json",
+    "multiflight": "results/real-media-multiflight.json",
+    "pureMetal": "results/vmapple-pure-metal-multiflight.json",
+    "hdrStages": "results/vmapple-hdr-stage-isolation.json",
+    "observerDiagnostic": "results/multiflight-vmapple-diagnostic.json"
+  }
+}
