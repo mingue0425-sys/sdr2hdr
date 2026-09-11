@@ -1304,7 +1304,7 @@ public final class HDRProcessor {
 
         // Retain CVMetalTexture wrappers and the pixel buffer through GPU
         // completion. No CPU copy is introduced by this lifetime guarantee.
-        let inputLifetime = GPUInputLifetime(pixelBuffer: pixelBuffer, metalTextures: inputTextures.retainedMetalTextures)
+        let inputLifetime = GPUInputLifetime(pixelBuffer: pixelBuffer, inputTextures: inputTextures)
         let debugLifetime = debugBuffers
         let debugStore = self.debugStore
         let adaptiveState = self.adaptiveState
@@ -1508,10 +1508,14 @@ public struct HDRRuntimeMetrics: Equatable, Sendable {
 
 private final class GPUInputLifetime: @unchecked Sendable {
     let pixelBuffer: CVPixelBuffer
-    let metalTextures: [CVMetalTexture]
+    let yTexture: CVMetalTexture?
+    let uvTexture: CVMetalTexture?
+    let bgraTexture: CVMetalTexture?
 
-    init(pixelBuffer: CVPixelBuffer, metalTextures: [CVMetalTexture]) {
+    init(pixelBuffer: CVPixelBuffer, inputTextures: CVMetalInputTextures) {
         self.pixelBuffer = pixelBuffer
-        self.metalTextures = metalTextures
+        self.yTexture = inputTextures.retainedYTexture
+        self.uvTexture = inputTextures.retainedUVTexture
+        self.bgraTexture = inputTextures.retainedBGRATexture
     }
 }

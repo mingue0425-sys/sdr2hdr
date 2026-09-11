@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "branch": "performance-optimization-v1",
+  "baselineMain": "393805254540277d65a74473b90ffdc46103ada7",
+  "performanceImplementationHead": "8086c9f59097f369967f201a6dcfd43dc562ddf5",
+  "headSemantics": "implementation SHA intentionally excludes the later evidence/docs commit to avoid self-reference",
+  "productionInvariantSha256": "e2c9ca11c1d47643aff09c5f1fe524e695463bd1dd1f4894ce8c88fd03a0c3fd",
+  "configurationFingerprint": {
+    "source": "results/pre-frozen-production-invariants.json#productionDefaults",
+    "canonicalSha256": "80d145aba197149b5caf4e72bfe420fd00f049b71761a8bb6825d96a795bd087"
+  },
+  "sourceHashes": {
+    "Sources/HDRCore/HDRProcessor.swift": "f6a9ba3aa7c407b9f0f34d40238a502bbf6884c9a577e432ca690779b36fdd62",
+    "Sources/HDRCore/TextureCache.swift": "61d5a3c71dff3f58c60a11e6c000a668f9d47bfd6fb1730313e7d026d50420c6",
+    "Tests/HDRCoreTests/P010Tests.swift": "6ed10235cb4ae8ce1e5e2cca4cf688ccb9587d1c8b7ea75f23cb5a55c3e40baf"
+  },
+  "shaderHashes": {
+    "Sources/HDRCore/Shaders/SDRToHDR.metal": "208426f0a12a4a5eb73021054791fc07f66e5977e26a86a2db32df363f152249",
+    "Sources/HDRPlayer/Shaders/Presentation.metal": "cda6e5be33aab0909b10ae14e14c3e5a0275725f9a13750f6cd106bcc57c5745"
+  },
+  "manifestHashes": {
+    "data_video/real_media/external-manifest.json": "3885fcd187db770cc5dcb9751ccda76156d07a93f9796178c6471339b58d8cc2",
+    "Tests/RealMediaRegression/manifest.json": "6fec0ba35db3a7d50ab0cf8f980d38b768d42f136e808f11b4be699e5faf8e9c",
+    "Tests/RealMediaRegression/gates.json": "c5d81683c683ade47a075ae4be73e1b881866c806983431fd6f5b4345a903f44"
+  },
+  "preFrozenOracleArtifacts": {
+    "results/pre-frozen-production-invariants.json": "e2c9ca11c1d47643aff09c5f1fe524e695463bd1dd1f4894ce8c88fd03a0c3fd",
+    "results/pre-frozen-baseline-fingerprint.json": "e97ce18865d80f50607ba38b72acc8a6c167f21a603d60363e99dd08b78e5d7d",
+    "results/pre-frozen-readiness.json": "6c38087dfa9a4d7be76230d96b0c36a2ead0d6f367d79a1ef2808ff84fb6536e"
+  },
+  "gateArtifacts": {
+    "external-real-media-development.json": "ae322d68efe3983b7dfd5b7d8656d4e3b3c31ebbfb724f6ef442401f06613980",
+    "external-real-media-validation.json": "e7e7bb4fbf0e231fefc7a799f294076f70ffbbff2f0868bd8790f8a1e86d3729",
+    "real-media-multiflight.json": "4f280ee128f57e466f6c81769ff2664c7ed63bb897b69498d3e14ca66ac1f1da",
+    "real-media-regression.json": "ca6322a8fc6e6838c9e38ee266c5bd83c406c220718068fb4356c657f8b64b9b",
+    "real-media-regression-release.json": "5d233825ee635509ba808a9bb747d7a46cf988035fafe1c1a30075ae4f8d6379",
+    "vmapple-hdr-stage-isolation.json": "6521e8989e77db676310bbcc4cdc0ee272d2cf33e5539996719a1df6ee483c73",
+    "vmapple-pure-metal-multiflight.json": "734e5ff7fcc101a336d27586d0ea424fdbf1461e8dbdf44dee99a25d2656c0a6"
+  },
+  "benchmarkArtifact": "results/performance-v1-final.json",
+  "candidateLedgerArtifact": "results/performance-v1-candidates.json",
+  "productionArithmetic": {
+    "toneCurveChanged": false,
+    "temporalArithmeticChanged": false,
+    "histogramSemanticsChanged": false,
+    "p010NormalizationChanged": false,
+    "edrMappingChanged": false,
+    "automaticDecodePolicyChanged": false,
+    "shaderChanged": false
+  },
+  "resourceContracts": {
+    "outputTextureSlotsPerSize": 3,
+    "temporalBufferPolicy": "lease keyed and completion-retained; unchanged",
+    "cvMetalTextureLifetime": "pixel buffer and plane wrappers retained through GPU completion",
+    "presentationDiagnosticPolicy": "PR9 shared fallback when disabled; writable per-command buffer when enabled"
+  },
+  "verification": {
+    "swiftDebug": "PASS",
+    "swiftRelease": "PASS",
+    "releaseBuild": "PASS",
+    "automaticDecode": "PASS",
+    "p010": "PASS",
+    "regression": "PASS",
+    "multiflight": "PASS",
+    "nativeMetal": "PASS",
+    "externalCorpus": "PASS",
+    "virginFrozenAccessed": false,
+    "objectiveEvaluations": 0
+  },
+  "verdict": "PASS_CPU_SUBMISSION_IMPROVEMENT",
+  "blockers": []
+}

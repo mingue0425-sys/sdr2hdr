@@ -87,6 +87,9 @@ final class P010Tests: XCTestCase {
         XCTAssertEqual(textures.uv?.width, 4)
         XCTAssertEqual(textures.uv?.height, 2)
         XCTAssertEqual(textures.retainedMetalTextures.count, 2)
+        XCTAssertNotNil(textures.retainedYTexture)
+        XCTAssertNotNil(textures.retainedUVTexture)
+        XCTAssertNil(textures.retainedBGRATexture)
     }
 
     func testP010ProcessesThroughCalibratedV4MetalPath() throws {

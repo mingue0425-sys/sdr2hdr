@@ -6,7 +6,18 @@ internal struct CVMetalInputTextures: @unchecked Sendable {
     let uv: MTLTexture?
     let bgra: MTLTexture?
     let pixelFormat: HDRInputPixelFormat
-    let retainedMetalTextures: [CVMetalTexture]
+    // Keep the CoreVideo wrappers as fixed slots instead of allocating a
+    // per-frame Array. The wrappers are still retained through GPU completion
+    // by GPUInputLifetime.
+    let retainedYTexture: CVMetalTexture?
+    let retainedUVTexture: CVMetalTexture?
+    let retainedBGRATexture: CVMetalTexture?
+
+    // Test/debug compatibility view. Production code passes the fixed slots
+    // directly to its lifetime token and does not materialize this Array.
+    var retainedMetalTextures: [CVMetalTexture] {
+        [retainedYTexture, retainedUVTexture, retainedBGRATexture].compactMap { $0 }
+    }
 }
 
 internal final class TextureCache {
@@ -78,7 +89,9 @@ internal final class TextureCache {
                 uv: uv,
                 bgra: nil,
                 pixelFormat: HDRInputPixelFormat(coreVideoFormat: format)!,
-                retainedMetalTextures: [yTexture, uvTexture]
+                retainedYTexture: yTexture,
+                retainedUVTexture: uvTexture,
+                retainedBGRATexture: nil
             )
 
         case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
@@ -129,7 +142,9 @@ internal final class TextureCache {
                 uv: uv,
                 bgra: nil,
                 pixelFormat: HDRInputPixelFormat(coreVideoFormat: format)!,
-                retainedMetalTextures: [yTexture, uvTexture]
+                retainedYTexture: yTexture,
+                retainedUVTexture: uvTexture,
+                retainedBGRATexture: nil
             )
 
         case kCVPixelFormatType_32BGRA:
@@ -159,7 +174,9 @@ internal final class TextureCache {
                 uv: nil,
                 bgra: bgra,
                 pixelFormat: .bgra8,
-                retainedMetalTextures: [bgraTexture]
+                retainedYTexture: nil,
+                retainedUVTexture: nil,
+                retainedBGRATexture: bgraTexture
             )
 
         default:
