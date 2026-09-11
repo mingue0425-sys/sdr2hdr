@@ -54,7 +54,7 @@ promotion decision: KEEP_CANDIDATE
 reason: synthetic edge evidence is positive, but external-media quality superiority is not established and the candidate remains narrower than nearest; DV420 must remain a safe nearest fallback
 
 MULTIFLIGHT
-remote portable: pending PR #9 CI at report creation; local required gate PASS
+remote portable: PASS (PR #9 macOS CI run 34584185077, job 103214442800); local required gate PASS
 local native: PASS on physical Apple M2 with MTL_DEBUG_LAYER=1
 depth2: PASS
 depth3: PASS
@@ -340,10 +340,11 @@ Silicon multi-flight and the two external corpus splits. Diagnostic tests are
 kept because they detect future VM/runtime regressions and remain separate
 from required production gates.
 
-Remote CI for this branch is the remaining delivery gate at report creation;
-the PR workflow must pass before merging. The external observer diagnostic is
-allowed to remain a known non-production limitation and must not be weakened
-to manufacture a PASS.
+Remote CI for this branch passed in run `34584185077` / job `103214442800`;
+the complete PR workflow finished successfully, including the required
+portable multi-flight gate. The external observer diagnostic is allowed to
+remain a known non-production limitation and must not be weakened to
+manufacture a PASS.
 
 ## Blocker registry and next step
 
