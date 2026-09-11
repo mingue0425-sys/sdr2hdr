@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "branch": "performance-optimization-v1",
+  "baselineMain": "393805254540277d65a74473b90ffdc46103ada7",
+  "performanceImplementationHead": "8086c9f59097f369967f201a6dcfd43dc562ddf5",
+  "measurementPolicy": {
+    "build": "release",
+    "device": "Apple M2 / 8 GB",
+    "macOS": "26.6.2 (25G83)",
+    "swift": "Apple Swift 6.3.3 (swiftlang-6.3.3.1.3)",
+    "preset": "calibrated-v4",
+    "toneCurve": "sceneRelativeV4",
+    "chroma": "nearest",
+    "warmupFrames": 30,
+    "measuredFrames": 300,
+    "repetitions": 3,
+    "note": "GPU clocks and p95 tails varied across repetitions; only the repeated CPU submission reduction is treated as attributable to P1."
+  },
+  "candidateEvaluation": {
+    "candidate": "P1",
+    "nv12_1080_edr": {
+      "gpuP50Ms": [0.705, 0.705, 0.705],
+      "gpuP95Ms": [0.929, 0.929, 0.929],
+      "cpuSubmissionP50Ms": [0.010, 0.010, 0.011],
+      "cpuSubmissionP95Ms": [0.017, 0.015, 0.017]
+    },
+    "localPreChangeComparator": {
+      "cpuSubmissionP50Ms": [0.014, 0.018, 0.018],
+      "cpuSubmissionP95Ms": [0.021, 0.094, 0.030]
+    },
+    "medianCpuP50DeltaPercent": -44.44,
+    "medianCpuP95DeltaPercent": -43.33,
+    "decision": "KEEP"
+  },
+  "finalBenchmark": {
+    "paths": [
+      {
+        "id": "nv12-1080-edr",
+        "precision": "NV12 8-bit",
+        "resolution": "1920x1080",
+        "mode": "EDR",
+        "gpuP50Ms": [0.718, 0.705, 0.705],
+        "gpuP95Ms": [1.284, 0.930, 0.930],
+        "cpuSubmissionP50Ms": [0.013, 0.013, 0.011],
+        "cpuSubmissionP95Ms": [0.034, 0.039, 0.016],
+        "median": {
+          "gpuP50Ms": 0.705,
+          "gpuP95Ms": 0.930,
+          "cpuSubmissionP50Ms": 0.013,
+          "cpuSubmissionP95Ms": 0.034
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [0.705, 0.718],
+          "gpuP95Ms": [0.930, 1.284],
+          "cpuSubmissionP50Ms": [0.011, 0.013],
+          "cpuSubmissionP95Ms": [0.016, 0.039]
+        }
+      },
+      {
+        "id": "nv12-4k-edr",
+        "precision": "NV12 8-bit",
+        "resolution": "3840x2160",
+        "mode": "EDR",
+        "gpuP50Ms": [1.628, 1.662, 1.659],
+        "gpuP95Ms": [1.692, 1.981, 2.054],
+        "cpuSubmissionP50Ms": [0.014, 0.016, 0.015],
+        "cpuSubmissionP95Ms": [0.031, 0.027, 0.023],
+        "median": {
+          "gpuP50Ms": 1.659,
+          "gpuP95Ms": 1.981,
+          "cpuSubmissionP50Ms": 0.015,
+          "cpuSubmissionP95Ms": 0.027
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [1.628, 1.662],
+          "gpuP95Ms": [1.692, 2.054],
+          "cpuSubmissionP50Ms": [0.014, 0.016],
+          "cpuSubmissionP95Ms": [0.023, 0.031]
+        }
+      },
+      {
+        "id": "nv12-1080-pq",
+        "precision": "NV12 8-bit",
+        "resolution": "1920x1080",
+        "mode": "PQ",
+        "gpuP50Ms": [0.724, 0.847, 0.844],
+        "gpuP95Ms": [1.499, 1.508, 1.508],
+        "cpuSubmissionP50Ms": [0.013, 0.014, 0.013],
+        "cpuSubmissionP95Ms": [0.035, 0.035, 0.035],
+        "median": {
+          "gpuP50Ms": 0.844,
+          "gpuP95Ms": 1.508,
+          "cpuSubmissionP50Ms": 0.013,
+          "cpuSubmissionP95Ms": 0.035
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [0.724, 0.847],
+          "gpuP95Ms": [1.499, 1.508],
+          "cpuSubmissionP50Ms": [0.013, 0.014],
+          "cpuSubmissionP95Ms": [0.035, 0.035]
+        }
+      },
+      {
+        "id": "nv12-4k-pq",
+        "precision": "NV12 8-bit",
+        "resolution": "3840x2160",
+        "mode": "PQ",
+        "gpuP50Ms": [1.919, 1.913, 1.935],
+        "gpuP95Ms": [2.060, 1.980, 2.138],
+        "cpuSubmissionP50Ms": [0.016, 0.014, 0.016],
+        "cpuSubmissionP95Ms": [0.033, 0.023, 0.025],
+        "median": {
+          "gpuP50Ms": 1.919,
+          "gpuP95Ms": 2.060,
+          "cpuSubmissionP50Ms": 0.016,
+          "cpuSubmissionP95Ms": 0.025
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [1.913, 1.935],
+          "gpuP95Ms": [1.980, 2.138],
+          "cpuSubmissionP50Ms": [0.014, 0.016],
+          "cpuSubmissionP95Ms": [0.023, 0.033]
+        }
+      },
+      {
+        "id": "p010-1080-edr",
+        "precision": "P010 10-bit",
+        "resolution": "1920x1080",
+        "mode": "EDR",
+        "gpuP50Ms": [0.561, 0.823, 0.827],
+        "gpuP95Ms": [0.819, 1.100, 1.094],
+        "cpuSubmissionP50Ms": [0.011, 0.013, 0.013],
+        "cpuSubmissionP95Ms": [0.022, 0.025, 0.022],
+        "median": {
+          "gpuP50Ms": 0.823,
+          "gpuP95Ms": 1.094,
+          "cpuSubmissionP50Ms": 0.013,
+          "cpuSubmissionP95Ms": 0.022
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [0.561, 0.827],
+          "gpuP95Ms": [0.819, 1.100],
+          "cpuSubmissionP50Ms": [0.011, 0.013],
+          "cpuSubmissionP95Ms": [0.022, 0.025]
+        }
+      },
+      {
+        "id": "p010-4k-edr",
+        "precision": "P010 10-bit",
+        "resolution": "3840x2160",
+        "mode": "EDR",
+        "gpuP50Ms": [1.932, 1.941, 1.937],
+        "gpuP95Ms": [1.974, 1.993, 1.980],
+        "cpuSubmissionP50Ms": [0.015, 0.015, 0.016],
+        "cpuSubmissionP95Ms": [0.023, 0.024, 0.026],
+        "median": {
+          "gpuP50Ms": 1.937,
+          "gpuP95Ms": 1.980,
+          "cpuSubmissionP50Ms": 0.015,
+          "cpuSubmissionP95Ms": 0.024
+        },
+        "minMaxSpread": {
+          "gpuP50Ms": [1.932, 1.941],
+          "gpuP95Ms": [1.974, 1.993],
+          "cpuSubmissionP50Ms": [0.015, 0.016],
+          "cpuSubmissionP95Ms": [0.023, 0.026]
+        }
+      }
+    ]
+  },
+  "correctness": {
+    "swiftDebug": "333 passed, 16 skipped, 0 failed",
+    "swiftRelease": "333 passed, 16 skipped, 0 failed",
+    "releaseBuild": "PASS",
+    "scriptCache": "PASS",
+    "selfContained": "PASS",
+    "automaticDecode": "PASS",
+    "p010": "PASS",
+    "regressionDebug": "12/12 PASS, failures=0, skipped=0",
+    "regressionRelease": "12/12 PASS, failures=0, skipped=0",
+    "multiFlight": "28/28 PASS; depth 2/3; NV12/P010; nearest/candidate; MTL_DEBUG_LAYER=1",
+    "pureMetal": "PURE_METAL_MULTIFLIGHT_PASS",
+    "hdrStageIsolation": "HDR_STAGES_ALL_PASS",
+    "externalDevelopment": "12 sources; failures=0; NV12=10; P010=2; fallback=0; mismatch=0",
+    "externalValidation": "5 sources; failures=0; runtime=4; metadata-only=1; NV12=4; P010=0; fallback=0; mismatch=0",
+    "outputTexturePool": "3 slots per size; 3 simultaneous leases supported; fourth retained lease rejected; reuse after release PASS",
+    "generationAndTemporal": "PASS; stale old-generation completion not applied; sequence ledgers monotonic",
+    "histogramParity": "PASS through existing linear64/16x9 runtime and regression gates",
+    "shaderOutputParity": "PASS; shaders unchanged"
+  },
+  "contracts": {
+    "productionPreset": "calibrated-v4",
+    "toneCurve": "sceneRelativeV4",
+    "chroma": "nearest",
+    "sitingAwareBilinear": "KEEP_CANDIDATE",
+    "dv420": "safe nearest fallback; full component-specific reconstruction not implemented",
+    "automaticDecode": "current policy",
+    "p010Normalization": "unchanged",
+    "histogram": "linear64, 16x9 proxy",
+    "temporal": "causal asynchronous estimator, one frame late",
+    "output": "EDR production path",
+    "virginFrozenAccessed": false,
+    "objectiveEvaluations": 0
+  },
+  "verdict": "PASS",
+  "performanceResult": "PASS_CPU_SUBMISSION_IMPROVEMENT",
+  "preFrozenBaselinePreserved": true,
+  "blockers": []
+}

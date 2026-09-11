@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "branch": "performance-optimization-v1",
+  "baselineMain": "393805254540277d65a74473b90ffdc46103ada7",
+  "frozenIsolation": {
+    "virginFrozenAccessed": false,
+    "objectiveEvaluations": 0,
+    "holdoutAccessed": false
+  },
+  "candidates": [
+    {
+      "id": "P1",
+      "description": "Replace the per-frame retainedMetalTextures Array with fixed Y/UV/BGRA optional slots while preserving the same CVMetalTexture and CVPixelBuffer completion lifetime.",
+      "filesChanged": [
+        "Sources/HDRCore/TextureCache.swift",
+        "Sources/HDRCore/HDRProcessor.swift",
+        "Tests/HDRCoreTests/P010Tests.swift"
+      ],
+      "correctness": "PASS",
+      "gpuDeltaP50Percent": -0.14,
+      "gpuDeltaP95Percent": 0.0,
+      "cpuDeltaP50Percent": -44.44,
+      "cpuDeltaP95Percent": -43.33,
+      "memoryDeltaPercent": 0.0,
+      "allocationChange": "removes one avoidable per-frame Swift Array materialization; Metal texture and pixel-buffer lifetimes are unchanged",
+      "focusedEvidence": [
+        "P010Tests: 8/8 passed",
+        "swift test debug/release: 333 passed, 16 skipped, 0 failed",
+        "self-contained NV12/P010: PASS",
+        "regression debug/release: 12/12 PASS",
+        "multi-flight: 28/28 PASS at depth 2/3 under MTL_DEBUG_LAYER=1",
+        "external development/validation: 0 failures"
+      ],
+      "decision": "KEEP"
+    },
+    {
+      "id": "P2",
+      "description": "Cache resolved metadata across frames.",
+      "filesChanged": [],
+      "correctness": "DEFER",
+      "gpuDeltaP50Percent": null,
+      "gpuDeltaP95Percent": null,
+      "cpuDeltaP50Percent": null,
+      "cpuDeltaP95Percent": null,
+      "memoryDeltaPercent": null,
+      "reason": "No stable source key safely covers format changes, asset switches, seeks, and dynamic CoreVideo attachments without re-reading the attachments; no change made."
+    },
+    {
+      "id": "P3",
+      "description": "Reuse CVMetalTexture wrappers across frames.",
+      "filesChanged": [],
+      "correctness": "DEFER",
+      "gpuDeltaP50Percent": null,
+      "gpuDeltaP95Percent": null,
+      "cpuDeltaP50Percent": null,
+      "cpuDeltaP95Percent": null,
+      "memoryDeltaPercent": null,
+      "reason": "The processor-lifetime CVMetalTextureCache is already reused; wrappers are tied to each input CVPixelBuffer and must remain alive through GPU completion."
+    },
+    {
+      "id": "P4",
+      "description": "Cache pipeline threadgroup geometry and merge or remove encoders.",
+      "filesChanged": [],
+      "correctness": "DEFER",
+      "gpuDeltaP50Percent": null,
+      "gpuDeltaP95Percent": null,
+      "cpuDeltaP50Percent": null,
+      "cpuDeltaP95Percent": null,
+      "memoryDeltaPercent": null,
+      "reason": "The transform and 16x9 estimator already share one compute encoder; property lookup is not evidenced as a material cost and encoder/resource ordering is correctness-sensitive."
+    },
+    {
+      "id": "P5",
+      "description": "Change shader arithmetic, histogram binning, dispatch domain, or precision for GPU speed.",
+      "filesChanged": [],
+      "correctness": "REJECT",
+      "gpuDeltaP50Percent": null,
+      "gpuDeltaP95Percent": null,
+      "cpuDeltaP50Percent": null,
+      "cpuDeltaP95Percent": null,
+      "memoryDeltaPercent": null,
+      "reason": "Would alter the calibrated-v4 arithmetic, linear64/16x9 histogram semantics, P010 normalization, or output parity contract; no shader change is justified in v1."
+    }
+  ],
+  "summary": {
+    "kept": ["P1"],
+    "deferred": ["P2", "P3", "P4"],
+    "rejected": ["P5"],
+    "productionArithmeticChanged": false,
+    "shaderChanged": false,
+    "texturePoolPolicyChanged": false,
+    "generationPolicyChanged": false
+  }
+}

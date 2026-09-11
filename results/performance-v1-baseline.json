@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "branch": "performance-optimization-v1",
+  "baselineMain": "393805254540277d65a74473b90ffdc46103ada7",
+  "implementationState": "main before candidate changes",
+  "frozenIsolation": {
+    "virginFrozenAccessed": false,
+    "objectiveEvaluations": 0,
+    "holdoutAccessed": false
+  },
+  "environment": {
+    "device": "Apple M2",
+    "architecture": "arm64",
+    "memory": "8 GB",
+    "macOS": "26.6.2 (25G83)",
+    "swift": "Apple Swift 6.3.3 (swiftlang-6.3.3.1.3)",
+    "build": "release",
+    "preset": "calibrated-v4",
+    "productionToneCurve": "sceneRelativeV4",
+    "productionChroma": "nearest",
+    "warmupFrames": 30,
+    "measuredFrames": 300
+  },
+  "preFrozenOracle": {
+    "source": "results/pre-frozen-baseline-fingerprint.json#benchmarkBaseline",
+    "precision": "NV12 8-bit",
+    "results": [
+      {
+        "resolution": "1920x1080",
+        "mode": "EDR",
+        "gpuP50Ms": 0.705,
+        "gpuP95Ms": 0.931,
+        "cpuSubmissionP50Ms": 0.011,
+        "cpuSubmissionP95Ms": 0.035
+      },
+      {
+        "resolution": "3840x2160",
+        "mode": "EDR",
+        "gpuP50Ms": 1.628,
+        "gpuP95Ms": 1.680,
+        "cpuSubmissionP50Ms": 0.014,
+        "cpuSubmissionP95Ms": 0.023
+      },
+      {
+        "resolution": "1920x1080",
+        "mode": "PQ",
+        "gpuP50Ms": 0.698,
+        "gpuP95Ms": 1.088,
+        "cpuSubmissionP50Ms": 0.011,
+        "cpuSubmissionP95Ms": 0.027
+      },
+      {
+        "resolution": "3840x2160",
+        "mode": "PQ",
+        "gpuP50Ms": 1.906,
+        "gpuP95Ms": 1.969,
+        "cpuSubmissionP50Ms": 0.014,
+        "cpuSubmissionP95Ms": 0.022
+      }
+    ]
+  },
+  "localPreChangeRuns": {
+    "purpose": "same-session comparator captured before P1, separate from the PR9 oracle",
+    "paths": [
+      {
+        "id": "nv12-1080-edr",
+        "precision": "NV12 8-bit",
+        "resolution": "1920x1080",
+        "mode": "EDR",
+        "gpuP50Ms": [0.705, 0.706, 0.706],
+        "gpuP95Ms": [0.930, 1.282, 1.280],
+        "cpuSubmissionP50Ms": [0.014, 0.018, 0.018],
+        "cpuSubmissionP95Ms": [0.021, 0.094, 0.030]
+      },
+      {
+        "id": "nv12-4k-edr",
+        "precision": "NV12 8-bit",
+        "resolution": "3840x2160",
+        "mode": "EDR",
+        "gpuP50Ms": [1.628, 1.828, 2.391],
+        "gpuP95Ms": [1.689, 2.146, 2.881],
+        "cpuSubmissionP50Ms": [0.017, 0.014, 0.017],
+        "cpuSubmissionP95Ms": [0.029, 0.020, 0.026]
+      },
+      {
+        "id": "nv12-1080-pq",
+        "precision": "NV12 8-bit",
+        "resolution": "1920x1080",
+        "mode": "PQ",
+        "gpuP50Ms": [1.498],
+        "gpuP95Ms": [1.555],
+        "cpuSubmissionP50Ms": [0.034],
+        "cpuSubmissionP95Ms": [0.060]
+      },
+      {
+        "id": "nv12-4k-pq",
+        "precision": "NV12 8-bit",
+        "resolution": "3840x2160",
+        "mode": "PQ",
+        "gpuP50Ms": [2.166],
+        "gpuP95Ms": [4.321],
+        "cpuSubmissionP50Ms": [0.039],
+        "cpuSubmissionP95Ms": [0.064]
+      },
+      {
+        "id": "p010-1080-edr",
+        "precision": "P010 10-bit",
+        "resolution": "1920x1080",
+        "mode": "EDR",
+        "gpuP50Ms": [0.807],
+        "gpuP95Ms": [1.464],
+        "cpuSubmissionP50Ms": [0.028],
+        "cpuSubmissionP95Ms": [0.062]
+      },
+      {
+        "id": "p010-4k-edr",
+        "precision": "P010 10-bit",
+        "resolution": "3840x2160",
+        "mode": "EDR",
+        "gpuP50Ms": [2.103],
+        "gpuP95Ms": [2.372],
+        "cpuSubmissionP50Ms": [0.021],
+        "cpuSubmissionP95Ms": [0.042]
+      }
+    ]
+  },
+  "persistentResourceInventory": {
+    "outputTexturePool": {
+      "slotsPerSize": 3,
+      "serialAllocationsAfterWarmup": 3,
+      "multiFlightDepth3Allocations": 3,
+      "contract": "unchanged"
+    },
+    "temporalEstimateBuffers": {
+      "serialAllocationsAfterWarmup": 1,
+      "multiFlightDepth3Allocations": 3,
+      "contract": "keyed by output lease; unchanged"
+    },
+    "cvMetalTextureCache": "one processor-lifetime cache; plane wrappers created per input pixel buffer",
+    "debugBuffers": "three per frame only when debug instrumentation is enabled; production disabled",
+    "presentationDiagnostic": "PR9 renderer-owned fallback when disabled; per-command writable buffer when enabled"
+  },
+  "baselineFingerprint": {
+    "configurationSha256": "80d145aba197149b5caf4e72bfe420fd00f049b71761a8bb6825d96a795bd087",
+    "productionInvariantSha256": "e2c9ca11c1d47643aff09c5f1fe524e695463bd1dd1f4894ce8c88fd03a0c3fd",
+    "sdrToHDRShaderSha256": "208426f0a12a4a5eb73021054791fc07f66e5977e26a86a2db32df363f152249",
+    "presentationShaderSha256": "cda6e5be33aab0909b10ae14e14c3e5a0275725f9a13750f6cd106bcc57c5745"
+  }
+}
