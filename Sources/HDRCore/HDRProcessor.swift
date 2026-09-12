@@ -98,6 +98,7 @@ private final class OutputTexturePool: @unchecked Sendable {
         let height: Int
         let texture: MTLTexture
         var inFlight: Bool
+        var temporalBuffer: MTLBuffer? = nil
     }
 
     private let device: MTLDevice
@@ -127,6 +128,40 @@ private final class OutputTexturePool: @unchecked Sendable {
                 inFlight: entry.inFlight,
                 identity: String(describing: ObjectIdentifier(entry.texture as AnyObject))
             )
+        }
+    }
+
+    var temporalBufferEvidence: [HDRTemporalEstimateBufferEvidence] {
+        lock.withLock {
+            entries.compactMap { entry in
+                entry.temporalBuffer.map {
+                    HDRTemporalEstimateBufferEvidence(
+                        leaseID: entry.id,
+                        identity: String(describing: ObjectIdentifier($0 as AnyObject))
+                    )
+                }
+            }
+        }
+    }
+
+    var temporalBufferCount: Int {
+        lock.withLock { entries.reduce(0) { $0 + ($1.temporalBuffer == nil ? 0 : 1) } }
+    }
+
+    func temporalBuffer(for leaseID: Int) throws -> MTLBuffer {
+        try lock.withLock {
+            guard let index = entries.firstIndex(where: { $0.id == leaseID && $0.inFlight }) else {
+                throw HDRProcessorError.debugBufferCreationFailed
+            }
+            if let buffer = entries[index].temporalBuffer { return buffer }
+            guard let buffer = device.makeBuffer(
+                length: MemoryLayout<TemporalLumaStatsStorage>.stride,
+                options: .storageModeShared
+            ) else { throw HDRProcessorError.debugBufferCreationFailed }
+            // The estimator and output slot share one lifetime, including old
+            // resolutions still retained by a caller or an in-flight command.
+            entries[index].temporalBuffer = buffer
+            return buffer
         }
     }
 
@@ -550,42 +585,6 @@ private struct TemporalLumaStatsStorage {
     }
 }
 
-private final class TemporalEstimateBufferPool: @unchecked Sendable {
-    private let device: MTLDevice
-    private let lock = NSLock()
-    private var buffers: [Int: MTLBuffer] = [:]
-
-    init(device: MTLDevice) { self.device = device }
-
-    var allocationCount: Int {
-        lock.withLock { buffers.count }
-    }
-
-    var evidence: [HDRTemporalEstimateBufferEvidence] {
-        lock.withLock {
-            buffers.map { leaseID, buffer in
-                HDRTemporalEstimateBufferEvidence(
-                    leaseID: leaseID,
-                    identity: String(describing: ObjectIdentifier(buffer as AnyObject))
-                )
-            }
-            .sorted { $0.leaseID < $1.leaseID }
-        }
-    }
-
-    func buffer(for leaseID: Int) throws -> MTLBuffer {
-        lock.lock()
-        defer { lock.unlock() }
-        if let buffer = buffers[leaseID] { return buffer }
-        guard let buffer = device.makeBuffer(
-            length: MemoryLayout<TemporalLumaStatsStorage>.stride,
-            options: .storageModeShared
-        ) else { throw HDRProcessorError.debugBufferCreationFailed }
-        buffers[leaseID] = buffer
-        return buffer
-    }
-}
-
 private final class TemporalEstimateBufferLifetime: @unchecked Sendable {
     let buffer: MTLBuffer
     init(_ buffer: MTLBuffer) { self.buffer = buffer }
@@ -680,7 +679,6 @@ public final class HDRProcessor {
     private let stateLock = NSLock()
     private var currentConfiguration: HDRConfiguration
     private let adaptiveState = HDRAdaptiveStateStore()
-    private let temporalEstimateBuffers: TemporalEstimateBufferPool
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
     private var debugPresetLabel = "configuration"
@@ -770,7 +768,7 @@ public final class HDRProcessor {
         return HDRRuntimeMetrics(
             outputTextureAllocations: values.textureAllocations,
             outputTextureLogicalBytes: values.logicalBytes,
-            temporalEstimateBufferAllocations: temporalEstimateBuffers.allocationCount
+            temporalEstimateBufferAllocations: outputPool.temporalBufferCount
         )
     }
 
@@ -780,7 +778,7 @@ public final class HDRProcessor {
         HDRRuntimeResourceEvidence(
             outputTextureSlotsPerSize: 3,
             outputTextures: outputPool.evidence,
-            temporalEstimateBuffers: temporalEstimateBuffers.evidence
+            temporalEstimateBuffers: outputPool.temporalBufferEvidence
         )
     }
 
@@ -797,7 +795,6 @@ public final class HDRProcessor {
         self.device = device
         self.context = try MetalContext(device: device, commandQueue: commandQueue)
         self.outputPool = OutputTexturePool(device: device)
-        self.temporalEstimateBuffers = TemporalEstimateBufferPool(device: device)
     }
 
     /// Update parameters without rebuilding Metal libraries or pipeline state.
@@ -1224,14 +1221,14 @@ public final class HDRProcessor {
         if temporalSubmission != nil {
             writeHDRMultiFlightDeepProgress(
                 "temporal-estimator-buffer-start frame=\(progressFrame) " +
-                    "leaseID=\(lease.id) allocations=\(temporalEstimateBuffers.allocationCount)"
+                    "leaseID=\(lease.id) allocations=\(outputPool.temporalBufferCount)"
             )
-            let buffer = try temporalEstimateBuffers.buffer(for: lease.id)
+            let buffer = try outputPool.temporalBuffer(for: lease.id)
             buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee =
                 TemporalLumaStatsStorage()
             temporalEstimateBuffer = buffer
             if hdrMultiFlightDeepProgressEnabled {
-                let temporalEvidence = temporalEstimateBuffers.evidence
+                let temporalEvidence = outputPool.temporalBufferEvidence
                 let temporalIdentitySummary = temporalEvidence.map {
                     "\($0.leaseID):\($0.identity)"
                 }.joined(separator: ",")

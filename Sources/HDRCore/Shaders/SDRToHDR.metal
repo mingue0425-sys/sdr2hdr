@@ -104,7 +104,7 @@ inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
     switch (p.transferFunction) {
         case 0: return inverseBT709(value);
         case 1: return inverseSRGB(value);
-        case 2: return pow(max(value, 0.0f), max(p.gamma, 1e-4f));
+        case 2: return pow(max(value, 0.0f), p.gamma);
         default: return max(value, 0.0f);
     }
 }
@@ -645,7 +645,8 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) 
     float3 linear = linearizeSignal(signal, p);
     float luminance = max(dot(linear, kBT709Luma), 0.0f);
     float expandedLuminance = toneExpand(luminance, p);
-    float gain = expandedLuminance / max(luminance, 1e-6f);
+    // Preserve near-black light; only exact black requires a divide guard.
+    float gain = luminance > 0.0f ? expandedLuminance / luminance : 0.0f;
     float3 expanded = linear * gain;
     // Use the fixed output-domain peak as the upper edge. Using the sample
     // itself as edge1 made every value >= 1.001 land at t=1, collapsing the
