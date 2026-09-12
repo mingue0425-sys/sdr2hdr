@@ -1745,13 +1745,13 @@ public final class CalibrationV4Runner {
         candidateCPU.reserveCapacity(thresholds.measuredFrames)
 
         func measure(_ processor: HDRProcessor, collectGPU: inout [Double], collectCPU: inout [Double], collect: Bool) throws {
+            let cpuStart = ProcessInfo.processInfo.systemUptime
             guard let commandBuffer = queue.makeCommandBuffer() else {
                 throw HDRProcessorError.commandBufferCreationFailed
             }
-            let cpuStart = ProcessInfo.processInfo.systemUptime
             _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
-            let encodeEnd = ProcessInfo.processInfo.systemUptime
             commandBuffer.commit()
+            let encodeEnd = ProcessInfo.processInfo.systemUptime
             commandBuffer.waitUntilCompleted()
             if let error = commandBuffer.error { throw error }
             guard commandBuffer.gpuStartTime > 0,

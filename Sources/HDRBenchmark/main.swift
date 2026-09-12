@@ -96,8 +96,16 @@ private func makeSyntheticNV12(width: Int, height: Int) throws -> CVPixelBuffer 
     )
 
     let lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, [])
-    guard lockStatus == kCVReturnSuccess else { return pixelBuffer }
+    guard lockStatus == kCVReturnSuccess else {
+        throw NSError(domain: "HDRBenchmark", code: Int(lockStatus),
+            userInfo: [NSLocalizedDescriptionKey: "NV12 benchmark input lock failed"])
+    }
     defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+    guard CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) != nil,
+          CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) != nil else {
+        throw NSError(domain: "HDRBenchmark", code: 7,
+            userInfo: [NSLocalizedDescriptionKey: "NV12 benchmark input planes unavailable"])
+    }
 
     if let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0)?.assumingMemoryBound(to: UInt8.self) {
         let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
@@ -146,8 +154,16 @@ private func makeSyntheticP010(width: Int, height: Int) throws -> CVPixelBuffer 
     CVBufferSetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_709_2, .shouldPropagate)
 
     let lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, [])
-    guard lockStatus == kCVReturnSuccess else { return pixelBuffer }
+    guard lockStatus == kCVReturnSuccess else {
+        throw NSError(domain: "HDRBenchmark", code: Int(lockStatus),
+            userInfo: [NSLocalizedDescriptionKey: "P010 benchmark input lock failed"])
+    }
     defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+    guard CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) != nil,
+          CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) != nil else {
+        throw NSError(domain: "HDRBenchmark", code: 7,
+            userInfo: [NSLocalizedDescriptionKey: "P010 benchmark input planes unavailable"])
+    }
     if let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0)?.assumingMemoryBound(to: UInt16.self) {
         let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
         for y in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 0) {
@@ -181,6 +197,20 @@ private func percentile(_ values: [Double], _ fraction: Double) -> Double {
     return sorted[position]
 }
 
+private func measuredGPUMilliseconds(_ commandBuffer: MTLCommandBuffer) throws -> Double {
+    guard commandBuffer.status == .completed, commandBuffer.error == nil else {
+        throw commandBuffer.error ?? NSError(domain: "HDRBenchmark", code: 5,
+            userInfo: [NSLocalizedDescriptionKey: "GPU command did not complete successfully"])
+    }
+    let start = commandBuffer.gpuStartTime
+    let end = commandBuffer.gpuEndTime
+    guard start.isFinite, end.isFinite, start > 0, end > start else {
+        throw NSError(domain: "HDRBenchmark", code: 6,
+            userInfo: [NSLocalizedDescriptionKey: "GPU timing unavailable; no GPU performance verdict can be reported"])
+    }
+    return (end - start) * 1_000
+}
+
 private func runPresentationBenchmark(
     options: BenchmarkOptions,
     configuration: HDRConfiguration,
@@ -209,24 +239,21 @@ private func runPresentationBenchmark(
     cpuSubmissionDurations.reserveCapacity(options.frames)
 
     for frameIndex in 0..<totalFrames {
+        let cpuStart = ProcessInfo.processInfo.systemUptime
         guard let commandBuffer = queue.makeCommandBuffer() else {
             throw HDRProcessorError.commandBufferCreationFailed
         }
-        let cpuStart = ProcessInfo.processInfo.systemUptime
-        renderer.encodeTestPattern(
+        guard renderer.encodeTestPattern(
             to: target,
             commandBuffer: commandBuffer,
             masteringHeadroom: configuration.masteringHeadroom,
             displayHeadroom: 2
-        )
-        let encodeEnd = ProcessInfo.processInfo.systemUptime
+        ) else { throw HDRProcessorError.commandEncoderCreationFailed }
         commandBuffer.commit()
+        let encodeEnd = ProcessInfo.processInfo.systemUptime
         commandBuffer.waitUntilCompleted()
-        let wallEnd = ProcessInfo.processInfo.systemUptime
+        let gpuDuration = try measuredGPUMilliseconds(commandBuffer)
         if frameIndex >= options.warmup {
-            let gpuDuration = commandBuffer.gpuStartTime > 0 && commandBuffer.gpuEndTime > commandBuffer.gpuStartTime
-                ? (commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1_000
-                : (wallEnd - cpuStart) * 1_000
             gpuDurations.append(gpuDuration)
             cpuSubmissionDurations.append((encodeEnd - cpuStart) * 1_000)
         }
@@ -238,10 +265,12 @@ private func runPresentationBenchmark(
     print(String(format: "GPU p50: %.3f ms", percentile(gpuDurations, 0.50)))
     print(String(format: "GPU p95: %.3f ms", percentile(gpuDurations, 0.95)))
     print(String(format: "GPU p99: %.3f ms", percentile(gpuDurations, 0.99)))
+    print(String(format: "GPU worst: %.3f ms", gpuDurations.max() ?? .nan))
     print(String(format: "CPU submission p50: %.3f ms", percentile(cpuSubmissionDurations, 0.50)))
     print(String(format: "CPU submission p95: %.3f ms", percentile(cpuSubmissionDurations, 0.95)))
     print(String(format: "CPU submission p99: %.3f ms", percentile(cpuSubmissionDurations, 0.99)))
     print("persistent presentation textures: 1")
+    print("scope: offscreen test pattern, one command in flight; excludes source sampling and display pacing")
 }
 
 private func run(options: BenchmarkOptions) throws {
@@ -278,20 +307,17 @@ private func run(options: BenchmarkOptions) throws {
     cpuSubmissionDurations.reserveCapacity(options.frames)
 
     for frameIndex in 0..<totalFrames {
+        let cpuStart = ProcessInfo.processInfo.systemUptime
         guard let commandBuffer = queue.makeCommandBuffer() else {
             throw HDRProcessorError.commandBufferCreationFailed
         }
-        let cpuStart = ProcessInfo.processInfo.systemUptime
         _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
-        let encodeEnd = ProcessInfo.processInfo.systemUptime
         commandBuffer.commit()
+        let encodeEnd = ProcessInfo.processInfo.systemUptime
         commandBuffer.waitUntilCompleted()
-        let wallEnd = ProcessInfo.processInfo.systemUptime
+        let gpuDuration = try measuredGPUMilliseconds(commandBuffer)
 
         if frameIndex >= options.warmup {
-            let gpuDuration = commandBuffer.gpuStartTime > 0 && commandBuffer.gpuEndTime > commandBuffer.gpuStartTime
-                ? (commandBuffer.gpuEndTime - commandBuffer.gpuStartTime) * 1_000
-                : (wallEnd - cpuStart) * 1_000
             gpuDurations.append(gpuDuration)
             cpuSubmissionDurations.append((encodeEnd - cpuStart) * 1_000)
         }
@@ -315,6 +341,7 @@ private func run(options: BenchmarkOptions) throws {
     print(String(format: "GPU p50: %.3f ms", gpuP50))
     print(String(format: "GPU p95: %.3f ms", gpuP95))
     print(String(format: "GPU p99: %.3f ms", gpuP99))
+    print(String(format: "GPU worst: %.3f ms", gpuDurations.max() ?? .nan))
     print(String(format: "CPU submission p50: %.3f ms", cpuP50))
     print(String(format: "CPU submission p95: %.3f ms", cpuP95))
     print(String(format: "CPU submission p99: %.3f ms", cpuP99))
@@ -323,6 +350,7 @@ private func run(options: BenchmarkOptions) throws {
     print("output texture allocations: \(metrics.outputTextureAllocations) persistent texture(s)")
     print("output texture logical memory: \(metrics.outputTextureLogicalBytes) bytes")
     print("temporal estimate buffers: \(metrics.temporalEstimateBufferAllocations) persistent buffer(s)")
+    print("scope: synthetic transform, one command in flight; excludes decode, presentation and display pacing")
 }
 
 do {
