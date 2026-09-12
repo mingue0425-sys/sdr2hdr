@@ -1389,6 +1389,19 @@ final class CalibrationTests: XCTestCase {
         alignment["rejectedFrameCount"] = 1
         countTamperedPair["alignment"] = alignment
         try expectSemanticRejection(countTamperedPair)
+
+        // Rehashing an old preparation policy must not resurrect an artifact
+        // whose source metric grid used encoded Y' instead of linear light.
+        var legacyObject = planObject
+        var legacyPreparation = try XCTUnwrap(legacyObject["preparation"] as? [String: Any])
+        legacyPreparation["version"] = "v6-prepared-evaluation-plan-v4"
+        legacyObject["preparation"] = legacyPreparation
+        let legacyPlan = try JSONDecoder().decode(PreparedEvaluationPlan.self,
+            from: JSONSerialization.data(withJSONObject: legacyObject))
+        let legacyArtifact = try V6PreparedEvaluationPlanArtifact(plan: legacyPlan)
+        try V6PreparedEvaluationPlanHasher.canonicalData(legacyArtifact).write(to: artifactURL)
+        try Data((legacyArtifact.planSHA256 + "\n").utf8).write(to: sidecarURL)
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL))
     }
 
     func testV6TemporalPlanPreservesLegacyConfidenceGate() throws {

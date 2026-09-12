@@ -33,7 +33,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v4",
+        version: String = "v6-prepared-evaluation-plan-v5-linear-source-luminance",
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -452,7 +452,7 @@ public enum V6PreparedEvaluationPlanLoader {
 private enum V6PreparedEvaluationPlanSemantics {
     static func validate(_ plan: PreparedEvaluationPlan) throws {
         guard plan.schemaVersion == "v6-prepared-evaluation-plan-v4",
-              plan.preparation.version == "v6-prepared-evaluation-plan-v4",
+              plan.preparation.version == V6PreparationConfiguration.v6.version,
               plan.scope == "TUNE_VALIDATION" || plan.scope == "VIRGIN_FROZEN",
               !plan.pairOrder.isEmpty,
               Set(plan.pairOrder).count == plan.pairOrder.count,

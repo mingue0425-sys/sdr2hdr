@@ -482,10 +482,8 @@ public final class PairEvaluator {
                 transfer: hdrMetadata.color.referenceTransfer,
                 referencePeakNits: experiment.referenceTargetPeakNits
             )
-            let sourceLuma = FrameDescriptorBuilder.downsample(
-                sdr.lumaGrid,
-                sourceWidth: 64,
-                sourceHeight: 36,
+            let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
+                pixelBuffer: sdr.pixelBuffer,
                 width: reference.width,
                 height: reference.height
             )
@@ -649,8 +647,8 @@ public final class PairEvaluator {
                 transfer: transfer,
                 referencePeakNits: preparation.referenceTargetPeakNits
             )
-            let sourceLuma = FrameDescriptorBuilder.downsample(
-                sdr.lumaGrid, sourceWidth: 64, sourceHeight: 36,
+            let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
+                pixelBuffer: sdr.pixelBuffer,
                 width: reference.width, height: reference.height
             )
             preparedMatches.append(PreparedMatch(
@@ -795,8 +793,8 @@ public final class PairEvaluator {
                     transfer: hdrTransfer,
                     referencePeakNits: preparation.referenceTargetPeakNits
                 )
-                let sourceLuma = FrameDescriptorBuilder.downsample(
-                    sdrFrame.lumaGrid, sourceWidth: 64, sourceHeight: 36,
+                let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
+                    pixelBuffer: sdrFrame.pixelBuffer,
                     width: reference.width, height: reference.height
                 )
                 frames.append(PreparedTemporalFrame(
@@ -868,8 +866,8 @@ public final class PairEvaluator {
                     transfer: hdrTransfer,
                     referencePeakNits: experiment.referenceTargetPeakNits
                 )
-                let sourceLuma = FrameDescriptorBuilder.downsample(
-                    sdrFrame.lumaGrid, sourceWidth: 64, sourceHeight: 36,
+                let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
+                    pixelBuffer: sdrFrame.pixelBuffer,
                     width: reference.width, height: reference.height
                 )
                 frames.append(PreparedTemporalFrame(

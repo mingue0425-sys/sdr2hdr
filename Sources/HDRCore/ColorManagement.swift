@@ -48,6 +48,15 @@ public struct HDRInputMetadata: Equatable, Sendable {
     public let isFullRange: Bool
     public let metadataWasExplicit: Bool
 
+    /// The metadata contract shared by realtime processing and offline source
+    /// diagnostics. Resolves attachments without reading any pixel data.
+    public static func resolve(
+        pixelBuffer: CVPixelBuffer,
+        fallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange
+    ) throws -> HDRInputMetadata {
+        try HDRColorMetadataResolver.resolve(pixelBuffer: pixelBuffer, fallbackPolicy: fallbackPolicy).metadata
+    }
+
     public init(
         primariesAreBT709: Bool = true,
         transferFunction: HDRTransferFunction = .bt709,
@@ -226,7 +235,11 @@ internal enum HDRColorMetadataResolver {
                   gamma.doubleValue > 0 else {
                 throw HDRColorMetadataError.invalidGamma
             }
-            transferFunction = .gamma(Float(gamma.doubleValue))
+            let shaderGamma = Float(gamma.doubleValue)
+            guard shaderGamma.isFinite, shaderGamma > 0 else {
+                throw HDRColorMetadataError.invalidGamma
+            }
+            transferFunction = .gamma(shaderGamma)
         } else {
             throw HDRColorMetadataError.unsupportedTransferFunction
         }
