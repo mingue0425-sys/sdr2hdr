@@ -1,0 +1,102 @@
+{
+  "artifactVersion": 1,
+  "status": "BLOCKED_FAMILY_OVERLAP",
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "prHead": "e6320b814feb205c2ff9fd31dfba6ca7c2bf4c37",
+  "sdrPolicyVersion": "sdr-input-interpretation-policy-v1",
+  "preparationVersion": "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy",
+  "metricVersion": "v2-objective-with-v61-directional-diagnostics",
+  "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+  "preregistration": {
+    "status": "MATCH",
+    "recomputedWith": "Swift JSONEncoder sortedKeys plus SHA-256",
+    "policyCandidates": [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "searchBudgetPerPolicy": 192,
+    "seed": 20260912,
+    "shortlistSize": 3
+  },
+  "manifestRecovery": {
+    "source": "existing committed calibration provenance",
+    "runtimeOnlyManifestRejected": "data_video/real_media/external-manifest.json",
+    "pairedManifest": "data_video/visual-regression/v6-development-manifest.json",
+    "manifestVersion": 4,
+    "manifestSHA256": "26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c",
+    "exactPath": true,
+    "wildcardExpansion": false,
+    "directoryRootUsed": false
+  },
+  "tuneManifest": {
+    "status": "ROLE_APPROVED_IDENTITY_INCOMPLETE",
+    "manifestIdentity": "data_video/visual-regression/v6-development-manifest.json@sha256:26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c#split=tune",
+    "role": "tune",
+    "assetCount": 5,
+    "roleProvenance": "PASS",
+    "contentHashFields": "MISSING",
+    "datasetIdField": "MISSING",
+    "provenanceVersionField": "MISSING"
+  },
+  "validationManifest": {
+    "status": "ROLE_APPROVED_IDENTITY_INCOMPLETE",
+    "manifestIdentity": "data_video/visual-regression/v6-development-manifest.json@sha256:26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c#split=validation",
+    "role": "validation",
+    "assetCount": 3,
+    "roleProvenance": "PASS",
+    "contentHashFields": "MISSING",
+    "datasetIdField": "MISSING",
+    "provenanceVersionField": "MISSING"
+  },
+  "manifestIntegrity": {
+    "jsonSchemaParse": "PASS",
+    "requiredPairIdentity": "PASS",
+    "explicitAssetLocators": "PASS",
+    "pairContentHashes": "NOT_PRESENT_IN_APPROVED_MANIFEST",
+    "currentMediaHashes": "NOT_COMPUTED",
+    "status": "PROVENANCE_INSUFFICIENT"
+  },
+  "splitRoleProvenance": {
+    "status": "PASS",
+    "duplicateAssetIDsAcrossSplits": 0,
+    "duplicateGroupsAcrossSplits": 0,
+    "duplicateLocatorsAcrossSplits": 0,
+    "reclassificationPerformed": false
+  },
+  "frozenExclusion": {
+    "status": "PASS",
+    "evidence": "all eight manifest pairs declare virginFrozen=false; committed provenance describes the records as non-protected Tune/Validation",
+    "frozenPathAccessed": false,
+    "frozenMetadataProbed": false
+  },
+  "familyIndependence": {
+    "status": "FAIL",
+    "reason": "contentFamily K-Choreo and LIVE both occur in Tune and Validation",
+    "overlappingFamilies": [
+      "K-Choreo",
+      "LIVE"
+    ],
+    "familyLevelPromotionEligibility": "NO"
+  },
+  "execution": {
+    "preflightCompletedBeforeMediaAccess": true,
+    "mediaDecoded": false,
+    "mediaHashed": false,
+    "tuneRun": false,
+    "validationRun": false,
+    "shortlistFrozen": false,
+    "objectiveEvaluations": 0,
+    "frozenAccessed": false
+  },
+  "decision": {
+    "calibrationResume": "BLOCKED",
+    "reason": "family-level split overlap is explicit; current media byte identity and dataset provenance are not sealed by the approved manifest",
+    "oldCalibrationReusable": false,
+    "productionDefaultChanged": false,
+    "nextRequiredEvidence": [
+      "trusted replacement or amended Tune/Validation manifest with dataset and provenance identity",
+      "family-disjoint split evidence or an explicitly approved exception",
+      "historically anchored content hashes before media materialization"
+    ]
+  }
+}

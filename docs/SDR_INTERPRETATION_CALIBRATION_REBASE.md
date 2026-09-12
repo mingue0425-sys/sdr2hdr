@@ -98,13 +98,48 @@ The canonical search-definition hash is:
 
 The BT.1886 policy and preparation plan identities participate in SHA-256 identity. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
 
-## 9. Tune results
+## 9. Corpus recovery preflight and Tune results
 
-The approved Tune/Validation manifest is not configured in this checkout/session. No calibration media was opened. The Tune artifact records:
+The exact paired manifest was recovered from existing committed calibration
+provenance:
 
 ```text
-status: BLOCKED_MISSING_DATA
-candidate evidence: []
+path: data_video/visual-regression/v6-development-manifest.json
+manifest version: 4
+manifest SHA-256: 26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c
+Tune records: 5
+Validation records: 3
+```
+
+The separate `data_video/real_media/external-manifest.json` is a single-SDR
+runtime/acquisition manifest and is not used as paired calibration input. The
+paired manifest has explicit paths, IDs, groups, content families, and split
+assignments. It has no pair-level content SHA-256, dataset ID, or provenance
+version field. Its locators also point to the separately named source volume,
+so a newly computed hash would establish only current bytes and would not prove
+historical approval.
+
+The role audit passes: there are no duplicate IDs, groups, or locators across
+the two split projections, and no role was reclassified. Frozen exclusion also
+passes from the manifest's eight `virginFrozen = false` declarations and the
+committed provenance describing the records as non-protected Tune/Validation.
+Family independence does not pass: both `K-Choreo` and `LIVE` occur in Tune and
+Validation. This is an explicit family overlap, not an inferred result.
+
+The complete static result is recorded in
+[`results/calibration-corpus-preflight.json`](../results/calibration-corpus-preflight.json).
+The preregistration hash was recomputed with the source-equivalent Swift
+`JSONEncoder` and matches
+`7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608`.
+
+```text
+status: BLOCKED_FAMILY_OVERLAP
+manifest identity: found, current-cycle approval incomplete
+corpus integrity: PROVENANCE_INSUFFICIENT
+family independence: FAIL
+media decoded: NO
+Tune run: NO
+Validation run: NO
 objective evaluations: 0
 ```
 
@@ -112,24 +147,31 @@ Synthetic transfer fixtures provide correctness anchors only. They do not stand 
 
 ## 10. Frozen shortlist
 
-No shortlist was frozen because the required approved Tune data is unavailable. The candidate artifact's local configuration-freeze flag describes the protocol only; it does not refer to the repository's Frozen dataset.
+No shortlist was frozen because the corpus preflight failed before media
+materialization. The candidate artifact's local configuration-freeze flag
+describes the protocol only; it does not refer to the repository's Frozen
+dataset.
 
 ## 11. Validation results
 
-Validation was not run. The Validation artifact records `BLOCKED_MISSING_DATA`. No policy, threshold, metric, search space, or parameter was changed after a result was exposed.
+Validation was not run. The preflight blocker was established before any
+Validation metric or media bytes were exposed. No policy, threshold, metric,
+search space, or parameter was changed.
 
 ## 12. Candidate selection
 
 No policy or candidate was selected. The result is:
 
 ```text
-CALIBRATION_REBASE = BLOCKED_MISSING_DATA
+CALIBRATION_REBASE = BLOCKED_FAMILY_OVERLAP
 SELECTED SDR POLICY = NONE
 NEW CANDIDATE = NONE
 PRODUCTION DEFAULT CHANGED = NO
 ```
 
-This is an honest data-availability result, not a claim that either standard model is preferred.
+This is an honest preflight result, not a claim that either standard model is
+preferred. The family overlap and unsealed byte identity must be resolved by a
+trusted corpus handoff before the preregistered search can resume.
 
 ## 13. Calibration lineage
 
@@ -145,7 +187,9 @@ objectiveEvaluations = 0
 oldCalibrationReusable = false
 ```
 
-Tune and Validation identities remain `UNAVAILABLE`; they are not invented from old V4 output.
+The Tune and Validation identities are recorded as exact split projections of
+the recovered manifest in the preflight artifact. They are not reconstructed
+from old V4 output, and no old score is reused.
 
 ## 14. Regression tests
 
@@ -169,7 +213,8 @@ These are synthetic offscreen timings for the transform or presentation stage. T
 ## 16. Remaining risks
 
 ```text
-HIGH: approved Tune/Validation corpus is unavailable in this session
+HIGH: current paired manifest lacks historically anchored pair byte identity and dataset provenance
+HIGH: current Tune/Validation split has explicit K-Choreo and LIVE family overlap
 HIGH: original PTS preservation for VFR temporal proxy is unproven
 HIGH: source↔binary causal build provenance is unproven
 UNMEASURED: physical display calibration and colorimetric accuracy
@@ -181,7 +226,7 @@ The existing PR #11 allowlist-only guard remains unchanged. Frozen/Virgin conten
 ## 17. Final verdict
 
 ```text
-FINAL VERDICT: BLOCKED_MISSING_DATA
+FINAL VERDICT: BLOCKED_FAMILY_OVERLAP
 ENGINE STATUS: EXPERIMENTAL
 CALIBRATION STATUS: REBASE_REQUIRED
 PRE_FROZEN READINESS: NOT YET EVALUATED
@@ -190,4 +235,7 @@ Frozen accessed: NO
 Objective evaluations: 0
 ```
 
-The policy infrastructure and preregistration are reviewable, but no calibration candidate is available until an approved Tune/Validation manifest is explicitly configured.
+The policy infrastructure and preregistration remain reviewable, but no
+calibration candidate is available. The exact manifest path was found, while
+the current corpus preflight correctly blocks resume because family-level
+independence and historically anchored content identity are not proven.
