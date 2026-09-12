@@ -1,0 +1,205 @@
+{
+  "artifactVersion": 3,
+  "status": "BLOCKED_INSUFFICIENT_TRUSTED_CORPUS",
+  "accessStatus": "AWAITING_AUTHORIZED_DATASET_ACCESS",
+  "retrievedAt": "2026-09-12",
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "implementationHead": "34ad13612d284fd26117ea6ca383dab9c0640cfb",
+  "pullRequest": 13,
+  "historicalManifest": {
+    "path": "data_video/visual-regression/v6-development-manifest.json",
+    "manifestVersion": 4,
+    "manifestSHA256": "26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c",
+    "recordCount": 8,
+    "coarseFamilies": [
+      "K-Choreo",
+      "LIVE"
+    ],
+    "status": "HISTORICAL_MANIFEST_UNCHANGED",
+    "reclassified": false,
+    "includedInNewCorpus": false
+  },
+  "plannedCorpus": {
+    "datasetId": "calibration-v6-development-expanded-2026a",
+    "manifestVersion": 5,
+    "provenanceVersion": 1,
+    "familyDefinitionVersion": "source-master-v1",
+    "manifestEmitted": false,
+    "admittedRecordCount": 0,
+    "distinctSourceMasterCount": 0,
+    "tuneFamilyCount": 0,
+    "validationFamilyCount": 0,
+    "minimumRequiredDistinctFamilies": 4,
+    "recommendedDistinctFamilies": 6,
+    "minimumRequiredFamiliesPerSplit": 2,
+    "recommendedFamiliesPerSplit": 3
+  },
+  "candidateSources": [
+    {
+      "candidateId": "hdrsdr-vqa-open-source",
+      "name": "LIVE Paired Comparison HDR vs. SDR Database / HDRSDR-VQA",
+      "authoritativeReferences": [
+        "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+        "https://live.ece.utexas.edu/research/Bowen_SDRHDR/sdr-hdr-bowen.html",
+        "https://arxiv.org/abs/2505.21831"
+      ],
+      "pairedHDRSDR": "DOCUMENTED_PASS",
+      "declaredOpenSourceContentCount": 31,
+      "sourceMasterIdentity": "NOT_RECEIVED",
+      "exactAssetLocators": "NOT_RECEIVED",
+      "assetHashes": "NOT_RECEIVED",
+      "licenseStatus": "DOCUMENTED_CUSTOM_UT_PERMISSION_WITH_ATTRIBUTION",
+      "accessStatus": "AWAITING_AUTHORIZED_DATASET_ACCESS",
+      "admitted": false,
+      "reason": "official access requires Google Form or Globus account; canonical source IDs and exact paired assets are unavailable"
+    },
+    {
+      "candidateId": "live-hdr-vs-sdr",
+      "name": "LIVE HDR vs SDR Video Quality Assessment Database",
+      "authoritativeReferences": [
+        "https://live.ece.utexas.edu/research/LIVE_HDRvsSDR/index.html",
+        "https://doi.org/10.1109/TIP.2024.3404890"
+      ],
+      "pairedHDRSDR": "DOCUMENTED_PASS",
+      "declaredPublicVideoCount": 212,
+      "sourceMasterIdentity": "NOT_RECEIVED",
+      "exactAssetLocators": "NOT_RECEIVED",
+      "assetHashes": "NOT_RECEIVED",
+      "licenseStatus": "DOCUMENTED_CUSTOM_UT_PERMISSION_WITH_ATTRIBUTION",
+      "accessStatus": "AWAITING_AUTHORIZED_DATASET_ACCESS",
+      "admitted": false,
+      "reason": "official download requires Google Form; source-master mapping and exact pair identity are unavailable"
+    },
+    {
+      "candidateId": "avt-vqdb-uhd-2-hdr",
+      "name": "AVT-VQDB-UHD-2-HDR",
+      "authoritativeReferences": [
+        "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "https://doi.org/10.1109/QoMEX61742.2024.10598268"
+      ],
+      "pairedHDRSDR": "NOT_A_PAIRED_SDR_DATASET",
+      "declaredSourceCount": 31,
+      "sourceMasterIdentity": "DECLARED_BUT_ASSET_MAPPING_NOT_RECEIVED",
+      "exactAssetLocators": "NOT_RECEIVED",
+      "assetHashes": "PUBLISHER_CHECKSUM_INDEX_ONLY; CURRENT_BYTES_NOT_RECEIVED",
+      "licenseStatus": "DOCUMENTED_CC_BY_NC_4_0_FOR_OWN_CONTENT",
+      "accessStatus": "AWAITING_AUTHORIZED_DATASET_ACCESS",
+      "admitted": false,
+      "reason": "HDR source-only repository; download requires Google Form and no corresponding SDR reference pair is available from this source alone"
+    },
+    {
+      "candidateId": "ebu-dvb-z280-2019",
+      "name": "DVB/EBU HDR test content from the 2019 Sony Z280 source",
+      "authoritativeReferences": [
+        "https://dvb.org/specifications/verification-validation/hdr-test-content/"
+      ],
+      "pairedHDRSDR": "NOT_ESTABLISHED",
+      "declaredSourceMasterCount": 1,
+      "sourceMasterIdentity": "EBU_Z280_2019_LINEAGE_DOCUMENTED",
+      "exactAssetLocators": "PUBLISHED_VARIANT_LINKS_ONLY",
+      "assetHashes": "NOT_COMPUTED",
+      "licenseStatus": "DOCUMENTED_CC_BY_4_0",
+      "accessStatus": "PUBLIC_PAGE_WITH_VARIANT_DOWNLOADS",
+      "admitted": false,
+      "reason": "codec and dynamic-metadata variants share one source lineage and the page does not establish a corresponding SDR calibration pair; insufficient family diversity"
+    },
+    {
+      "candidateId": "icme25-box-training-link",
+      "name": "ICME 2025 HDR/SDR challenge training set",
+      "authoritativeReferences": [
+        "https://sites.google.com/view/icme25-vqm-gc/rules",
+        "https://utexas.app.box.com/s/6pill4jxonq1q69ux50kqd76v39h5bc9"
+      ],
+      "pairedHDRSDR": "DECLARED_BY_OFFICIAL_CHALLENGE_PAGE",
+      "sourceMasterIdentity": "NOT_RECEIVED",
+      "exactAssetLocators": "UNAVAILABLE",
+      "assetHashes": "NOT_RECEIVED",
+      "licenseStatus": "CHALLENGE_PAGE_REFERENCES_UT_DATASET_TERMS",
+      "accessStatus": "UNAVAILABLE_HTTP_404_AT_RETRIEVAL",
+      "admitted": false,
+      "reason": "official challenge page lists the Box link, but the exact link returned HTTP 404 and no binary or manifest was acquired"
+    }
+  ],
+  "admission": {
+    "familyDefinitionVersion": "source-master-v1",
+    "contentFamilyMeans": "independent source-master or documented source-content lineage",
+    "codecVariantsCountAsNewFamily": false,
+    "historicalFamilyRelabeling": "FORBIDDEN",
+    "generatedHDRReference": "FORBIDDEN",
+    "pairOriginRequired": true,
+    "exactSourceMasterIdsRequired": true,
+    "exactSDRAndHDRLocatorsRequired": true,
+    "currentByteHashesRequired": true,
+    "structuralQualificationOnly": true,
+    "mediaDecoded": false,
+    "imageInspected": false,
+    "objectiveMetricsRun": false
+  },
+  "split": {
+    "status": "NOT_CREATED",
+    "tuneFamilyCount": 0,
+    "validationFamilyCount": 0,
+    "familyOverlap": null,
+    "sourceMasterOverlap": null,
+    "reason": "no trusted candidate has passed exact identity admission"
+  },
+  "identity": {
+    "manifestSHA256": null,
+    "corpusDefinitionHash": null,
+    "experimentBindingHash": null,
+    "sourceHashCoverage": "NOT_STARTED",
+    "referenceHashCoverage": "NOT_STARTED",
+    "currentByteIdentity": "NOT_ESTABLISHED"
+  },
+  "preregistration": {
+    "policyVersion": "sdr-input-interpretation-policy-v1",
+    "preparationVersion": "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy",
+    "metricVersion": "v2-objective-with-v61-directional-diagnostics",
+    "policyCandidates": [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+    "status": "MATCH",
+    "searchBudgetPerPolicy": 192,
+    "seed": 20260912,
+    "shortlistSize": 3,
+    "changed": false
+  },
+  "execution": {
+    "mediaDecoded": false,
+    "mediaHashed": false,
+    "objectiveMetricsRun": false,
+    "tuneRun": false,
+    "validationRun": false,
+    "candidateSelectionRun": false,
+    "shortlistFrozenForValidation": false,
+    "frozenAccessed": false,
+    "objectiveEvaluations": 0
+  },
+  "gates": {
+    "corpusExpansion": "BLOCKED_INSUFFICIENT_TRUSTED_CORPUS",
+    "distinctFamilyGate": "FAIL_NO_ADMITTED_FAMILIES",
+    "familyOverlapGate": "NOT_EVALUATED",
+    "sourceMasterOverlapGate": "NOT_EVALUATED",
+    "roleProvenance": "NOT_ESTABLISHED_FOR_NEW_CORPUS",
+    "historicalRoleProvenance": "PASS",
+    "frozenExclusion": "NOT_ESTABLISHED_FOR_NEW_CORPUS",
+    "historicalFrozenExclusion": "PASS",
+    "byteIdentity": "NOT_ESTABLISHED",
+    "searchDefinition": "MATCH"
+  },
+  "decision": {
+    "status": "BLOCKED_INSUFFICIENT_TRUSTED_CORPUS",
+    "newManifest": "NOT_EMITTED",
+    "oldCalibrationReusable": false,
+    "productionDefaultChanged": false,
+    "nextRequiredEvidence": [
+      "authorized HDRSDR-VQA or equivalent paired corpus access",
+      "canonical sourceMasterId and source-content lineage metadata",
+      "exact SDR/HDR asset locators and documented pair origin",
+      "current source/reference SHA-256 hashes for every admitted pair",
+      "deterministic family-disjoint split with at least two families per split"
+    ]
+  }
+}
