@@ -1,0 +1,13 @@
+{
+  "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
+  "stage": "Tune",
+  "status": "BLOCKED_MISSING_DATA",
+  "approvedManifestConfigured": false,
+  "reason": "approved Tune/Validation manifest is not configured; no calibration media was opened",
+  "policyCandidates": [
+    "bt709SourceLinear",
+    "bt1886ReferenceDisplay"
+  ],
+  "candidateEvidence": [],
+  "objectiveEvaluations": 0
+}

@@ -1,0 +1,10 @@
+{
+  "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
+  "status": "BLOCKED_MISSING_DATA",
+  "selectedPolicy": null,
+  "selectedCandidate": null,
+  "candidateConfigurationHash": null,
+  "configurationFreezeIsLocalOnly": true,
+  "productionDefaultChanged": false,
+  "reason": "No candidate was selected because required Tune/Validation data is unavailable"
+}
