@@ -485,7 +485,10 @@ public final class PairEvaluator {
             let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                 pixelBuffer: sdr.pixelBuffer,
                 width: reference.width,
-                height: reference.height
+                height: reference.height,
+                interpretationPolicy: experiment.sdrInterpretationPolicy,
+                untaggedFallback: experiment.untaggedSDRFallback,
+                bt1886Parameters: experiment.bt1886Parameters
             )
             preparedMatches.append(PreparedMatch(
                 match: match,
@@ -649,7 +652,10 @@ public final class PairEvaluator {
             )
             let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                 pixelBuffer: sdr.pixelBuffer,
-                width: reference.width, height: reference.height
+                width: reference.width, height: reference.height,
+                interpretationPolicy: preparation.sdrInterpretationPolicy,
+                untaggedFallback: preparation.untaggedSDRFallback,
+                bt1886Parameters: preparation.bt1886Parameters
             )
             preparedMatches.append(PreparedMatch(
                 match: match, sdr: sdr, hdr: hdr,
@@ -795,7 +801,10 @@ public final class PairEvaluator {
                 )
                 let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                     pixelBuffer: sdrFrame.pixelBuffer,
-                    width: reference.width, height: reference.height
+                    width: reference.width, height: reference.height,
+                    interpretationPolicy: preparation.sdrInterpretationPolicy,
+                    untaggedFallback: preparation.untaggedSDRFallback,
+                    bt1886Parameters: preparation.bt1886Parameters
                 )
                 frames.append(PreparedTemporalFrame(
                     sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,
@@ -868,7 +877,10 @@ public final class PairEvaluator {
                 )
                 let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                     pixelBuffer: sdrFrame.pixelBuffer,
-                    width: reference.width, height: reference.height
+                    width: reference.width, height: reference.height,
+                    interpretationPolicy: experiment.sdrInterpretationPolicy,
+                    untaggedFallback: experiment.untaggedSDRFallback,
+                    bt1886Parameters: experiment.bt1886Parameters
                 )
                 frames.append(PreparedTemporalFrame(
                     sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,

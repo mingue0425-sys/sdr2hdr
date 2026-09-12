@@ -623,6 +623,11 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
     /// candidate-specific parameter.
     public var v6LowMidFadePosition: Float?
     public var v6LowMidStrength: Float?
+    /// Optional keeps historical V4/V6 parameter artifacts decodable. New
+    /// calibration-rebase candidates carry the explicit SDR policy identity.
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy?
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy?
+    public var bt1886Parameters: BT1886TransferParameters?
 
     public init(
         paperWhiteNits: Float,
@@ -635,7 +640,10 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         displayHeadroom: Float,
         toneCurveRevision: UInt32? = nil,
         v6LowMidFadePosition: Float? = nil,
-        v6LowMidStrength: Float? = nil
+        v6LowMidStrength: Float? = nil,
+        sdrInterpretationPolicy: SDRInputInterpretationPolicy? = nil,
+        untaggedSDRFallback: SDRUntaggedFallbackPolicy? = nil,
+        bt1886Parameters: BT1886TransferParameters? = nil
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -648,6 +656,9 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         self.toneCurveRevision = toneCurveRevision
         self.v6LowMidFadePosition = v6LowMidFadePosition
         self.v6LowMidStrength = v6LowMidStrength
+        self.sdrInterpretationPolicy = sdrInterpretationPolicy
+        self.untaggedSDRFallback = untaggedSDRFallback
+        self.bt1886Parameters = bt1886Parameters
     }
 
     public init(configuration: HDRConfiguration) {
@@ -667,6 +678,9 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
             v6LowMidFadePosition = nil
             v6LowMidStrength = nil
         }
+        sdrInterpretationPolicy = configuration.sdrInterpretationPolicy
+        untaggedSDRFallback = configuration.untaggedSDRFallback
+        bt1886Parameters = configuration.bt1886Parameters
     }
 
     public func configuration() throws -> HDRConfiguration {
@@ -680,7 +694,10 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
             temporalStability: temporalStability,
             outputMode: .edr,
             displayHeadroom: displayHeadroom,
-            inputFallbackPolicy: .bt709VideoRange
+            inputFallbackPolicy: .bt709VideoRange,
+            sdrInterpretationPolicy: sdrInterpretationPolicy ?? .bt709SourceLinear,
+            untaggedSDRFallback: untaggedSDRFallback ?? .assumeBT709SourceLinear,
+            bt1886Parameters: bt1886Parameters ?? .idealReference
         )
         value.toneCurveRevision = HDRToneCurveRevision(rawValue: toneCurveRevision ?? 0) ?? .legacyV2
         value.masteringHeadroom = displayHeadroom
@@ -699,6 +716,9 @@ public struct ExperimentConfig: Codable, Sendable {
     public var alignmentConfidenceThreshold: Double
     public var referenceTargetPeakNits: Float
     public var allowHLGModel: Bool
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy
+    public var bt1886Parameters: BT1886TransferParameters
 
     public init(
         seed: UInt64 = 42,
@@ -706,7 +726,10 @@ public struct ExperimentConfig: Codable, Sendable {
         maxFramesPerScene: Int = 8,
         alignmentConfidenceThreshold: Double = 0.60,
         referenceTargetPeakNits: Float = 1_000,
-        allowHLGModel: Bool = true
+        allowHLGModel: Bool = true,
+        sdrInterpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        untaggedSDRFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
+        bt1886Parameters: BT1886TransferParameters = .idealReference
     ) {
         self.seed = seed
         self.candidateCount = candidateCount
@@ -714,6 +737,9 @@ public struct ExperimentConfig: Codable, Sendable {
         self.alignmentConfidenceThreshold = alignmentConfidenceThreshold
         self.referenceTargetPeakNits = referenceTargetPeakNits
         self.allowHLGModel = allowHLGModel
+        self.sdrInterpretationPolicy = sdrInterpretationPolicy
+        self.untaggedSDRFallback = untaggedSDRFallback
+        self.bt1886Parameters = bt1886Parameters
     }
 }
 

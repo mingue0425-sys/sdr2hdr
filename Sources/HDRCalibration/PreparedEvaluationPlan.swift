@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import HDRCore
 
 /// V6 freezes preparation decisions separately from objective metrics.  The
 /// plan is deliberately metadata-only: it records which already decoded frame
@@ -8,6 +9,8 @@ import Foundation
 /// identities; it may not run alignment, scene selection, or representative
 /// frame selection again.
 public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
+    public static let currentVersion = "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy"
+    public static let currentSchemaVersion = "v6-prepared-evaluation-plan-v5-sdr-interpretation-policy"
     public let version: String
     public let maxFramesPerScene: Int
     public let maxDecodedFrames: Int
@@ -31,9 +34,14 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherVersion: String
     public let matcherConfiguration: V6MatcherConfiguration
     public let matcherConfigurationHash: String
+    public let sdrInterpretationPolicyVersion: String
+    public let sdrInterpretationPolicy: SDRInputInterpretationPolicy
+    public let untaggedSDRFallback: SDRUntaggedFallbackPolicy
+    public let bt1886Parameters: BT1886TransferParameters
+    public let sdrInterpretationPolicyHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v5-linear-source-luminance",
+        version: String = V6PreparationConfiguration.currentVersion,
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -52,7 +60,12 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         pathResolutionPolicy: String = "manifest-resolved-once;repository-relative-plan-paths",
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
         temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window",
-        matcherConfiguration: V6MatcherConfiguration = .v6
+        matcherConfiguration: V6MatcherConfiguration = .v6,
+        sdrInterpretationPolicyVersion: String = "sdr-input-interpretation-policy-v1",
+        sdrInterpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        untaggedSDRFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
+        bt1886Parameters: BT1886TransferParameters = .idealReference,
+        sdrInterpretationPolicyHash: String? = nil
     ) {
         self.version = version
         self.maxFramesPerScene = maxFramesPerScene
@@ -77,6 +90,17 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         self.matcherVersion = matcherConfiguration.matcherVersion
         self.matcherConfiguration = matcherConfiguration
         self.matcherConfigurationHash = (try? matcherConfiguration.canonicalSHA256()) ?? "INVALID"
+        self.sdrInterpretationPolicyVersion = sdrInterpretationPolicyVersion
+        self.sdrInterpretationPolicy = sdrInterpretationPolicy
+        self.untaggedSDRFallback = untaggedSDRFallback
+        self.bt1886Parameters = bt1886Parameters
+        self.sdrInterpretationPolicyHash = sdrInterpretationPolicyHash ??
+            HDRColorMath.interpretationPolicySHA256(
+                version: sdrInterpretationPolicyVersion,
+                policy: sdrInterpretationPolicy,
+                untaggedFallback: untaggedSDRFallback,
+                bt1886Parameters: bt1886Parameters
+            )
     }
 
     public static let v6 = V6PreparationConfiguration()
@@ -98,6 +122,16 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               !sceneSelectionPolicy.isEmpty,
               !temporalSelectionPolicy.isEmpty else {
             return "preparation configuration contains an empty policy identifier"
+        }
+        guard sdrInterpretationPolicyVersion == "sdr-input-interpretation-policy-v1",
+              bt1886Parameters.isValid,
+              sdrInterpretationPolicyHash == HDRColorMath.interpretationPolicySHA256(
+                  version: sdrInterpretationPolicyVersion,
+                  policy: sdrInterpretationPolicy,
+                  untaggedFallback: untaggedSDRFallback,
+                  bt1886Parameters: bt1886Parameters
+              ) else {
+            return "preparation SDR interpretation identity is invalid"
         }
         guard (1...512).contains(maxFramesPerScene),
               (1...512).contains(maxDecodedFrames),
@@ -371,7 +405,7 @@ public struct PreparedEvaluationPlan: Codable, Hashable, Sendable {
     public let pairs: [V6PreparedPairPlan]
 
     public init(
-        schemaVersion: String = "v6-prepared-evaluation-plan-v4",
+        schemaVersion: String = V6PreparationConfiguration.currentSchemaVersion,
         scope: String,
         pairOrder: [String],
         preparation: V6PreparationConfiguration,
@@ -451,7 +485,7 @@ public enum V6PreparedEvaluationPlanLoader {
 
 private enum V6PreparedEvaluationPlanSemantics {
     static func validate(_ plan: PreparedEvaluationPlan) throws {
-        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v4",
+        guard plan.schemaVersion == V6PreparationConfiguration.currentSchemaVersion,
               plan.preparation.version == V6PreparationConfiguration.v6.version,
               plan.scope == "TUNE_VALIDATION" || plan.scope == "VIRGIN_FROZEN",
               !plan.pairOrder.isEmpty,
@@ -788,7 +822,7 @@ enum V6PreparedEvaluationPlanBuilder {
         preparation: V6PreparationConfiguration
     ) throws {
         try V6PreparedEvaluationPlanSemantics.validate(plan)
-        guard plan.schemaVersion == "v6-prepared-evaluation-plan-v4",
+        guard plan.schemaVersion == V6PreparationConfiguration.currentSchemaVersion,
               plan.scope == scope,
               plan.preparation == preparation,
               plan.preparation.matcherConfigurationHash ==

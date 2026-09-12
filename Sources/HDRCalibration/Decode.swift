@@ -322,6 +322,23 @@ public final class HDRCoreOfflineEvaluator {
         )
     }
 
+    /// Policy-aware source-statistics update for calibration parity. The
+    /// legacy BT.709-labelled overload above remains for historical callers.
+    public func updateSceneStatistics(
+        sdrSignals: [Float],
+        transfer: HDRTransferFunction,
+        sceneCut: Bool = false
+    ) {
+        processor.updateSceneStatistics(
+            HDRSceneStatistics(
+                productionLinearSamples: sdrSignals.map {
+                    HDRColorMath.inverseTransfer($0, function: transfer)
+                }
+            ),
+            sceneCut: sceneCut
+        )
+    }
+
     public func updateTemporalEstimate(averageLuminance: Float, sceneCut: Bool = false) {
         processor.updateTemporalEstimate(averageLuminance: averageLuminance, sceneCut: sceneCut)
     }

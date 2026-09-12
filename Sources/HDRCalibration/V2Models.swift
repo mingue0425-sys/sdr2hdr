@@ -1,4 +1,5 @@
 import Foundation
+import HDRCore
 
 public enum CalibrationV2Verdict: String, Codable, Sendable {
     case promote = "PROMOTE_CALIBRATED_V2"
@@ -54,6 +55,11 @@ public struct V2SearchConfiguration: Codable, Sendable {
     public var bootstrapSamples = 1_000
     public var bounds = V2ParameterBounds()
     public var weights = V2ObjectiveWeights()
+    /// Optional keeps historical V2 configuration artifacts decodable. New
+    /// preparation identities always materialize these values explicitly.
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy? = .bt709SourceLinear
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy? = .assumeBT709SourceLinear
+    public var bt1886Parameters: BT1886TransferParameters? = .idealReference
 
     public init() {}
 }

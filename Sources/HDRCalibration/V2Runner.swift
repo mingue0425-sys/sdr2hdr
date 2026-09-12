@@ -48,7 +48,10 @@ final class V2PreparedRepository {
             hdrPixelFormat: CalibrationPixelFormat.hdrP010,
             matcherConfiguration: V6MatcherConfiguration(
                 acceptedConfidenceThreshold: acceptedConfidenceThreshold
-            )
+            ),
+            sdrInterpretationPolicy: configuration.sdrInterpretationPolicy ?? .bt709SourceLinear,
+            untaggedSDRFallback: configuration.untaggedSDRFallback ?? .assumeBT709SourceLinear,
+            bt1886Parameters: configuration.bt1886Parameters ?? .idealReference
         )
         self.preparedEvaluationPlan = nil
         self.evaluator = PairEvaluator(
@@ -59,7 +62,10 @@ final class V2PreparedRepository {
                 maxFramesPerScene: configuration.maxFramesPerScene,
                 alignmentConfidenceThreshold: 0,
                 referenceTargetPeakNits: configuration.referenceTargetPeakNits,
-                allowHLGModel: true
+                allowHLGModel: true,
+                sdrInterpretationPolicy: configuration.sdrInterpretationPolicy ?? .bt709SourceLinear,
+                untaggedSDRFallback: configuration.untaggedSDRFallback ?? .assumeBT709SourceLinear,
+                bt1886Parameters: configuration.bt1886Parameters ?? .idealReference
             ),
             matcherConfiguration: self.preparationConfiguration.matcherConfiguration
         )
