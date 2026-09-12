@@ -87,7 +87,9 @@ public enum HDRReference {
             temporalAdaptation: temporalAdaptation,
             sceneStatistics: sceneStatistics
         )
-        let gain = expandedLuminance / max(luminance, 1e-6)
+        // A fixed denominator floor attenuates valid near-black light twice.
+        // Positive RGB has positive luminance, so only exact black needs a guard.
+        let gain = luminance > 0 ? expandedLuminance / luminance : 0
         var expanded = linear * gain
         let chromaReduction = highlightChromaReduction(
             expandedLuminance: expandedLuminance,

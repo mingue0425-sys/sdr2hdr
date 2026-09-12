@@ -2,6 +2,10 @@
 
 Reusable macOS/Apple Silicon SDR-to-HDR tone-expansion core.
 
+Engineering status: **EXPERIMENTAL**. See the [September engineering audit](docs/ENGINEERING_AUDIT_2026_09_11.md)
+for reproduced defects, fixes, verification, and remaining color/holdout limits.
+The default preset name does not constitute a production-readiness claim.
+
 The core deliberately stops at a GPU HDR frame:
 
 ```text
@@ -41,7 +45,7 @@ texture allocation.
 
 ## Color behavior
 
-NV12 `420v` and `420f`, plus `32BGRA`, are supported. CoreVideo attachments for
+NV12 `420v` and `420f`, 10-bit bi-planar video/full-range P010, and `32BGRA` are supported. CoreVideo attachments for
 primaries, transfer function, and YCbCr matrix are inspected independently.
 Incomplete metadata is rejected; a fallback is used only when all applicable
 attachments are absent.
@@ -65,12 +69,20 @@ This mastering-domain limit is deliberately independent of the current
 physical display headroom. PQ output uses absolute luminance normalized to the
 ST.2084 10,000-nit reference.
 
+The current BT.709 input path applies the inverse **camera OETF**, not the
+BT.1886 display EOTF. Thus it is a scene-linear expansion convention and does
+not yet guarantee faithful reproduction of display-mastered SDR, including
+the neutral SDR fallback. Resolving this convention requires a separate,
+versioned calibration; inverse BT.709 and gamma 2.4 are not interchangeable.
+
 ## Commands
 
 ```bash
 swift build -c release
 swift test
-python3 -m unittest discover -s Tests/VerificationTests -p 'test_*.py'
+python3 Tests/verify_no_frozen_access.py
+python3 Tests/verify_no_frozen_access_test.py
+bash Tests/verify_script_cache_test.sh
 swift run -c release HDRBenchmark --width 1920 --height 1080 --frames 300 --warmup 30
 swift run -c release HDRBenchmark --width 3840 --height 2160 --frames 300 --warmup 30
 swift run -c release HDRBenchmark --presentation-only --width 3840 --height 2160 --frames 300 --warmup 30
@@ -223,8 +235,25 @@ configuration all match.
   --prepared-plan results/v6-prepared-evaluation-plan.json
 ```
 
-Fast mode caches expensive media work, but every `data_video` JSON control
-file and every cached output artifact is byte-bound to the cache entry. Both
+Fast mode caches expensive preparation/evaluation work. Explicit manifest/lock
+control files, Swift/Metal sources and cached output artifacts are byte-bound
+to the cache entry. Tune/Validation media bytes are validated against their
+locked digests even on cache hits. Both
 fast and full modes re-run semantic gates and the Swift canonical plan-hash
 validator. Missing, stale, incomplete, or consumed holdout evidence fails
 closed; it is never converted into a passing verdict.
+
+The audit changed source metric grids from encoded Y' to metadata-aware linear
+luminance, preserved source color metadata through FFmpeg proxy/window decoding,
+and explicitly normalized raw proxy samples to video range. It advanced the preparation policy to
+`v6-prepared-evaluation-plan-v5-linear-source-luminance`. Previous prepared
+plans are rejected; old objective scores are historical evidence, not scores
+for this implementation. Regenerate Tune/Validation evidence before promotion.
+
+The V4/V6 evaluator now writes exclusive per-asset consumption receipts to
+`.hdr-frozen-consumption/` before opening objective media. Preserve this directory
+when cleaning results or moving the repository. A crash, partial receipt, or
+failed evaluation does not permit retry. This local guard is independent of
+output/candidate/plan names; it cannot prevent manual deletion, another checkout,
+alternate encodes, or direct use of historical evaluators. Independent holdout
+custody is still required for a strong one-use protocol.

@@ -15,28 +15,27 @@ esac
 cd "$ROOT"
 mkdir -p results .build/pre-v6-verify-cache
 CACHE_DIR="$ROOT/.build/pre-v6-verify-cache"
-CACHE_VERSION="pre-v6-fast-cache-v3-semantic-sealed"
+CACHE_VERSION="pre-v6-fast-cache-v4-shader-content-checked"
 
 stage() {
   local label="$1"
   shift
   local started=$SECONDS
   printf '\n== %s ==\n' "$label"
-  "$@"
+  "$@" || return $?
   printf '== %s complete: %ss ==\n' "$label" "$((SECONDS - started))"
 }
 
 calibrator_for() {
   local config="$1"
   local bin_dir
-  bin_dir="$(swift build -c "$config" --disable-index-store --show-bin-path)"
+  bin_dir="$(swift build -c "$config" --disable-index-store --show-bin-path)" || return $?
   printf '%s/HDRCalibrate' "$bin_dir"
 }
 
-# The fast cache is intentionally metadata-based for media: it fingerprints
-# media path + size + mtime instead of re-hashing multi-GB video payloads.
-# `full` never trusts this cache and always performs the Tune/Validation
-# content-validating preflight. Virgin Frozen bytes remain sealed.
+# Fast mode caches expensive preparation/objective work, but always revalidates
+# Tune/Validation media bytes against the audit/lock. The key below binds code
+# and explicit control files, including Metal source. Frozen bytes remain sealed.
 fingerprint() {
   local scope="$1"
   python3 - "$ROOT" "$scope" "$CACHE_VERSION" <<'PY'
@@ -89,8 +88,9 @@ if scope != 'audit':
 
 for base in source_roots:
     if base.exists():
-        for p in sorted(base.rglob('*.swift')):
-            add_file(p)
+        for pattern in ('*.swift', '*.metal'):
+            for p in sorted(base.rglob(pattern)):
+                add_file(p)
 
 # Only explicit development/validation control files participate in the cache
 # identity. Never walk the data_video tree: a future hidden subtree must not be
@@ -132,9 +132,9 @@ PYARTIFACT
 cache_store() {
   local name="$1" key="$2"
   shift 2
-  printf '%s\n' "$key" > "$CACHE_DIR/$name.key.tmp"
-  artifact_fingerprint "$@" > "$CACHE_DIR/$name.artifacts.tmp"
-  mv "$CACHE_DIR/$name.key.tmp" "$CACHE_DIR/$name.key"
+  printf '%s\n' "$key" > "$CACHE_DIR/$name.key.tmp" || return $?
+  artifact_fingerprint "$@" > "$CACHE_DIR/$name.artifacts.tmp" || return $?
+  mv "$CACHE_DIR/$name.key.tmp" "$CACHE_DIR/$name.key" || return $?
   mv "$CACHE_DIR/$name.artifacts.tmp" "$CACHE_DIR/$name.artifacts"
 }
 
@@ -160,7 +160,8 @@ if scope != 'audit':
         paths.extend([plan_path, plan_path.with_suffix('.sha256')])
 for base in source_roots:
     if base.exists():
-        paths.extend(sorted(base.rglob('*.swift')))
+        for pattern in ('*.swift', '*.metal'):
+            paths.extend(sorted(base.rglob(pattern)))
 mt = 0
 for p in paths:
     if p.exists():
@@ -187,14 +188,14 @@ prime_cache_from_current_artifacts() {
   local audit_key correctness_input_key correctness_key
   local audit_input_mtime audit_artifact_mtime correctness_input_mtime correctness_artifact_mtime
 
-  audit_key="$(fingerprint audit)"
-  correctness_input_key="$(fingerprint correctness)"
-  correctness_key="$(printf '%s\n%s\n' "$audit_key" "$correctness_input_key" | shasum -a 256 | awk '{print $1}')"
+  audit_key="$(fingerprint audit)" || return $?
+  correctness_input_key="$(fingerprint correctness)" || return $?
+  correctness_key="$(printf '%s\n%s\n' "$audit_key" "$correctness_input_key" | shasum -a 256 | awk '{print $1}')" || return $?
 
-  audit_input_mtime="$(inputs_newest_mtime_ns audit)"
-  audit_artifact_mtime="$(artifacts_oldest_mtime_ns results/dataset-v4-final.json data_video/dataset-v4-lock.json)"
-  correctness_input_mtime="$(inputs_newest_mtime_ns correctness)"
-  correctness_artifact_mtime="$(artifacts_oldest_mtime_ns results/pre-v5-final-correctness.json results/pre-v5-frozen-coverage-policy.json results/temporal-burst-parity.json results/v6-prepared-evaluation-plan.json results/v6-prepared-evaluation-plan.sha256)"
+  audit_input_mtime="$(inputs_newest_mtime_ns audit)" || return $?
+  audit_artifact_mtime="$(artifacts_oldest_mtime_ns results/dataset-v4-final.json data_video/dataset-v4-lock.json)" || return $?
+  correctness_input_mtime="$(inputs_newest_mtime_ns correctness)" || return $?
+  correctness_artifact_mtime="$(artifacts_oldest_mtime_ns results/pre-v5-final-correctness.json results/pre-v5-frozen-coverage-policy.json results/temporal-burst-parity.json results/v6-prepared-evaluation-plan.json results/v6-prepared-evaluation-plan.sha256)" || return $?
 
   if [ "$audit_artifact_mtime" -lt "$audit_input_mtime" ]; then
     echo 'REFUSED: dataset audit artifacts are older than current audit inputs.' >&2
@@ -208,16 +209,19 @@ prime_cache_from_current_artifacts() {
   fi
 
   # Never bless an artifact set that is fresh but semantically failing.
-  assert_pre_v6_ready "$calibrator"
+  # Explicit propagation is required: callers using if/OR lists disable Bash
+  # errexit inside functions, including functions called by stage.
+  assert_pre_v6_ready "$calibrator" || return $?
+  run_audit "$calibrator" || return $?
   cache_store audit "$audit_key" \
     results/dataset-v4-final.json \
-    data_video/dataset-v4-lock.json
+    data_video/dataset-v4-lock.json || return $?
   cache_store correctness "$correctness_key" \
     results/pre-v5-final-correctness.json \
     results/pre-v5-frozen-coverage-policy.json \
     results/temporal-burst-parity.json \
     results/v6-prepared-evaluation-plan.json \
-    results/v6-prepared-evaluation-plan.sha256
+    results/v6-prepared-evaluation-plan.sha256 || return $?
   echo 'FAST CACHE PRIMED from fresh existing artifacts.'
   echo 'No objective evaluation was performed by this operation.'
 }
@@ -243,19 +247,19 @@ run_correctness() {
     results/temporal-burst-parity.json \
     results/pre-v5-new-hlg-holdout-audit.json \
     results/v6-prepared-evaluation-plan.json \
-    results/v6-prepared-evaluation-plan.sha256
+    results/v6-prepared-evaluation-plan.sha256 || return $?
 
   if [ -n "${V6_FROZEN_PLAN:-}" ]; then
     "$calibrator" correctness-review \
       --manifest data_video/manifest-v4.json \
       --prepared-frozen-plan "$V6_FROZEN_PLAN" \
       --output results/correctness-review-fixes.json \
-      | tee results/pre-v5-macos-correctness.log
+      | tee results/pre-v5-macos-correctness.log || return $?
   else
     "$calibrator" correctness-review \
       --manifest data_video/manifest-v4.json \
       --output results/correctness-review-fixes.json \
-      | tee results/pre-v5-macos-correctness.log
+      | tee results/pre-v5-macos-correctness.log || return $?
   fi
 }
 
@@ -263,7 +267,7 @@ run_correctness() {
 assert_pre_v6_ready() {
   local calibrator="$1"
   "$calibrator" verify-prepared-plan \
-    --prepared-plan results/v6-prepared-evaluation-plan.json
+    --prepared-plan results/v6-prepared-evaluation-plan.json || return $?
   python3 - "$ROOT" <<'PYVERIFY'
 import json
 import math
@@ -485,18 +489,12 @@ PYVERIFY
 
 run_audit_cached() {
   local calibrator="$1" key="$2"
-  if cache_hit audit "$key" \
-      results/dataset-v4-final.json \
-      data_video/dataset-v4-lock.json; then
-    printf '\n== dataset audit / evidence refresh ==\n'
-    echo 'CACHE HIT: manifest/source/media metadata unchanged; reusing validated dataset audit evidence'
-    echo 'NOTE: full mode always revalidates media content.'
-  else
-    stage 'dataset audit / evidence refresh' run_audit "$calibrator"
-    cache_store audit "$key" \
-      results/dataset-v4-final.json \
-      data_video/dataset-v4-lock.json
-  fi
+  # A code/control-file cache key cannot prove that media bytes still match
+  # their sealed digests, even if file size and modification time are restored.
+  stage 'Tune/Validation content validation' run_audit "$calibrator" || return $?
+  cache_store audit "$key" \
+    results/dataset-v4-final.json \
+    data_video/dataset-v4-lock.json
 }
 
 run_correctness_cached() {
@@ -510,12 +508,12 @@ run_correctness_cached() {
     printf '\n== correctness review ==\n'
     echo 'CACHE HIT: correctness inputs and artifacts unchanged; reusing pre-V6 correctness artifacts'
   else
-    stage 'correctness review' run_correctness "$calibrator"
+    stage 'correctness review' run_correctness "$calibrator" || return $?
   fi
 
   # Cache presence/freshness is not sufficient. A cached FAIL must remain a
   # failing verification and must never be promoted into a green cache entry.
-  assert_pre_v6_ready "$calibrator"
+  assert_pre_v6_ready "$calibrator" || return $?
   cache_store correctness "$key" \
     results/pre-v5-final-correctness.json \
     results/pre-v5-frozen-coverage-policy.json \

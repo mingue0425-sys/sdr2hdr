@@ -345,19 +345,20 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
     /// Test-only presentation entry point. It uses the same render pipeline as
     /// the CAMetalLayer path but omits drawable presentation, allowing CI to
     /// verify that EDR values above 1.0 survive the shader.
+    @discardableResult
     public func encodeTestPattern(
         to outputTexture: MTLTexture,
         commandBuffer: MTLCommandBuffer,
         fallbackToSDR: Bool = false,
         masteringHeadroom: Float = 4.8668838,
         displayHeadroom: Float = 4.8668838
-    ) {
+    ) -> Bool {
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = outputTexture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
         var uniforms = PresentationUniforms(
             destinationRect: SIMD4(0, 0, 1, 1),
             orientation: VideoOrientation.identity.rawValue,
@@ -380,6 +381,7 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         encoder.setFragmentBuffer(fallbackDiagnosticBuffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
         encoder.endEncoding()
+        return true
     }
 
     private func updatePresentationDiagnostic(

@@ -85,7 +85,9 @@ inline float3 mapDirectEDR(float3 rgb, float masteringHeadroom, float displayHea
     constexpr float3 kBT2020Luma = float3(0.2627f, 0.6780f, 0.0593f);
     float sourceLuminance = max(dot(rgb, kBT2020Luma), 0.0f);
     float mappedLuminance = mapEDRLuminance(sourceLuminance, masteringHeadroom, displayHeadroom);
-    float3 mapped = sourceLuminance > 1e-6f ? rgb * (mappedLuminance / sourceLuminance) : float3(0.0f);
+    // Positive half-float samples below 1e-6 are still representable. Only
+    // exact black needs a division guard; an epsilon here crushes those samples.
+    float3 mapped = sourceLuminance > 0.0f ? rgb * (mappedLuminance / sourceLuminance) : float3(0.0f);
 
     // Compress only chroma that would exceed the physical component range.
     // The final clamp is a numerical safety guard; normal mapped samples reach

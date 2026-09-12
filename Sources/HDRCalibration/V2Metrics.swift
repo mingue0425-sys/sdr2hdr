@@ -164,7 +164,9 @@ enum V2MetricsEvaluator {
             overSaturationRatio: color.overSaturation,
             underSaturationRatio: color.underSaturation,
             invalidSampleCount: invalidCount,
-            luminanceRegionErrors: regionErrors.mapValues(finite),
+            // Region diagnostics include a signed log residual. Clamping that
+            // value to zero erases under-prediction without changing the score.
+            luminanceRegionErrors: regionErrors.mapValues { $0.isFinite ? $0 : 1 },
             weightedContributions: contributions
         )
         let confidence = frames.isEmpty ? 0 : frames.map(\.confidence).reduce(0, +) / Double(frames.count)

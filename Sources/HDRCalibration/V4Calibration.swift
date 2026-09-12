@@ -1236,8 +1236,6 @@ public final class CalibrationV4Runner {
             return report
         }
 
-        log("candidate \(selected.id) frozen; all pre-Frozen gates passed; opening exactly three Virgin Frozen pairs once")
-        try frozenGuard.openVirginFrozenOnce()
         let frozenRecords = records.filter { record in
             virginV4.contains(where: { $0.id == record.id })
         }
@@ -1258,6 +1256,21 @@ public final class CalibrationV4Runner {
                 "no admitted V6 Virgin Frozen PreparedEvaluationPlan is available"
             )
         }
+        let frozenInputHashes = try frozenRecords.map { record in
+            guard let hashes = inputHashesForPlan[record.id] else {
+                throw CalibrationError.invalidManifest("missing Frozen input identity")
+            }
+            return hashes
+        }
+        // Claim the byte identities in the repository, independently of output
+        // paths and candidate/plan names, before reference pixels can be read.
+        try FrozenConsumptionLedger(repositoryRoot: repositoryRoot).claim(
+            inputHashes: frozenInputHashes,
+            planSHA256: frozenArtifact.planSHA256,
+            freeze: initialFreeze
+        )
+        try frozenGuard.openVirginFrozenOnce()
+        log("candidate \(selected.id) frozen; durable consumption recorded; opening Virgin Frozen once")
         let frozenPrepared = try await frozenRepository.materialize(
             records: frozenRecords,
             using: frozenArtifact.plan,
@@ -1732,13 +1745,13 @@ public final class CalibrationV4Runner {
         candidateCPU.reserveCapacity(thresholds.measuredFrames)
 
         func measure(_ processor: HDRProcessor, collectGPU: inout [Double], collectCPU: inout [Double], collect: Bool) throws {
+            let cpuStart = ProcessInfo.processInfo.systemUptime
             guard let commandBuffer = queue.makeCommandBuffer() else {
                 throw HDRProcessorError.commandBufferCreationFailed
             }
-            let cpuStart = ProcessInfo.processInfo.systemUptime
             _ = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
-            let encodeEnd = ProcessInfo.processInfo.systemUptime
             commandBuffer.commit()
+            let encodeEnd = ProcessInfo.processInfo.systemUptime
             commandBuffer.waitUntilCompleted()
             if let error = commandBuffer.error { throw error }
             guard commandBuffer.gpuStartTime > 0,

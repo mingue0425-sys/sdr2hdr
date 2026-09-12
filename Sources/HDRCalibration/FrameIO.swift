@@ -120,6 +120,7 @@ public enum FrameReader {
     ) async throws -> FrameSequence {
         guard (1...512).contains(frameCount),
               (16...512).contains(proxyWidth),
+              proxyWidth.isMultiple(of: 2),
               isSupported(pixelFormat: pixelFormat),
               startSeconds.isFinite,
               framesPerSecond.isFinite,
@@ -137,6 +138,7 @@ public enum FrameReader {
         let duration = try await asset.load(.duration)
         let naturalSize = try await track.load(.naturalSize)
         let nominal = Double(try await track.load(.nominalFrameRate))
+        let formatDescriptions = try await track.load(.formatDescriptions)
         let metadata = try validatedMetadata(
             naturalSize: naturalSize,
             nominalFrameRate: nominal,
@@ -150,8 +152,9 @@ public enum FrameReader {
                 "window decode start exceeds the supported source timeline"
             )
         }
-        return try FFmpegFrameReader.read(
+        return try await FFmpegFrameReader.read(
             url: url,
+            formatDescription: formatDescriptions.first,
             pixelFormat: pixelFormat,
             maxFrames: frameCount,
             proxyWidth: proxyWidth,
@@ -172,6 +175,7 @@ public enum FrameReader {
     ) async throws -> FrameSequence {
         guard (1...512).contains(maxFrames),
               (16...512).contains(proxyWidth),
+              proxyWidth.isMultiple(of: 2),
               isSupported(pixelFormat: pixelFormat) else {
             throw CalibrationError.decodeFailed(
                 "proxy decode request contains invalid or unsafe bounds"
@@ -195,8 +199,9 @@ public enum FrameReader {
         let formatDescriptions = try await track.load(.formatDescriptions)
         let codec = formatDescriptions.first.map { fourCC(CMFormatDescriptionGetMediaSubType($0)) }
         if codec == "vp09" || codec == "av01" {
-            return try FFmpegFrameReader.read(
+            return try await FFmpegFrameReader.read(
                 url: url,
+                formatDescription: formatDescriptions.first,
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
@@ -231,8 +236,9 @@ public enum FrameReader {
         }
         reader.add(output)
         guard reader.startReading() else {
-            return try FFmpegFrameReader.read(
+            return try await FFmpegFrameReader.read(
                 url: url,
+                formatDescription: formatDescriptions.first,
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
@@ -266,8 +272,9 @@ public enum FrameReader {
             }
         }
         if reader.status == .failed || samples.isEmpty {
-            return try FFmpegFrameReader.read(
+            return try await FFmpegFrameReader.read(
                 url: url,
+                formatDescription: formatDescriptions.first,
                 pixelFormat: pixelFormat,
                 maxFrames: maxFrames,
                 proxyWidth: proxyWidth,
@@ -345,9 +352,123 @@ public enum FrameReader {
     }
 }
 
+/// Rawvideo has no color metadata. Preserve the source contract explicitly;
+/// P010 is a storage format, not evidence that the transfer function is HLG.
+struct FFmpegProxyColorMetadata {
+    let primaries: String
+    let transfer: String
+    let matrix: String
+    let gamma: NSNumber?
+    let scaleOptions: String
+    let isHDRReference: Bool
+
+    init(formatDescription: CMFormatDescription?, pixelFormat: OSType) throws {
+        guard let formatDescription,
+              let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] else {
+            throw CalibrationError.decodeFailed("ffmpeg proxy requires explicit source color metadata")
+        }
+        try self.init(extensions: extensions, pixelFormat: pixelFormat)
+    }
+
+    static func resolve(url: URL, formatDescription: CMFormatDescription?, pixelFormat: OSType) async throws -> Self {
+        if let color = try? Self(formatDescription: formatDescription, pixelFormat: pixelFormat) { return color }
+        // If AVFoundation does not supply the needed tags, recover explicit
+        // ffprobe metadata for the fallback decoder, not invented defaults.
+        let metadata = try await V4MetadataProbe.probe(url: url)
+        guard metadata.probeTool == "ffprobe" else {
+            throw CalibrationError.decodeFailed("no complete color metadata for ffmpeg proxy")
+        }
+        let primaries: CFString
+        switch metadata.colorPrimaries {
+        case "bt709": primaries = kCVImageBufferColorPrimaries_ITU_R_709_2
+        case "bt2020": primaries = kCVImageBufferColorPrimaries_ITU_R_2020
+        default: throw CalibrationError.decodeFailed("unsupported ffmpeg source primaries")
+        }
+        let matrix: CFString
+        switch metadata.matrix {
+        case "bt709": matrix = kCVImageBufferYCbCrMatrix_ITU_R_709_2
+        case "smpte170m", "bt470bg": matrix = kCVImageBufferYCbCrMatrix_ITU_R_601_4
+        case "bt2020nc": matrix = kCVImageBufferYCbCrMatrix_ITU_R_2020
+        default: throw CalibrationError.decodeFailed("unsupported ffmpeg source matrix")
+        }
+        let transfer: CFString
+        var gamma: NSNumber?
+        switch metadata.transfer {
+        case "bt709": transfer = kCVImageBufferTransferFunction_ITU_R_709_2
+        case "iec61966-2-1": transfer = kCVImageBufferTransferFunction_sRGB
+        case "linear": transfer = kCVImageBufferTransferFunction_Linear
+        case "gamma22": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = 2.2
+        case "gamma28": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = 2.8
+        default:
+            switch ReferenceTransfer.parse(metadata.transfer) {
+            case .pq: transfer = kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ
+            case .hlg: transfer = kCVImageBufferTransferFunction_ITU_R_2100_HLG
+            case .unknown: throw CalibrationError.decodeFailed("unsupported ffmpeg source transfer")
+            }
+        }
+        var extensions: [String: Any] = [
+            kCMFormatDescriptionExtension_ColorPrimaries as String: primaries,
+            kCMFormatDescriptionExtension_TransferFunction as String: transfer,
+            kCMFormatDescriptionExtension_YCbCrMatrix as String: matrix
+        ]
+        if let gamma { extensions[kCMFormatDescriptionExtension_GammaLevel as String] = gamma }
+        if metadata.colorRange == "pc" || metadata.colorRange == "tv" {
+            extensions[kCMFormatDescriptionExtension_FullRangeVideo as String] = NSNumber(value: metadata.colorRange == "pc")
+        }
+        return try Self(extensions: extensions, pixelFormat: pixelFormat)
+    }
+
+    private init(extensions: [String: Any], pixelFormat: OSType) throws {
+        guard let primaries = extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] as? String,
+              let transfer = extensions[kCMFormatDescriptionExtension_TransferFunction as String] as? String,
+              let matrix = extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] as? String else {
+            throw CalibrationError.decodeFailed("ffmpeg proxy requires explicit source color metadata")
+        }
+        let matrixName: String
+        if matrix == kCVImageBufferYCbCrMatrix_ITU_R_709_2 as String { matrixName = "bt709" }
+        else if matrix == kCVImageBufferYCbCrMatrix_ITU_R_601_4 as String { matrixName = "bt601" }
+        else if matrix == kCVImageBufferYCbCrMatrix_ITU_R_2020 as String { matrixName = "bt2020" }
+        else { throw CalibrationError.decodeFailed("unsupported ffmpeg proxy YCbCr matrix") }
+        isHDRReference = pixelFormat == CalibrationPixelFormat.hdrP010
+        if isHDRReference {
+            guard primaries == kCVImageBufferColorPrimaries_ITU_R_2020 as String,
+                  matrixName == "bt2020", ReferenceTransfer.parse(transfer) != .unknown else {
+                throw CalibrationError.unsupportedReference("proxy reference requires BT.2020 PQ or HLG")
+            }
+        }
+        self.primaries = primaries
+        self.transfer = transfer
+        self.matrix = matrix
+        gamma = extensions[kCMFormatDescriptionExtension_GammaLevel as String] as? NSNumber
+        // Rawvideo has no range metadata.  `auto` is not a source contract:
+        // it lets the decoder guess differently across codecs/platforms and
+        // can turn a tag-only relabel into a numeric range error.  Require the
+        // explicit CoreMedia range bit, or let resolve(url:) recover it from
+        // the complete ffprobe stream metadata.
+        guard let fullRange = extensions[kCMFormatDescriptionExtension_FullRangeVideo as String] as? NSNumber else {
+            throw CalibrationError.decodeFailed("ffmpeg proxy requires explicit source color range")
+        }
+        let inputRange = fullRange.boolValue ? "pc" : "tv"
+        // Both supported proxy CV pixel formats are video-range. Do the actual
+        // conversion in swscale instead of merely tagging full-range raw bytes.
+        scaleOptions = "in_range=\(inputRange):out_range=tv:in_color_matrix=\(matrixName):out_color_matrix=\(matrixName)"
+    }
+
+    func apply(to pixelBuffer: CVPixelBuffer) throws {
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, primaries as CFString, .shouldPropagate)
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, transfer as CFString, .shouldPropagate)
+        CVBufferSetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, matrix as CFString, .shouldPropagate)
+        if let gamma { CVBufferSetAttachment(pixelBuffer, kCVImageBufferGammaLevelKey, gamma, .shouldPropagate) }
+        if !isHDRReference {
+            _ = try HDRInputMetadata.resolve(pixelBuffer: pixelBuffer, fallbackPolicy: .requireMetadata)
+        }
+    }
+}
+
 private enum FFmpegFrameReader {
     static func read(
         url: URL,
+        formatDescription: CMFormatDescription?,
         pixelFormat: OSType,
         maxFrames: Int,
         proxyWidth: Int,
@@ -357,11 +478,12 @@ private enum FFmpegFrameReader {
         durationSeconds: Double,
         startSeconds: Double? = nil,
         samplingFPS: Double? = nil
-    ) throws -> FrameSequence {
+    ) async throws -> FrameSequence {
         guard let executable = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw CalibrationError.decodeFailed("AVAssetReader failed and ffmpeg fallback is unavailable")
         }
         let isP010 = pixelFormat == CalibrationPixelFormat.hdrP010
+        let color = try await FFmpegProxyColorMetadata.resolve(url: url, formatDescription: formatDescription, pixelFormat: pixelFormat)
         let proxyHeight = max(2, Int((Double(proxyWidth) * Double(sourceHeight) / Double(max(sourceWidth, 1))).rounded() / 2) * 2)
         let outputPixelFormat = isP010 ? "p010le" : "nv12"
         let distributedFPS = durationSeconds > 0
@@ -379,7 +501,7 @@ private enum FFmpegFrameReader {
                 "ffmpeg proxy rate or dimensions exceed safe bounds"
             )
         }
-        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic"
+        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         // This is an offline proxy reader, but it must still be bounded and
@@ -421,7 +543,7 @@ private enum FFmpegFrameReader {
                 width: proxyWidth,
                 height: proxyHeight,
                 pixelFormat: pixelFormat,
-                isHDR: isP010
+                color: color
             )
             let seconds = (startSeconds ?? 0) + Double(index) / outputFPSForTimestamp
             let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
@@ -480,7 +602,7 @@ private enum FFmpegFrameReader {
         width: Int,
         height: Int,
         pixelFormat: OSType,
-        isHDR: Bool
+        color: FFmpegProxyColorMetadata
     ) throws -> CVPixelBuffer {
         var pixelBuffer: CVPixelBuffer?
         let attributes: CFDictionary = [
@@ -491,11 +613,18 @@ private enum FFmpegFrameReader {
         guard status == kCVReturnSuccess, let pixelBuffer else {
             throw CalibrationError.decodeFailed("could not allocate offline pixel buffer")
         }
-        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        try color.apply(to: pixelBuffer)
+        guard CVPixelBufferLockBaseAddress(pixelBuffer, []) == kCVReturnSuccess else {
+            throw CalibrationError.decodeFailed("could not lock offline pixel buffer")
+        }
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
-        let bytesPerSample = isHDR ? 2 : 1
+        let bytesPerSample = pixelFormat == CalibrationPixelFormat.hdrP010 ? 2 : 1
         let yBytes = width * height * bytesPerSample
-        guard data.count >= yBytes else { throw CalibrationError.decodeFailed("short raw frame") }
+        guard data.count == yBytes + width * (height / 2) * bytesPerSample,
+              CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) != nil,
+              CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) != nil else {
+            throw CalibrationError.decodeFailed("invalid raw frame or missing proxy planes")
+        }
         if let yBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) {
             let destinationRowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
             data.withUnsafeBytes { source in
@@ -518,24 +647,6 @@ private enum FFmpegFrameReader {
                 }
             }
         }
-        CVBufferSetAttachment(
-            pixelBuffer,
-            kCVImageBufferColorPrimariesKey,
-            isHDR ? kCVImageBufferColorPrimaries_ITU_R_2020 : kCVImageBufferColorPrimaries_ITU_R_709_2,
-            .shouldPropagate
-        )
-        CVBufferSetAttachment(
-            pixelBuffer,
-            kCVImageBufferTransferFunctionKey,
-            isHDR ? kCVImageBufferTransferFunction_ITU_R_2100_HLG : kCVImageBufferTransferFunction_ITU_R_709_2,
-            .shouldPropagate
-        )
-        CVBufferSetAttachment(
-            pixelBuffer,
-            kCVImageBufferYCbCrMatrixKey,
-            isHDR ? kCVImageBufferYCbCrMatrix_ITU_R_2020 : kCVImageBufferYCbCrMatrix_ITU_R_709_2,
-            .shouldPropagate
-        )
         return pixelBuffer
     }
 }
@@ -620,7 +731,12 @@ public enum OfflinePixelSampler {
             pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
         let isFullRange = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange ||
             pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
-        let matrix = yCbCrMatrix(for: pixelBuffer)
+        let metadata = try HDRInputMetadata.resolve(
+            pixelBuffer: pixelBuffer,
+            fallbackPolicy: isFullRange || pixelFormat == kCVPixelFormatType_32BGRA
+                ? .bt709FullRange : .bt709VideoRange
+        )
+        let matrix = metadata.yCbCrMatrix
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -629,7 +745,7 @@ public enum OfflinePixelSampler {
         var result = [Float](repeating: 0, count: width * height)
 
         func inverse(_ value: Float) -> Float {
-            HDRColorMath.inverseBT709(min(max(value, 0), 1))
+            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: metadata.transferFunction)
         }
 
         func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {
@@ -723,15 +839,6 @@ public enum OfflinePixelSampler {
             }
         }
         return result
-    }
-
-    private static func yCbCrMatrix(for pixelBuffer: CVPixelBuffer) -> HDRYCbCrMatrix {
-        guard let value = CVBufferCopyAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, nil) else {
-            return .bt709
-        }
-        if CFEqual(value, kCVImageBufferYCbCrMatrix_ITU_R_601_4) { return .bt601 }
-        if CFEqual(value, kCVImageBufferYCbCrMatrix_ITU_R_2020) { return .bt2020 }
-        return .bt709
     }
 
     public static func chromaMagnitude(pixelBuffer: CVPixelBuffer) -> Float {
