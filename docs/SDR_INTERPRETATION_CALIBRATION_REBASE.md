@@ -98,80 +98,96 @@ The canonical search-definition hash is:
 
 The BT.1886 policy and preparation plan identities participate in SHA-256 identity. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
 
-## 9. Corpus recovery preflight and Tune results
+## 9. Family-disjoint corpus reissue preflight
 
-The exact paired manifest was recovered from existing committed calibration
-provenance:
+The historical paired manifest was read at its exact committed path and was
+left unchanged:
 
 ```text
 path: data_video/visual-regression/v6-development-manifest.json
 manifest version: 4
 manifest SHA-256: 26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c
-Tune records: 5
-Validation records: 3
+records: 8
+historical roles: Tune 5 / Validation 3
+status: HISTORICAL_MANIFEST_UNCHANGED
 ```
 
-The separate `data_video/real_media/external-manifest.json` is a single-SDR
-runtime/acquisition manifest and is not used as paired calibration input. The
-paired manifest has explicit paths, IDs, groups, content families, and split
-assignments. It has no pair-level content SHA-256, dataset ID, or provenance
-version field. Its locators also point to the separately named source volume,
-so a newly computed hash would establish only current bytes and would not prove
-historical approval.
+The only content families in the approved eight-record universe are
+`K-Choreo` and `LIVE`, with four records each. The split viability check used
+only `contentFamily`, historical split role, record counts, and pair identity.
+It did not read media bytes, decode frames, inspect images, or run metrics.
 
-The role audit passes: there are no duplicate IDs, groups, or locators across
-the two split projections, and no role was reclassified. Frozen exclusion also
-passes from the manifest's eight `virginFrozen = false` declarations and the
-committed provenance describing the records as non-protected Tune/Validation.
-Family independence does not pass: both `K-Choreo` and `LIVE` occur in Tune and
-Validation. This is an explicit family overlap, not an inferred result.
+The family-atomic candidates are:
 
-The complete static result is recorded in
-[`results/calibration-corpus-preflight.json`](../results/calibration-corpus-preflight.json).
-The preregistration hash was recomputed with the source-equivalent Swift
-`JSONEncoder` and matches
+| family assignment | Tune records | Validation records | moved records | Tune families | Validation families | promotion-grade diversity |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `K-Choreo → Tune`, `LIVE → Validation` | 4 | 4 | 3 | 1 | 1 | FAIL |
+| `K-Choreo → Validation`, `LIVE → Tune` | 4 | 4 | 5 | 1 | 1 | FAIL |
+
+The first assignment is selected by the preregistered deterministic ordering
+because it moves fewer historical records. Both candidates have zero family
+overlap, but each side has only one family. The required minimum of two
+distinct families in both Tune and Validation is therefore impossible with
+this two-family universe. Family atomicity is preserved; the promotion-grade
+family-diversity gate fails.
+
+The result is recorded in
+[`results/calibration-corpus-preflight-v2.json`](../results/calibration-corpus-preflight-v2.json).
+The earlier
+[`results/calibration-corpus-preflight.json`](../results/calibration-corpus-preflight.json)
+remains preserved as the historical overlap preflight. No v5 manifest was
+emitted, so no new dataset identity, current byte hash, corpus definition
+hash, or experiment binding hash was created. Identity anchoring stops at the
+structural viability gate; no media bytes were read.
+
+The preregistration remains unchanged. Its source-equivalent Swift
+`JSONEncoder` hash is still
 `7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608`.
 
 ```text
-status: BLOCKED_FAMILY_OVERLAP
-manifest identity: found, current-cycle approval incomplete
-corpus integrity: PROVENANCE_INSUFFICIENT
-family independence: FAIL
+family overlap for selected rejected assignment: []
+family-level split independence: PASS_FOR_REJECTED_ASSIGNMENT
+promotion-grade family diversity: FAIL (1 family / 1 family; required 2 / 2)
+current byte identity: NOT_ESTABLISHED
+source/reference hash coverage: NOT_STARTED
 media decoded: NO
+media hashed: NO
 Tune run: NO
 Validation run: NO
 objective evaluations: 0
+status: BLOCKED_INSUFFICIENT_FAMILY_DIVERSITY
 ```
 
 Synthetic transfer fixtures provide correctness anchors only. They do not stand in for Tune data.
 
 ## 10. Frozen shortlist
 
-No shortlist was frozen because the corpus preflight failed before media
-materialization. The candidate artifact's local configuration-freeze flag
-describes the protocol only; it does not refer to the repository's Frozen
-dataset.
+No shortlist was frozen because the family-diversity gate failed before v5
+manifest emission and media materialization. A future
+`configurationFrozenForReadiness` flag would describe a candidate
+configuration only; it would not refer to the repository's Frozen dataset.
 
 ## 11. Validation results
 
-Validation was not run. The preflight blocker was established before any
+Validation was not run. The structural blocker was established before any
 Validation metric or media bytes were exposed. No policy, threshold, metric,
-search space, or parameter was changed.
+search space, parameter, or split role was changed.
 
 ## 12. Candidate selection
 
 No policy or candidate was selected. The result is:
 
 ```text
-CALIBRATION_REBASE = BLOCKED_FAMILY_OVERLAP
+CALIBRATION_REBASE = BLOCKED_INSUFFICIENT_FAMILY_DIVERSITY
 SELECTED SDR POLICY = NONE
 NEW CANDIDATE = NONE
 PRODUCTION DEFAULT CHANGED = NO
 ```
 
-This is an honest preflight result, not a claim that either standard model is
-preferred. The family overlap and unsealed byte identity must be resolved by a
-trusted corpus handoff before the preregistered search can resume.
+This is an honest structural preflight result, not a claim that either
+standard model is preferred. A trusted corpus expansion with at least two
+families on each side is required before exact byte identity anchoring and the
+preregistered search can resume.
 
 ## 13. Calibration lineage
 
@@ -187,9 +203,10 @@ objectiveEvaluations = 0
 oldCalibrationReusable = false
 ```
 
-The Tune and Validation identities are recorded as exact split projections of
-the recovered manifest in the preflight artifact. They are not reconstructed
-from old V4 output, and no old score is reused.
+The historical Tune and Validation roles were used only for the deterministic
+viability calculation. No new Tune/Validation corpus identity was issued, no
+old V4 output was used to reconstruct a corpus, and no historical score was
+reused.
 
 ## 14. Regression tests
 
@@ -213,8 +230,9 @@ These are synthetic offscreen timings for the transform or presentation stage. T
 ## 16. Remaining risks
 
 ```text
-HIGH: current paired manifest lacks historically anchored pair byte identity and dataset provenance
-HIGH: current Tune/Validation split has explicit K-Choreo and LIVE family overlap
+HIGH: approved eight-record universe has only two families, so strict two-family-per-split diversity is impossible
+HIGH: no v5 corpus was emitted and current paired-manifest byte identity remains unanchored
+UNKNOWN: source-master-level independence is absent from the approved manifest metadata
 HIGH: original PTS preservation for VFR temporal proxy is unproven
 HIGH: source↔binary causal build provenance is unproven
 UNMEASURED: physical display calibration and colorimetric accuracy
@@ -226,7 +244,7 @@ The existing PR #11 allowlist-only guard remains unchanged. Frozen/Virgin conten
 ## 17. Final verdict
 
 ```text
-FINAL VERDICT: BLOCKED_FAMILY_OVERLAP
+FINAL VERDICT: BLOCKED_INSUFFICIENT_FAMILY_DIVERSITY
 ENGINE STATUS: EXPERIMENTAL
 CALIBRATION STATUS: REBASE_REQUIRED
 PRE_FROZEN READINESS: NOT YET EVALUATED
@@ -236,6 +254,7 @@ Objective evaluations: 0
 ```
 
 The policy infrastructure and preregistration remain reviewable, but no
-calibration candidate is available. The exact manifest path was found, while
-the current corpus preflight correctly blocks resume because family-level
-independence and historically anchored content identity are not proven.
+calibration candidate is available. The exact historical manifest path was
+found and remains untouched. A family-atomic assignment can remove overlap,
+but the approved universe cannot provide two distinct families to each split,
+so the strict corpus reissue preflight blocks before byte identity anchoring.

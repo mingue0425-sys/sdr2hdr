@@ -1,0 +1,132 @@
+{
+  "artifactVersion": 2,
+  "status": "BLOCKED_INSUFFICIENT_FAMILY_DIVERSITY",
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "implementationHead": "d02b441912ff5e93d7a93b5fbcc7851eacc95682",
+  "previousManifest": {
+    "path": "data_video/visual-regression/v6-development-manifest.json",
+    "manifestVersion": 4,
+    "manifestSHA256": "26cab0df016dc1ed17f2b70fc8e1dc10cf7677907994c24937479fb423259c8c",
+    "recordCount": 8,
+    "historicalStatus": "HISTORICAL_MANIFEST_UNCHANGED"
+  },
+  "proposedV5": {
+    "emitted": false,
+    "plannedDatasetId": "calibration-v6-family-disjoint-2026a",
+    "manifestVersion": 5,
+    "provenanceVersion": 1,
+    "reason": "strict family diversity requires at least two atomic content families in each split, but the approved eight-record universe contains only two families"
+  },
+  "preregistration": {
+    "policyVersion": "sdr-input-interpretation-policy-v1",
+    "preparationVersion": "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy",
+    "metricVersion": "v2-objective-with-v61-directional-diagnostics",
+    "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+    "status": "MATCH",
+    "policyCandidates": [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "searchBudgetPerPolicy": 192,
+    "seed": 20260912,
+    "shortlistSize": 3
+  },
+  "deterministicAssignment": {
+    "method": "family-atomic; minimize moved records; minimize deviation from historical 5:3 record ratio; minimize family-count imbalance; lexical canonical assignment tie-break",
+    "inputFields": [
+      "contentFamily",
+      "historical split",
+      "record count",
+      "pairId"
+    ],
+    "inputWasQualityIndependent": true,
+    "familyRecordCounts": {
+      "K-Choreo": 4,
+      "LIVE": 4
+    },
+    "historicalRoleCounts": {
+      "tune": 5,
+      "validation": 3
+    },
+    "candidateAssignments": [
+      {
+        "assignment": {
+          "K-Choreo": "tune",
+          "LIVE": "validation"
+        },
+        "tuneRecordCount": 4,
+        "validationRecordCount": 4,
+        "movedRecordCount": 3,
+        "tuneFamilyCount": 1,
+        "validationFamilyCount": 1,
+        "familyOverlap": [],
+        "promotionGradeFamilyDiversity": "FAIL"
+      },
+      {
+        "assignment": {
+          "K-Choreo": "validation",
+          "LIVE": "tune"
+        },
+        "tuneRecordCount": 4,
+        "validationRecordCount": 4,
+        "movedRecordCount": 5,
+        "tuneFamilyCount": 1,
+        "validationFamilyCount": 1,
+        "familyOverlap": [],
+        "promotionGradeFamilyDiversity": "FAIL"
+      }
+    ],
+    "selectedCandidate": {
+      "K-Choreo": "tune",
+      "LIVE": "validation"
+    },
+    "selectedCandidateReason": "minimum movedRecordCount among family-atomic assignments; the remaining family-diversity gate is impossible with two total families",
+    "minimumSplitViable": true,
+    "tuneRecordCount": 4,
+    "validationRecordCount": 4,
+    "tuneFamilyCount": 1,
+    "validationFamilyCount": 1,
+    "familyOverlap": [],
+    "familyAtomicity": "PASS",
+    "promotionGradeFamilyDiversity": "FAIL"
+  },
+  "provenance": {
+    "roleProvenance": "PASS",
+    "frozenExclusion": "PASS",
+    "sourceMasterLevelIndependence": "UNKNOWN",
+    "familyLevelIndependence": "PASS_FOR_REJECTED_ASSIGNMENT",
+    "familyDiversityRequirement": "FAIL",
+    "historicalRoleReclassification": false,
+    "oldCalibrationReusable": false
+  },
+  "identity": {
+    "newManifestSHA256": null,
+    "corpusDefinitionHash": null,
+    "experimentBindingHash": null,
+    "sourceHashCoverage": "NOT_STARTED",
+    "referenceHashCoverage": "NOT_STARTED",
+    "currentByteIdentity": "NOT_ESTABLISHED",
+    "reason": "viability gate failed before exact media byte reads; no v5 manifest was emitted"
+  },
+  "execution": {
+    "preflightCompletedBeforeMediaAccess": true,
+    "mediaDecoded": false,
+    "mediaHashed": false,
+    "objectiveMetricsRun": false,
+    "tuneRun": false,
+    "validationRun": false,
+    "shortlistFrozen": false,
+    "objectiveEvaluations": 0,
+    "frozenAccessed": false
+  },
+  "decision": {
+    "calibrationCorpusRecovery": "BLOCKED_INSUFFICIENT_FAMILY_DIVERSITY",
+    "newManifest": "NOT_EMITTED",
+    "calibrationResume": "BLOCKED",
+    "productionDefaultChanged": false,
+    "nextRequiredEvidence": [
+      "trusted expansion of the approved development corpus with at least two family-disjoint families per split, delivered as an explicit manifest",
+      "current byte identity and 100% source/reference hash coverage for that replacement corpus before media materialization"
+    ]
+  }
+}
