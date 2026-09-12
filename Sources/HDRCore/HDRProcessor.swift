@@ -1044,7 +1044,10 @@ public final class HDRProcessor {
         do {
             resolvedColor = try HDRColorMetadataResolver.resolve(
                 pixelBuffer: pixelBuffer,
-                fallbackPolicy: configuration.inputFallbackPolicy
+                fallbackPolicy: configuration.inputFallbackPolicy,
+                interpretationPolicy: configuration.sdrInterpretationPolicy,
+                untaggedFallback: configuration.untaggedSDRFallback,
+                bt1886Parameters: configuration.bt1886Parameters
             )
         } catch let error as HDRColorMetadataError {
             throw HDRProcessorError.metadata(error)
@@ -1187,6 +1190,11 @@ public final class HDRProcessor {
             inputPixelFormat: inputTextures.pixelFormat.diagnosticName,
             inputBitDepth: inputTextures.pixelFormat.bitDepth,
             inputRange: inputTextures.pixelFormat.diagnosticRangeName,
+            sourceTransferTag: resolvedColor.metadata.sourceTransferTag,
+            interpretationPolicy: resolvedColor.metadata.interpretationPolicy,
+            effectiveTransfer: resolvedColor.metadata.effectiveTransfer,
+            fallbackUsed: resolvedColor.metadata.fallbackUsed,
+            fallbackReason: resolvedColor.metadata.fallbackReason,
             inputChromaLocation: resolvedColor.chromaGeometry.metadataDescription,
             resolvedChromaSiting: resolvedColor.chromaGeometry.resolvedSiting.rawValue,
             chromaReconstructionMode: chromaReconstructionDecision.effective.diagnosticName,
@@ -1414,19 +1422,34 @@ public final class HDRProcessor {
         }
         let transferFunction: UInt32
         let gamma: Float
+        let bt1886BlackLuminance: Float
+        let bt1886WhiteLuminance: Float
         switch color.metadata.transferFunction {
         case .bt709:
             transferFunction = 0
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .sRGB:
             transferFunction = 1
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .gamma(let value):
             transferFunction = 2
             gamma = value
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .linear:
             transferFunction = 3
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
+        case .bt1886(let parameters):
+            transferFunction = 4
+            gamma = parameters.gamma
+            bt1886BlackLuminance = parameters.blackLuminance
+            bt1886WhiteLuminance = parameters.whiteLuminance
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,
@@ -1436,6 +1459,8 @@ public final class HDRProcessor {
             matrixKind: matrixKind,
             transferFunction: transferFunction,
             gamma: gamma,
+            bt1886BlackLuminance: bt1886BlackLuminance,
+            bt1886WhiteLuminance: bt1886WhiteLuminance,
             outputMode: configuration.outputMode == .edr ? 0 : 1,
             toneCurveRevision: configuration.toneCurveRevision.rawValue,
             paperWhiteNits: configuration.paperWhiteNits,

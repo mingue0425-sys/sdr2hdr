@@ -4,6 +4,33 @@ import simd
 /// Small scalar implementation used by mathematical and GPU correctness
 /// tests. It is intentionally not used by HDRProcessor's realtime path.
 public enum HDRReference {
+    /// Processes an encoded source using the same metadata-to-policy resolver
+    /// as HDRProcessor. This overload is the scalar/reference entry point for
+    /// policy parity tests.
+    public static func process(
+        signalRGB: SIMD3<Float>,
+        configuration: HDRConfiguration,
+        sourceTransferTag: SDRSourceTransferTag,
+        metadataTransfer: HDRTransferFunction? = nil,
+        temporalAdaptation: Float = 1,
+        sceneStatistics: HDRSceneStatistics? = nil
+    ) throws -> SIMD4<Float> {
+        let resolution = try SDRInputInterpretationResolver.resolve(
+            sourceTransferTag: sourceTransferTag,
+            metadataTransfer: metadataTransfer,
+            requestedPolicy: configuration.sdrInterpretationPolicy,
+            untaggedFallback: configuration.untaggedSDRFallback,
+            bt1886Parameters: configuration.bt1886Parameters
+        )
+        return process(
+            signalRGB: signalRGB,
+            configuration: configuration,
+            transferFunction: resolution.effectiveTransfer,
+            temporalAdaptation: temporalAdaptation,
+            sceneStatistics: sceneStatistics
+        )
+    }
+
     public static func toneExpand(
         _ luminance: Float,
         configuration: HDRConfiguration,

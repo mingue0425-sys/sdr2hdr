@@ -122,6 +122,11 @@ internal struct HDRDebugFrameContext: Sendable {
     let inputPixelFormat: String
     let inputBitDepth: Int
     let inputRange: String
+    let sourceTransferTag: SDRSourceTransferTag
+    let interpretationPolicy: SDRInputInterpretationPolicy
+    let effectiveTransfer: HDRTransferFunction
+    let fallbackUsed: Bool
+    let fallbackReason: String?
     let inputChromaLocation: String
     let resolvedChromaSiting: String
     let chromaReconstructionMode: String
@@ -266,6 +271,11 @@ internal final class DebugStatisticsStore: @unchecked Sendable {
             inputPixelFormat: context.inputPixelFormat,
             inputBitDepth: context.inputBitDepth,
             inputRange: context.inputRange,
+            sourceTransferTag: context.sourceTransferTag,
+            interpretationPolicy: context.interpretationPolicy,
+            effectiveTransfer: context.effectiveTransfer,
+            fallbackUsed: context.fallbackUsed,
+            fallbackReason: context.fallbackReason,
             inputChromaLocation: context.inputChromaLocation,
             resolvedChromaSiting: context.resolvedChromaSiting,
             chromaReconstructionMode: context.chromaReconstructionMode,
