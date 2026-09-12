@@ -13,6 +13,8 @@
 
 # Calibration output is reproducible and can be regenerated locally.
 results/
+# One-use holdout consumption receipts: preserve even when cleaning results.
+.hdr-frozen-consumption/
 data_video/virgin_candidates/**/.work/
 
 # External local corpus, including raw Y4M and provenance caches.

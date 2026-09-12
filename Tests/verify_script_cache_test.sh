@@ -36,6 +36,15 @@ if [ "$first_key" = "$second_key" ]; then
   exit 1
 fi
 
+printf 'kernel before\n' > "$TEST_ROOT/Sources/HDRCore/Transform.metal"
+first_key="$(fingerprint correctness)"
+printf 'kernel after\n' > "$TEST_ROOT/Sources/HDRCore/Transform.metal"
+second_key="$(fingerprint correctness)"
+if [ "$first_key" = "$second_key" ]; then
+  echo 'FAIL: Metal shader mutation did not invalidate correctness fingerprint' >&2
+  exit 1
+fi
+
 printf 'validated artifact\n' > "$TEST_ROOT/results/audit.json"
 cache_store audit test-input-key "$TEST_ROOT/results/audit.json"
 cache_hit audit test-input-key "$TEST_ROOT/results/audit.json"
@@ -45,6 +54,17 @@ if cache_hit audit test-input-key "$TEST_ROOT/results/audit.json"; then
   echo 'FAIL: mutated artifact was accepted by cache' >&2
   exit 1
 fi
+
+# Cached control artifacts must not bypass current media content validation.
+(
+  printf '{}\n' > "$TEST_ROOT/results/dataset-v4-final.json"
+  cache_store audit cached-key results/dataset-v4-final.json data_video/dataset-v4-lock.json
+  run_audit() { return 42; }
+  if run_audit_cached unused-calibrator cached-key; then
+    echo 'FAIL: cached audit bypassed a failing content validator' >&2
+    exit 1
+  fi
+)
 
 python3 - "$TEST_ROOT" <<'PY'
 import json
@@ -102,6 +122,30 @@ FAKE_CALIBRATOR="$TEST_ROOT/fake-calibrator"
 printf '#!/bin/sh\nexit 0\n' > "$FAKE_CALIBRATOR"
 chmod +x "$FAKE_CALIBRATOR"
 assert_pre_v6_ready "$FAKE_CALIBRATOR" >/dev/null
+
+(
+  cache_hit() { return 0; }
+  assert_pre_v6_ready() { return 42; }
+  cache_store() { touch "$TEST_ROOT/incorrectly-stored-correctness"; }
+  if run_correctness_cached unused-calibrator test-key >/dev/null 2>&1; then
+    echo 'FAIL: failed semantic validation became a successful correctness cache' >&2
+    exit 1
+  fi
+  [ ! -e "$TEST_ROOT/incorrectly-stored-correctness" ]
+)
+
+(
+  inputs_newest_mtime_ns() { echo 0; }
+  artifacts_oldest_mtime_ns() { echo 1; }
+  assert_pre_v6_ready() { return 0; }
+  run_audit() { return 42; }
+  cache_store() { touch "$TEST_ROOT/incorrectly-primed-cache"; }
+  if prime_cache_from_current_artifacts unused-calibrator >/dev/null 2>&1; then
+    echo 'FAIL: failed content validation became a primed cache' >&2
+    exit 1
+  fi
+  [ ! -e "$TEST_ROOT/incorrectly-primed-cache" ]
+)
 
 python3 - "$TEST_ROOT" <<'PY'
 import json, pathlib, sys
@@ -168,6 +212,22 @@ plan_path.write_text(json.dumps(plan), encoding="utf-8")
 PY
 if assert_pre_v6_ready "$FAKE_CALIBRATOR" >/dev/null 2>&1; then
   echo 'FAIL: malformed plan identity bypassed semantic gate' >&2
+  exit 1
+fi
+
+# A syntactically PASS-shaped JSON bundle must not mask the Swift verifier's
+# failure, even when Bash disables errexit in an if/OR-list call context.
+# Run this after the semantic-fixture mutations because run_correctness
+# deliberately removes stale correctness artifacts before invoking the CLI.
+FAILING_CALIBRATOR="$TEST_ROOT/failing-calibrator"
+printf '#!/bin/sh\nexit 42\n' > "$FAILING_CALIBRATOR"
+chmod +x "$FAILING_CALIBRATOR"
+if assert_pre_v6_ready "$FAILING_CALIBRATOR" >/dev/null 2>&1; then
+  echo 'FAIL: rejected sealed plan was masked by PASS-shaped JSON' >&2
+  exit 1
+fi
+if run_correctness "$FAILING_CALIBRATOR" >/dev/null 2>&1; then
+  echo 'FAIL: correctness-review verifier failure was masked by tee' >&2
   exit 1
 fi
 

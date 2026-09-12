@@ -43,7 +43,7 @@
     "Tests/verify_pre_frozen_seal.py"
   ],
   "verificationFileBaselines": {
-    "RUN_MACOS_VERIFY.sh": "ed2896c094764557b1d0a64fb66bb34a59b128c367f6507e7aa64631d519b607"
+    "RUN_MACOS_VERIFY.sh": "96ccb9ecac8f4dd3c34c4fd0107c191b589189080eae3e03f6df4bf675d09bb0"
   },
   "legacyVerificationExceptions": {
     "RUN_MACOS_VERIFY.sh": [
