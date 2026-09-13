@@ -1,4 +1,5 @@
 import Foundation
+import HDRCore
 
 public enum CalibrationV2Verdict: String, Codable, Sendable {
     case promote = "PROMOTE_CALIBRATED_V2"
@@ -8,7 +9,7 @@ public enum CalibrationV2Verdict: String, Codable, Sendable {
     case alignmentNotReliable = "ALIGNMENT_NOT_RELIABLE"
 }
 
-public struct V2ParameterBounds: Codable, Sendable {
+public struct V2ParameterBounds: Codable, Hashable, Sendable {
     public var paperWhiteNits: ClosedRange<Float> = 180...230
     public var peakNits: ClosedRange<Float> = 800...1_400
     public var highlightStrength: ClosedRange<Float> = 0.55...0.90
@@ -18,9 +19,40 @@ public struct V2ParameterBounds: Codable, Sendable {
     public var temporalStability: ClosedRange<Float> = 0.82...0.96
 
     public init() {}
+
+    /// The bounds that belong to the execution-bound preregistration. Legacy
+    /// development callers keep the historical defaults above; a
+    /// preregistered run must obtain this value from its sealed search object.
+    public static let preregistered = V2ParameterBounds(
+        paperWhiteNits: 190...245,
+        peakNits: 900...1_500,
+        highlightStrength: 0.42...0.86,
+        contrastStrength: 0.50...0.95,
+        saturationCompensation: 0.10...0.50,
+        shadowProtection: 0.05...1.00,
+        temporalStability: 0.20...0.98
+    )
+
+    public init(
+        paperWhiteNits: ClosedRange<Float>,
+        peakNits: ClosedRange<Float>,
+        highlightStrength: ClosedRange<Float>,
+        contrastStrength: ClosedRange<Float>,
+        saturationCompensation: ClosedRange<Float>,
+        shadowProtection: ClosedRange<Float>,
+        temporalStability: ClosedRange<Float>
+    ) {
+        self.paperWhiteNits = paperWhiteNits
+        self.peakNits = peakNits
+        self.highlightStrength = highlightStrength
+        self.contrastStrength = contrastStrength
+        self.saturationCompensation = saturationCompensation
+        self.shadowProtection = shadowProtection
+        self.temporalStability = temporalStability
+    }
 }
 
-public struct V2ObjectiveWeights: Codable, Sendable {
+public struct V2ObjectiveWeights: Codable, Hashable, Sendable {
     public var luminance = 0.16
     public var absoluteNits = 0.03
     public var midtone = 0.08
@@ -38,6 +70,40 @@ public struct V2ObjectiveWeights: Codable, Sendable {
     public var invalidPenalty = 10.0
 
     public init() {}
+
+    public init(
+        luminance: Double,
+        absoluteNits: Double,
+        midtone: Double,
+        diffuseWhite: Double,
+        highlight: Double,
+        shadow: Double,
+        chroma: Double,
+        saturation: Double,
+        hue: Double,
+        temporal: Double,
+        structure: Double,
+        clippingPenalty: Double,
+        blackCrushPenalty: Double,
+        saturationPenalty: Double,
+        invalidPenalty: Double
+    ) {
+        self.luminance = luminance
+        self.absoluteNits = absoluteNits
+        self.midtone = midtone
+        self.diffuseWhite = diffuseWhite
+        self.highlight = highlight
+        self.shadow = shadow
+        self.chroma = chroma
+        self.saturation = saturation
+        self.hue = hue
+        self.temporal = temporal
+        self.structure = structure
+        self.clippingPenalty = clippingPenalty
+        self.blackCrushPenalty = blackCrushPenalty
+        self.saturationPenalty = saturationPenalty
+        self.invalidPenalty = invalidPenalty
+    }
 }
 
 public struct V2SearchConfiguration: Codable, Sendable {
@@ -54,6 +120,11 @@ public struct V2SearchConfiguration: Codable, Sendable {
     public var bootstrapSamples = 1_000
     public var bounds = V2ParameterBounds()
     public var weights = V2ObjectiveWeights()
+    /// Optional keeps historical V2 configuration artifacts decodable. New
+    /// preparation identities always materialize these values explicitly.
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy? = .bt709SourceLinear
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy? = .assumeBT709SourceLinear
+    public var bt1886Parameters: BT1886TransferParameters? = .idealReference
 
     public init() {}
 }

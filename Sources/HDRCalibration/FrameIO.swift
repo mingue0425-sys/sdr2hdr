@@ -721,7 +721,10 @@ public enum OfflinePixelSampler {
     public static func linearLumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        interpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        untaggedFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
+        bt1886Parameters: BT1886TransferParameters = .idealReference
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -734,7 +737,10 @@ public enum OfflinePixelSampler {
         let metadata = try HDRInputMetadata.resolve(
             pixelBuffer: pixelBuffer,
             fallbackPolicy: isFullRange || pixelFormat == kCVPixelFormatType_32BGRA
-                ? .bt709FullRange : .bt709VideoRange
+                ? .bt709FullRange : .bt709VideoRange,
+            interpretationPolicy: interpretationPolicy,
+            untaggedFallback: untaggedFallback,
+            bt1886Parameters: bt1886Parameters
         )
         let matrix = metadata.yCbCrMatrix
 

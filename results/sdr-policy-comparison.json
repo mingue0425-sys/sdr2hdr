@@ -1,0 +1,48 @@
+{
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
+  "policyVersion": "sdr-input-interpretation-policy-v1",
+  "status": "ANCHORS_PASS_CALIBRATION_DATA_BLOCKED",
+  "policies": {
+    "bt709SourceLinear": {
+      "sourceTransferTag": "ituR709",
+      "effectiveTransfer": "inverseBT709OETF",
+      "anchors": {
+        "0.0": 0.0,
+        "0.5": 0.2595894,
+        "1.0": 1.0
+      }
+    },
+    "bt1886ReferenceDisplay": {
+      "sourceTransferTag": "ituR709",
+      "effectiveTransfer": "BT1886EOTF",
+      "parameters": {
+        "blackLuminance": 0.0,
+        "whiteLuminance": 1.0,
+        "gamma": 2.4,
+        "domain": "normalized ideal reference; no physical display claim"
+      },
+      "anchors": {
+        "0.0": 0.0,
+        "0.5": 0.1894646,
+        "1.0": 1.0
+      }
+    },
+    "sRGB": {
+      "sourceTransferTag": "sRGB",
+      "effectiveTransfer": "inverseSRGB",
+      "anchorCode": "128/255",
+      "anchorLinear": 0.2158605,
+      "competesWithBT709Policy": false
+    }
+  },
+  "nonZeroBlackBT1886": {
+    "blackLuminance": 0.01,
+    "whiteLuminance": 1.0,
+    "gamma": 2.4,
+    "independentEquation": "(LB^(1/gamma) + (LW^(1/gamma)-LB^(1/gamma))*V)^gamma",
+    "status": "PASS"
+  },
+  "frozenAccessed": false,
+  "objectiveEvaluations": 0
+}

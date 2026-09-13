@@ -131,11 +131,34 @@ public struct HDRSceneStatistics: Equatable, Sendable, Codable {
     /// Converts the normalized BT.709 luma signal used by the calibration
     /// proxy into the same linear-light samples used by the Metal estimator.
     public init(sdrBT709Signals: [Float]) {
-        self.init(samples: sdrBT709Signals.map { HDRColorMath.inverseBT709($0) })
+        self.init(
+            sdrSignals: sdrBT709Signals,
+            transfer: .bt709
+        )
+    }
+
+    /// Converts encoded SDR luma signals using an explicitly selected
+    /// effective transfer model. The default preserves the PR #12 domain.
+    public init(
+        sdrSignals: [Float],
+        transfer: HDRTransferFunction
+    ) {
+        self.init(samples: sdrSignals.map {
+            HDRColorMath.inverseTransfer($0, function: transfer)
+        })
     }
 
     public static func linearAverage(sdrBT709Signals: [Float]) -> Float {
-        let values = sdrBT709Signals.map { HDRColorMath.inverseBT709($0) }.filter(\.isFinite)
+        linearAverage(sdrSignals: sdrBT709Signals, transfer: .bt709)
+    }
+
+    public static func linearAverage(
+        sdrSignals: [Float],
+        transfer: HDRTransferFunction
+    ) -> Float {
+        let values = sdrSignals.map {
+            HDRColorMath.inverseTransfer($0, function: transfer)
+        }.filter(\.isFinite)
         guard !values.isEmpty else { return 0.5 }
         return min(max(values.reduce(0, +) / Float(values.count), 0.001), 1)
     }
@@ -638,6 +661,18 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// Versioned interpretation for an explicitly BT.709-tagged SDR source.
+    /// Source transfer metadata remains separate and authoritative for sRGB,
+    /// explicit gamma, and linear inputs.
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy
+
+    /// Explicit behavior when a source has no transfer metadata.
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy
+
+    /// Normalized BT.1886 reference-display parameters used when the selected
+    /// SDR policy is `bt1886ReferenceDisplay`.
+    public var bt1886Parameters: BT1886TransferParameters
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -673,6 +708,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        sdrInterpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        untaggedSDRFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
+        bt1886Parameters: BT1886TransferParameters = .idealReference,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -700,6 +738,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.sceneHistogramStrategy = sceneHistogramStrategy
         self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.sdrInterpretationPolicy = sdrInterpretationPolicy
+        self.untaggedSDRFallback = untaggedSDRFallback
+        self.bt1886Parameters = bt1886Parameters
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController
@@ -843,6 +884,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard peakNits > paperWhiteNits else {
             throw HDRConfigurationError.peakMustExceedPaperWhite
+        }
+        guard bt1886Parameters.isValid else {
+            throw HDRConfigurationError.valueOutOfRange("bt1886Parameters")
         }
         guard peakNits <= 10_000 else {
             throw HDRConfigurationError.valueOutOfRange("peakNits (maximum 10,000)")

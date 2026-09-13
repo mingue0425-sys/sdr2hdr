@@ -22,6 +22,35 @@ final class V2PreparedRepository {
     private var cache: [String: PreparedPair] = [:]
     private let preparationConfiguration: V6PreparationConfiguration
     private(set) var preparedEvaluationPlan: PreparedEvaluationPlan?
+    private var causallyVerifiedPlanHashes: Set<String> = []
+
+    init(
+        manifestURL: URL,
+        device: MTLDevice,
+        preparationConfiguration: V6PreparationConfiguration,
+        searchSeed: UInt64,
+        candidateCount: Int
+    ) {
+        self.manifestURL = manifestURL
+        self.preparationConfiguration = preparationConfiguration
+        self.preparedEvaluationPlan = nil
+        self.evaluator = PairEvaluator(
+            device: device,
+            experiment: ExperimentConfig(
+                seed: searchSeed,
+                candidateCount: candidateCount,
+                maxFramesPerScene: preparationConfiguration.maxFramesPerScene,
+                alignmentConfidenceThreshold: preparationConfiguration.alignmentConfidenceThreshold,
+                referenceTargetPeakNits: preparationConfiguration.referenceTargetPeakNits,
+                allowHLGModel: preparationConfiguration.allowHLGModel,
+                sdrInterpretationPolicy: preparationConfiguration.sdrInterpretationPolicy,
+                untaggedSDRFallback: preparationConfiguration.untaggedSDRFallback,
+                bt1886Parameters: preparationConfiguration.bt1886Parameters
+            ),
+            matcherConfiguration: preparationConfiguration.matcherConfiguration,
+            preparationConfiguration: preparationConfiguration
+        )
+    }
 
     init(
         manifestURL: URL,
@@ -48,7 +77,10 @@ final class V2PreparedRepository {
             hdrPixelFormat: CalibrationPixelFormat.hdrP010,
             matcherConfiguration: V6MatcherConfiguration(
                 acceptedConfidenceThreshold: acceptedConfidenceThreshold
-            )
+            ),
+            sdrInterpretationPolicy: configuration.sdrInterpretationPolicy ?? .bt709SourceLinear,
+            untaggedSDRFallback: configuration.untaggedSDRFallback ?? .assumeBT709SourceLinear,
+            bt1886Parameters: configuration.bt1886Parameters ?? .idealReference
         )
         self.preparedEvaluationPlan = nil
         self.evaluator = PairEvaluator(
@@ -59,7 +91,10 @@ final class V2PreparedRepository {
                 maxFramesPerScene: configuration.maxFramesPerScene,
                 alignmentConfidenceThreshold: 0,
                 referenceTargetPeakNits: configuration.referenceTargetPeakNits,
-                allowHLGModel: true
+                allowHLGModel: true,
+                sdrInterpretationPolicy: configuration.sdrInterpretationPolicy ?? .bt709SourceLinear,
+                untaggedSDRFallback: configuration.untaggedSDRFallback ?? .assumeBT709SourceLinear,
+                bt1886Parameters: configuration.bt1886Parameters ?? .idealReference
             ),
             matcherConfiguration: self.preparationConfiguration.matcherConfiguration
         )
@@ -102,7 +137,7 @@ final class V2PreparedRepository {
                 "cannot seal PreparedEvaluationPlan before every pair is prepared"
             )
         }
-        let manifest = try? V4Manifest.load(from: manifestURL)
+        let manifest = try V4Manifest.load(from: manifestURL)
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
             preparedPairs: prepared,
@@ -127,10 +162,9 @@ final class V2PreparedRepository {
         return plan
     }
 
-    /// Install a plan produced by the preflight process.  This is deliberately
-    /// a read-only hand-off: the repository may validate the already decoded
-    /// material and the sealed input hashes, but it never selects frames or
-    /// rebuilds the plan from the media a second time.
+    /// Install a structurally validated plan into this preparation repository.
+    /// Evaluator entry uses `materialize`, which performs the required current
+    /// implementation regeneration before any objective path can consume it.
     func installPreparedEvaluationPlan(
         _ plan: PreparedEvaluationPlan,
         records: [PairRecord],
@@ -180,18 +214,106 @@ final class V2PreparedRepository {
         return plan
     }
 
-    /// Install the preflight artifact first, then decode only its sealed
-    /// identities.  No alignment, scene detection, representative selection,
-    /// or confidence filtering is performed at evaluator entry.
+    func generationBinding(
+        for plan: PreparedEvaluationPlan,
+        inputHashes: [String: V6InputHashes]
+    ) throws -> V6PreparedEvaluationPlanGenerationBinding {
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        guard causallyVerifiedPlanHashes.contains(planHash) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan generation binding requested before causal regeneration"
+            )
+        }
+        return try makeGenerationBinding(for: plan, inputHashes: inputHashes)
+    }
+
+    private func makeGenerationBinding(
+        for plan: PreparedEvaluationPlan,
+        inputHashes: [String: V6InputHashes]
+    ) throws -> V6PreparedEvaluationPlanGenerationBinding {
+        let planSources = Dictionary(uniqueKeysWithValues: plan.pairs.map {
+            ($0.pairID, $0.inputHashes)
+        })
+        guard planSources == inputHashes.filter({ planSources[$0.key] != nil }) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal binding input identities do not match"
+            )
+        }
+        return try V6PreparedEvaluationPlanGenerationBinding(
+            plan: plan,
+            inputManifestIdentity: try V4DatasetIntegrity.manifestSHA256(url: manifestURL),
+            inputSourceIdentities: planSources
+        )
+    }
+
+    func causalProof(for plan: PreparedEvaluationPlan) throws -> V6PreparedEvaluationPlanCausalProof {
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        guard causallyVerifiedPlanHashes.contains(planHash) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal regeneration has not been verified"
+            )
+        }
+        return V6PreparedEvaluationPlanCausalProof(planSHA256: planHash)
+    }
+
+    private func regenerateCurrentPlan(
+        records: [PairRecord],
+        inputHashes: [String: V6InputHashes],
+        scope: String,
+        manifest: V4Manifest
+    ) async throws -> PreparedEvaluationPlan {
+        var regeneratedPairs: [PreparedPair] = []
+        regeneratedPairs.reserveCapacity(records.count)
+        for record in records {
+            // This is the only causal reproduction path. It invokes the
+            // current preparation implementation on the exact sealed inputs;
+            // it is not an objective evaluation and does not select a result.
+            let regenerated = try await evaluator.prepare(
+                record: record,
+                manifestURL: manifestURL
+            )
+            regeneratedPairs.append(regenerated)
+        }
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        return try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: regeneratedPairs,
+            manifest: manifest,
+            repositoryRoot: repositoryRoot,
+            configuration: preparationConfiguration,
+            inputHashes: inputHashes,
+            scope: scope
+        )
+    }
+
+    /// Install the preflight artifact after deterministic causal reproduction,
+    /// then decode only its sealed identities. No alignment, scene detection,
+    /// representative selection, or confidence filtering is performed by the
+    /// evaluator materialization pass.
     func materialize(
         records: [PairRecord],
         using plan: PreparedEvaluationPlan,
         inputHashes: [String: V6InputHashes]
     ) async throws -> [PreparedPair] {
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        if !causallyVerifiedPlanHashes.contains(planHash) {
+            let regeneratedPlan = try await regenerateCurrentPlan(
+                records: records,
+                inputHashes: inputHashes,
+                scope: plan.scope,
+                manifest: manifest
+            )
+            let binding = try makeGenerationBinding(for: plan, inputHashes: inputHashes)
+            try V6PreparedEvaluationPlanCausalProvenance.verify(
+                plan: plan,
+                regeneratedPlan: regeneratedPlan,
+                binding: binding
+            )
+            causallyVerifiedPlanHashes.insert(planHash)
+        }
         let installed = try installPreparedEvaluationPlan(
             plan, records: records, inputHashes: inputHashes
         )
-        let manifest = try V4Manifest.load(from: manifestURL)
         var result: [PreparedPair] = []
         result.reserveCapacity(records.count)
         for record in records {
@@ -218,9 +340,72 @@ final class V2PreparedRepository {
     }
 }
 
+/// CLI-facing causal verifier. It regenerates the exact serialized plan with
+/// the current V6 preparation implementation and the current typed
+/// configuration, rather than trusting the plan's own labels or sidecar.
+public enum V6PreparedPlanCausalVerifier {
+    public static func verify(
+        manifestURL: URL,
+        preparedPlanURL: URL,
+        preparationConfiguration: V6PreparationConfiguration,
+        device: MTLDevice? = MTLCreateSystemDefaultDevice()
+    ) async throws -> String {
+        guard let device else {
+            throw CalibrationError.decodeFailed("Metal device unavailable")
+        }
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let artifact = try V6PreparedEvaluationPlanArtifact.load(from: preparedPlanURL)
+        guard try artifact.verified() else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan artifact hash mismatch"
+            )
+        }
+        let plan = artifact.plan
+        let manifestPairs = Dictionary(uniqueKeysWithValues: manifest.pairs.map { ($0.id, $0) })
+        let records = try plan.pairOrder.map { id -> PairRecord in
+            guard let pair = manifestPairs[id] else {
+                throw CalibrationError.incompleteEvaluation(
+                    "PreparedEvaluationPlan pair is absent from the sealed manifest: \(id)"
+                )
+            }
+            let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
+            return PairRecord(
+                id: pair.id,
+                sdr: urls.sdr.path,
+                hdr: urls.hdr.path,
+                license: pair.license,
+                source: pair.source,
+                expectedRelation: pair.expectedRelation.legacyRelation(),
+                notes: pair.notes,
+                split: pair.split
+            )
+        }
+        let inputHashes = Dictionary(uniqueKeysWithValues: plan.pairs.map {
+            ($0.pairID, $0.inputHashes)
+        })
+        // Critical causal boundary: never take the preparation configuration
+        // from the candidate artifact. The current implementation is the
+        // verifier's source of truth; a relabelled plan must hash-mismatch.
+        let repository = V2PreparedRepository(
+            manifestURL: manifestURL,
+            device: device,
+            preparationConfiguration: preparationConfiguration,
+            searchSeed: 0,
+            candidateCount: 0
+        )
+        _ = try await repository.materialize(
+            records: records,
+            using: plan,
+            inputHashes: inputHashes
+        )
+        _ = try repository.causalProof(for: plan)
+        return artifact.planSHA256
+    }
+}
+
 final class V2EvaluationEngine {
     private let device: MTLDevice
-    private let weights: V2ObjectiveWeights
+    private let metricConfiguration: V2MetricSemanticConfiguration
     private var evaluators: [String: HDRCoreOfflineEvaluator] = [:]
     /// Temporal history belongs to a (pair, configuration) evaluation.  A
     /// cached evaluator may be reused for speed, but changing parameters must
@@ -230,20 +415,36 @@ final class V2EvaluationEngine {
 
     init(device: MTLDevice, weights: V2ObjectiveWeights) {
         self.device = device
-        self.weights = weights
+        var metricConfiguration = V2MetricSemanticConfiguration.current
+        metricConfiguration.objectiveWeights = weights
+        self.metricConfiguration = metricConfiguration
+        self.preparedEvaluationPlan = nil
+    }
+
+    init(device: MTLDevice, metricConfiguration: V2MetricSemanticConfiguration) throws {
+        try metricConfiguration.validate()
+        self.device = device
+        self.metricConfiguration = metricConfiguration
         self.preparedEvaluationPlan = nil
     }
 
     func installPreparedEvaluationPlan(
-        _ plan: PreparedEvaluationPlan,
-        expectedSHA256: String? = nil
+        _ artifact: V6PreparedEvaluationPlanArtifact,
+        causalProof: V6PreparedEvaluationPlanCausalProof
     ) throws {
-        let actualHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
-        if let expectedSHA256, actualHash != expectedSHA256 {
+        guard causalProof.planSHA256 == artifact.planSHA256 else {
             throw CalibrationError.incompleteEvaluation(
                 "PreparedEvaluationPlan hash mismatch before evaluator entry"
             )
         }
+        guard try artifact.verified(),
+              let binding = artifact.generationBinding,
+              try binding.isStructurallyConsistent(with: artifact.plan) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal provenance is not proven before evaluator entry"
+            )
+        }
+        let actualHash = try V6PreparedEvaluationPlanHasher.sha256(artifact.plan)
         if let installed = preparedEvaluationPlan {
             let installedHash = try V6PreparedEvaluationPlanHasher.sha256(installed)
             guard installedHash == actualHash else {
@@ -253,18 +454,7 @@ final class V2EvaluationEngine {
             }
             return
         }
-        self.preparedEvaluationPlan = plan
-    }
-
-    func installPreparedEvaluationPlan(
-        _ artifact: V6PreparedEvaluationPlanArtifact
-    ) throws {
-        guard try artifact.verified() else {
-            throw CalibrationError.incompleteEvaluation(
-                "PreparedEvaluationPlan artifact hash mismatch before evaluator entry"
-            )
-        }
-        try installPreparedEvaluationPlan(artifact.plan, expectedSHA256: artifact.planSHA256)
+        self.preparedEvaluationPlan = artifact.plan
     }
 
     func evaluate(
@@ -274,6 +464,7 @@ final class V2EvaluationEngine {
         split: DatasetSplit,
         confidenceThreshold: Double
     ) throws -> V2DatasetEvaluation {
+        try metricConfiguration.validate()
         if let preparedEvaluationPlan {
             try V6PreparedEvaluationEntry.validatePairOrder(
                 preparedPairs: preparedPairs,
@@ -344,13 +535,15 @@ final class V2EvaluationEngine {
                     scene: scene,
                     frames: sceneFrames,
                     configuration: parameters,
-                    weights: weights
+                    metricConfiguration: metricConfiguration
                 ))
             }
             guard !scenes.isEmpty else {
                 throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no scene received an accepted frame")
             }
-            var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
+            var videoMetrics = V2MetricsEvaluator.aggregate(
+                scenes.map(\.metrics), configuration: metricConfiguration
+            )
             let temporalWindows: [PreparedTemporalWindow]
             if let preparedEvaluationPlan {
                 temporalWindows = try V6PreparedEvaluationEntry.temporalWindows(
@@ -369,8 +562,10 @@ final class V2EvaluationEngine {
                 configuration: configuration
             )
             let oldTemporalContribution = videoMetrics.weightedContributions["temporal"] ?? 0
-            let temporalContribution = weights.temporal * (
-                temporal.luminance * 0.45 + temporal.highlight * 0.35 + temporal.flicker * 0.20
+            let temporalContribution = metricConfiguration.objectiveWeights.temporal * (
+                temporal.luminance * metricConfiguration.temporalLuminanceWeight +
+                    temporal.highlight * metricConfiguration.temporalHighlightWeight +
+                    temporal.flicker * metricConfiguration.temporalFlickerWeight
             )
             videoMetrics.temporalLuminanceError = temporal.luminance
             videoMetrics.highlightPumping = temporal.highlight
@@ -384,8 +579,13 @@ final class V2EvaluationEngine {
                 split: split,
                 frameCount: scenes.map(\.frameCount).reduce(0, +),
                 sceneCount: scenes.count,
-                alignment: V2MetricsEvaluator.alignmentStatistics(prepared: prepared),
-                categories: V2MetricsEvaluator.categories(scenes: scenes),
+                alignment: V2MetricsEvaluator.alignmentStatistics(
+                    prepared: prepared, configuration: metricConfiguration
+                ),
+                categories: V2MetricsEvaluator.categories(
+                    scenes: scenes,
+                    configuration: metricConfiguration
+                ),
                 metrics: videoMetrics,
                 scenes: scenes
             ))
@@ -403,7 +603,9 @@ final class V2EvaluationEngine {
             videoCount: videos.count,
             frameCount: videos.map(\.frameCount).reduce(0, +),
             sceneCount: videos.map(\.sceneCount).reduce(0, +),
-            metrics: V2MetricsEvaluator.aggregate(videos.map(\.metrics)),
+            metrics: V2MetricsEvaluator.aggregate(
+                videos.map(\.metrics), configuration: metricConfiguration
+            ),
             videos: videos
         )
     }
@@ -442,7 +644,9 @@ final class V2EvaluationEngine {
                     sourceLuma: item.sourceLuma, confidence: item.confidence
                 ))
             }
-            let metric = V2MetricsEvaluator.temporalMetrics(frames)
+            let metric = V2MetricsEvaluator.temporalMetrics(
+                frames, configuration: metricConfiguration
+            )
             values.append(metric)
             if adaptations.count > 1 {
                 let settled = adaptations.suffix(min(4, adaptations.count)).reduce(0, +) / Float(min(4, adaptations.count))

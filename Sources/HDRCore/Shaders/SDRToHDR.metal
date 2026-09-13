@@ -9,6 +9,8 @@ struct SDRToHDRParameters {
     uint matrixKind;
     uint transferFunction;
     float gamma;
+    float bt1886BlackLuminance;
+    float bt1886WhiteLuminance;
     uint outputMode;
     uint toneCurveRevision;
     float paperWhiteNits;
@@ -100,11 +102,24 @@ inline float inverseSRGB(float value) {
     return value <= 0.04045f ? value / 12.92f : pow((value + 0.055f) / 1.055f, 2.4f);
 }
 
+inline float inverseBT1886(float value, constant SDRToHDRParameters& p) {
+    // HDRProcessor validates the complete parameter domain before dispatch.
+    // Keep the valid-domain equation identical to HDRColorMath: no GPU-only
+    // span floor may silently change a valid BT.1886 parameterization.
+    float blackRoot = pow(p.bt1886BlackLuminance, 1.0f / p.gamma);
+    float whiteRoot = pow(p.bt1886WhiteLuminance, 1.0f / p.gamma);
+    float span = whiteRoot - blackRoot;
+    float a = pow(span, p.gamma);
+    float b = blackRoot / span;
+    return a * pow(max(clamp(value, 0.0f, 1.0f) + b, 0.0f), p.gamma);
+}
+
 inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
     switch (p.transferFunction) {
         case 0: return inverseBT709(value);
         case 1: return inverseSRGB(value);
         case 2: return pow(max(value, 0.0f), p.gamma);
+        case 4: return inverseBT1886(value, p);
         default: return max(value, 0.0f);
     }
 }

@@ -9,6 +9,8 @@ internal struct HDRShaderParameters {
     var matrixKind: UInt32
     var transferFunction: UInt32
     var gamma: Float
+    var bt1886BlackLuminance: Float
+    var bt1886WhiteLuminance: Float
     var outputMode: UInt32
     var toneCurveRevision: UInt32
     var paperWhiteNits: Float

@@ -223,6 +223,18 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
     public let inputPixelFormat: String
     public let inputBitDepth: Int
     public let inputRange: String
+    public let sourceTransferTag: SDRSourceTransferTag
+    /// Policy requested by the caller, retained even when metadata forces a
+    /// different selected policy or an untagged fallback is applied.
+    public let requestedInterpretationPolicy: SDRInputInterpretationPolicy
+    /// Effective selected policy after source metadata and fallback rules.
+    public let selectedInterpretationPolicy: SDRInputInterpretationPolicy
+    /// Compatibility alias for existing consumers; equal to the selected
+    /// policy and never used to represent the request.
+    public let interpretationPolicy: SDRInputInterpretationPolicy
+    public let effectiveTransfer: HDRTransferFunction
+    public let fallbackUsed: Bool
+    public let fallbackReason: String?
     public let inputChromaLocation: String
     public let resolvedChromaSiting: String
     /// The mode requested by the caller. `chromaReconstructionMode` remains
@@ -254,6 +266,13 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         inputPixelFormat: String = "unknown",
         inputBitDepth: Int = 0,
         inputRange: String = "unknown",
+        sourceTransferTag: SDRSourceTransferTag = .unknown,
+        interpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        requestedInterpretationPolicy: SDRInputInterpretationPolicy? = nil,
+        selectedInterpretationPolicy: SDRInputInterpretationPolicy? = nil,
+        effectiveTransfer: HDRTransferFunction = .bt709,
+        fallbackUsed: Bool = false,
+        fallbackReason: String? = nil,
         inputChromaLocation: String = "unknown",
         resolvedChromaSiting: String = "unknown",
         chromaReconstructionMode: String = "nearest",
@@ -282,6 +301,14 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         self.inputPixelFormat = inputPixelFormat
         self.inputBitDepth = inputBitDepth
         self.inputRange = inputRange
+        self.sourceTransferTag = sourceTransferTag
+        let selected = selectedInterpretationPolicy ?? interpretationPolicy
+        self.requestedInterpretationPolicy = requestedInterpretationPolicy ?? interpretationPolicy
+        self.selectedInterpretationPolicy = selected
+        self.interpretationPolicy = selected
+        self.effectiveTransfer = effectiveTransfer
+        self.fallbackUsed = fallbackUsed
+        self.fallbackReason = fallbackReason
         self.inputChromaLocation = inputChromaLocation
         self.resolvedChromaSiting = resolvedChromaSiting
         self.requestedChromaReconstructionMode = requestedChromaReconstructionMode ?? chromaReconstructionMode
@@ -337,6 +364,13 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
             inputPixelFormat: inputPixelFormat,
             inputBitDepth: inputBitDepth,
             inputRange: inputRange,
+            sourceTransferTag: sourceTransferTag,
+            interpretationPolicy: interpretationPolicy,
+            requestedInterpretationPolicy: requestedInterpretationPolicy,
+            selectedInterpretationPolicy: selectedInterpretationPolicy,
+            effectiveTransfer: effectiveTransfer,
+            fallbackUsed: fallbackUsed,
+            fallbackReason: fallbackReason,
             inputChromaLocation: inputChromaLocation,
             resolvedChromaSiting: resolvedChromaSiting,
             chromaReconstructionMode: chromaReconstructionMode,
@@ -369,7 +403,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         var lines = [
             "preset: \(preset)",
             "frame: \(frameIndex), timestamp: \(timestampSeconds.map { String(format: "%.6f", $0) } ?? "NOT_MEASURED"), configurationGeneration: \(configurationGeneration)",
-            "INPUT format=\(inputPixelFormat), bitDepth=\(inputBitDepth), range=\(inputRange), chromaLocation=\(inputChromaLocation), resolvedSiting=\(resolvedChromaSiting), reconstructionRequested=\(requestedChromaReconstructionMode), reconstructionEffective=\(effectiveChromaReconstructionMode), fallback=\(chromaReconstructionFallbackReason ?? "none"), \(stats(input))",
+            "INPUT format=\(inputPixelFormat), bitDepth=\(inputBitDepth), range=\(inputRange), sourceTransfer=\(sourceTransferTag.rawValue), requestedPolicy=\(requestedInterpretationPolicy.rawValue), selectedPolicy=\(selectedInterpretationPolicy.rawValue), effectiveTransfer=\(String(describing: effectiveTransfer)), fallbackUsed=\(fallbackUsed), fallbackReason=\(fallbackReason ?? "none"), chromaLocation=\(inputChromaLocation), resolvedSiting=\(resolvedChromaSiting), reconstructionRequested=\(requestedChromaReconstructionMode), reconstructionEffective=\(effectiveChromaReconstructionMode), fallback=\(chromaReconstructionFallbackReason ?? "none"), \(stats(input))",
             "SCENE shadowFloor=\(sceneShadowFloor), shadowTop=\(sceneShadowTop), valid=\(sceneStatisticsValid)",
             "TEMPORAL adaptation=\(temporalAdaptation), submission=\(temporalSubmissionSequence), lastCompleted=\(lastCompletedTemporalSequence)",
             "TONE shoulderStart=\(toneCurve.shoulderStart), effectiveStrength=\(toneCurve.highlightStrengthEffective), lowMidContribution=\(toneCurve.lowMidExpansionContribution), shoulderContribution=\(toneCurve.shoulderExpansionContribution), shadowProtectionFactor=\(toneCurve.shadowProtectionFactor), temporalStrength=\(toneCurve.temporalStrength)",

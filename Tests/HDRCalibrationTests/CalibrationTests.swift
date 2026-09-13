@@ -1310,7 +1310,18 @@ final class CalibrationTests: XCTestCase {
                 hdrSHA256: String(repeating: "2", count: 64)
             )]
         )
-        let artifact = try V6PreparedEvaluationPlanArtifact(plan: plan)
+        let binding = try V6PreparedEvaluationPlanGenerationBinding(
+            plan: plan,
+            inputManifestIdentity: String(repeating: "a", count: 64),
+            inputSourceIdentities: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "1", count: 64),
+                hdrSHA256: String(repeating: "2", count: 64)
+            )]
+        )
+        let artifact = try V6PreparedEvaluationPlanArtifact(
+            plan: plan,
+            generationBinding: binding
+        )
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("v6-plan-loader-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -1402,6 +1413,69 @@ final class CalibrationTests: XCTestCase {
         try V6PreparedEvaluationPlanHasher.canonicalData(legacyArtifact).write(to: artifactURL)
         try Data((legacyArtifact.planSHA256 + "\n").utf8).write(to: sidecarURL)
         XCTAssertThrowsError(try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL))
+    }
+
+    func testPreparedPlanRelabelAttackWithNonEmptyStructuralDecisionsIsRejected() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.20, 0.40, 0.80])
+        let hashes = [prepared.record.id: V6InputHashes(
+            sdrSHA256: String(repeating: "7", count: 64),
+            hdrSHA256: String(repeating: "8", count: 64)
+        )]
+        let currentPlan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: hashes
+        )
+        XCTAssertFalse(currentPlan.pairOrder.isEmpty)
+        XCTAssertFalse(currentPlan.pairs.isEmpty)
+        XCTAssertFalse(currentPlan.pairs[0].scenes.isEmpty)
+        XCTAssertFalse(currentPlan.pairs[0].alignment.acceptedFrames.isEmpty)
+
+        let currentObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(currentPlan)
+            ) as? [String: Any]
+        )
+        var oldObject = currentObject
+        oldObject["schemaVersion"] = "v6-prepared-evaluation-plan-v4"
+        var oldPreparation = try XCTUnwrap(oldObject["preparation"] as? [String: Any])
+        oldPreparation["version"] = "v6-prepared-evaluation-plan-v5-linear-source-luminance"
+        oldObject["preparation"] = oldPreparation
+        let oldPlan = try JSONDecoder().decode(
+            PreparedEvaluationPlan.self,
+            from: JSONSerialization.data(withJSONObject: oldObject)
+        )
+
+        // The attack retains the non-empty old decisions and only rewrites the
+        // schema/version and policy labels back to the current values before
+        // recomputing both plan and sidecar hashes.
+        var relabeledObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(oldPlan)
+            ) as? [String: Any]
+        )
+        relabeledObject["schemaVersion"] = V6PreparationConfiguration.currentSchemaVersion
+        var relabeledPreparation = try XCTUnwrap(relabeledObject["preparation"] as? [String: Any])
+        relabeledPreparation["version"] = V6PreparationConfiguration.v6.version
+        relabeledPreparation["sdrInterpretationPolicy"] = SDRInputInterpretationPolicy.bt709SourceLinear.rawValue
+        relabeledObject["preparation"] = relabeledPreparation
+        let relabeledPlan = try JSONDecoder().decode(
+            PreparedEvaluationPlan.self,
+            from: JSONSerialization.data(withJSONObject: relabeledObject)
+        )
+        let relabeledArtifact = try V6PreparedEvaluationPlanArtifact(plan: relabeledPlan)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("v6-relabel-attack-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let artifactURL = directory.appendingPathComponent("prepared.json")
+        let sidecarURL = directory.appendingPathComponent("prepared.sha256")
+        try V6PreparedEvaluationPlanHasher.canonicalData(relabeledArtifact).write(to: artifactURL)
+        try Data((relabeledArtifact.planSHA256 + "\n").utf8).write(to: sidecarURL)
+
+        XCTAssertThrowsError(try V6PreparedEvaluationPlanLoader.loadSealed(from: artifactURL)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("causal provenance"))
+        }
     }
 
     func testV6TemporalPlanPreservesLegacyConfidenceGate() throws {
