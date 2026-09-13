@@ -825,32 +825,30 @@ public final class PreregisteredCalibrationRunner {
                 Set(preparedFrozenPlanURLs!.keys) == Set(runtimes.map(\.policy)) else {
             throw PreregisteredCalibrationExecutionError.preregistrationMismatch
         }
-        return try await withThrowingTaskGroup(of: V4FinalReport.self) { group in
-            for runtime in runtimes {
-                guard let preparedEvaluationPlanURL = preparedEvaluationPlanURLs[runtime.policy] else {
-                    throw PreregisteredCalibrationExecutionError.preregistrationMismatch
-                }
-                group.addTask {
-                    let configuration = try V4CalibrationConfiguration(
-                        preregisteredRuntime: runtime
-                    )
-                    let policyOutput = outputDirectory.appendingPathComponent(runtime.policy.rawValue)
-                    let runner = try CalibrationV4Runner(
-                        manifestURL: manifestURL,
-                        outputDirectory: policyOutput,
-                        configuration: configuration,
-                        preparedEvaluationPlanURL: preparedEvaluationPlanURL,
-                        preparedFrozenPlanURL: preparedFrozenPlanURLs?[runtime.policy],
-                        preparationConfiguration: runtime.preparation,
-                        metricConfiguration: runtime.metric,
-                        device: device
-                    )
-                    return try await runner.run()
-                }
+        // Keep the policy outer loop explicit and sequential.  MTLDevice is a
+        // framework reference that is not Sendable on every supported macOS
+        // SDK, and the experiment seal does not require policy concurrency.
+        var reports: [V4FinalReport] = []
+        for runtime in runtimes {
+            guard let preparedEvaluationPlanURL = preparedEvaluationPlanURLs[runtime.policy] else {
+                throw PreregisteredCalibrationExecutionError.preregistrationMismatch
             }
-            var reports: [V4FinalReport] = []
-            for try await report in group { reports.append(report) }
-            return reports.sorted { $0.configuration.sdrInterpretationPolicy.rawValue < $1.configuration.sdrInterpretationPolicy.rawValue }
+            let configuration = try V4CalibrationConfiguration(
+                preregisteredRuntime: runtime
+            )
+            let policyOutput = outputDirectory.appendingPathComponent(runtime.policy.rawValue)
+            let runner = try CalibrationV4Runner(
+                manifestURL: manifestURL,
+                outputDirectory: policyOutput,
+                configuration: configuration,
+                preparedEvaluationPlanURL: preparedEvaluationPlanURL,
+                preparedFrozenPlanURL: preparedFrozenPlanURLs?[runtime.policy],
+                preparationConfiguration: runtime.preparation,
+                metricConfiguration: runtime.metric,
+                device: device
+            )
+            reports.append(try await runner.run())
         }
+        return reports.sorted { $0.configuration.sdrInterpretationPolicy.rawValue < $1.configuration.sdrInterpretationPolicy.rawValue }
     }
 }
