@@ -735,11 +735,11 @@ def run(
     elif likely_family_count >= 6:
         corpus_status = "INSUFFICIENT"
         inferred_status = "PROMISING_INFERRED_ONLY"
-        external_required = "UNDECIDED"
+        external_required = "YES"
     elif likely_family_count >= 4:
         corpus_status = "INSUFFICIENT"
         inferred_status = "MARGINAL_INFERRED_ONLY"
-        external_required = "UNDECIDED"
+        external_required = "YES"
     else:
         corpus_status = "INSUFFICIENT"
         inferred_status = "INSUFFICIENT"

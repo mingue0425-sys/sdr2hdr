@@ -33,7 +33,7 @@
     "validationRun": false,
     "visualInspection": false
   },
-  "generatedAt": "2026-09-13T01:42:20.517434Z",
+  "generatedAt": "2026-09-13T02:00:41.689079Z",
   "historicalFrozenRoleRecords": [
     {
       "hdrPath": "data_video/video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
@@ -13410,7 +13410,7 @@
     "existingLocalCorpusStatus": "INSUFFICIENT",
     "explicitPairGroups": 7,
     "explicitSDRHDRPairs": 7,
-    "externalDatasetRequired": "UNDECIDED",
+    "externalDatasetRequired": "YES",
     "hdrOnlyGroups": 0,
     "heuristicPairGroups": 275,
     "heuristicSDRHDRPairs": 275,

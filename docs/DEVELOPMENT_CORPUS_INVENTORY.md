@@ -71,7 +71,7 @@ The current manifests provide explicit pair relationships and per-pair group lab
 - Existing local corpus status: `INSUFFICIENT`
 - Inferred corpus status: `PROMISING_INFERRED_ONLY`
 - Promotion-grade available: `False`
-- External dataset required: `UNDECIDED`
+- External dataset required: `YES`
 - Tune: `NO`
 - Validation: `NO`
 - Frozen accessed: `NO`
