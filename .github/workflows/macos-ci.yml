@@ -34,10 +34,13 @@ jobs:
           python3 Tests/verify_no_frozen_access.py \
             --scope config/pre-frozen-seal-scope.json
           python3 Tests/verify_no_frozen_access_test.py
+          python3 Tests/test_inventory_development_corpus.py
           python3 -m json.tool Tests/RealMediaRegression/manifest.json >/dev/null
           python3 -m json.tool Tests/RealMediaRegression/gates.json >/dev/null
           python3 -m json.tool data_video/real_media/external-manifest.json >/dev/null
           python3 -m json.tool config/pre-frozen-seal-scope.json >/dev/null
+          python3 -m json.tool results/development-corpus-inventory-scope.json >/dev/null
+          python3 -m json.tool results/development-corpus-inventory.json >/dev/null
           python3 -m json.tool results/frozen-protocol-incident.json >/dev/null
       - name: Check self-contained media tools
         run: |
