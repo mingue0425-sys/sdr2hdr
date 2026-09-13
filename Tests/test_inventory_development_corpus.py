@@ -31,6 +31,9 @@ def main() -> int:
         assert_rejected(protected_root)
     assert_rejected("data_video/../outside")
     assert_rejected("/Volumes/game/sdr2hdr/data_video/video1")
+    assert_rejected(r"C:\data_video\video1")
+    assert_rejected(r"\\server\share\video1")
+    assert_rejected("data_video/safe\x00injection")
     assert_rejected("data_video/video3", ["data_video/video3"])
 
     normalized = MODULE.normalize_repo_locator(
@@ -64,6 +67,81 @@ def main() -> int:
             pass
         else:
             raise AssertionError("symlink media candidate should be rejected")
+
+        def assert_walk_rejected(root_relative: str, message: str) -> None:
+            try:
+                MODULE.walk_approved_root(materialization_root, root_relative, [])
+            except MODULE.InventoryError:
+                return
+            raise AssertionError(message)
+
+        # Every case below is rejected by lstat of the lexical component chain
+        # before os.walk can reach the link target. The target files are only
+        # fixtures; no target directory is enumerated.
+        direct_target = materialization_root / "data_video" / "direct-target"
+        direct_target.mkdir()
+        (direct_target / "target.mp4").write_bytes(b"target")
+        direct_root = materialization_root / "data_video" / "direct-link"
+        direct_root.symlink_to(direct_target, target_is_directory=True)
+        assert_walk_rejected("data_video/direct-link", "direct symlink root was traversed")
+
+        intermediate_target = materialization_root / "data_video" / "intermediate-target"
+        intermediate_target.mkdir()
+        (intermediate_target / "leaf").mkdir()
+        (intermediate_target / "leaf" / "target.mp4").write_bytes(b"target")
+        intermediate_link = materialization_root / "data_video" / "safe" / "intermediate"
+        intermediate_link.symlink_to(intermediate_target, target_is_directory=True)
+        assert_walk_rejected(
+            "data_video/safe/intermediate/leaf",
+            "intermediate symlink component was traversed",
+        )
+
+        chain_target = materialization_root / "data_video" / "chain-target"
+        chain_target.mkdir()
+        chain_a = materialization_root / "data_video" / "chain-a"
+        chain_b = materialization_root / "data_video" / "chain-b"
+        chain_a.symlink_to(chain_b, target_is_directory=True)
+        chain_b.symlink_to(chain_target, target_is_directory=True)
+        assert_walk_rejected("data_video/chain-a", "nested symlink chain was traversed")
+
+        protected_target = materialization_root / "data_video" / "Frozen"
+        protected_target.mkdir()
+        (protected_target / "protected.mp4").write_bytes(b"protected")
+        (materialization_root / "data_video" / "protected-link").symlink_to(
+            protected_target, target_is_directory=True
+        )
+        assert_walk_rejected("data_video/protected-link", "symlink to protected root was traversed")
+
+        parent_target = materialization_root / "data_video"
+        (materialization_root / "data_video" / "parent-link").symlink_to(
+            parent_target, target_is_directory=True
+        )
+        assert_walk_rejected(
+            "data_video/parent-link/safe",
+            "symlink to parent of protected root was traversed",
+        )
+
+        repository_link = materialization_root / "data_video" / "repository-link"
+        repository_link.symlink_to(materialization_root, target_is_directory=True)
+        assert_walk_rejected(
+            "data_video/repository-link/data_video/safe",
+            "symlink to repository root was traversed",
+        )
+
+        materialization_link = Path(temporary).with_name(Path(temporary).name + "-link")
+        materialization_link.symlink_to(materialization_root, target_is_directory=True)
+        try:
+            try:
+                MODULE.validate_no_symlink_components(materialization_link)
+            except MODULE.InventoryError:
+                pass
+            else:
+                raise AssertionError("symlink materialization root was accepted")
+        finally:
+            materialization_link.unlink()
+
+        assert_rejected("data_video/safe/../../outside")
+        assert_rejected("/absolute/injection")
 
     print("development corpus inventory tests: PASS")
     return 0

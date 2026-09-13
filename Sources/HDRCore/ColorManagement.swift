@@ -28,6 +28,27 @@ public struct BT1886TransferParameters: Codable, Equatable, Hashable, Sendable {
             whiteLuminance <= 10_000 && gamma > 0 && gamma <= 10
     }
 
+    public var validationFailure: String? {
+        guard blackLuminance.isFinite,
+              whiteLuminance.isFinite,
+              gamma.isFinite else {
+            return "BT.1886 parameters must be finite"
+        }
+        guard blackLuminance >= 0 else {
+            return "BT.1886 L_B must be non-negative"
+        }
+        guard whiteLuminance > blackLuminance else {
+            return "BT.1886 L_W must be greater than L_B"
+        }
+        guard whiteLuminance <= 10_000 else {
+            return "BT.1886 L_W exceeds 10,000"
+        }
+        guard gamma > 0, gamma <= 10 else {
+            return "BT.1886 gamma must be in (0, 10]"
+        }
+        return nil
+    }
+
     /// BT.1886 derived `a` and `b` terms for `L = a * (V + b)^gamma`.
     public var derivedA: Float {
         guard isValid else { return 0 }
@@ -405,7 +426,11 @@ public enum HDRColorMath {
         _ signal: Float,
         parameters: BT1886TransferParameters = .idealReference
     ) -> Float {
-        guard parameters.isValid else { return 0 }
+        // Invalid parameters are rejected by HDRConfiguration and metadata
+        // resolution before a production dispatch. Returning NaN here keeps
+        // accidental direct scalar use visibly invalid instead of silently
+        // turning an invalid parameterization into a black sample.
+        guard parameters.isValid else { return .nan }
         return parameters.derivedA * pow(
             max(min(max(signal, 0), 1) + parameters.derivedB, 0),
             parameters.gamma
@@ -433,23 +458,14 @@ public enum HDRColorMath {
         policy: SDRInputInterpretationPolicy,
         untaggedFallback: SDRUntaggedFallbackPolicy,
         bt1886Parameters: BT1886TransferParameters
-    ) -> String {
-        struct Identity: Codable {
-            let version: String
-            let policy: SDRInputInterpretationPolicy
-            let untaggedFallback: SDRUntaggedFallbackPolicy
-            let bt1886Parameters: BT1886TransferParameters
-        }
-        let value = Identity(
-            version: version,
-            policy: policy,
-            untaggedFallback: untaggedFallback,
-            bt1886Parameters: bt1886Parameters
+    ) throws -> String {
+        let value = SDRPolicyDefinition(
+            policyVersion: version,
+            candidateList: [policy.rawValue],
+            bt1886Parameters: bt1886Parameters,
+            untaggedFallback: untaggedFallback
         )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        let data = (try? encoder.encode(value)) ?? Data()
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return try HDRCanonicalIdentity.sha256(value)
     }
 
     public static func pqEncode(normalizedAbsoluteLuminance: Float) -> Float {

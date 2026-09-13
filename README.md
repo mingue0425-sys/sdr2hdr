@@ -224,9 +224,10 @@ The repository's example manifest remains intentionally empty and returns
 V4/V6 separates Tune/Validation diagnostics from a one-use Virgin Frozen
 evaluation. `correctness-review` may prepare and seal the Tune/Validation plan,
 but it must report zero objective Frozen evaluations. A V6 Frozen plan is
-accepted only when it was explicitly admitted before objective decoding and
-its canonical plan hash, sidecar, pair order, media identities, and preparation
-configuration all match.
+accepted only when it was explicitly admitted before objective decoding, its
+canonical plan hash/sidecar, pair order, media identities, and preparation
+configuration all match, and the current preparation implementation
+deterministically regenerates the sealed plan from the exact sealed inputs.
 
 ```bash
 ./RUN_MACOS_VERIFY.sh fast
@@ -234,6 +235,11 @@ configuration all match.
 ./.build/debug/HDRCalibrate verify-prepared-plan \
   --prepared-plan results/v6-prepared-evaluation-plan.json
 ```
+
+The checked-in `results/v6-prepared-evaluation-plan.json` is a historical
+artifact from before causal generation binding and is intentionally rejected
+as calibration evidence. A current plan must be regenerated from exact sealed
+inputs by the current preparation implementation before evaluator entry.
 
 Fast mode caches expensive preparation/evaluation work. Explicit manifest/lock
 control files, Swift/Metal sources and cached output artifacts are byte-bound

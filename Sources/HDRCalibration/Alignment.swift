@@ -444,6 +444,15 @@ public enum TemporalAligner {
         } else {
             status = "ALIGNED"
         }
+        let matcherConfigurationHash: String
+        do {
+            matcherConfigurationHash = try matcherConfiguration.canonicalSHA256()
+        } catch {
+            return rejection(
+                "matcher configuration identity encoding failed",
+                rejectedFrames: sdr.samples.count
+            )
+        }
         return AlignmentResult(
             status: status,
             coarseOffsetSeconds: bestOffset,
@@ -460,7 +469,7 @@ public enum TemporalAligner {
             perWindowOffsets: perWindowOffsets,
             offsetDriftSeconds: offsetDrift,
             confidenceQuantiles: quantiles(rawConfidences),
-            matcherConfigurationHash: try? matcherConfiguration.canonicalSHA256()
+            matcherConfigurationHash: matcherConfigurationHash
         )
     }
 

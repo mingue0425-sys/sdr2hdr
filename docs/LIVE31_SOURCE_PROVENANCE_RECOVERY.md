@@ -6,8 +6,9 @@ No media bytes were read, hashed, decoded, or visually inspected.
 ## Baseline and scope
 
 - Correctness baseline: `bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9`
-- Implementation head used for recovery: `39f8c8623f6e0c8bfef12d5148895cd02509355a`
-- Search definition hash: `7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608` (`MATCH`)
+- Generator semantic version: `live31-provenance-recovery-v2-pinned-authority`
+- Pinned authority index: `config/live31-source-authority-index.json`
+- Retired search definition hash: `7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608` (`INVALIDATED; NOT ELIGIBLE FOR CALIBRATION`)
 - Frozen/Virgin paths were not enumerated or probed.
 - Tune, Validation, objective metrics, and candidate selection were not run.
 

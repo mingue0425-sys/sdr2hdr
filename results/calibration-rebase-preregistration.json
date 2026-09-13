@@ -1,4 +1,6 @@
 {
+  "status": "INVALIDATED_FOR_CALIBRATION",
+  "oldHashEligibleForCalibration": false,
   "version": "sdr-calibration-rebase-protocol-v1",
   "policyVersion": "sdr-input-interpretation-policy-v1",
   "policyCandidates": [
@@ -55,5 +57,7 @@
     "metric exposure followed by failure invalidates this selection cycle",
     "no threshold, metric, policy, or search-space change after Validation exposure"
   ],
-  "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
+  "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+  "searchDefinitionHashStatus": "RETIRED_INVALIDATED",
+  "oldSearchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
 }

@@ -984,11 +984,11 @@ public final class CalibrationV4Runner {
             using: artifact.plan,
             inputHashes: inputHashesForPlan
         )
+        let tuneValidationCausalProof = try repository.causalProof(for: artifact.plan)
         let tuneIDs = Set(tuneV4.map(\.id))
         let validationIDs = Set(validationV4.map(\.id))
         let tunePrepared = allPrepared.filter { tuneIDs.contains($0.record.id) }
         let validationPrepared = allPrepared.filter { validationIDs.contains($0.record.id) }
-        let tuneValidationPlan = artifact.plan
         log("installed immutable Tune/Validation PreparedEvaluationPlan \(artifact.planSHA256)")
 
         // A future V6 holdout is admitted with an objective-free preparation
@@ -1016,7 +1016,10 @@ public final class CalibrationV4Runner {
             frozenArtifact = loaded
         }
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
-        try engine.installPreparedEvaluationPlan(tuneValidationPlan)
+        try engine.installPreparedEvaluationPlan(
+            artifact,
+            causalProof: tuneValidationCausalProof
+        )
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1276,10 +1279,11 @@ public final class CalibrationV4Runner {
             using: frozenArtifact.plan,
             inputHashes: inputHashesForPlan
         )
-        let frozenPlan = frozenArtifact.plan
+        let frozenCausalProof = try frozenRepository.causalProof(for: frozenArtifact.plan)
         let frozenEngine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try frozenEngine.installPreparedEvaluationPlan(
-            frozenPlan, expectedSHA256: frozenArtifact.planSHA256
+            frozenArtifact,
+            causalProof: frozenCausalProof
         )
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
@@ -2171,7 +2175,9 @@ public final class CalibrationV4Runner {
     private func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
+        // Parameter/objective/evaluation identities must fail closed. A
+        // non-finite value must never become a hash of a substituted string.
+        encoder.nonConformingFloatEncodingStrategy = .throw
         return try encoder.encode(value)
     }
 

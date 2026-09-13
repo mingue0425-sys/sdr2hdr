@@ -1,4 +1,6 @@
 {
+  "preregistrationInvalidated": true,
+  "oldHashEligibleForCalibration": false,
   "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
   "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
   "sdrPolicyVersion": "sdr-input-interpretation-policy-v1",

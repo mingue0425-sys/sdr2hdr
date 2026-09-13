@@ -88,15 +88,15 @@ NV12 and P010 use the same normalized signal domain and policy. Range normalizat
 
 ## 8. Tune preregistration
 
-`results/calibration-rebase-preregistration.json` freezes the experiment before any Validation result can be used. It records the two candidates, equal per-policy search budgets, seed, parameter ranges, existing metric definitions, hard correctness gates, safety gates, shortlist size, selection rule, deterministic tie-break, and failure policy.
+`results/calibration-rebase-preregistration.json` is the historical v1 record. It is retained for audit lineage, but it is invalidated and cannot authorize calibration. The repaired semantic-only v2 record is generated separately at `results/calibration-rebase-preregistration-v2.json` after the implementation and mandatory tests are frozen.
 
-The canonical search-definition hash is:
+The retired v1 search-definition hash is:
 
 ```text
 7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608
 ```
 
-The BT.1886 policy and preparation plan identities participate in SHA-256 identity. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
+The retired v1 record is not a corpus seal. The v2 artifact separates policy, preparation, metric, and search identities; it intentionally does not create a corpus or experiment-binding identity before media qualification. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
 
 ## 9. Family-disjoint corpus reissue preflight
 
@@ -140,9 +140,10 @@ emitted, so no new dataset identity, current byte hash, corpus definition
 hash, or experiment binding hash was created. Identity anchoring stops at the
 structural viability gate; no media bytes were read.
 
-The preregistration remains unchanged. Its source-equivalent Swift
-`JSONEncoder` hash is still
-`7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608`.
+The historical preregistration remains preserved but is invalidated. Its
+source-equivalent Swift `JSONEncoder` hash is retired and is not eligible for
+calibration. The v2 semantic seal is separate and does not claim to seal the
+future Tune/Validation corpus.
 
 ```text
 family overlap for selected rejected assignment: []
@@ -234,7 +235,9 @@ HIGH: approved eight-record universe has only two families, so strict two-family
 HIGH: no v5 corpus was emitted and current paired-manifest byte identity remains unanchored
 UNKNOWN: source-master-level independence is absent from the approved manifest metadata
 HIGH: original PTS preservation for VFR temporal proxy is unproven
-HIGH: source↔binary causal build provenance is unproven
+The repaired plan path requires current-implementation regeneration from exact
+sealed preparation inputs before evaluator entry. Corpus qualification and
+the final experiment binding remain unperformed.
 UNMEASURED: physical display calibration and colorimetric accuracy
 MEDIUM: a 16×9 sparse proxy may miss a small highlight
 ```
@@ -253,7 +256,8 @@ Frozen accessed: NO
 Objective evaluations: 0
 ```
 
-The policy infrastructure and preregistration remain reviewable, but no
+The policy infrastructure and repaired v2 semantic preregistration remain
+reviewable, but no
 calibration candidate is available. The exact historical manifest path was
 found and remains untouched. A family-atomic assignment can remove overlap,
 but the approved universe cannot provide two distinct families to each split,

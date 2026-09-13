@@ -155,6 +155,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-evaluate --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6-development-evaluation.json
       HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
+      HDRCalibrate preregister-v2 --output results/calibration-rebase-preregistration-v2.json
       HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -176,6 +177,26 @@ private func loadCalibrationReport(from url: URL) throws -> CalibrationReport {
 
 private func run(arguments: [String]) async throws {
     let cli = try CLI(arguments: arguments)
+    if cli.command == "preregister-v2" {
+        let seal = try SDRCalibrationSemanticSealV2.current()
+        let artifact = SDRCalibrationPreregistrationV2(seal: seal)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.nonConformingFloatEncodingStrategy = .throw
+        try FileManager.default.createDirectory(
+            at: cli.output.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(artifact).write(to: cli.output, options: .atomic)
+        print("PolicyDefinitionHash: \(artifact.policyDefinitionHash)")
+        print("PreparationDefinitionHash: \(artifact.preparationDefinitionHash)")
+        print("MetricDefinitionHash: \(artifact.metricDefinitionHash)")
+        print("SearchDefinitionHashV2: \(artifact.searchDefinitionHashV2)")
+        print("CorpusDefinitionHash: NOT_YET_CREATED")
+        print("ExperimentBindingHash: NOT_YET_CREATED")
+        print("preregistration: \(cli.output.path)")
+        return
+    }
     if cli.command == "verify-prepared-plan" {
         let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
             from: try cli.requiredPreparedPlan()

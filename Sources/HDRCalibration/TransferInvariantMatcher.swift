@@ -1,5 +1,5 @@
-import CryptoKit
 import Foundation
+import HDRCore
 
 public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
     public let preparationAlgorithmVersion: String
@@ -119,11 +119,7 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
     }
 
     public func canonicalSHA256() throws -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        encoder.nonConformingFloatEncodingStrategy = .throw
-        return SHA256.hash(data: try encoder.encode(self))
-            .map { String(format: "%02x", $0) }.joined()
+        try HDRCanonicalIdentity.sha256(self)
     }
 }
 

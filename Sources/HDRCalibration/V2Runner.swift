@@ -22,6 +22,7 @@ final class V2PreparedRepository {
     private var cache: [String: PreparedPair] = [:]
     private let preparationConfiguration: V6PreparationConfiguration
     private(set) var preparedEvaluationPlan: PreparedEvaluationPlan?
+    private var causallyVerifiedPlanHashes: Set<String> = []
 
     init(
         manifestURL: URL,
@@ -108,7 +109,7 @@ final class V2PreparedRepository {
                 "cannot seal PreparedEvaluationPlan before every pair is prepared"
             )
         }
-        let manifest = try? V4Manifest.load(from: manifestURL)
+        let manifest = try V4Manifest.load(from: manifestURL)
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
             preparedPairs: prepared,
@@ -133,10 +134,9 @@ final class V2PreparedRepository {
         return plan
     }
 
-    /// Install a plan produced by the preflight process.  This is deliberately
-    /// a read-only hand-off: the repository may validate the already decoded
-    /// material and the sealed input hashes, but it never selects frames or
-    /// rebuilds the plan from the media a second time.
+    /// Install a structurally validated plan into this preparation repository.
+    /// Evaluator entry uses `materialize`, which performs the required current
+    /// implementation regeneration before any objective path can consume it.
     func installPreparedEvaluationPlan(
         _ plan: PreparedEvaluationPlan,
         records: [PairRecord],
@@ -186,18 +186,106 @@ final class V2PreparedRepository {
         return plan
     }
 
-    /// Install the preflight artifact first, then decode only its sealed
-    /// identities.  No alignment, scene detection, representative selection,
-    /// or confidence filtering is performed at evaluator entry.
+    func generationBinding(
+        for plan: PreparedEvaluationPlan,
+        inputHashes: [String: V6InputHashes]
+    ) throws -> V6PreparedEvaluationPlanGenerationBinding {
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        guard causallyVerifiedPlanHashes.contains(planHash) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan generation binding requested before causal regeneration"
+            )
+        }
+        return try makeGenerationBinding(for: plan, inputHashes: inputHashes)
+    }
+
+    private func makeGenerationBinding(
+        for plan: PreparedEvaluationPlan,
+        inputHashes: [String: V6InputHashes]
+    ) throws -> V6PreparedEvaluationPlanGenerationBinding {
+        let planSources = Dictionary(uniqueKeysWithValues: plan.pairs.map {
+            ($0.pairID, $0.inputHashes)
+        })
+        guard planSources == inputHashes.filter({ planSources[$0.key] != nil }) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal binding input identities do not match"
+            )
+        }
+        return try V6PreparedEvaluationPlanGenerationBinding(
+            plan: plan,
+            inputManifestIdentity: try V4DatasetIntegrity.manifestSHA256(url: manifestURL),
+            inputSourceIdentities: planSources
+        )
+    }
+
+    func causalProof(for plan: PreparedEvaluationPlan) throws -> V6PreparedEvaluationPlanCausalProof {
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        guard causallyVerifiedPlanHashes.contains(planHash) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal regeneration has not been verified"
+            )
+        }
+        return V6PreparedEvaluationPlanCausalProof(planSHA256: planHash)
+    }
+
+    private func regenerateCurrentPlan(
+        records: [PairRecord],
+        inputHashes: [String: V6InputHashes],
+        scope: String,
+        manifest: V4Manifest
+    ) async throws -> PreparedEvaluationPlan {
+        var regeneratedPairs: [PreparedPair] = []
+        regeneratedPairs.reserveCapacity(records.count)
+        for record in records {
+            // This is the only causal reproduction path. It invokes the
+            // current preparation implementation on the exact sealed inputs;
+            // it is not an objective evaluation and does not select a result.
+            let regenerated = try await evaluator.prepare(
+                record: record,
+                manifestURL: manifestURL
+            )
+            regeneratedPairs.append(regenerated)
+        }
+        let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
+        return try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: regeneratedPairs,
+            manifest: manifest,
+            repositoryRoot: repositoryRoot,
+            configuration: preparationConfiguration,
+            inputHashes: inputHashes,
+            scope: scope
+        )
+    }
+
+    /// Install the preflight artifact after deterministic causal reproduction,
+    /// then decode only its sealed identities. No alignment, scene detection,
+    /// representative selection, or confidence filtering is performed by the
+    /// evaluator materialization pass.
     func materialize(
         records: [PairRecord],
         using plan: PreparedEvaluationPlan,
         inputHashes: [String: V6InputHashes]
     ) async throws -> [PreparedPair] {
+        let manifest = try V4Manifest.load(from: manifestURL)
+        let planHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        if !causallyVerifiedPlanHashes.contains(planHash) {
+            let regeneratedPlan = try await regenerateCurrentPlan(
+                records: records,
+                inputHashes: inputHashes,
+                scope: plan.scope,
+                manifest: manifest
+            )
+            let binding = try makeGenerationBinding(for: plan, inputHashes: inputHashes)
+            try V6PreparedEvaluationPlanCausalProvenance.verify(
+                plan: plan,
+                regeneratedPlan: regeneratedPlan,
+                binding: binding
+            )
+            causallyVerifiedPlanHashes.insert(planHash)
+        }
         let installed = try installPreparedEvaluationPlan(
             plan, records: records, inputHashes: inputHashes
         )
-        let manifest = try V4Manifest.load(from: manifestURL)
         var result: [PreparedPair] = []
         result.reserveCapacity(records.count)
         for record in records {
@@ -241,15 +329,22 @@ final class V2EvaluationEngine {
     }
 
     func installPreparedEvaluationPlan(
-        _ plan: PreparedEvaluationPlan,
-        expectedSHA256: String? = nil
+        _ artifact: V6PreparedEvaluationPlanArtifact,
+        causalProof: V6PreparedEvaluationPlanCausalProof
     ) throws {
-        let actualHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
-        if let expectedSHA256, actualHash != expectedSHA256 {
+        guard causalProof.planSHA256 == artifact.planSHA256 else {
             throw CalibrationError.incompleteEvaluation(
                 "PreparedEvaluationPlan hash mismatch before evaluator entry"
             )
         }
+        guard try artifact.verified(),
+              let binding = artifact.generationBinding,
+              try binding.isStructurallyConsistent(with: artifact.plan) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal provenance is not proven before evaluator entry"
+            )
+        }
+        let actualHash = try V6PreparedEvaluationPlanHasher.sha256(artifact.plan)
         if let installed = preparedEvaluationPlan {
             let installedHash = try V6PreparedEvaluationPlanHasher.sha256(installed)
             guard installedHash == actualHash else {
@@ -259,18 +354,7 @@ final class V2EvaluationEngine {
             }
             return
         }
-        self.preparedEvaluationPlan = plan
-    }
-
-    func installPreparedEvaluationPlan(
-        _ artifact: V6PreparedEvaluationPlanArtifact
-    ) throws {
-        guard try artifact.verified() else {
-            throw CalibrationError.incompleteEvaluation(
-                "PreparedEvaluationPlan artifact hash mismatch before evaluator entry"
-            )
-        }
-        try installPreparedEvaluationPlan(artifact.plan, expectedSHA256: artifact.planSHA256)
+        self.preparedEvaluationPlan = artifact.plan
     }
 
     func evaluate(

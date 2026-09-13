@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import sys
 from pathlib import Path
 
@@ -28,8 +29,10 @@ def fake_mapping(
 ) -> dict[str, str]:
     return {
         "localGroupId": local_group,
+        "canonicalLocalName": local_group.split(":", 1)[-1],
         "canonicalOfficialName": official_name,
-        "sourceMasterId": f"test/{official_name}",
+        "officialCandidateSourceId": f"AVT-VQDB-UHD-2-HDR/{official_name}",
+        "sourceMasterId": f"AVT-VQDB-UHD-2-HDR/{official_name}",
         "mappingStatus": mapping_status,
         "sourceMasterStatus": source_status,
         "pairRelationship": pair_status,
@@ -49,6 +52,8 @@ def test_current_artifact_contract() -> None:
     require(artifact["summary"]["duplicateMappings"] == [], "duplicate mapping recorded")
     require(artifact["summary"]["unmappedOfficial"] == [], "official mapping is incomplete")
     require(all(recovery.is_promotion_eligible(mapping) for mapping in artifact["mappings"]), "ineligible proven mapping")
+    claims = recovery.validate_artifact_contract(artifact)
+    require(claims["mappingCount"] == 31, "mapping claims were not recomputed")
 
 
 def test_duplicate_official_mapping_is_rejected() -> None:
@@ -62,11 +67,11 @@ def test_duplicate_official_mapping_is_rejected() -> None:
 
 
 def test_same_official_source_for_two_local_source_ids_is_rejected() -> None:
-    mappings = [fake_mapping("local-a", "same"), fake_mapping("local-b", "same")]
-    mappings[0]["sourceMasterId"] = "source/id-a"
-    mappings[1]["sourceMasterId"] = "source/id-b"
+    mappings = [fake_mapping("local-a", "official-a"), fake_mapping("local-b", "official-b")]
+    mappings[0]["sourceMasterId"] = "AVT-VQDB-UHD-2-HDR/shared"
+    mappings[1]["sourceMasterId"] = "AVT-VQDB-UHD-2-HDR/shared"
     try:
-        recovery.validate_mapping_contract(mappings, ["same"])
+        recovery.validate_mapping_contract(mappings, ["official-a", "official-b"])
     except ValueError:
         pass
     else:
@@ -109,6 +114,60 @@ def test_official_canonical_list_is_unique() -> None:
     require(len(set(recovery.OFFICIAL_CONTENT_NAMES)) == 31, "official canonical names are duplicated")
 
 
+def test_mapping_mutation_matrix_is_fail_closed() -> None:
+    original = json.loads(
+        (ROOT / "results/live31-source-provenance-recovery.json").read_text(encoding="utf-8")
+    )
+
+    mutations: dict[str, object] = {}
+
+    deleted = copy.deepcopy(original)
+    deleted["mappings"].pop()
+    mutations["delete mapping"] = deleted
+
+    duplicated = copy.deepcopy(original)
+    duplicated["mappings"][1] = copy.deepcopy(duplicated["mappings"][0])
+    mutations["duplicate mapping"] = duplicated
+
+    swapped = copy.deepcopy(original)
+    swapped["mappings"][0]["canonicalOfficialName"], swapped["mappings"][1]["canonicalOfficialName"] = (
+        swapped["mappings"][1]["canonicalOfficialName"],
+        swapped["mappings"][0]["canonicalOfficialName"],
+    )
+    mutations["swap official IDs"] = swapped
+
+    duplicate_source = copy.deepcopy(original)
+    duplicate_source["mappings"][1]["sourceMasterId"] = duplicate_source["mappings"][0]["sourceMasterId"]
+    mutations["duplicate sourceMasterId"] = duplicate_source
+
+    summary_only = copy.deepcopy(original)
+    summary_only["summary"]["proven"] = 30
+    mutations["alter summary only"] = summary_only
+
+    mapping_only = copy.deepcopy(original)
+    mapping_only["mappings"][0]["mappingStatus"] = "HEURISTIC"
+    mutations["alter mapping only"] = mapping_only
+
+    thirty_two = copy.deepcopy(original)
+    thirty_two["mappings"].append(copy.deepcopy(thirty_two["mappings"][0]))
+    mutations["insert 32nd fake mapping"] = thirty_two
+
+    unknown = copy.deepcopy(original)
+    unknown["mappings"][0]["canonicalOfficialName"] = "Unknown_Content"
+    mutations["replace official ID with unknown"] = unknown
+
+    missing_pair = copy.deepcopy(original)
+    missing_pair["mappings"][0].pop("pairRelationship")
+    mutations["remove pairRelationship proof"] = missing_pair
+
+    for label, mutation in mutations.items():
+        try:
+            recovery.validate_artifact_contract(mutation)  # type: ignore[arg-type]
+        except ValueError:
+            continue
+        raise AssertionError(f"LIVE31 mutation was accepted: {label}")
+
+
 if __name__ == "__main__":
     test_current_artifact_contract()
     test_duplicate_official_mapping_is_rejected()
@@ -117,4 +176,5 @@ if __name__ == "__main__":
     test_missing_pair_relationship_is_not_eligible()
     test_protected_path_is_rejected()
     test_official_canonical_list_is_unique()
+    test_mapping_mutation_matrix_is_fail_closed()
     print("LIVE 31 source provenance tests: PASS")

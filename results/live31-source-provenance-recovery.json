@@ -1,6 +1,6 @@
 {
   "artifactKind": "LIVE31_SOURCE_PROVENANCE_RECOVERY",
-  "artifactVersion": 1,
+  "artifactVersion": 2,
   "canonicalNameMappingUsed": true,
   "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
   "execution": {
@@ -14,13 +14,15 @@
     "validationRun": false
   },
   "generatedDate": "2026-09-13",
+  "generatorSemanticVersion": "live31-provenance-recovery-v2-pinned-authority",
   "gitEvidence": {
+    "authorityIndex": "config/live31-source-authority-index.json",
     "localJODSeparateBlob": "54f5bd9e0501ef93a20a9aa61d8416f92bb99e40",
     "localManifestBlob": "ffad6c7ad33e5257f8f500f49aaa3af447a5bf7e",
     "localManifestCommit": "b2f94ca91e0fa425840e6f09394f40aa71c88ef6",
+    "officialAVTRepository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
     "officialAVTRepositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
   },
-  "implementationHead": "39f8c8623f6e0c8bfef12d5148895cd02509355a",
   "localInferredGroups": 31,
   "localSources": [
     {
@@ -122,6 +124,9 @@
         "canonicalContentName": "Balance_Forest",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Balance_Forest.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Balance_Forest.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "cef861df07f073d7e087096d9cfff9a334cc42c8",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -197,6 +202,9 @@
         "canonicalContentName": "Basketball_Afternoon",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Basketball_Afternoon.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Basketball_Afternoon.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "49848a8edb1721dd8c71cfc82b4159a5e3497036",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -272,6 +280,9 @@
         "canonicalContentName": "Basketball_Evening",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Basketball_Evening.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Basketball_Evening.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "6201eb7a91be17a36bee06649bda2de9ea5661a9",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -347,6 +358,9 @@
         "canonicalContentName": "Cafe",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Cafe.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Cafe.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "7e29e1dbb44aa1b98c3c609f1b5f66c38af4cac1",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -429,6 +443,9 @@
         "canonicalContentName": "Campfire",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Campfire.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Campfire.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "e0da5179dc3e97f72d70410d8d04f9e9950bb266",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -504,6 +521,9 @@
         "canonicalContentName": "Conversation_Bed",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Conversation_Bed.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Conversation_Bed.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "2c6c24acbfe5be6d9e2a1a281c030a7cda302e80",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -579,6 +599,9 @@
         "canonicalContentName": "Conversation_Standing",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Conversation_Standing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Conversation_Standing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "fd95e196eeb6ff5803fa27be22ab1bbdf5a25276",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -654,6 +677,9 @@
         "canonicalContentName": "Dancing",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Dancing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Dancing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "e30c1743e5044daa9974c301fefedba2fd695a5a",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -729,6 +755,9 @@
         "canonicalContentName": "Drawing",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Drawing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Drawing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "d391ac47f57ea2c504babd8d7c9f98e0ca031117",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -811,6 +840,9 @@
         "canonicalContentName": "Face_Close",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Face_Close.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Face_Close.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "25b259a75fce9c634a20d0c623041279f046eb15",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -886,6 +918,9 @@
         "canonicalContentName": "Fountain",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Fountain.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Fountain.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "d090a1a30512f06fd50f2ab341e56b846521dffb",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -961,6 +996,9 @@
         "canonicalContentName": "Guitar_Handheld",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Guitar_Handheld.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Guitar_Handheld.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "92fe69a3976beb9d38cecd267d7c22a64f862f49",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1036,6 +1074,9 @@
         "canonicalContentName": "Guitar_Tripod",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Guitar_Tripod.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Guitar_Tripod.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "46d39a839212a801d53460bb7ac71232ee338cd9",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1118,6 +1159,9 @@
         "canonicalContentName": "Interview",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Interview.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Interview.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "c7de2afcd02bf6c2e874cafeaec1f0dbdc6b71f2",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1193,6 +1237,9 @@
         "canonicalContentName": "Knitting_Close",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Knitting_Close.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Knitting_Close.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "1ee9f7a443adc04c87aa879fa7fb4bf959cb2931",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1268,6 +1315,9 @@
         "canonicalContentName": "Knitting_Total",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Knitting_Total.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Knitting_Total.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "ddd6e3dcc540bdaabf1d1ab76bf46dcb3a38093d",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1343,6 +1393,9 @@
         "canonicalContentName": "Night_Biking",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Night_Biking.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Night_Biking.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "5a8e4c542056f4e186cafe18148bf1df462fa6f2",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1418,6 +1471,9 @@
         "canonicalContentName": "Onion_1",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Onion_1.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Onion_1.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "7f8cec07c5b97e9f3f193bf88ca328ad22d3e6e4",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1493,6 +1549,9 @@
         "canonicalContentName": "Onion_2",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Onion_2.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Onion_2.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "4340f6c7d39269bab2e391e2486f24bd852d3f33",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1568,6 +1627,9 @@
         "canonicalContentName": "Parcours",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Parcours.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Parcours.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "86b1f64c726f9c29aff18335fb861cd8a6016693",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1643,6 +1705,9 @@
         "canonicalContentName": "Phone_Call",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Phone_Call.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Phone_Call.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "b655c91ea57ccde9f90fccfe433ee2d78758de37",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1718,6 +1783,9 @@
         "canonicalContentName": "Power_Pole_Sky",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Power_Pole_Sky.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Power_Pole_Sky.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "223bf034780d57bf79b26d259e8088b701cb87db",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1800,6 +1868,9 @@
         "canonicalContentName": "Programming_Night",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Programming_Night.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Programming_Night.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "08e18e35debde359cf346a70df0402cd8f9cd110",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1875,6 +1946,9 @@
         "canonicalContentName": "Reading_Bench",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Reading_Bench.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Reading_Bench.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "c0825bc86f0fcd96c921a8c4961e81777cba1808",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -1950,6 +2024,9 @@
         "canonicalContentName": "Reading_Stairs",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Reading_Stairs.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Reading_Stairs.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "c9cdeefbcbd3b0f6d17836e5ee845062d31059c0",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2025,6 +2102,9 @@
         "canonicalContentName": "River",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/River.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/River.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "21c07a52057ae6b089a86cb1e42685d1452d716e",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2100,6 +2180,9 @@
         "canonicalContentName": "Sitting",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Sitting.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Sitting.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "05841a04fac91f3991a40719ca30158e562f530c",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2175,6 +2258,9 @@
         "canonicalContentName": "Skateboarding",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Skateboarding.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Skateboarding.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "360e1845e3366886367ac3a776cf44c95a5116e4",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2250,6 +2336,9 @@
         "canonicalContentName": "Swan",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Swan.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Swan.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "b9209548a23b5fb0f6ac44166f3a7b484d593b3d",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2325,6 +2414,9 @@
         "canonicalContentName": "Walking_Forest",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Walking_Forest.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Walking_Forest.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "07dfbc927578b20fe96500c7b74e348cfe45617d",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2400,6 +2492,9 @@
         "canonicalContentName": "Yoga",
         "dataset": "AVT-VQDB-UHD-2-HDR",
         "metricRecord": "metrics/DR_results/Yoga.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Yoga.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryBlob": "9532e3604540c3ded2932cd0882e80bbf9be4972",
         "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
       },
       "pairRelationship": "PROVEN",
@@ -2463,15 +2558,19 @@
       "supportedClaim": "The 31 open-source videos are from AVT-VQDB-UHD-2-HDR and are rendered in HDR10 and SDR forms."
     },
     {
+      "authorityIndex": "config/live31-source-authority-index.json",
       "canonicalURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
       "documentTitle": "AVT-VQDB-UHD-2-HDR README and metrics tree",
       "id": "official-avt-repository",
       "publisher": "AVT group of TU Ilmenau",
+      "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
       "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247",
       "retrievedDate": "2026-09-13",
-      "supportedClaim": "The official repository exposes 31 source canonical names through metrics/DR_results/*.mov.json."
+      "supportedClaim": "The pinned repository snapshot exposes the exact canonical source records listed in the authority index."
     }
   ],
+  "oldHashEligibleForCalibration": false,
+  "oldSearchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
   "qualityDataUse": {
     "JODScoresUsed": false,
     "frameDecode": false,
@@ -2479,8 +2578,7 @@
     "objectiveMetricsRun": false,
     "pixelInspection": false
   },
-  "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
-  "searchDefinitionStatus": "MATCH",
+  "searchDefinitionHashStatus": "RETIRED_INVALIDATED",
   "summary": {
     "conflict": 0,
     "crossSourceAliasStatus": "UNKNOWN_NO_ALIAS_REGISTRY",
@@ -2488,12 +2586,20 @@
     "externalDatasetRequired": "NO",
     "heuristic": 0,
     "localCorpusProvenance": "SUFFICIENT",
+    "mappingCount": 31,
     "oneToOneOfficialMapping": "PASS",
+    "pairRelationshipStatus": {
+      "PROVEN": 31
+    },
     "proven": 31,
+    "provenCount": 31,
     "sourceMasterIndependence": "PASS_WITHIN_UNIQUE_OFFICIAL_AVT_CANONICAL_CONTENT_SET",
     "strongNotProven": 0,
+    "uniqueLocalGroupIdCount": 31,
+    "uniqueOfficialCanonicalIDCount": 31,
     "uniqueProvenPairedSources": 31,
     "uniqueProvenSourceMasterIds": 31,
+    "uniqueSourceMasterIdCount": 31,
     "unmappedLocal": [],
     "unmappedOfficial": [],
     "unresolved": 0

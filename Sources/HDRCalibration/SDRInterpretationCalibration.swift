@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import HDRCore
 
@@ -126,11 +125,8 @@ public struct SDRCalibrationSearchDefinition: Codable, Hashable, Sendable {
         ]
     )
 
-    public func sha256() -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        let data = (try? encoder.encode(self)) ?? Data()
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    public func sha256() throws -> String {
+        try HDRCanonicalIdentity.sha256(self)
     }
 }
 
@@ -288,6 +284,8 @@ public struct SDRCalibrationLineageArtifact: Codable, Hashable, Sendable {
 public enum SDRCalibrationRebaseProtocol {
     public static let lineageID = "calibration-rebase-2026-09-sdr-policy-v1"
     public static let correctnessBaseline = "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9"
+    public static let oldSearchDefinitionHash =
+        "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
     public static let metricVersion = "v2-objective-with-v61-directional-diagnostics"
     public static let missingDataReason =
         "approved Tune/Validation manifest is not configured; no calibration media was opened"
@@ -331,7 +329,13 @@ public enum SDRCalibrationRebaseProtocol {
             metricVersion: metricVersion,
             tuneIdentity: "UNAVAILABLE",
             validationIdentity: "UNAVAILABLE",
-            searchDefinitionHash: SDRCalibrationSearchDefinition.preregistered.sha256(),
+            searchDefinitionHash: {
+                do {
+                    return try SDRCalibrationSearchDefinition.preregistered.sha256()
+                } catch {
+                    return "INVALID_SEMANTIC_IDENTITY"
+                }
+            }(),
             frozenAccessed: false,
             objectiveEvaluations: 0,
             oldCalibrationReusable: false,

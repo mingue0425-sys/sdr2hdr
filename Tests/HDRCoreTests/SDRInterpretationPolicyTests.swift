@@ -129,6 +129,44 @@ final class SDRInterpretationPolicyTests: XCTestCase {
         XCTAssertEqual(linear.effectiveTransfer, .linear)
     }
 
+    func testFrameDiagnosticsRetainRequestedAndSelectedPolicySeparately() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+        let buffer = try makeBGRAForMetadataTest()
+        CVBufferSetAttachment(
+            buffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_ITU_R_709_2,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            buffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+
+        var configuration = HDRConfiguration.hdr
+        configuration.inputFallbackPolicy = .requireMetadata
+        configuration.sdrInterpretationPolicy = .bt1886ReferenceDisplay
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        processor.debugInstrumentationEnabled = true
+        let commandBuffer = try processor.makeCommandBuffer()
+        _ = try processor.process(pixelBuffer: buffer, commandBuffer: commandBuffer)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertNil(commandBuffer.error)
+
+        let diagnostic = try XCTUnwrap(processor.lastFrameDiagnostic)
+        XCTAssertEqual(diagnostic.sourceTransferTag, .sRGB)
+        XCTAssertEqual(diagnostic.requestedInterpretationPolicy, .bt1886ReferenceDisplay)
+        XCTAssertEqual(diagnostic.selectedInterpretationPolicy, .sRGB)
+        XCTAssertEqual(diagnostic.interpretationPolicy, .sRGB)
+        XCTAssertEqual(diagnostic.effectiveTransfer, .sRGB)
+        XCTAssertFalse(diagnostic.fallbackUsed)
+    }
+
     func testUntaggedFallbackIsExplicitAndRejectsWhenConfigured() throws {
         let bt709 = try SDRInputInterpretationResolver.resolve(
             sourceTransferTag: .unknown,
@@ -269,6 +307,23 @@ final class SDRInterpretationPolicyTests: XCTestCase {
         XCTAssertEqual(actual.x, expected.x, accuracy: 0.003)
         XCTAssertEqual(actual.y, expected.y, accuracy: 0.003)
         XCTAssertEqual(actual.z, expected.z, accuracy: 0.003)
+    }
+
+    func testBT1886InvalidDomainFailsBeforeDispatchAndInvalidScalarIsVisible() throws {
+        let invalidParameters = [
+            BT1886TransferParameters(blackLuminance: .nan, whiteLuminance: 1, gamma: 2.4),
+            BT1886TransferParameters(blackLuminance: 0, whiteLuminance: .infinity, gamma: 2.4),
+            BT1886TransferParameters(blackLuminance: 1, whiteLuminance: 1, gamma: 2.4),
+            BT1886TransferParameters(blackLuminance: 0, whiteLuminance: 1, gamma: 0)
+        ]
+        for parameters in invalidParameters {
+            XCTAssertFalse(parameters.isValid)
+            XCTAssertNotNil(parameters.validationFailure)
+            XCTAssertTrue(HDRColorMath.inverseBT1886(0.5, parameters: parameters).isNaN)
+            var configuration = HDRConfiguration.hdr
+            configuration.bt1886Parameters = parameters
+            XCTAssertThrowsError(try configuration.validated())
+        }
     }
 
     private func makeBGRAForMetadataTest() throws -> CVPixelBuffer {

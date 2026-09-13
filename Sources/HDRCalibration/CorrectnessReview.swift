@@ -451,11 +451,13 @@ public enum V4CorrectnessReview {
             scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
         )
         try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
-        // Exercise the same read-only evaluator-entry materialization used by
-        // V4/V6 after a plan is sealed.  The second pass may decode the
-        // already-sealed identities, but it cannot align, select scenes, or
-        // apply a new confidence gate.  Structural checks below therefore
-        // describe the exact hand-off that an evaluator would consume.
+        // Exercise the same evaluator-entry materialization used by V4/V6.
+        // Before sealed identities are decoded, this path deterministically
+        // regenerates the plan from the exact input identities with the
+        // current preparation implementation. The subsequent materialization
+        // pass cannot replace the sealed decisions or apply a new confidence
+        // gate. Structural checks below describe the exact hand-off consumed
+        // by the evaluator.
         let evaluatorEntryStructural = try await repository.materialize(
             records: structuralRecords,
             using: preparedPlan,
@@ -464,7 +466,14 @@ public enum V4CorrectnessReview {
         try V6PreparedEvaluationPlanBuilder.validate(
             plan: preparedPlan, preparedPairs: evaluatorEntryStructural
         )
-        let preparedPlanArtifact = try V6PreparedEvaluationPlanArtifact(plan: preparedPlan)
+        let preparedPlanBinding = try repository.generationBinding(
+            for: preparedPlan,
+            inputHashes: inputHashesForPlan
+        )
+        let preparedPlanArtifact = try V6PreparedEvaluationPlanArtifact(
+            plan: preparedPlan,
+            generationBinding: preparedPlanBinding
+        )
         try writeJSON(
             preparedPlanArtifact,
             to: outputDirectory.appendingPathComponent("v6-prepared-evaluation-plan.json")

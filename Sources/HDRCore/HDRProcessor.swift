@@ -1191,6 +1191,8 @@ public final class HDRProcessor {
             inputBitDepth: inputTextures.pixelFormat.bitDepth,
             inputRange: inputTextures.pixelFormat.diagnosticRangeName,
             sourceTransferTag: resolvedColor.metadata.sourceTransferTag,
+            requestedInterpretationPolicy: resolvedColor.metadata.requestedInterpretationPolicy,
+            selectedInterpretationPolicy: resolvedColor.metadata.interpretationPolicy,
             interpretationPolicy: resolvedColor.metadata.interpretationPolicy,
             effectiveTransfer: resolvedColor.metadata.effectiveTransfer,
             fallbackUsed: resolvedColor.metadata.fallbackUsed,

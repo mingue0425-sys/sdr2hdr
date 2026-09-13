@@ -11,8 +11,12 @@
 *.ytdl
 *.zip
 
-# Calibration output is reproducible and can be regenerated locally.
-results/
+# Calibration output is reproducible and can be regenerated locally. The
+# semantic-only v2 preregistration is the frozen source artifact and is
+# intentionally versioned for CI regeneration checks.
+!results/
+results/*
+!results/calibration-rebase-preregistration-v2.json
 # One-use holdout consumption receipts: preserve even when cleaning results.
 .hdr-frozen-consumption/
 data_video/virgin_candidates/**/.work/

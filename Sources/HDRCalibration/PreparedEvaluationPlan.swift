@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import HDRCore
 
@@ -89,18 +88,32 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         self.preparationAlgorithmVersion = matcherConfiguration.preparationAlgorithmVersion
         self.matcherVersion = matcherConfiguration.matcherVersion
         self.matcherConfiguration = matcherConfiguration
-        self.matcherConfigurationHash = (try? matcherConfiguration.canonicalSHA256()) ?? "INVALID"
+        do {
+            self.matcherConfigurationHash = try matcherConfiguration.canonicalSHA256()
+        } catch {
+            // Keep construction non-throwing for historical API callers, but
+            // retain an explicit invalid state that validation rejects. No
+            // digest is substituted for a failed semantic encoding.
+            self.matcherConfigurationHash = "INVALID_SEMANTIC_IDENTITY"
+        }
         self.sdrInterpretationPolicyVersion = sdrInterpretationPolicyVersion
         self.sdrInterpretationPolicy = sdrInterpretationPolicy
         self.untaggedSDRFallback = untaggedSDRFallback
         self.bt1886Parameters = bt1886Parameters
-        self.sdrInterpretationPolicyHash = sdrInterpretationPolicyHash ??
-            HDRColorMath.interpretationPolicySHA256(
-                version: sdrInterpretationPolicyVersion,
-                policy: sdrInterpretationPolicy,
-                untaggedFallback: untaggedSDRFallback,
-                bt1886Parameters: bt1886Parameters
-            )
+        if let sdrInterpretationPolicyHash {
+            self.sdrInterpretationPolicyHash = sdrInterpretationPolicyHash
+        } else {
+            do {
+                self.sdrInterpretationPolicyHash = try HDRColorMath.interpretationPolicySHA256(
+                    version: sdrInterpretationPolicyVersion,
+                    policy: sdrInterpretationPolicy,
+                    untaggedFallback: untaggedSDRFallback,
+                    bt1886Parameters: bt1886Parameters
+                )
+            } catch {
+                self.sdrInterpretationPolicyHash = "INVALID_SEMANTIC_IDENTITY"
+            }
+        }
     }
 
     public static let v6 = V6PreparationConfiguration()
@@ -123,14 +136,20 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               !temporalSelectionPolicy.isEmpty else {
             return "preparation configuration contains an empty policy identifier"
         }
+        let expectedPolicyHash: String
+        do {
+            expectedPolicyHash = try HDRColorMath.interpretationPolicySHA256(
+                version: sdrInterpretationPolicyVersion,
+                policy: sdrInterpretationPolicy,
+                untaggedFallback: untaggedSDRFallback,
+                bt1886Parameters: bt1886Parameters
+            )
+        } catch {
+            return "preparation SDR interpretation identity encoding failed"
+        }
         guard sdrInterpretationPolicyVersion == "sdr-input-interpretation-policy-v1",
               bt1886Parameters.isValid,
-              sdrInterpretationPolicyHash == HDRColorMath.interpretationPolicySHA256(
-                  version: sdrInterpretationPolicyVersion,
-                  policy: sdrInterpretationPolicy,
-                  untaggedFallback: untaggedSDRFallback,
-                  bt1886Parameters: bt1886Parameters
-              ) else {
+              sdrInterpretationPolicyHash == expectedPolicyHash else {
             return "preparation SDR interpretation identity is invalid"
         }
         guard (1...512).contains(maxFramesPerScene),
@@ -158,9 +177,15 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               hdrPixelFormat == CalibrationPixelFormat.hdrP010 else {
             return "preparation reference or pixel-format values are invalid"
         }
+        let expectedMatcherHash: String
+        do {
+            expectedMatcherHash = try matcherConfiguration.canonicalSHA256()
+        } catch {
+            return "preparation matcher configuration identity encoding failed"
+        }
         guard preparationAlgorithmVersion == matcherConfiguration.preparationAlgorithmVersion,
               matcherVersion == matcherConfiguration.matcherVersion,
-              matcherConfigurationHash == (try? matcherConfiguration.canonicalSHA256()) else {
+              matcherConfigurationHash == expectedMatcherHash else {
             return "preparation matcher identity or canonical hash is inconsistent"
         }
         return nil
@@ -423,13 +448,143 @@ public struct PreparedEvaluationPlan: Codable, Hashable, Sendable {
     }
 }
 
+/// Binding between a sealed plan and the exact semantic/input identities that
+/// are required to reproduce it.  The binding is not accepted as proof merely
+/// because its fields are self-consistent: evaluator entry must also run the
+/// current generator against the sealed inputs and compare the resulting plan
+/// hash.
+public struct V6PreparedEvaluationPlanGenerationBinding: Codable, Hashable, Sendable {
+    public let preparationVersion: String
+    public let policySemanticIdentity: String
+    public let bt1886ParameterIdentity: String
+    public let inputManifestIdentity: String
+    public let inputSourceIdentities: [String: V6InputHashes]
+    public let preparationConfigurationIdentity: String
+    public let generatorSemanticIdentity: String
+    public let resultPlanHash: String
+    public let regenerationStatus: String
+
+    public init(
+        plan: PreparedEvaluationPlan,
+        inputManifestIdentity: String,
+        inputSourceIdentities: [String: V6InputHashes],
+        generatorSemanticIdentity: String = V6PreparedEvaluationPlanCausalProvenance.generatorSemanticIdentity,
+        regenerationStatus: String = V6PreparedEvaluationPlanCausalProvenance.verifiedStatus
+    ) throws {
+        self.preparationVersion = plan.preparation.version
+        self.policySemanticIdentity = try V6PreparedEvaluationPlanCausalProvenance.policyIdentity(
+            for: plan.preparation
+        )
+        self.bt1886ParameterIdentity = try HDRCanonicalIdentity.sha256(plan.preparation.bt1886Parameters)
+        self.inputManifestIdentity = inputManifestIdentity
+        self.inputSourceIdentities = inputSourceIdentities
+        self.preparationConfigurationIdentity = try HDRCanonicalIdentity.sha256(plan.preparation)
+        self.generatorSemanticIdentity = generatorSemanticIdentity
+        self.resultPlanHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        self.regenerationStatus = regenerationStatus
+    }
+
+    func isStructurallyConsistent(with plan: PreparedEvaluationPlan) throws -> Bool {
+        guard preparationVersion == plan.preparation.version,
+              policySemanticIdentity == (try V6PreparedEvaluationPlanCausalProvenance.policyIdentity(
+                  for: plan.preparation
+              )),
+              bt1886ParameterIdentity == (try HDRCanonicalIdentity.sha256(plan.preparation.bt1886Parameters)),
+              preparationConfigurationIdentity == (try HDRCanonicalIdentity.sha256(plan.preparation)),
+              resultPlanHash == (try V6PreparedEvaluationPlanHasher.sha256(plan)),
+              generatorSemanticIdentity == V6PreparedEvaluationPlanCausalProvenance.generatorSemanticIdentity,
+              regenerationStatus == V6PreparedEvaluationPlanCausalProvenance.verifiedStatus,
+              !inputManifestIdentity.isEmpty else {
+            return false
+        }
+        let expectedSources = Dictionary(uniqueKeysWithValues: plan.pairs.map {
+            ($0.pairID, $0.inputHashes)
+        })
+        return inputSourceIdentities == expectedSources
+    }
+}
+
+public enum V6PreparedEvaluationPlanCausalProvenance {
+    public static let generatorSemanticIdentity =
+        "v6-prepared-evaluation-plan-generator-v2-current-implementation"
+    public static let verifiedStatus = "VERIFIED_BY_CURRENT_IMPLEMENTATION"
+    public static let notProvenStatus = "NOT_PROVEN"
+
+    static func policyIdentity(for preparation: V6PreparationConfiguration) throws -> String {
+        let definition = SDRPolicyDefinition(
+            policyVersion: preparation.sdrInterpretationPolicyVersion,
+            candidateList: [preparation.sdrInterpretationPolicy.rawValue],
+            bt1886Parameters: preparation.bt1886Parameters,
+            untaggedFallback: preparation.untaggedSDRFallback
+        )
+        return try definition.sha256()
+    }
+
+    /// Verify causation with a plan regenerated by the current preparation
+    /// implementation.  A matching self-authored binding is not sufficient.
+    public static func verify(
+        plan: PreparedEvaluationPlan,
+        regeneratedPlan: PreparedEvaluationPlan,
+        binding: V6PreparedEvaluationPlanGenerationBinding
+    ) throws {
+        do {
+            try V6PreparedEvaluationPlanSemantics.validate(plan)
+            try V6PreparedEvaluationPlanSemantics.validate(regeneratedPlan)
+        } catch {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal verification received invalid plan semantics"
+            )
+        }
+        let expectedHash = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        let regeneratedHash = try V6PreparedEvaluationPlanHasher.sha256(regeneratedPlan)
+        guard expectedHash == regeneratedHash,
+              try binding.isStructurallyConsistent(with: plan) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan was not deterministically regenerated by the current implementation"
+            )
+        }
+    }
+}
+
+/// An in-process capability issued only after `V2PreparedRepository` has
+/// regenerated a plan with the current preparation implementation. A
+/// serialized sidecar or generation-binding field cannot manufacture this
+/// capability, so the evaluator cannot be entered with a merely
+/// self-consistent rewritten plan.
+struct V6PreparedEvaluationPlanCausalProof: Sendable, Equatable {
+    let planSHA256: String
+
+    init(planSHA256: String) {
+        self.planSHA256 = planSHA256
+    }
+}
+
 public struct V6PreparedEvaluationPlanArtifact: Codable, Hashable, Sendable {
     public let plan: PreparedEvaluationPlan
     public let planSHA256: String
+    /// Required by sealed evaluator entry.  The optional representation keeps
+    /// decoding of historical artifacts possible so they can be rejected with
+    /// a causal-provenance error rather than treated as current evidence.
+    public let generationBinding: V6PreparedEvaluationPlanGenerationBinding?
 
     public init(plan: PreparedEvaluationPlan) throws {
         self.plan = plan
         self.planSHA256 = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        self.generationBinding = nil
+    }
+
+    public init(
+        plan: PreparedEvaluationPlan,
+        generationBinding: V6PreparedEvaluationPlanGenerationBinding
+    ) throws {
+        self.plan = plan
+        self.planSHA256 = try V6PreparedEvaluationPlanHasher.sha256(plan)
+        guard try generationBinding.isStructurallyConsistent(with: plan) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan generation binding is inconsistent"
+            )
+        }
+        self.generationBinding = generationBinding
     }
 
     public static func load(from url: URL) throws -> V6PreparedEvaluationPlanArtifact {
@@ -476,6 +631,12 @@ public enum V6PreparedEvaluationPlanLoader {
         guard sidecarHash == artifact.planSHA256 else {
             throw CalibrationError.incompleteEvaluation(
                 "PreparedEvaluationPlan sidecar hash mismatch"
+            )
+        }
+        guard let binding = artifact.generationBinding,
+              try binding.isStructurallyConsistent(with: artifact.plan) else {
+            throw CalibrationError.incompleteEvaluation(
+                "PreparedEvaluationPlan causal provenance is not proven"
             )
         }
         try V6PreparedEvaluationPlanSemantics.validate(artifact.plan)
@@ -782,16 +943,11 @@ private enum V6PreparedEvaluationPlanSemantics {
 
 public enum V6PreparedEvaluationPlanHasher {
     public static func canonicalData(_ plan: PreparedEvaluationPlan) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        encoder.nonConformingFloatEncodingStrategy = .throw
-        return try encoder.encode(plan)
+        try HDRCanonicalIdentity.data(plan)
     }
 
     public static func sha256(_ plan: PreparedEvaluationPlan) throws -> String {
-        SHA256.hash(data: try canonicalData(plan))
-            .map { String(format: "%02x", $0) }
-            .joined()
+        try HDRCanonicalIdentity.sha256(plan)
     }
 
     public static func canonicalData(_ artifact: V6PreparedEvaluationPlanArtifact) throws -> Data {

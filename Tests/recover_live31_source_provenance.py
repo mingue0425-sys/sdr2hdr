@@ -19,7 +19,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9"
-SEARCH_DEFINITION_HASH = "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
+OLD_SEARCH_DEFINITION_HASH = "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
+AUTHORITY_INDEX = "config/live31-source-authority-index.json"
+GENERATOR_SEMANTIC_VERSION = "live31-provenance-recovery-v2-pinned-authority"
 POLICY_VERSION = "sdr-input-interpretation-policy-v1"
 PREPARATION_VERSION = "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy"
 METRIC_VERSION = "v2-objective-with-v61-directional-diagnostics"
@@ -66,6 +68,40 @@ OFFICIAL_CONTENT_NAMES = [
     "Yoga",
 ]
 
+EXPECTED_OFFICIAL_BLOB_BY_NAME = {
+    "Balance_Forest": "cef861df07f073d7e087096d9cfff9a334cc42c8",
+    "Basketball_Afternoon": "49848a8edb1721dd8c71cfc82b4159a5e3497036",
+    "Basketball_Evening": "6201eb7a91be17a36bee06649bda2de9ea5661a9",
+    "Cafe": "7e29e1dbb44aa1b98c3c609f1b5f66c38af4cac1",
+    "Campfire": "e0da5179dc3e97f72d70410d8d04f9e9950bb266",
+    "Conversation_Bed": "2c6c24acbfe5be6d9e2a1a281c030a7cda302e80",
+    "Conversation_Standing": "fd95e196eeb6ff5803fa27be22ab1bbdf5a25276",
+    "Dancing": "e30c1743e5044daa9974c301fefedba2fd695a5a",
+    "Drawing": "d391ac47f57ea2c504babd8d7c9f98e0ca031117",
+    "Face_Close": "25b259a75fce9c634a20d0c623041279f046eb15",
+    "Fountain": "d090a1a30512f06fd50f2ab341e56b846521dffb",
+    "Guitar_Handheld": "92fe69a3976beb9d38cecd267d7c22a64f862f49",
+    "Guitar_Tripod": "46d39a839212a801d53460bb7ac71232ee338cd9",
+    "Interview": "c7de2afcd02bf6c2e874cafeaec1f0dbdc6b71f2",
+    "Knitting_Close": "1ee9f7a443adc04c87aa879fa7fb4bf959cb2931",
+    "Knitting_Total": "ddd6e3dcc540bdaabf1d1ab76bf46dcb3a38093d",
+    "Night_Biking": "5a8e4c542056f4e186cafe18148bf1df462fa6f2",
+    "Onion_1": "7f8cec07c5b97e9f3f193bf88ca328ad22d3e6e4",
+    "Onion_2": "4340f6c7d39269bab2e391e2486f24bd852d3f33",
+    "Parcours": "86b1f64c726f9c29aff18335fb861cd8a6016693",
+    "Phone_Call": "b655c91ea57ccde9f90fccfe433ee2d78758de37",
+    "Power_Pole_Sky": "223bf034780d57bf79b26d259e8088b701cb87db",
+    "Programming_Night": "08e18e35debde359cf346a70df0402cd8f9cd110",
+    "Reading_Bench": "c0825bc86f0fcd96c921a8c4961e81777cba1808",
+    "Reading_Stairs": "c9cdeefbcbd3b0f6d17836e5ee845062d31059c0",
+    "River": "21c07a52057ae6b089a86cb1e42685d1452d716e",
+    "Sitting": "05841a04fac91f3991a40719ca30158e562f530c",
+    "Skateboarding": "360e1845e3366886367ac3a776cf44c95a5116e4",
+    "Swan": "b9209548a23b5fb0f6ac44166f3a7b484d593b3d",
+    "Walking_Forest": "07dfbc927578b20fe96500c7b74e348cfe45617d",
+    "Yoga": "9532e3604540c3ded2932cd0882e80bbf9be4972",
+}
+
 IDENTITY_FIELDS = (
     "video_name",
     "video_format",
@@ -80,6 +116,46 @@ PROTECTED_TOKENS = ("frozen", "virgin", "holdout", "quarantined")
 def read_json(relative_path: str) -> dict[str, Any]:
     with (ROOT / relative_path).open(encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def load_authority_index(relative_path: str) -> dict[str, Any]:
+    index = read_json(relative_path)
+    if index.get("schemaVersion") != 1:
+        fail("pinned authority index schema is unsupported")
+    if not isinstance(index.get("publisher"), str) or not isinstance(index.get("repository"), str):
+        fail("pinned authority index is missing publisher/repository")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(index.get("repositoryCommit", ""))):
+        fail("pinned authority index commit is not an exact commit SHA")
+    records = index.get("canonicalSources")
+    if not isinstance(records, list) or len(records) != len(OFFICIAL_CONTENT_NAMES):
+        fail("pinned authority index canonicalSources is missing")
+    seen_names: set[str] = set()
+    for record in records:
+        if not isinstance(record, dict):
+            fail("pinned authority index contains a non-object source")
+        if not all(isinstance(record.get(field), str) and record[field] for field in (
+            "canonicalOfficialName", "sourceMasterId", "repositoryPath", "blobSHA256", "provenanceURL"
+        )):
+            fail("pinned authority index source lacks canonical identity or provenance")
+        if not re.fullmatch(r"[0-9a-f]{40}", record["blobSHA256"]):
+            fail(f"pinned authority blob identity is invalid: {record.get('canonicalOfficialName')}")
+        name = record["canonicalOfficialName"]
+        if name in seen_names or name not in EXPECTED_OFFICIAL_BLOB_BY_NAME:
+            fail(f"pinned authority canonical source name is not unique/known: {name}")
+        seen_names.add(name)
+        if record["sourceMasterId"] != f"AVT-VQDB-UHD-2-HDR/{name}":
+            fail(f"pinned authority sourceMasterId does not bind: {name}")
+        expected_path = f"metrics/DR_results/{name}.mov.json"
+        expected_url = f"{OFFICIAL_AVT_REPO}/blob/{index['repositoryCommit']}/{expected_path}"
+        if record["repositoryPath"] != expected_path:
+            fail(f"pinned authority repository path does not bind: {name}")
+        if record["provenanceURL"] != expected_url:
+            fail(f"pinned authority provenance URL does not bind: {name}")
+        if record["blobSHA256"] != EXPECTED_OFFICIAL_BLOB_BY_NAME[name]:
+            fail(f"pinned authority blob identity drift: {name}")
+    if seen_names != set(OFFICIAL_CONTENT_NAMES):
+        fail("pinned authority canonical source set is incomplete")
+    return index
 
 
 def normalized(value: str) -> str:
@@ -108,26 +184,181 @@ def is_promotion_eligible(mapping: dict[str, Any]) -> bool:
     )
 
 
-def validate_mapping_contract(
-    mappings: list[dict[str, Any]], official_names: list[str]
-) -> tuple[list[str], list[str]]:
-    official_targets = [mapping.get("canonicalOfficialName") for mapping in mappings]
+def expected_local_group_ids(official_names: list[str]) -> list[str]:
+    return [
+        f"live:{index}_{normalized(name)}"
+        for index, name in enumerate(official_names)
+    ]
+
+
+def recompute_mapping_claims(
+    mappings: list[dict[str, Any]],
+    official_names: list[str],
+    expected_local_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Recompute every LIVE31 claim from mappings, never from a summary."""
+
+    local_ids = [mapping.get("localGroupId") for mapping in mappings]
+    official_ids = [mapping.get("canonicalOfficialName") for mapping in mappings]
+    source_ids = [mapping.get("sourceMasterId") for mapping in mappings]
+
+    def duplicates(values: list[Any]) -> list[Any]:
+        return sorted({value for value in values if value is not None and values.count(value) > 1})
+
+    duplicate_local = duplicates(local_ids)
+    duplicate_official = duplicates(official_ids)
+    duplicate_source = duplicates(source_ids)
     duplicate_mappings = sorted(
-        {
-            name
-            for name in official_targets
-            if name is not None and official_targets.count(name) > 1
-        }
+        set(duplicate_local + duplicate_official + duplicate_source),
+        key=lambda value: str(value),
     )
-    if duplicate_mappings:
-        raise ValueError(f"duplicate official mappings: {duplicate_mappings}")
-    for mapping in mappings:
-        if mapping.get("mappingStatus") == "PROVEN" and not is_promotion_eligible(mapping):
-            raise ValueError(
-                f"proven mapping lacks proven source/pair identity: {mapping.get('localGroupId')}"
+    expected_local = set(expected_local_ids or [])
+    actual_local = {value for value in local_ids if isinstance(value, str)}
+    actual_official = {value for value in official_ids if isinstance(value, str)}
+    actual_source = {value for value in source_ids if isinstance(value, str)}
+    proven = [mapping for mapping in mappings if mapping.get("mappingStatus") == "PROVEN"]
+    proven_source_ids = {
+        mapping.get("sourceMasterId")
+        for mapping in proven
+        if isinstance(mapping.get("sourceMasterId"), str)
+    }
+    proven_pair_sources = {
+        mapping.get("sourceMasterId")
+        for mapping in proven
+        if mapping.get("sourceMasterStatus") == "PROVEN"
+        and mapping.get("pairRelationship") == "PROVEN"
+        and isinstance(mapping.get("sourceMasterId"), str)
+    }
+    return {
+        "mappingCount": len(mappings),
+        "provenCount": len(proven),
+        "uniqueLocalGroupIdCount": len(actual_local),
+        "uniqueOfficialCanonicalIDCount": len(actual_official),
+        "uniqueSourceMasterIdCount": len(actual_source),
+        "duplicateLocalMapping": duplicate_local,
+        "duplicateOfficialMapping": duplicate_official,
+        "duplicateSourceMasterId": duplicate_source,
+        "duplicateMappings": duplicate_mappings,
+        "unmappedLocal": sorted(expected_local - actual_local),
+        "unmappedOfficial": sorted(set(official_names) - actual_official),
+        "unknownOfficial": sorted(actual_official - set(official_names)),
+        "uniqueProvenSourceMasterIds": len(proven_source_ids),
+        "uniqueProvenPairedSources": len(proven_pair_sources),
+        "pairRelationshipStatus": {
+            status: sum(mapping.get("pairRelationship") == status for mapping in mappings)
+            for status in sorted(
+                {
+                    status
+                    for status in (mapping.get("pairRelationship") for mapping in mappings)
+                    if status is not None
+                }
             )
-    unmapped_official = sorted(set(official_names) - set(official_targets))
-    return duplicate_mappings, unmapped_official
+            if status is not None
+        },
+    }
+
+
+def validate_mapping_contract(
+    mappings: list[dict[str, Any]],
+    official_names: list[str],
+    expected_local_ids: list[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    claims = recompute_mapping_claims(mappings, official_names, expected_local_ids)
+    if claims["duplicateOfficialMapping"]:
+        raise ValueError(f"duplicate official mappings: {claims['duplicateOfficialMapping']}")
+    if claims["duplicateLocalMapping"]:
+        raise ValueError(f"duplicate local mappings: {claims['duplicateLocalMapping']}")
+    if claims["duplicateSourceMasterId"]:
+        raise ValueError(f"duplicate sourceMasterId mappings: {claims['duplicateSourceMasterId']}")
+    if claims["mappingCount"] != len(official_names):
+        raise ValueError(
+            f"mapping count must be {len(official_names)}, found {claims['mappingCount']}"
+        )
+    if claims["provenCount"] != len(official_names):
+        raise ValueError(
+            f"PROVEN mapping count must be {len(official_names)}, found {claims['provenCount']}"
+        )
+    if claims["uniqueLocalGroupIdCount"] != len(official_names):
+        raise ValueError("localGroupId uniqueness/count invariant failed")
+    if claims["uniqueOfficialCanonicalIDCount"] != len(official_names):
+        raise ValueError("official canonical ID uniqueness/count invariant failed")
+    if claims["uniqueSourceMasterIdCount"] != len(official_names):
+        raise ValueError("sourceMasterId uniqueness/count invariant failed")
+    if claims["unknownOfficial"]:
+        raise ValueError(f"unknown official canonical IDs: {claims['unknownOfficial']}")
+    if claims["unmappedOfficial"]:
+        raise ValueError(f"unmapped official IDs: {claims['unmappedOfficial']}")
+    if claims["unmappedLocal"]:
+        raise ValueError(f"unmapped local IDs: {claims['unmappedLocal']}")
+
+    expected_sources = {
+        name: f"AVT-VQDB-UHD-2-HDR/{name}" for name in official_names
+    }
+    for mapping in mappings:
+        local_id = mapping.get("localGroupId")
+        official_name = mapping.get("canonicalOfficialName")
+        if not isinstance(local_id, str) or not isinstance(official_name, str):
+            raise ValueError("mapping identity fields must be strings")
+        if not is_promotion_eligible(mapping):
+            raise ValueError(f"mapping is not fully PROVEN: {local_id}")
+        expected_source = expected_sources.get(official_name)
+        if mapping.get("sourceMasterId") != expected_source:
+            raise ValueError(f"sourceMasterId does not bind to official ID: {local_id}")
+        if mapping.get("officialCandidateSourceId") != expected_source:
+            raise ValueError(f"official candidate source ID does not bind: {local_id}")
+        # The numeric prefix is part of the local identity. This check is
+        # intentionally strict enough to catch a swapped official ID but does
+        # not infer authority from a filename.
+        expected_local_tail = local_id.split(":", 1)[-1]
+        if not isinstance(mapping.get("canonicalLocalName"), str) or \
+                normalized(mapping["canonicalLocalName"]) != expected_local_tail:
+            raise ValueError(f"canonical local identity does not bind: {local_id}")
+        expected_official_name = normalized(without_numeric_prefix(mapping["canonicalLocalName"]))
+        if normalized(official_name) != expected_official_name:
+            raise ValueError(f"official ID does not bind to local canonical identity: {local_id}")
+    return claims["duplicateOfficialMapping"], claims["unmappedOfficial"]
+
+
+def validate_artifact_contract(artifact: dict[str, Any]) -> dict[str, Any]:
+    """Verify the committed artifact by recomputing claims from mappings."""
+
+    official_names = artifact.get("officialCanonicalContentNames")
+    if official_names != OFFICIAL_CONTENT_NAMES:
+        raise ValueError("official canonical source list changed")
+    mappings = artifact.get("mappings")
+    if not isinstance(mappings, list):
+        raise ValueError("mappings array is missing")
+    claims = recompute_mapping_claims(
+        mappings,
+        official_names,
+        expected_local_group_ids(official_names),
+    )
+    validate_mapping_contract(
+        mappings,
+        official_names,
+        expected_local_group_ids(official_names),
+    )
+    if artifact.get("localInferredGroups") != claims["mappingCount"]:
+        raise ValueError("top-level local group count is not derived from mappings")
+    if artifact.get("officialOpenSourceContentCount") != len(official_names):
+        raise ValueError("top-level official count is invalid")
+    summary = artifact.get("summary")
+    if not isinstance(summary, dict):
+        raise ValueError("summary is missing")
+    expected_summary = {
+        "proven": claims["provenCount"],
+        "uniqueProvenSourceMasterIds": claims["uniqueProvenSourceMasterIds"],
+        "uniqueProvenPairedSources": claims["uniqueProvenPairedSources"],
+        "oneToOneOfficialMapping": "PASS",
+        "duplicateMappings": claims["duplicateMappings"],
+        "unmappedLocal": claims["unmappedLocal"],
+        "unmappedOfficial": claims["unmappedOfficial"],
+        "pairRelationshipStatus": claims["pairRelationshipStatus"],
+    }
+    for key, expected in expected_summary.items():
+        if summary.get(key) != expected:
+            raise ValueError(f"summary field is not derived from mappings: {key}")
+    return claims
 
 
 def exact_output_path(relative_path: str) -> Path:
@@ -161,25 +392,33 @@ def source_reference(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--implementation-head", required=True)
-    parser.add_argument("--generated-date", default="2026-09-13")
+    parser.add_argument("--implementation-head", default=None, help="accepted for historical callers; not an artifact input")
+    parser.add_argument("--generated-date", default=None, help="accepted for historical callers; pinned by the authority index")
+    parser.add_argument("--authority-index", default=AUTHORITY_INDEX)
     parser.add_argument("--output", default="results/live31-source-provenance-recovery.json")
     parser.add_argument("--doc", default="docs/LIVE31_SOURCE_PROVENANCE_RECOVERY.md")
     args = parser.parse_args()
-
-    if not re.fullmatch(r"[0-9a-f]{40}", args.implementation_head):
-        fail("implementation head must be a full lowercase commit SHA")
 
     inventory = read_json("results/development-corpus-inventory.json")
     scope = read_json("results/development-corpus-inventory-scope.json")
     preregistration = read_json("results/calibration-rebase-preregistration.json")
     lineage = read_json("results/calibration-rebase-lineage.json")
     v6_manifest = read_json("data_video/visual-regression/v6-development-manifest.json")
+    authority = load_authority_index(args.authority_index)
+    authority_by_name = {
+        record["canonicalOfficialName"]: record
+        for record in authority["canonicalSources"]
+    }
+    generated_date = str(authority.get("generatedDate", "2026-09-13"))
 
     if inventory.get("correctnessBaseline") != BASELINE:
         fail("inventory correctness baseline drift")
-    if preregistration.get("searchDefinitionHash") != SEARCH_DEFINITION_HASH:
-        fail("search definition hash drift")
+    if preregistration.get("searchDefinitionHash") != OLD_SEARCH_DEFINITION_HASH:
+        fail("retired search definition hash drift")
+    if preregistration.get("oldHashEligibleForCalibration") is not False:
+        fail("retired search definition hash was not explicitly invalidated")
+    if preregistration.get("status") != "INVALIDATED_FOR_CALIBRATION":
+        fail("old preregistration is not marked invalidated")
     if preregistration.get("policyVersion") != POLICY_VERSION:
         fail("policy version drift")
     if preregistration.get("policyCandidates") != ["bt709SourceLinear", "bt1886ReferenceDisplay"]:
@@ -198,6 +437,8 @@ def main() -> None:
         fail("lineage preparation version drift")
     if lineage.get("metricVersion") != METRIC_VERSION:
         fail("lineage metric version drift")
+    if lineage.get("oldCalibrationReusable") is not False:
+        fail("old calibration was marked reusable")
     if scope.get("status") != "APPROVED_SCOPE_ONLY":
         fail("inventory scope is not approved")
     inventory_policy = scope.get("inventoryPolicy", {})
@@ -220,6 +461,12 @@ def main() -> None:
         fail("Frozen guard scope is not allowlist-only")
     if scope.get("guardPolicy", {}).get("frozenRootConfigured") is not False:
         fail("Frozen root injection is enabled")
+    if authority["repository"] != OFFICIAL_AVT_REPO:
+        fail("pinned authority repository drift")
+    if authority["repositoryCommit"] != OFFICIAL_AVT_COMMIT:
+        fail("pinned authority commit drift")
+    if set(authority_by_name) != set(OFFICIAL_CONTENT_NAMES):
+        fail("pinned authority canonical source set drift")
 
     live_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for pair_group in inventory.get("pairGroups", []):
@@ -343,6 +590,9 @@ def main() -> None:
             }
 
         source_master_id = f"AVT-VQDB-UHD-2-HDR/{official_name}"
+        authority_record = authority_by_name[official_name]
+        if authority_record["sourceMasterId"] != source_master_id:
+            fail(f"pinned source identity does not bind to {official_name}")
         mappings.append(
             {
                 "localGroupId": local_group_id,
@@ -383,8 +633,11 @@ def main() -> None:
                 "officialSourceEvidence": {
                     "dataset": "AVT-VQDB-UHD-2-HDR",
                     "canonicalContentName": official_name,
-                    "metricRecord": f"metrics/DR_results/{official_name}.mov.json",
-                    "repositoryCommit": OFFICIAL_AVT_COMMIT,
+                    "metricRecord": authority_record["repositoryPath"],
+                    "repository": authority["repository"],
+                    "repositoryCommit": authority["repositoryCommit"],
+                    "repositoryBlob": authority_record["blobSHA256"],
+                    "provenanceURL": authority_record["provenanceURL"],
                 },
                 "evidenceSources": [
                     "local-inventory",
@@ -398,7 +651,9 @@ def main() -> None:
 
     try:
         duplicate_mappings, unmapped_official = validate_mapping_contract(
-            mappings, OFFICIAL_CONTENT_NAMES
+            mappings,
+            OFFICIAL_CONTENT_NAMES,
+            expected_local_group_ids(OFFICIAL_CONTENT_NAMES),
         )
     except ValueError as error:
         fail(str(error))
@@ -406,14 +661,19 @@ def main() -> None:
     if unmapped_local or unmapped_official:
         fail(f"mapping is not complete; local={unmapped_local}; official={unmapped_official}")
 
+    claims = recompute_mapping_claims(
+        mappings,
+        OFFICIAL_CONTENT_NAMES,
+        expected_local_group_ids(OFFICIAL_CONTENT_NAMES),
+    )
     output = {
-        "artifactVersion": 1,
+        "artifactVersion": 2,
         "artifactKind": "LIVE31_SOURCE_PROVENANCE_RECOVERY",
-        "generatedDate": args.generated_date,
+        "generatedDate": generated_date,
+        "generatorSemanticVersion": GENERATOR_SEMANTIC_VERSION,
         "correctnessBaseline": BASELINE,
-        "implementationHead": args.implementation_head,
-        "localInferredGroups": 31,
-        "officialOpenSourceContentCount": 31,
+        "localInferredGroups": claims["mappingCount"],
+        "officialOpenSourceContentCount": len(OFFICIAL_CONTENT_NAMES),
         "numericCountMatchOnly": True,
         "numericCountUsedAsProof": False,
         "canonicalNameMappingUsed": True,
@@ -425,7 +685,7 @@ def main() -> None:
                 "documentTitle": "LIVE Paired Comparison HDR vs. SDR Database",
                 "canonicalURL": OFFICIAL_LIVE_PAGE,
                 "secondaryURL": OFFICIAL_LIVE_UT_PAGE,
-                "retrievedDate": args.generated_date,
+                "retrievedDate": generated_date,
                 "supportedClaim": "The released open-source portion has 31 contents and separate Open-sourced HDR10 and Open-sourced SDR folders.",
             },
             {
@@ -433,17 +693,19 @@ def main() -> None:
                 "publisher": "HDRSDR-VQA authors / arXiv",
                 "documentTitle": "HDRSDR-VQA: A Subjective Video Quality Dataset for HDR and SDR Comparative Evaluation",
                 "canonicalURL": OFFICIAL_PAPER,
-                "retrievedDate": args.generated_date,
+                "retrievedDate": generated_date,
                 "supportedClaim": "The 31 open-source videos are from AVT-VQDB-UHD-2-HDR and are rendered in HDR10 and SDR forms.",
             },
             {
                 "id": "official-avt-repository",
-                "publisher": "AVT group of TU Ilmenau",
+                "publisher": authority["publisher"],
                 "documentTitle": "AVT-VQDB-UHD-2-HDR README and metrics tree",
-                "canonicalURL": OFFICIAL_AVT_REPO,
-                "repositoryCommit": OFFICIAL_AVT_COMMIT,
-                "retrievedDate": args.generated_date,
-                "supportedClaim": "The official repository exposes 31 source canonical names through metrics/DR_results/*.mov.json.",
+                "canonicalURL": authority["repository"],
+                "repository": authority["repository"],
+                "repositoryCommit": authority["repositoryCommit"],
+                "authorityIndex": args.authority_index,
+                "retrievedDate": generated_date,
+                "supportedClaim": "The pinned repository snapshot exposes the exact canonical source records listed in the authority index.",
             },
         ],
         "localSources": [
@@ -473,27 +735,29 @@ def main() -> None:
             "localManifestCommit": LOCAL_MANIFEST_COMMIT,
             "localManifestBlob": LOCAL_MANIFEST_BLOB,
             "localJODSeparateBlob": LOCAL_JOD_BLOB,
-            "officialAVTRepositoryCommit": OFFICIAL_AVT_COMMIT,
+            "officialAVTRepository": authority["repository"],
+            "officialAVTRepositoryCommit": authority["repositoryCommit"],
+            "authorityIndex": args.authority_index,
         },
         "mappings": mappings,
         "summary": {
-            "proven": len(mappings),
+            "proven": claims["provenCount"],
             "strongNotProven": 0,
             "heuristic": 0,
             "unresolved": 0,
             "conflict": 0,
-            "uniqueProvenSourceMasterIds": len({mapping["sourceMasterId"] for mapping in mappings}),
-            "uniqueProvenPairedSources": len(
-                {
-                    mapping["sourceMasterId"]
-                    for mapping in mappings
-                    if mapping["sourceMasterStatus"] == "PROVEN" and mapping["pairRelationship"] == "PROVEN"
-                }
-            ),
+            "uniqueProvenSourceMasterIds": claims["uniqueProvenSourceMasterIds"],
+            "uniqueProvenPairedSources": claims["uniqueProvenPairedSources"],
             "oneToOneOfficialMapping": "PASS",
-            "duplicateMappings": duplicate_mappings,
-            "unmappedLocal": unmapped_local,
-            "unmappedOfficial": unmapped_official,
+            "duplicateMappings": claims["duplicateMappings"],
+            "unmappedLocal": claims["unmappedLocal"],
+            "unmappedOfficial": claims["unmappedOfficial"],
+            "mappingCount": claims["mappingCount"],
+            "provenCount": claims["provenCount"],
+            "uniqueLocalGroupIdCount": claims["uniqueLocalGroupIdCount"],
+            "uniqueOfficialCanonicalIDCount": claims["uniqueOfficialCanonicalIDCount"],
+            "uniqueSourceMasterIdCount": claims["uniqueSourceMasterIdCount"],
+            "pairRelationshipStatus": claims["pairRelationshipStatus"],
             "crossSourceAliasStatus": "UNKNOWN_NO_ALIAS_REGISTRY",
             "sourceMasterIndependence": "PASS_WITHIN_UNIQUE_OFFICIAL_AVT_CANONICAL_CONTENT_SET",
             "localCorpusProvenance": "SUFFICIENT",
@@ -516,8 +780,9 @@ def main() -> None:
             "frozenAccessed": False,
             "objectiveEvaluations": 0,
         },
-        "searchDefinitionHash": SEARCH_DEFINITION_HASH,
-        "searchDefinitionStatus": "MATCH",
+        "oldSearchDefinitionHash": OLD_SEARCH_DEFINITION_HASH,
+        "oldHashEligibleForCalibration": False,
+        "searchDefinitionHashStatus": "RETIRED_INVALIDATED",
         "nextStage": "exact metadata qualification, selected-file hashing, deterministic split, and preflight-v4",
     }
 
@@ -538,8 +803,9 @@ def main() -> None:
         "## Baseline and scope",
         "",
         f"- Correctness baseline: `{BASELINE}`",
-        f"- Implementation head used for recovery: `{args.implementation_head}`",
-        f"- Search definition hash: `{SEARCH_DEFINITION_HASH}` (`MATCH`)",
+        f"- Generator semantic version: `{GENERATOR_SEMANTIC_VERSION}`",
+        f"- Pinned authority index: `{args.authority_index}`",
+        f"- Retired search definition hash: `{OLD_SEARCH_DEFINITION_HASH}` (`INVALIDATED; NOT ELIGIBLE FOR CALIBRATION`)",
         "- Frozen/Virgin paths were not enumerated or probed.",
         "- Tune, Validation, objective metrics, and candidate selection were not run.",
         "",

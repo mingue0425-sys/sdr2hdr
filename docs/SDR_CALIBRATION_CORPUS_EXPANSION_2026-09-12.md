@@ -111,12 +111,16 @@ Validation run: NO
 candidate selection: NO
 ```
 
-The existing preregistration is unchanged:
+The historical v1 preregistration is preserved for lineage but was invalidated
+by the Stage B audit and is not eligible for calibration. The repaired v2
+semantic-only preregistration is a separate artifact; it does not seal this
+future corpus:
 
 ```text
 policyVersion: sdr-input-interpretation-policy-v1
 preparationVersion: v6-prepared-evaluation-plan-v6-sdr-interpretation-policy
-searchDefinitionHash: 7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608
+oldSearchDefinitionHash: 7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608
+oldHashStatus: RETIRED_INVALIDATED
 searchBudgetPerPolicy: 192
 seed: 20260912
 shortlistSize: 3

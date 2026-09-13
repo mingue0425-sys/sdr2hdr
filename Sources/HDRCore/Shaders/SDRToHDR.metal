@@ -103,9 +103,12 @@ inline float inverseSRGB(float value) {
 }
 
 inline float inverseBT1886(float value, constant SDRToHDRParameters& p) {
-    float blackRoot = pow(max(p.bt1886BlackLuminance, 0.0f), 1.0f / p.gamma);
-    float whiteRoot = pow(max(p.bt1886WhiteLuminance, 0.0f), 1.0f / p.gamma);
-    float span = max(whiteRoot - blackRoot, 1e-6f);
+    // HDRProcessor validates the complete parameter domain before dispatch.
+    // Keep the valid-domain equation identical to HDRColorMath: no GPU-only
+    // span floor may silently change a valid BT.1886 parameterization.
+    float blackRoot = pow(p.bt1886BlackLuminance, 1.0f / p.gamma);
+    float whiteRoot = pow(p.bt1886WhiteLuminance, 1.0f / p.gamma);
+    float span = whiteRoot - blackRoot;
     float a = pow(span, p.gamma);
     float b = blackRoot / span;
     return a * pow(max(clamp(value, 0.0f, 1.0f) + b, 0.0f), p.gamma);

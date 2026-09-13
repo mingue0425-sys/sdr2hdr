@@ -2,6 +2,14 @@ import Foundation
 import Metal
 
 public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
+    public static let defaultMatcherConfigurationHash: String = {
+        do {
+            return try V6MatcherConfiguration.v6.canonicalSHA256()
+        } catch {
+            return "INVALID_SEMANTIC_IDENTITY"
+        }
+    }()
+
     public static var v6: V6MatcherEvidenceConfiguration {
         V6MatcherEvidenceConfiguration()
     }
@@ -29,7 +37,7 @@ public struct V6MatcherEvidenceConfiguration: Codable, Hashable, Sendable {
         maxDecodedFrames: Int = 128,
         acceptanceThreshold: Double = 0.60,
         matcherVersion: String = V6MatcherConfiguration.v6.matcherVersion,
-        matcherConfigurationHash: String = (try? V6MatcherConfiguration.v6.canonicalSHA256()) ?? "INVALID"
+        matcherConfigurationHash: String = V6MatcherEvidenceConfiguration.defaultMatcherConfigurationHash
     ) {
         self.version = version
         self.offsetMinimumSeconds = offsetMinimumSeconds

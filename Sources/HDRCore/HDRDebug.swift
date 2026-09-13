@@ -123,6 +123,8 @@ internal struct HDRDebugFrameContext: Sendable {
     let inputBitDepth: Int
     let inputRange: String
     let sourceTransferTag: SDRSourceTransferTag
+    let requestedInterpretationPolicy: SDRInputInterpretationPolicy
+    let selectedInterpretationPolicy: SDRInputInterpretationPolicy
     let interpretationPolicy: SDRInputInterpretationPolicy
     let effectiveTransfer: HDRTransferFunction
     let fallbackUsed: Bool
@@ -273,6 +275,8 @@ internal final class DebugStatisticsStore: @unchecked Sendable {
             inputRange: context.inputRange,
             sourceTransferTag: context.sourceTransferTag,
             interpretationPolicy: context.interpretationPolicy,
+            requestedInterpretationPolicy: context.requestedInterpretationPolicy,
+            selectedInterpretationPolicy: context.selectedInterpretationPolicy,
             effectiveTransfer: context.effectiveTransfer,
             fallbackUsed: context.fallbackUsed,
             fallbackReason: context.fallbackReason,

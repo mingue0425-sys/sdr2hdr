@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import os
 import re
+import stat
 from collections import Counter, defaultdict
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
@@ -97,7 +98,15 @@ def normalize_manifest_relative_locator(base: str, locator: Any) -> Optional[str
 def validate_root_locator(root_relative: str, excluded_roots: Sequence[str]) -> None:
     if not isinstance(root_relative, str) or not root_relative:
         raise InventoryError("included root must be a non-empty relative path")
-    pure = PurePosixPath(root_relative)
+    if "\x00" in root_relative:
+        raise InventoryError("inventory root contains a NUL byte")
+    # Treat Windows separators as path separators too. This rejects drive,
+    # UNC, and mixed-separator absolute injection even when the inventory runs
+    # on POSIX.
+    normalized_root = root_relative.replace("\\", "/")
+    if re.match(r"^[A-Za-z]:/", normalized_root) or normalized_root.startswith("//"):
+        raise InventoryError(f"absolute inventory root rejected: {root_relative}")
+    pure = PurePosixPath(normalized_root)
     folded = pure.as_posix().casefold()
     if pure.is_absolute() or ".." in pure.parts or folded in BROAD_ROOTS:
         raise InventoryError(f"broad or unsafe inventory root rejected: {root_relative}")
@@ -134,6 +143,74 @@ def is_under_root(relative_path: str, root_relative: str) -> bool:
     return normalized_path == normalized_root or normalized_path.startswith(normalized_root + "/")
 
 
+def _lstat_components(path: Path, start: Optional[Path] = None) -> bool:
+    """lstat every existing component without resolving any component.
+
+    The return value is false when a component is absent. A symlink is an
+    immediate failure, including a symlink in an intermediate directory.
+    """
+
+    if not path.is_absolute():
+        raise InventoryError(f"component safety check requires an absolute path: {path}")
+    if start is None:
+        # The approved materialization base is itself the trust boundary. Do
+        # not reject platform-owned aliases such as macOS /var merely because
+        # they are parents of that already-approved base.
+        try:
+            component_stat = os.lstat(path)
+        except FileNotFoundError:
+            return False
+        except OSError as error:
+            raise InventoryError(f"cannot lstat approved path component: {path}") from error
+        if stat.S_ISLNK(component_stat.st_mode):
+            raise InventoryError(f"symlink path component rejected before walk: {path}")
+        return True
+
+    current = start
+    try:
+        start_stat = os.lstat(current)
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise InventoryError(f"cannot lstat approved path component: {current}") from error
+    if stat.S_ISLNK(start_stat.st_mode):
+        raise InventoryError(f"symlink path component rejected before walk: {current}")
+    relative_parts = path.relative_to(start).parts
+    for component in relative_parts:
+        current = current / component
+        try:
+            component_stat = os.lstat(current)
+        except FileNotFoundError:
+            return False
+        except OSError as error:
+            raise InventoryError(f"cannot lstat approved path component: {current}") from error
+        if stat.S_ISLNK(component_stat.st_mode):
+            raise InventoryError(f"symlink path component rejected before walk: {current}")
+        if current != path and not stat.S_ISDIR(component_stat.st_mode):
+            return False
+    return True
+
+
+def validate_no_symlink_components(
+    materialization_root: Path,
+    root_relative: Optional[str] = None,
+) -> Path:
+    """Validate the lexical root chain before any traversal or resolution."""
+
+    if not materialization_root.is_absolute():
+        raise InventoryError("materialization root must be an explicit absolute path")
+    if ".." in PurePosixPath(materialization_root.as_posix()).parts:
+        raise InventoryError("materialization root contains a lexical parent escape")
+    if not _lstat_components(materialization_root):
+        raise InventoryError(f"materialization root is unavailable: {materialization_root}")
+    requested = materialization_root
+    if root_relative is not None:
+        validate_root_locator(root_relative, [])
+        requested = materialization_root.joinpath(*PurePosixPath(root_relative).parts)
+    _lstat_components(requested, start=materialization_root)
+    return requested
+
+
 def walk_approved_root(
     materialization_root: Path,
     root_relative: str,
@@ -142,16 +219,9 @@ def walk_approved_root(
     """Walk one already-approved root, collecting metadata only."""
 
     validate_root_locator(root_relative, excluded_roots)
-    root_path = materialization_root / root_relative
-    if root_path.is_symlink():
-        raise InventoryError(f"approved root is a symlink: {root_relative}")
+    root_path = validate_no_symlink_components(materialization_root, root_relative)
     if not root_path.exists() or not root_path.is_dir():
         return []
-    resolved_root = root_path.resolve()
-    try:
-        resolved_root.relative_to(materialization_root.resolve())
-    except ValueError as error:
-        raise InventoryError(f"approved root escapes materialization root: {root_relative}") from error
 
     records: List[Dict[str, Any]] = []
     for directory, directory_names, file_names in os.walk(
@@ -173,7 +243,9 @@ def walk_approved_root(
             if file_path.suffix.casefold() not in MEDIA_EXTENSIONS:
                 continue
             relative_path = file_path.relative_to(materialization_root).as_posix()
-            file_stat = file_path.stat()
+            file_stat = os.lstat(file_path)
+            if stat.S_ISLNK(file_stat.st_mode):
+                raise InventoryError(f"symlink media candidate encountered: {relative_path}")
             records.append(
                 {
                     "relativePath": relative_path,
@@ -673,11 +745,12 @@ def run(
     materialization_root: Path,
 ) -> Dict[str, Any]:
     scope, included_entries, excluded_roots = load_scope(scope_path)
-    if not materialization_root.is_absolute():
-        raise InventoryError("materialization root must be an explicit absolute path")
-    if materialization_root.is_symlink():
-        raise InventoryError("materialization root must not be a symlink")
-    if materialization_root.resolve() not in {base.resolve() for base in known_manifest_locator_bases()}:
+    validate_no_symlink_components(materialization_root)
+    normalized_materialization_root = Path(os.path.normpath(materialization_root.as_posix()))
+    known_bases = {
+        Path(os.path.normpath(base.as_posix())) for base in known_manifest_locator_bases()
+    }
+    if normalized_materialization_root not in known_bases:
         raise InventoryError("materialization root is not an exact base from the committed v6 manifest")
     if not materialization_root.exists() or not materialization_root.is_dir():
         raise InventoryError(f"materialization root is unavailable: {materialization_root}")

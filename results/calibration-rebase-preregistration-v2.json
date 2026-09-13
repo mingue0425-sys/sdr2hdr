@@ -1,0 +1,207 @@
+{
+  "artifactVersion" : 2,
+  "corpusDefinitionHash" : "NOT_YET_CREATED",
+  "correctnessBaseline" : "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "experimentBindingHash" : "NOT_YET_CREATED",
+  "mediaQualification" : "NOT_RUN",
+  "metricDefinition" : {
+    "aggregation" : [
+      "weighted sum using V2ObjectiveWeights",
+      "video aggregates are the mean of scene metrics",
+      "temporal aggregates are kept separate from spatial objective"
+    ],
+    "direction" : "minimize",
+    "failureHandling" : [
+      "non-finite output, GPU error, invalid paired sample, or missing window rejects the evaluation",
+      "failure after metric exposure invalidates the selection cycle",
+      "no failure is converted into a numeric score"
+    ],
+    "metricVersion" : "v2-objective-with-v61-directional-diagnostics",
+    "normalization" : [
+      "mean absolute log luminance error",
+      "absolute error normalized by 1000 nits",
+      "regional values are normalized by region population"
+    ],
+    "objectiveNames" : [
+      "luminance",
+      "absoluteNits",
+      "midtone",
+      "diffuseWhite",
+      "highlight",
+      "shadow",
+      "chroma",
+      "saturation",
+      "hue",
+      "temporal",
+      "structure",
+      "clippingPenalty",
+      "blackCrushPenalty",
+      "saturationPenalty",
+      "invalidPenalty"
+    ],
+    "objectiveWeights" : {
+      "absoluteNits" : 0.03,
+      "blackCrushPenalty" : 0.2,
+      "chroma" : 0.07,
+      "clippingPenalty" : 0.3,
+      "diffuseWhite" : 0.12,
+      "highlight" : 0.18,
+      "hue" : 0.08,
+      "invalidPenalty" : 10,
+      "luminance" : 0.16,
+      "midtone" : 0.08,
+      "saturation" : 0.04,
+      "saturationPenalty" : 0.1,
+      "shadow" : 0.1,
+      "structure" : 0.06,
+      "temporal" : 0.08
+    },
+    "regionalMetrics" : [
+      "shadow 0.00...0.10",
+      "midtone 0.10...0.90",
+      "diffuseWhite 0.75...0.95",
+      "highlight 0.90...1.00"
+    ],
+    "signedSemantics" : [
+      "signed error = generated - reference",
+      "positive overshoot and negative undershoot remain separate diagnostics",
+      "primary objective uses declared absolute\/log terms, not signed cancellation"
+    ],
+    "temporalMetrics" : [
+      "temporal flicker",
+      "temporal stability",
+      "contiguous prepared windows only"
+    ]
+  },
+  "metricDefinitionHash" : "0434f6c3824849f76f43b27966020f353136a2580c39ac6b6115c5fb7c16103c",
+  "objectiveEvaluations" : 0,
+  "oldHashEligibleForCalibration" : false,
+  "oldHashStatus" : "RETIRED_INVALIDATED",
+  "oldSearchDefinitionHash" : "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+  "policyDefinition" : {
+    "bt1886ParameterValidationDomain" : [
+      "L_B finite and >= 0",
+      "L_W finite and > L_B",
+      "L_W <= 10000",
+      "gamma finite and in (0,10]"
+    ],
+    "bt1886Parameters" : {
+      "blackLuminance" : 0,
+      "gamma" : 2.4,
+      "whiteLuminance" : 1
+    },
+    "bt1886ReferenceDisplaySemanticVersion" : "bt1886-reference-display-v2",
+    "bt709SourceLinearSemanticVersion" : "bt709-source-linear-v2",
+    "candidateList" : [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "explicitGammaBehavior" : "metadata gamma finite and > 0; metadata authoritative",
+    "explicitGammaSemanticVersion" : "explicit-gamma-v2",
+    "linearBehavior" : "encoded signal is already linear; metadata authoritative",
+    "linearSemanticVersion" : "linear-source-v2",
+    "policyVersion" : "sdr-input-interpretation-policy-v1",
+    "sRGBBehavior" : "inverse IEC 61966-2-1 piecewise transfer; metadata authoritative",
+    "sRGBSemanticVersion" : "srgb-source-v2",
+    "semanticVersion" : "sdr-policy-definition-v2",
+    "untaggedFallback" : "assumeBT709SourceLinear",
+    "untaggedFallbackSemantics" : [
+      "assumeBT709SourceLinear",
+      "assumeBT1886ReferenceDisplay",
+      "reject"
+    ]
+  },
+  "policyDefinitionHash" : "16a0743906ae72f92d9fd832dfb6599f6fc874f8dfff1fc1bb340cf4f13ac9e6",
+  "preparationDefinition" : {
+    "alignmentSemantics" : "V6MatcherConfiguration.v6; bounded offset search; raw and accepted identities are sealed",
+    "failurePolicy" : [
+      "decode, alignment, scene, temporal, path, or hash failure rejects the plan",
+      "no implicit frame selection or policy fallback at evaluator entry",
+      "non-finite preparation values reject before plan sealing"
+    ],
+    "metadataInterpretationSemantics" : "SDRInputInterpretationResolver.resolve; source transfer metadata and untagged fallback are explicit",
+    "preparationVersion" : "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy",
+    "sceneFrameSelectionSemantics" : "SceneDetector.v6; sequencePosition-domain; accepted representatives are sealed in V6ScenePlan",
+    "sourceGridLuminanceSemantics" : "OfflinePixelSampler.linearLumaGrid; source-grid luminance is computed before objective access"
+  },
+  "preparationDefinitionHash" : "33a9b85be030612556e37bdca5372ec250f3db0b4ee5675eac68c38a83886ce6",
+  "preregistrationInvalidated" : false,
+  "searchDefinition" : {
+    "failurePolicy" : [
+      "infrastructure failure before metric exposure may rerun the same sealed configuration",
+      "metric exposure followed by failure invalidates this selection cycle",
+      "no threshold, metric, policy, or search-space change after Validation exposure"
+    ],
+    "hardGates" : [
+      "finite outputs and no GPU error",
+      "transfer, range, and metadata resolution match the selected policy",
+      "transform monotonicity and exact black\/white anchors",
+      "temporal sequence and precision checks pass"
+    ],
+    "metricDefinitionHash" : "0434f6c3824849f76f43b27966020f353136a2580c39ac6b6115c5fb7c16103c",
+    "parameterBounds" : {
+      "contrastStrength" : {
+        "lower" : 0.5,
+        "upper" : 0.95
+      },
+      "highlightStrength" : {
+        "lower" : 0.42,
+        "upper" : 0.86
+      },
+      "paperWhiteNits" : {
+        "lower" : 190,
+        "upper" : 245
+      },
+      "peakNits" : {
+        "lower" : 900,
+        "upper" : 1500
+      },
+      "saturationCompensation" : {
+        "lower" : 0.1,
+        "upper" : 0.5
+      },
+      "shadowProtection" : {
+        "lower" : 0.05,
+        "upper" : 1
+      },
+      "temporalStability" : {
+        "lower" : 0.2,
+        "upper" : 0.98
+      }
+    },
+    "parameterRepresentation" : "finite IEEE-754 values; canonical decimal JSON; lexicographic parameter-name order",
+    "policyCandidates" : [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "policyDefinitionHash" : "16a0743906ae72f92d9fd832dfb6599f6fc874f8dfff1fc1bb340cf4f13ac9e6",
+    "preparationDefinitionHash" : "33a9b85be030612556e37bdca5372ec250f3db0b4ee5675eac68c38a83886ce6",
+    "safetyGates" : [
+      "no unexpected fallback",
+      "no range mismatch",
+      "no clipping or near-black safety violation",
+      "no invalid paired sample"
+    ],
+    "searchBudgetPerPolicy" : 192,
+    "seed" : 20260912,
+    "selectionOrdering" : [
+      "all hard correctness gates pass",
+      "all safety gates pass",
+      "primary existing objective is minimized",
+      "temporal stability, clipping, and near-black safety break ties"
+    ],
+    "semanticVersion" : "sdr-search-definition-v2",
+    "shortlistSize" : 3,
+    "tieBreakRule" : [
+      "lower objective",
+      "lower temporal error",
+      "lower clipping ratio",
+      "lower near-black contrast loss",
+      "lexicographically smallest canonical parameter vector"
+    ]
+  },
+  "searchDefinitionHashV2" : "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41",
+  "status" : "PREREGISTERED_V2_SEMANTIC_ONLY",
+  "tune" : "NOT_RUN",
+  "validation" : "NOT_RUN"
+}
