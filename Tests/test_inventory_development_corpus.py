@@ -51,18 +51,25 @@ def main() -> int:
     assert MODULE.live_family_key("22_Programming_Night_HDR10_3840x2160_15000k.mp4") == "22_programming_night"
 
     with tempfile.TemporaryDirectory() as temporary:
-        materialization_root = Path(temporary)
+        trusted_anchor = Path(temporary) / "anchor"
+        trusted_anchor.mkdir()
+        materialization_root = trusted_anchor / "materialized"
+        materialization_root.mkdir()
         safe_root = materialization_root / "data_video" / "safe"
         safe_root.mkdir(parents=True)
         (safe_root / "fixture.mp4").write_bytes(b"fixture")
         (safe_root / "notes.txt").write_text("metadata", encoding="utf-8")
-        records = MODULE.walk_approved_root(materialization_root, "data_video/safe", [])
+        records = MODULE.walk_approved_root(
+            materialization_root, "data_video/safe", [], trusted_anchor=trusted_anchor
+        )
         assert [record["relativePath"] for record in records] == ["data_video/safe/fixture.mp4"]
         symlink_target = materialization_root / "outside.mp4"
         symlink_target.write_bytes(b"outside")
         (safe_root / "linked.mp4").symlink_to(symlink_target)
         try:
-            MODULE.walk_approved_root(materialization_root, "data_video/safe", [])
+            MODULE.walk_approved_root(
+                materialization_root, "data_video/safe", [], trusted_anchor=trusted_anchor
+            )
         except MODULE.InventoryError:
             pass
         else:
@@ -70,7 +77,9 @@ def main() -> int:
 
         def assert_walk_rejected(root_relative: str, message: str) -> None:
             try:
-                MODULE.walk_approved_root(materialization_root, root_relative, [])
+                MODULE.walk_approved_root(
+                    materialization_root, root_relative, [], trusted_anchor=trusted_anchor
+                )
             except MODULE.InventoryError:
                 return
             raise AssertionError(message)
@@ -132,13 +141,29 @@ def main() -> int:
         materialization_link.symlink_to(materialization_root, target_is_directory=True)
         try:
             try:
-                MODULE.validate_no_symlink_components(materialization_link)
+                MODULE.validate_no_symlink_components(
+                    materialization_link, trusted_anchor=trusted_anchor
+                )
             except MODULE.InventoryError:
                 pass
             else:
                 raise AssertionError("symlink materialization root was accepted")
         finally:
             materialization_link.unlink()
+
+        parent_link = trusted_anchor / "parent-link"
+        parent_target = trusted_anchor / "parent-target"
+        parent_target.mkdir()
+        nested_root = parent_link / "materialized"
+        parent_link.symlink_to(parent_target, target_is_directory=True)
+        try:
+            MODULE.validate_no_symlink_components(
+                nested_root, trusted_anchor=trusted_anchor
+            )
+        except MODULE.InventoryError:
+            pass
+        else:
+            raise AssertionError("symlink parent of materialization root was accepted")
 
         assert_rejected("data_video/safe/../../outside")
         assert_rejected("/absolute/injection")

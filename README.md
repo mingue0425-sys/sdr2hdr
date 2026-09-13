@@ -182,7 +182,7 @@ then opens Frozen exactly once. Reproduce the recorded experiment with:
 ./.build/release/HDRCalibrate v2-audit \
   --root data_video \
   --output results/data-video-v2-dataset-audit.json
-./.build/release/HDRCalibrate v2-run \
+./.build/release/HDRCalibrate v2-run-development \
   --manifest data_video/manifest-v2.json \
   --seed 20260823 \
   --output results/data-video-v2-final.json
@@ -200,7 +200,7 @@ previously dead `shadowProtection` control, and evaluates `temporalStability`
 with sequential scene windows. Reproduce it with:
 
 ```bash
-./.build/release/HDRCalibrate v3-run \
+./.build/release/HDRCalibrate v3-run-development \
   --manifest data_video/manifest-v2.json \
   --seed 20260824 \
   --output results/data-video-v3-final.json

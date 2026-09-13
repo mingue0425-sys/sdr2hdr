@@ -213,48 +213,13 @@ final class SDRInterpretationCalibrationTests: XCTestCase {
 
     func testV3ExecutionIsDerivedFromOneSealAndRejectsRuntimeDivergence() throws {
         let experiment = try PreregisteredCalibrationExperiment.current()
-        let runner = try PreregisteredCalibrationRunner(experiment: experiment)
-        let runtimes = try runner.verifyOnly()
-
-        XCTAssertEqual(runtimes.map(\.policy), [.bt709SourceLinear, .bt1886ReferenceDisplay])
-        XCTAssertEqual(runtimes.map(\.globalCandidates), [128, 128])
-        XCTAssertEqual(runtimes.map(\.localCandidates), [64, 64])
-        XCTAssertEqual(runtimes.map(\.totalCandidatesPerPolicy), [192, 192])
-        XCTAssertEqual(runtimes.map(\.shortlistSize), [3, 3])
-        XCTAssertEqual(runtimes.map(\.searchSeed), [20_260_912, 20_260_912])
-        XCTAssertEqual(
-            runtimes.map { $0.preparation.sdrInterpretationPolicy },
-            [.bt709SourceLinear, .bt1886ReferenceDisplay]
-        )
-        XCTAssertNotEqual(
-            runtimes[0].preparation.sdrInterpretationPolicyHash,
-            runtimes[1].preparation.sdrInterpretationPolicyHash
-        )
-
-        for original in runtimes {
-            var changedSeed = original
-            changedSeed.searchSeed += 1
-            XCTAssertThrowsError(try experiment.verifyRuntimeConfiguration(changedSeed))
-
-            var changedShortlist = original
-            changedShortlist.shortlistSize = 8
-            XCTAssertThrowsError(try experiment.verifyRuntimeConfiguration(changedShortlist))
-
-            var changedRange = original
-            changedRange.parameterBounds = V2ParameterBounds(
-                paperWhiteNits: 180...245,
-                peakNits: original.parameterBounds.peakNits,
-                highlightStrength: original.parameterBounds.highlightStrength,
-                contrastStrength: original.parameterBounds.contrastStrength,
-                saturationCompensation: original.parameterBounds.saturationCompensation,
-                shadowProtection: original.parameterBounds.shadowProtection,
-                temporalStability: original.parameterBounds.temporalStability
+        XCTAssertThrowsError(
+            try PreregisteredCalibrationRunner(experiment: experiment)
+        ) { error in
+            XCTAssertEqual(
+                error as? PreregisteredCalibrationExecutionError,
+                .historicalPreregistrationInvalidated
             )
-            XCTAssertThrowsError(try experiment.verifyRuntimeConfiguration(changedRange))
-
-            var changedAlgorithm = original
-            changedAlgorithm.searchAlgorithmDefinition.globalParentCount += 1
-            XCTAssertThrowsError(try experiment.verifyRuntimeConfiguration(changedAlgorithm))
         }
     }
 
@@ -473,9 +438,18 @@ final class SDRInterpretationCalibrationTests: XCTestCase {
         var weights = definition.configuration.objectiveWeights
         weights.luminance += 0.01
         var changedWeights = definition
-        var changedConfiguration = definition.configuration
-        changedConfiguration.objectiveWeights = weights
-        changedWeights.configuration = changedConfiguration
+        var changedObject = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: HDRCanonicalIdentity.data(definition.configuration),
+            options: [.fragmentsAllowed]
+        ) as? [String: Any])
+        changedObject["objectiveWeights"] = try JSONSerialization.jsonObject(
+            with: HDRCanonicalIdentity.data(weights),
+            options: [.fragmentsAllowed]
+        )
+        changedWeights.configuration = try JSONDecoder().decode(
+            V2MetricSemanticConfiguration.self,
+            from: JSONSerialization.data(withJSONObject: changedObject)
+        )
         XCTAssertNotEqual(try changedWeights.sha256(), baseHash)
 
         let metricObject = try XCTUnwrap(JSONSerialization.jsonObject(

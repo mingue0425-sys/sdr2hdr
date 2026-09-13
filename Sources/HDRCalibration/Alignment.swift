@@ -57,8 +57,6 @@ public struct SceneRange: Codable, Sendable {
 /// preserve the maximum number of usable pairs first, then minimize total
 /// timestamp error among solutions with the same cardinality.
 enum MonotonicTimestampPairer {
-    private static let maximumWorkCells = 50_000_000
-
     private struct Score {
         let pairCount: Int
         let totalDistance: Double
@@ -70,24 +68,18 @@ enum MonotonicTimestampPairer {
         case skipHDR
         case match
 
-        var tieBreakPriority: Int {
-            switch self {
-            case .match: return 3
-            case .skipHDR: return 2
-            case .skipSDR: return 1
-            case .end: return 0
-            }
-        }
     }
 
     static func pairs(
         sdr: [FrameSample],
         hdr: [FrameSample],
         offset: Double,
-        maximumDistance: Double
+        maximumDistance: Double,
+        maximumSampleCount: Int = V6SequenceValidationSemanticConfiguration.v6.maximumSampleCount,
+        configuration: V6AlignmentSemanticConfiguration = .v6
     ) -> [(FrameSample, FrameSample)] {
         guard !sdr.isEmpty, !hdr.isEmpty,
-              sdr.count <= 512, hdr.count <= 512,
+              sdr.count <= maximumSampleCount, hdr.count <= maximumSampleCount,
               offset.isFinite, maximumDistance.isFinite,
               maximumDistance >= 0 else { return [] }
 
@@ -115,7 +107,22 @@ enum MonotonicTimestampPairer {
             if candidate.totalDistance != current.totalDistance {
                 return candidate.totalDistance < current.totalDistance
             }
-            return candidateDecision.tieBreakPriority > currentDecision.tieBreakPriority
+            let candidateName: String
+            let currentName: String
+            switch candidateDecision {
+            case .match: candidateName = "match"
+            case .skipHDR: candidateName = "skipHDR"
+            case .skipSDR: candidateName = "skipSDR"
+            case .end: candidateName = "end"
+            }
+            switch currentDecision {
+            case .match: currentName = "match"
+            case .skipHDR: currentName = "skipHDR"
+            case .skipSDR: currentName = "skipSDR"
+            case .end: currentName = "end"
+            }
+            return configuration.decisionPriority(candidateName) >
+                configuration.decisionPriority(currentName)
         }
 
         for sdrIndex in stride(from: sdr.count - 1, through: 0, by: -1) {
@@ -185,11 +192,13 @@ enum MonotonicTimestampPairer {
         sdrCount: Int,
         hdrCount: Int,
         candidateCount: Int,
-        passCount: Int = 3
+        passCount: Int = 3,
+        maximumWorkCells: Int = V6SequenceValidationSemanticConfiguration.v6.maximumPairingWorkCells,
+        maximumSampleCount: Int = V6SequenceValidationSemanticConfiguration.v6.maximumSampleCount
     ) -> Bool {
         guard sdrCount > 0, hdrCount > 0,
               candidateCount > 0, passCount > 0,
-              sdrCount <= 512, hdrCount <= 512 else { return false }
+              sdrCount <= maximumSampleCount, hdrCount <= maximumSampleCount else { return false }
         let cellCount = (sdrCount + 1) * (hdrCount + 1)
         return candidateCount <= maximumWorkCells / cellCount / passCount
     }
@@ -198,7 +207,8 @@ enum MonotonicTimestampPairer {
 enum FrameSequenceValidator {
     static func failure(
         _ sequence: FrameSequence,
-        expectedGridCount: Int
+        expectedGridCount: Int,
+        configuration: V6SequenceValidationSemanticConfiguration = .v6
     ) -> String? {
         guard sequence.width > 0, sequence.height > 0,
               sequence.nominalFrameRate.isFinite,
@@ -208,8 +218,8 @@ enum FrameSequenceValidator {
             return "sequence metadata contains invalid dimensions, rate, or duration"
         }
         guard !sequence.samples.isEmpty else { return "sequence has no samples" }
-        guard sequence.samples.count <= 512 else {
-            return "sequence exceeds the 512-sample alignment safety bound"
+        guard sequence.samples.count <= configuration.maximumSampleCount else {
+            return "sequence exceeds the configured sample safety bound"
         }
         guard Set(sequence.samples.map(\.sequencePosition)).count ==
                 sequence.samples.count else {
@@ -217,7 +227,7 @@ enum FrameSequenceValidator {
         }
         for (index, sample) in sequence.samples.enumerated() {
             let descriptor = sample.descriptor
-            guard descriptor.histogram.count == 16,
+            guard descriptor.histogram.count == configuration.histogramBinCount,
                   sample.lumaGrid.count == expectedGridCount else {
                 return "sample \(index) has an invalid descriptor or proxy shape"
             }
@@ -227,19 +237,19 @@ enum FrameSequenceValidator {
                   sample.sequencePosition == index,
                   sampleTimestamp.isFinite,
                   descriptor.timestampSeconds.isFinite,
-                  abs(sampleTimestamp - descriptor.timestampSeconds) <= 1e-9,
+                  abs(sampleTimestamp - descriptor.timestampSeconds) <= configuration.timestampTolerance,
                   descriptor.meanLuma.isFinite,
                   descriptor.variance.isFinite,
                   descriptor.edgeEnergy.isFinite,
-                  (0...1).contains(descriptor.meanLuma),
-                  (0...0.251).contains(descriptor.variance),
-                  (0...1).contains(descriptor.edgeEnergy),
+                  (Float(configuration.signalMinimum)...Float(configuration.signalMaximum)).contains(descriptor.meanLuma),
+                  (Float(configuration.signalMinimum)...Float(configuration.maximumVariance)).contains(descriptor.variance),
+                  (Float(configuration.signalMinimum)...Float(configuration.signalMaximum)).contains(descriptor.edgeEnergy),
                   descriptor.histogram.allSatisfy({
-                    $0.isFinite && (0...1).contains($0)
+                    $0.isFinite && (Float(configuration.signalMinimum)...Float(configuration.signalMaximum)).contains($0)
                   }),
-                  abs(histogramSum - 1) <= 0.001,
+                  abs(histogramSum - Float(configuration.histogramTarget)) <= Float(configuration.histogramTolerance),
                   sample.lumaGrid.allSatisfy({
-                    $0.isFinite && (0...1).contains($0)
+                    $0.isFinite && (Float(configuration.signalMinimum)...Float(configuration.signalMaximum)).contains($0)
                   }) else {
                 return "sample \(index) contains invalid descriptor or proxy data"
             }
@@ -268,7 +278,10 @@ public enum TemporalAligner {
         offsetRangeSeconds: ClosedRange<Double>? = nil,
         offsetStep: Double? = nil,
         confidenceThreshold: Double? = nil,
-        matcherConfiguration: V6MatcherConfiguration = .v6
+        matcherConfiguration: V6MatcherConfiguration = .v6,
+        descriptorConfiguration: V6DescriptorSemanticConfiguration = .v6,
+        alignmentConfiguration: V6AlignmentSemanticConfiguration = .v6,
+        sequenceValidationConfiguration: V6SequenceValidationSemanticConfiguration = .v6
     ) -> AlignmentResult {
         if let failure = matcherConfiguration.validationFailure() {
             return rejection(
@@ -284,11 +297,11 @@ public enum TemporalAligner {
             matcherConfiguration.acceptedConfidenceThreshold
         guard resolvedRange.lowerBound.isFinite,
               resolvedRange.upperBound.isFinite,
-              resolvedRange.lowerBound >= -60,
-              resolvedRange.upperBound <= 60,
+              resolvedRange.lowerBound >= matcherConfiguration.offsetMinimumSeconds,
+              resolvedRange.upperBound <= matcherConfiguration.offsetMaximumSeconds,
               resolvedStep.isFinite,
-              resolvedStep >= 1e-6,
-              resolvedStep <= 10,
+              resolvedStep >= matcherConfiguration.minimumOffsetStepSeconds,
+              resolvedStep <= matcherConfiguration.maximumOffsetStepSeconds,
               resolvedThreshold.isFinite,
               (0...1).contains(resolvedThreshold) else {
             return rejection(
@@ -299,9 +312,9 @@ public enum TemporalAligner {
         let offsetCount = Int(ceil(
             (resolvedRange.upperBound - resolvedRange.lowerBound) / resolvedStep
         )) + 1
-        guard offsetCount <= 10_000 else {
+        guard offsetCount <= matcherConfiguration.maximumOffsetCandidateCount else {
             return rejection(
-                "alignment offset grid exceeds 10000 candidates",
+                "alignment offset grid exceeds \(matcherConfiguration.maximumOffsetCandidateCount) candidates",
                 rejectedFrames: sdr.samples.count
             )
         }
@@ -313,19 +326,24 @@ public enum TemporalAligner {
         }
         let expectedGridCount = matcherConfiguration.gridWidth * matcherConfiguration.gridHeight
         if let failure = FrameSequenceValidator.failure(
-            sdr, expectedGridCount: expectedGridCount
+            sdr, expectedGridCount: expectedGridCount,
+            configuration: sequenceValidationConfiguration
         ) {
             return rejection("invalid SDR sequence: \(failure)", rejectedFrames: sdr.samples.count)
         }
         if let failure = FrameSequenceValidator.failure(
-            hdr, expectedGridCount: expectedGridCount
+            hdr, expectedGridCount: expectedGridCount,
+            configuration: sequenceValidationConfiguration
         ) {
             return rejection("invalid HDR sequence: \(failure)", rejectedFrames: sdr.samples.count)
         }
         guard MonotonicTimestampPairer.workIsWithinBudget(
             sdrCount: sdr.samples.count,
             hdrCount: hdr.samples.count,
-            candidateCount: offsetCount
+            candidateCount: offsetCount,
+            passCount: alignmentConfiguration.workBudgetPassCount,
+            maximumWorkCells: sequenceValidationConfiguration.maximumPairingWorkCells,
+            maximumSampleCount: sequenceValidationConfiguration.maximumSampleCount
         ) else {
             return rejection(
                 "alignment search exceeds the bounded pairing work budget",
@@ -354,7 +372,8 @@ public enum TemporalAligner {
             let measured = V6TransferInvariantMatcher.compare(
                 lhsFeatures, rhsFeatures,
                 configuration: matcherConfiguration,
-                descriptorFallback: (lhs.descriptor, rhs.descriptor)
+                descriptorFallback: (lhs.descriptor, rhs.descriptor),
+                descriptorConfiguration: descriptorConfiguration
             )
             metricCache[key] = measured
             return measured
@@ -362,37 +381,50 @@ public enum TemporalAligner {
         let maximumPairingDistance = maximumPairingDistanceSeconds(
             sdrFPS: sdr.nominalFrameRate,
             hdrFPS: hdr.nominalFrameRate,
-            offsetStep: resolvedStep
+            offsetStep: resolvedStep,
+            configuration: alignmentConfiguration
         )
         func score(_ samples: ArraySlice<FrameSample>, offset: Double) -> Double {
             let pairs = pairedSamples(
                 sdr: samples,
                 hdr: hdr.samples,
                 offset: offset,
-                maximumDistance: maximumPairingDistance
+                maximumDistance: maximumPairingDistance,
+                maximumSampleCount: sequenceValidationConfiguration.maximumSampleCount,
+                alignmentConfiguration: alignmentConfiguration
             )
             let confidences = pairs.compactMap { metrics($0.0, $0.1)?.confidence }
             guard !confidences.isEmpty, !samples.isEmpty else { return 0 }
             let mean = confidences.reduce(0, +) / Double(confidences.count)
             let coverage = Double(confidences.count) / Double(samples.count)
-            return mean * min(max(coverage, 0), 1)
+            return mean * min(
+                max(coverage, alignmentConfiguration.confidenceCoverageLowerBound),
+                alignmentConfiguration.confidenceCoverageUpperBound
+            )
         }
-        let offsets = offsetCandidates(range: resolvedRange, step: resolvedStep)
+        let offsets = offsetCandidates(
+            range: resolvedRange,
+            step: resolvedStep,
+            endpointTolerance: alignmentConfiguration.offsetCandidateEndpointTolerance,
+            rule: alignmentConfiguration.offsetEnumerationRule
+        )
         var offsetScores: [(offset: Double, score: Double)] = []
         offsetScores.reserveCapacity(offsets.count)
         for offset in offsets {
             let candidateScore = score(sdr.samples[...], offset: offset)
             offsetScores.append((offset, candidateScore))
         }
-        guard let best = preferredCandidate(offsetScores) else {
+        guard let best = preferredCandidate(offsetScores, configuration: alignmentConfiguration) else {
             return rejection("alignment produced no offset candidates", rejectedFrames: sdr.samples.count)
         }
         let bestOffset = best.offset
         let bestScore = best.score
         let second = offsetScores
-            .filter { abs($0.offset - bestOffset) >= 0.10 }
-        let secondBest = preferredCandidate(second) ?? best
-        let windowSize = max(1, Int(ceil(Double(sdr.samples.count) / 8.0)))
+            .filter { abs($0.offset - bestOffset) >= alignmentConfiguration.secondBestExclusionSeconds }
+        let secondBest = preferredCandidate(second, configuration: alignmentConfiguration) ?? best
+        let windowSize = max(alignmentConfiguration.windowMinimumSize, Int(ceil(
+            Double(sdr.samples.count) / Double(alignmentConfiguration.perWindowSampleDivisor)
+        )))
         var perWindowOffsets: [Double] = []
         for start in stride(from: 0, to: sdr.samples.count, by: windowSize) {
             let end = min(start + windowSize, sdr.samples.count)
@@ -400,7 +432,9 @@ public enum TemporalAligner {
             let candidates = offsets.map { candidate in
                 (offset: candidate, score: score(window, offset: candidate))
             }
-            perWindowOffsets.append(preferredCandidate(candidates)?.offset ?? bestOffset)
+            perWindowOffsets.append(
+                preferredCandidate(candidates, configuration: alignmentConfiguration)?.offset ?? bestOffset
+            )
         }
         let offsetDrift = (perWindowOffsets.max() ?? bestOffset) -
             (perWindowOffsets.min() ?? bestOffset)
@@ -410,7 +444,9 @@ public enum TemporalAligner {
             sdr: sdr.samples[...],
             hdr: hdr.samples,
             offset: bestOffset,
-            maximumDistance: maximumPairingDistance
+            maximumDistance: maximumPairingDistance,
+            maximumSampleCount: sequenceValidationConfiguration.maximumSampleCount,
+            alignmentConfiguration: alignmentConfiguration
         )
         var rejected = sdr.samples.count - finalPairs.count
         var rawConfidences: [Double] = []
@@ -420,7 +456,7 @@ public enum TemporalAligner {
                 continue
             }
             rawConfidences.append(confidence)
-            if confidence >= resolvedThreshold {
+            if alignmentConfiguration.acceptsConfidence(confidence, threshold: resolvedThreshold) {
                 matches.append(MatchedFrame(
                     sdrIndex: sample.index,
                     hdrIndex: nearest.index,
@@ -437,9 +473,11 @@ public enum TemporalAligner {
         let confidences = matches.map(\.confidence).sorted()
         let median = confidences.isEmpty ? 0 : confidences[confidences.count / 2]
         let status: String
-        if matches.isEmpty || median < resolvedThreshold {
+        if matches.isEmpty || alignmentConfiguration.rejectsMedian(median, threshold: resolvedThreshold) {
             status = "REJECT"
-        } else if abs(bestOffset) > 0.01 || rejected > 0 {
+        } else if alignmentConfiguration.hasStatusOffset(
+            abs(bestOffset), tolerance: alignmentConfiguration.statusOffsetToleranceSeconds
+        ) || rejected > 0 {
             status = "PAIR_NEEDS_ALIGNMENT"
         } else {
             status = "ALIGNED"
@@ -468,7 +506,7 @@ public enum TemporalAligner {
             bestVersusSecondMargin: bestScore - secondBest.score,
             perWindowOffsets: perWindowOffsets,
             offsetDriftSeconds: offsetDrift,
-            confidenceQuantiles: quantiles(rawConfidences),
+            confidenceQuantiles: quantiles(rawConfidences, configuration: alignmentConfiguration),
             matcherConfigurationHash: matcherConfigurationHash
         )
     }
@@ -486,35 +524,39 @@ public enum TemporalAligner {
 
     private static func offsetCandidates(
         range: ClosedRange<Double>,
-        step: Double
+        step: Double,
+        endpointTolerance: Double,
+        rule: String
     ) -> [Double] {
+        guard rule == "floor-regular-grid;append-upper-endpoint-if-outside-tolerance" else {
+            return []
+        }
         let span = range.upperBound - range.lowerBound
         let regularCount = Int(floor(span / step)) + 1
         var result = (0..<regularCount).map { range.lowerBound + Double($0) * step }
-        if let last = result.last, range.upperBound - last > 1e-12 {
+        if let last = result.last, range.upperBound - last > endpointTolerance {
             result.append(range.upperBound)
         }
         return result
     }
 
     private static func preferredCandidate(
-        _ candidates: [(offset: Double, score: Double)]
+        _ candidates: [(offset: Double, score: Double)],
+        configuration: V6AlignmentSemanticConfiguration
     ) -> (offset: Double, score: Double)? {
+        guard configuration.offsetTieBreakRule ==
+                "score-descending;absolute-offset-ascending;signed-offset-ascending" else {
+            return nil
+        }
         var best: (offset: Double, score: Double)?
         for candidate in candidates {
             guard let current = best else {
                 best = candidate
                 continue
             }
-            if candidate.score != current.score {
-                if candidate.score > current.score { best = candidate }
-                continue
+            if configuration.prefersOffset(candidate: candidate, over: current) {
+                best = candidate
             }
-            if abs(candidate.offset) != abs(current.offset) {
-                if abs(candidate.offset) < abs(current.offset) { best = candidate }
-                continue
-            }
-            if candidate.offset < current.offset { best = candidate }
         }
         return best
     }
@@ -522,47 +564,79 @@ public enum TemporalAligner {
     private static func maximumPairingDistanceSeconds(
         sdrFPS: Double,
         hdrFPS: Double,
-        offsetStep: Double
+        offsetStep: Double,
+        configuration: V6AlignmentSemanticConfiguration
     ) -> Double {
         let rates = [sdrFPS, hdrFPS].filter { $0.isFinite && $0 > 0 }
-        let slowestRate = rates.min() ?? 24
-        return min(0.25, max(0.75 / max(slowestRate, 1), offsetStep * 0.55))
+        let slowestRate = rates.min() ?? configuration.fallbackFrameRate
+        return min(
+            configuration.maximumPairingDistanceSeconds,
+            max(
+                configuration.frameIntervalDistanceFactor / max(slowestRate, configuration.minimumRateForDistance),
+                offsetStep * configuration.offsetStepDistanceFactor
+            )
+        )
     }
 
     private static func pairedSamples(
         sdr: ArraySlice<FrameSample>,
         hdr: [FrameSample],
         offset: Double,
-        maximumDistance: Double
+        maximumDistance: Double,
+        maximumSampleCount: Int = V6SequenceValidationSemanticConfiguration.v6.maximumSampleCount,
+        alignmentConfiguration: V6AlignmentSemanticConfiguration = .v6
     ) -> [(FrameSample, FrameSample)] {
         MonotonicTimestampPairer.pairs(
             sdr: Array(sdr), hdr: hdr,
-            offset: offset, maximumDistance: maximumDistance
+            offset: offset,
+            maximumDistance: maximumDistance,
+            maximumSampleCount: maximumSampleCount,
+            configuration: alignmentConfiguration
         )
     }
 
-    private static func quantiles(_ values: [Double]) -> V6ConfidenceQuantiles {
+    private static func quantiles(
+        _ values: [Double],
+        configuration: V6AlignmentSemanticConfiguration = .v6
+    ) -> V6ConfidenceQuantiles {
         let sorted = values.sorted()
         func value(_ fraction: Double) -> Double {
             guard !sorted.isEmpty else { return 0 }
             return sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * fraction))]
         }
+        let fractions = configuration.quantileFractions
         return V6ConfidenceQuantiles(
-            minimum: value(0), p10: value(0.10), p25: value(0.25), p50: value(0.50),
-            p75: value(0.75), p90: value(0.90), maximum: value(1)
+            minimum: value(fractions[0]), p10: value(fractions[1]), p25: value(fractions[2]),
+            p50: value(fractions[3]), p75: value(fractions[4]), p90: value(fractions[5]),
+            maximum: value(fractions[6])
         )
     }
 }
 
 public enum SceneDetector {
-    public static func detect(sequence: FrameSequence) -> [SceneRange] {
+    public static func detect(
+        sequence: FrameSequence,
+        configuration: V6SceneSegmentationSemanticConfiguration = .v6,
+        descriptorConfiguration: V6DescriptorSemanticConfiguration = .v6
+    ) -> [SceneRange] {
         guard !sequence.samples.isEmpty else { return [] }
+        guard configuration.sceneBoundaryRule ==
+                "start-at-boundary;end-at-boundary-minus-one" else { return [] }
         var boundaries: [Int] = [0]
         for index in 1..<sequence.samples.count {
             let previous = sequence.samples[index - 1].descriptor
             let current = sequence.samples[index].descriptor
-            let distance = FrameDescriptorBuilder.distance(previous, current)
-            if distance > 0.28 || abs(previous.edgeEnergy - current.edgeEnergy) > 0.18 {
+            let distance = FrameDescriptorBuilder.distance(
+                previous, current, configuration: descriptorConfiguration
+            )
+            if configuration.compare(
+                distance, configuration.boundaryDescriptorDistanceThreshold,
+                using: configuration.boundaryDescriptorComparison
+            ) || configuration.compare(
+                Double(abs(previous.edgeEnergy - current.edgeEnergy)),
+                configuration.boundaryEdgeEnergyDeltaThreshold,
+                using: configuration.boundaryEdgeComparison
+            ) {
                 boundaries.append(index)
             }
         }
@@ -572,35 +646,61 @@ public enum SceneDetector {
             let start = boundaries[index]
             let end = max(start, boundaries[index + 1] - 1)
             let values = Array(sequence.samples[start...end].map(\.descriptor.meanLuma))
-            let tags = classify(values: values)
-            scenes.append(SceneRange(id: String(format: "scene_%04d", index + 1), startSequencePosition: start, endSequencePosition: end, tags: tags))
+            let tags = classify(values: values, configuration: configuration)
+            guard let sceneID = configuration.sceneIdentifier(oneBasedIndex: index + 1) else {
+                return []
+            }
+            scenes.append(SceneRange(id: sceneID, startSequencePosition: start, endSequencePosition: end, tags: tags))
         }
         return scenes
     }
 
-    private static func classify(values: [Float]) -> [String] {
-        guard !values.isEmpty else { return ["UNKNOWN"] }
+    private static func classify(
+        values: [Float],
+        configuration: V6SceneSegmentationSemanticConfiguration
+    ) -> [String] {
+        guard !values.isEmpty else { return [configuration.emptySceneTag] }
         let sorted = values.sorted()
         let mean = values.reduce(0, +) / Float(values.count)
-        let p90 = sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * 0.90))]
-        let p99 = sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * 0.99))]
+        let p90 = sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * configuration.classificationP90Fraction))]
+        let p99 = sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * configuration.classificationP99Fraction))]
         var tags: [String] = []
-        if mean < 0.20 { tags.append("LOW_KEY") }
-        if mean > 0.65 { tags.append("HIGH_KEY") }
-        if p99 > 0.95 && p99 - mean > 0.35 { tags.append("HIGHLIGHT_RICH") }
-        if p90 - sorted[0] < 0.25 { tags.append("LOW_CONTRAST") }
-        if tags.isEmpty { tags.append("MID_KEY") }
+        if configuration.compare(
+            Double(mean), configuration.lowKeyMeanThreshold, using: configuration.lowKeyComparison
+        ) { tags.append(configuration.lowKeyTag) }
+        if configuration.compare(
+            Double(mean), configuration.highKeyMeanThreshold, using: configuration.highKeyComparison
+        ) { tags.append(configuration.highKeyTag) }
+        if configuration.compare(
+            Double(p99), configuration.highlightP99Threshold, using: configuration.highlightP99Comparison
+        ) && configuration.compare(
+            Double(p99 - mean), configuration.highlightP99MeanDelta,
+            using: configuration.highlightDeltaComparison
+        ) {
+            tags.append(configuration.highlightRichTag)
+        }
+        if configuration.compare(
+            Double(p90 - sorted[0]), configuration.lowContrastP90MinimumDelta,
+            using: configuration.lowContrastComparison
+        ) {
+            tags.append(configuration.lowContrastTag)
+        }
+        if tags.isEmpty { tags.append(configuration.defaultSceneTag) }
         return tags
     }
 }
 
 public enum SpatialAligner {
-    public static func inspect(sdr: VideoMetadata, hdr: VideoMetadata) -> [String] {
+    public static func inspect(
+        sdr: VideoMetadata,
+        hdr: VideoMetadata,
+        configuration: V6SpatialGeometrySemanticConfiguration = .v6
+    ) -> [String] {
         let sdrAspect = Double(sdr.width) / Double(max(sdr.height, 1))
         let hdrAspect = Double(hdr.width) / Double(max(hdr.height, 1))
         let aspectDelta = abs(sdrAspect - hdrAspect) / max(sdrAspect, hdrAspect)
-        if aspectDelta < 0.02 { return ["same_aspect_uniform_scale"] }
-        if aspectDelta < 0.12 { return ["recoverable_crop_or_letterbox"] }
+        if aspectDelta < configuration.sameAspectThreshold { return ["same_aspect_uniform_scale"] }
+        if aspectDelta < configuration.recoverableAspectThreshold { return ["recoverable_crop_or_letterbox"] }
         return ["large_geometry_difference"]
     }
 }

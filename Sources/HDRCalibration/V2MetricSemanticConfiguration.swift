@@ -5,13 +5,49 @@ import HDRCore
 /// boundaries as numbers, rather than prose, makes every region decision
 /// part of the metric identity.
 public struct V2MetricRegionDefinition: Codable, Hashable, Sendable {
-    public var lowerPercentile: Double
-    public var upperPercentile: Double
+    public let lowerPercentile: Double
+    public let upperPercentile: Double
 
     public init(lowerPercentile: Double, upperPercentile: Double) {
         self.lowerPercentile = lowerPercentile
         self.upperPercentile = upperPercentile
     }
+}
+
+public enum V2MetricComparisonRule: String, Codable, Hashable, Sendable {
+    case lessThan
+    case lessThanOrEqual
+    case greaterThan
+    case greaterThanOrEqual
+
+    func accepts(_ value: Double, threshold: Double) -> Bool {
+        switch self {
+        case .lessThan: return value < threshold
+        case .lessThanOrEqual: return value <= threshold
+        case .greaterThan: return value > threshold
+        case .greaterThanOrEqual: return value >= threshold
+        }
+    }
+}
+
+public enum V2TemporalHistoryResetRule: String, Codable, Hashable, Sendable {
+    case beforeEachWindow
+}
+
+public enum V2TemporalSceneCutInputRule: String, Codable, Hashable, Sendable {
+    case alwaysFalse
+}
+
+public enum V2MetricAggregationOrderingRule: String, Codable, Hashable, Sendable {
+    case callerSuppliedCanonicalPairOrder = "caller-supplied-canonical-pair-order"
+}
+
+public enum V2MetricFrameOrderingRule: String, Codable, Hashable, Sendable {
+    case generatedTimestampAscendingThenInputPositionAscending = "generated-timestamp-ascending-then-input-position-ascending"
+}
+
+public enum V2MetricTemporalWindowOrderingRule: String, Codable, Hashable, Sendable {
+    case sceneIDUTF8AscendingThenStartSecondsThenOffsetSeconds = "scene-id-UTF8-ascending-then-start-seconds-ascending-then-offset-seconds-ascending"
 }
 
 /// Complete semantic input to the V2 objective evaluator.  This is the
@@ -21,100 +57,134 @@ public struct V2MetricRegionDefinition: Codable, Hashable, Sendable {
 public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
     public static let semanticVersion = "v2-metric-semantics-v3"
 
-    public var semanticVersion: String
-    public var metricVersion: String
-    public var objectiveWeights: V2ObjectiveWeights
-    public var objectiveNames: [String]
-    public var objectiveDirection: String
-    public var normalizationRules: [String]
-    public var aggregationRules: [String]
-    public var signedSemantics: [String]
-    public var regionalMetricNames: [String]
-    public var temporalMetricNames: [String]
-    public var failureHandling: [String]
-    public var perceptualColorTransformVersion: String
-    public var perceptualColorInputMinimumNits: Double
-    public var perceptualColorInputMaximumNits: Double
-    public var percentileInterpolation: String
-    public var nonFiniteHandling: String
-    public var nonNegativeClampPolicy: String
-    public var nonNegativeClampFloor: Double
-    public var correlationLowerBound: Double
-    public var correlationUpperBound: Double
+    public let semanticVersion: String
+    public let metricVersion: String
+    public let objectiveWeights: V2ObjectiveWeights
+    public let objectiveNames: [String]
+    public let objectiveDirection: String
+    public let normalizationRules: [String]
+    public let aggregationRules: [String]
+    public let signedSemantics: [String]
+    public let regionalMetricNames: [String]
+    public let temporalMetricNames: [String]
+    public let failureHandling: [String]
+    public let perceptualColorTransformVersion: String
+    /// The evaluator and HDRCore use this exact value for ICtCp/PQ math.
+    public let colorScience: HDRColorScienceSemanticDefinition
+    /// The fixed reference/readback sampling grid used by the objective
+    /// evaluator. It is semantic because changing it changes score inputs.
+    public let referenceGridWidth: Int
+    public let referenceGridHeight: Int
+    public let perceptualColorInputMinimumNits: Double
+    public let perceptualColorInputMaximumNits: Double
+    public let percentileInterpolation: String
+    public let nonFiniteHandling: String
+    public let nonNegativeClampPolicy: String
+    public let nonNegativeClampFloor: Double
+    public let correlationLowerBound: Double
+    public let correlationUpperBound: Double
+    public let correlationMinimumSampleCount: Int
+    public let correlationDenominatorComparison: V2MetricComparisonRule
+    public let hueWrapRule: String
+    public let hueNormalization: Double
+    public let hueFullTurnMultiplier: Double
+    public let stableAggregationOrder: V2MetricAggregationOrderingRule
+    public let stableFrameOrderingRule: V2MetricFrameOrderingRule
+    public let stableTemporalWindowOrderingRule: V2MetricTemporalWindowOrderingRule
+    public let ratioIdentity: Double
+    public let emptyPercentileValue: Double
+    public let emptyFractionValue: Double
+    public let emptyAverageValue: Double
+    public let insufficientTemporalMetricValue: Double
+    public let comparisonRules: [String: V2MetricComparisonRule]
+    public let temporalMinimumFrameCount: Int
+    public let temporalSecondDifferenceMinimumFrameCount: Int
+    /// Temporal cut diagnostics are computed by the same evaluator used by
+    /// the V4 runner.  These values are semantic even though they are not
+    /// primary objective weights: changing them changes gate inputs and
+    /// therefore candidate ordering or acceptance.
+    public let temporalSettledSampleCount: Int
+    public let temporalRecoveryRelativeTolerance: Double
+    public let temporalRecoveryAbsoluteTolerance: Double
+    /// Temporal evaluator state transitions are metric semantics: changing
+    /// either rule changes the generated samples that enter temporal scores.
+    public let temporalAutomaticEstimationEnabled: Bool
+    public let temporalHistoryResetRule: V2TemporalHistoryResetRule
+    public let temporalSceneCutInputRule: V2TemporalSceneCutInputRule
 
-    public var absoluteNitsNormalizer: Double
-    public var additiveLuminanceOffsetNits: Double
-    public var percentileFractions: [String: Double]
-    public var regionPercentiles: [String: V2MetricRegionDefinition]
-    public var diffuseMidtoneSourceRange: V2MetricRegionDefinition
+    public let absoluteNitsNormalizer: Double
+    public let additiveLuminanceOffsetNits: Double
+    public let percentileFractions: [String: Double]
+    public let regionPercentiles: [String: V2MetricRegionDefinition]
+    public let diffuseMidtoneSourceRange: V2MetricRegionDefinition
 
-    public var highlightUnderreachRatio: Double
-    public var highlightOvershootRatio: Double
-    public var highlightOvershootAbsoluteNits: Double
-    public var specularPercentile: Double
-    public var clippingPeakRatio: Double
-    public var slopeFloorNits: Double
+    public let highlightUnderreachRatio: Double
+    public let highlightOvershootRatio: Double
+    public let highlightOvershootAbsoluteNits: Double
+    public let specularPercentile: Double
+    public let clippingPeakRatio: Double
+    public let slopeFloorNits: Double
 
-    public var blackCrushReferenceThresholdNits: Double
-    public var blackCrushGeneratedAbsoluteNits: Double
-    public var blackCrushGeneratedRatio: Double
-    public var shadowLiftRatio: Double
-    public var shadowLiftAbsoluteNits: Double
-    public var nearBlackReferenceRangeFloorNits: Double
+    public let blackCrushReferenceThresholdNits: Double
+    public let blackCrushGeneratedAbsoluteNits: Double
+    public let blackCrushGeneratedRatio: Double
+    public let shadowLiftRatio: Double
+    public let shadowLiftAbsoluteNits: Double
+    public let nearBlackReferenceRangeFloorNits: Double
 
-    public var hueMeanWeight: Double
-    public var hueP95Weight: Double
-    public var temporalLuminanceWeight: Double
-    public var temporalHighlightWeight: Double
-    public var temporalFlickerWeight: Double
+    public let hueMeanWeight: Double
+    public let hueP95Weight: Double
+    public let temporalLuminanceWeight: Double
+    public let temporalHighlightWeight: Double
+    public let temporalFlickerWeight: Double
 
-    public var minimumReferenceChroma: Double
-    public var minimumGeneratedChroma: Double
-    public var highChromaThreshold: Double
-    public var saturationDenominatorFloor: Double
-    public var saturationOvershootRatio: Double
-    public var saturationOvershootAbsolute: Double
-    public var saturationUndershootRatio: Double
-    public var saturationUndershootAbsolute: Double
-    public var skinMinimumPeakNits: Double
-    public var skinRedBlueSeparation: Double
+    public let minimumReferenceChroma: Double
+    public let minimumGeneratedChroma: Double
+    public let highChromaThreshold: Double
+    public let saturationDenominatorFloor: Double
+    public let saturationOvershootRatio: Double
+    public let saturationOvershootAbsolute: Double
+    public let saturationUndershootRatio: Double
+    public let saturationUndershootAbsolute: Double
+    public let skinMinimumPeakNits: Double
+    public let skinRedBlueSeparation: Double
 
-    public var categoryHighKeyThresholdNits: Double
-    public var categoryLowKeyThresholdNits: Double
-    public var categoryHighSaturationChromaThreshold: Double
-    public var categoryHighSaturationRatio: Double
-    public var categoryHighlightRichUnderreachRatio: Double
+    public let categoryHighKeyThresholdNits: Double
+    public let categoryLowKeyThresholdNits: Double
+    public let categoryHighSaturationChromaThreshold: Double
+    public let categoryHighSaturationRatio: Double
+    public let categoryHighlightRichUnderreachRatio: Double
 
-    public var failureHighlightUnderreachRatio: Double
-    public var failureHighlightOvershootRatio: Double
-    public var failureDiffuseWhiteLowRatio: Double
-    public var failureDiffuseWhiteHighRatio: Double
-    public var failureMidtoneError: Double
-    public var failureBlackCrushRatio: Double
-    public var failureShadowLiftRatio: Double
-    public var failureSaturationRatio: Double
-    public var failureHueP95Error: Double
-    public var failureTemporalFlicker: Double
-    public var failureAlignmentConfidence: Double
-    public var failureReferenceMismatchHue: Double
-    public var failureReferenceMismatchLuminance: Double
+    public let failureHighlightUnderreachRatio: Double
+    public let failureHighlightOvershootRatio: Double
+    public let failureDiffuseWhiteLowRatio: Double
+    public let failureDiffuseWhiteHighRatio: Double
+    public let failureMidtoneError: Double
+    public let failureBlackCrushRatio: Double
+    public let failureShadowLiftRatio: Double
+    public let failureSaturationRatio: Double
+    public let failureHueP95Error: Double
+    public let failureTemporalFlicker: Double
+    public let failureAlignmentConfidence: Double
+    public let failureReferenceMismatchHue: Double
+    public let failureReferenceMismatchLuminance: Double
 
-    public var correlationEpsilon: Double
-    public var invalidMetricScore: Double
-    public var emptyAggregateObjective: Double
-    public var emptyAggregateInvalidSampleCount: Int
+    public let correlationEpsilon: Double
+    public let invalidMetricScore: Double
+    public let emptyAggregateObjective: Double
+    public let emptyAggregateInvalidSampleCount: Int
 
-    public init() {
+    public init(objectiveWeights: V2ObjectiveWeights? = nil) {
         self.semanticVersion = Self.semanticVersion
         self.metricVersion = "v2-objective-with-v61-directional-diagnostics"
         // V4's historical production evaluator gives the shadow and temporal
         // terms their explicit calibrated weights.  Keep those semantics in
         // this one object so the preregistered evaluator and legacy V4
         // compatibility path cannot silently use different numbers.
-        var objectiveWeights = V2ObjectiveWeights()
-        objectiveWeights.shadow = 0.15
-        objectiveWeights.temporal = 0.10
-        self.objectiveWeights = objectiveWeights
+        var defaultWeights = V2ObjectiveWeights()
+        defaultWeights.shadow = 0.15
+        defaultWeights.temporal = 0.10
+        self.objectiveWeights = objectiveWeights ?? defaultWeights
         self.objectiveNames = [
             "luminance", "absoluteNits", "midtone", "diffuseWhite", "highlight",
             "shadow", "chroma", "saturation", "hue", "temporal", "structure",
@@ -149,7 +219,10 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
             "invalid metric values use invalidMetricScore and fail the evaluation gate",
             "no failure is silently converted into an empty successful metric"
         ]
-        self.perceptualColorTransformVersion = "ICTCP-PQ-v1; coefficients fixed in PerceptualColorV2"
+        self.perceptualColorTransformVersion = "ICTCP-PQ-v1"
+        self.colorScience = .calibrationV4
+        self.referenceGridWidth = 32
+        self.referenceGridHeight = 18
         self.perceptualColorInputMinimumNits = 0
         self.perceptualColorInputMaximumNits = 10_000
         self.percentileInterpolation = "nearest lower order statistic: floor((count - 1) * fraction)"
@@ -158,6 +231,67 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
         self.nonNegativeClampFloor = 0
         self.correlationLowerBound = -1
         self.correlationUpperBound = 1
+        self.correlationMinimumSampleCount = 2
+        self.correlationDenominatorComparison = .greaterThan
+        self.hueWrapRule = "shortest-circular-distance"
+        self.hueNormalization = .pi
+        self.hueFullTurnMultiplier = 2
+        self.stableAggregationOrder = .callerSuppliedCanonicalPairOrder
+        self.stableFrameOrderingRule = .generatedTimestampAscendingThenInputPositionAscending
+        self.stableTemporalWindowOrderingRule = .sceneIDUTF8AscendingThenStartSecondsThenOffsetSeconds
+        self.ratioIdentity = 1
+        self.emptyPercentileValue = 0
+        self.emptyFractionValue = 0
+        self.emptyAverageValue = 0
+        self.insufficientTemporalMetricValue = 0
+        self.comparisonRules = [
+            "regionLower": .greaterThanOrEqual,
+            "regionUpper": .lessThanOrEqual,
+            "highlightRegionLower": .greaterThanOrEqual,
+            "highlightUnderreach": .lessThan,
+            "highlightOvershoot": .greaterThan,
+            "clipping": .greaterThanOrEqual,
+            "shadowRegionUpper": .lessThanOrEqual,
+            "blackCrushReference": .greaterThan,
+            "blackCrushGenerated": .lessThan,
+            "shadowLift": .greaterThan,
+            "categoryHighKey": .greaterThan,
+            "categoryLowKey": .lessThan,
+            "categoryHighSaturationChroma": .greaterThan,
+            "categoryHighSaturationRatio": .greaterThan,
+            "categoryHighlightRich": .greaterThan,
+            "failureHighlightUnderreach": .greaterThan,
+            "failureHighlightOvershoot": .greaterThan,
+            "failureDiffuseWhiteLow": .lessThan,
+            "failureDiffuseWhiteHigh": .greaterThan,
+            "failureMidtone": .greaterThan,
+            "failureBlackCrush": .greaterThan,
+            "failureShadowLift": .greaterThan,
+            "failureSaturationLow": .greaterThan,
+            "failureSaturationHigh": .greaterThan,
+            "failureHue": .greaterThan,
+            "failureTemporal": .greaterThan,
+            "failureAlignment": .lessThan,
+            "failureReferenceHue": .greaterThan,
+            "failureReferenceLuminance": .greaterThan,
+            "referenceChromaEligibility": .greaterThan,
+            "generatedChromaEligibility": .greaterThan,
+            "highChroma": .greaterThan,
+            "skinPeak": .greaterThan,
+            "skinSeparation": .greaterThan,
+            "skinRedGreaterThanGreen": .greaterThan,
+            "skinGreenGreaterThanBlue": .greaterThan,
+            "saturationOvershoot": .greaterThan,
+            "saturationUndershoot": .lessThan
+        ]
+        self.temporalMinimumFrameCount = 2
+        self.temporalSecondDifferenceMinimumFrameCount = 3
+        self.temporalSettledSampleCount = 4
+        self.temporalRecoveryRelativeTolerance = 0.005
+        self.temporalRecoveryAbsoluteTolerance = 0.0005
+        self.temporalAutomaticEstimationEnabled = true
+        self.temporalHistoryResetRule = .beforeEachWindow
+        self.temporalSceneCutInputRule = .alwaysFalse
         self.absoluteNitsNormalizer = 1_000
         self.additiveLuminanceOffsetNits = 1
         self.percentileFractions = [
@@ -247,10 +381,19 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
         "semanticVersion", "metricVersion", "objectiveWeights", "objectiveNames",
         "objectiveDirection", "normalizationRules", "aggregationRules", "signedSemantics",
         "regionalMetricNames", "temporalMetricNames", "failureHandling",
-        "perceptualColorTransformVersion", "perceptualColorInputMinimumNits",
+        "perceptualColorTransformVersion", "colorScience", "referenceGridWidth", "referenceGridHeight",
+        "perceptualColorInputMinimumNits",
         "perceptualColorInputMaximumNits", "percentileInterpolation", "nonFiniteHandling",
         "nonNegativeClampPolicy", "nonNegativeClampFloor", "correlationLowerBound",
-        "correlationUpperBound",
+        "correlationUpperBound", "correlationMinimumSampleCount", "correlationDenominatorComparison",
+        "hueWrapRule", "hueNormalization", "hueFullTurnMultiplier", "stableAggregationOrder",
+        "stableFrameOrderingRule", "stableTemporalWindowOrderingRule", "ratioIdentity", "emptyPercentileValue", "emptyFractionValue",
+        "emptyAverageValue",
+        "insufficientTemporalMetricValue", "comparisonRules",
+        "temporalMinimumFrameCount", "temporalSecondDifferenceMinimumFrameCount",
+        "temporalSettledSampleCount", "temporalRecoveryRelativeTolerance",
+        "temporalRecoveryAbsoluteTolerance", "temporalAutomaticEstimationEnabled",
+        "temporalHistoryResetRule", "temporalSceneCutInputRule",
         "absoluteNitsNormalizer", "additiveLuminanceOffsetNits",
         "percentileFractions", "regionPercentiles", "diffuseMidtoneSourceRange",
         "highlightUnderreachRatio", "highlightOvershootRatio", "highlightOvershootAbsoluteNits",
@@ -273,8 +416,23 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
         "emptyAggregateObjective", "emptyAggregateInvalidSampleCount"
     ]
 
+    public static let requiredComparisonRuleNames: Set<String> = [
+        "regionLower", "regionUpper", "highlightRegionLower", "highlightUnderreach",
+        "highlightOvershoot", "clipping", "shadowRegionUpper", "blackCrushReference",
+        "blackCrushGenerated", "shadowLift", "categoryHighKey", "categoryLowKey",
+        "categoryHighSaturationChroma", "categoryHighSaturationRatio", "categoryHighlightRich",
+        "failureHighlightUnderreach", "failureHighlightOvershoot", "failureDiffuseWhiteLow",
+        "failureDiffuseWhiteHigh", "failureMidtone", "failureBlackCrush", "failureShadowLift",
+        "failureSaturationLow", "failureSaturationHigh", "failureHue", "failureTemporal",
+        "failureAlignment", "failureReferenceHue", "failureReferenceLuminance", "skinPeak",
+        "referenceChromaEligibility", "generatedChromaEligibility", "highChroma", "skinSeparation",
+        "skinRedGreaterThanGreen", "skinGreenGreaterThanBlue", "saturationOvershoot",
+        "saturationUndershoot"
+    ]
+
     public func canonicalSHA256() throws -> String {
-        try HDRCanonicalIdentity.sha256(self)
+        try validate()
+        return try HDRCanonicalIdentity.sha256(self)
     }
 
     public func validate() throws {
@@ -309,7 +467,10 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
             failureReferenceMismatchLuminance, correlationEpsilon, invalidMetricScore,
             emptyAggregateObjective, perceptualColorInputMinimumNits,
             perceptualColorInputMaximumNits, nonNegativeClampFloor,
-            correlationLowerBound, correlationUpperBound
+            correlationLowerBound, correlationUpperBound, hueNormalization,
+            hueFullTurnMultiplier, ratioIdentity, emptyPercentileValue,
+            emptyFractionValue, emptyAverageValue, insufficientTemporalMetricValue,
+            temporalRecoveryRelativeTolerance, temporalRecoveryAbsoluteTolerance
         ]
         let requiredPercentiles: Set<String> = [
             "p1", "p10", "p25", "p50", "p75", "p90", "p95", "p99", "p999"
@@ -324,6 +485,27 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
               absoluteNitsNormalizer > 0,
               additiveLuminanceOffsetNits >= 0,
               correlationEpsilon > 0,
+              correlationMinimumSampleCount > 0,
+              correlationDenominatorComparison == .greaterThan ||
+                  correlationDenominatorComparison == .greaterThanOrEqual,
+              temporalMinimumFrameCount > 0,
+              temporalSecondDifferenceMinimumFrameCount >= temporalMinimumFrameCount,
+              temporalSettledSampleCount > 0,
+              temporalRecoveryRelativeTolerance >= 0,
+              temporalRecoveryAbsoluteTolerance >= 0,
+              temporalAutomaticEstimationEnabled,
+              temporalHistoryResetRule == .beforeEachWindow,
+              temporalSceneCutInputRule == .alwaysFalse,
+              hueWrapRule == "shortest-circular-distance",
+              hueNormalization.isFinite && hueNormalization > 0,
+              hueFullTurnMultiplier.isFinite && hueFullTurnMultiplier > 0,
+              stableAggregationOrder == .callerSuppliedCanonicalPairOrder,
+              stableFrameOrderingRule == .generatedTimestampAscendingThenInputPositionAscending,
+              stableTemporalWindowOrderingRule == .sceneIDUTF8AscendingThenStartSecondsThenOffsetSeconds,
+              ratioIdentity.isFinite,
+              emptyPercentileValue.isFinite && emptyFractionValue.isFinite && emptyAverageValue.isFinite,
+              insufficientTemporalMetricValue.isFinite,
+              Set(comparisonRules.keys) == Self.requiredComparisonRuleNames,
               objectiveDirection == "minimize",
               !objectiveNames.isEmpty,
               !normalizationRules.isEmpty,
@@ -333,6 +515,9 @@ public struct V2MetricSemanticConfiguration: Codable, Hashable, Sendable {
               !temporalMetricNames.isEmpty,
               !failureHandling.isEmpty,
               !perceptualColorTransformVersion.isEmpty,
+              colorScience.isValid,
+              referenceGridWidth > 0,
+              referenceGridHeight > 0,
               !percentileInterpolation.isEmpty,
               !nonFiniteHandling.isEmpty,
               !nonNegativeClampPolicy.isEmpty,

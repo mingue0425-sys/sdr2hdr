@@ -50,6 +50,17 @@ public struct V2ParameterBounds: Codable, Hashable, Sendable {
         self.shadowProtection = shadowProtection
         self.temporalStability = temporalStability
     }
+
+    public var isValid: Bool {
+        let ranges = [
+            paperWhiteNits, peakNits, highlightStrength, contrastStrength,
+            saturationCompensation, shadowProtection, temporalStability
+        ]
+        return ranges.allSatisfy {
+            $0.lowerBound.isFinite && $0.upperBound.isFinite &&
+            $0.lowerBound <= $0.upperBound
+        }
+    }
 }
 
 public struct V2ObjectiveWeights: Codable, Hashable, Sendable {

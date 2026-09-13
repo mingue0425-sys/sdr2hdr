@@ -42,20 +42,27 @@ public struct V4TemporalWindowDecision: Codable, Sendable, Equatable, Hashable {
     }
 }
 
-public struct V4TemporalWindowPolicy: Codable, Sendable, Equatable {
+/// The temporal reducer is executable semantic data.  A free-form string
+/// here could describe one weighting policy while the evaluator implements a
+/// different one.
+public enum V4TemporalWeightingPolicy: String, Codable, Sendable, Equatable, Hashable {
+    case equalSceneWindowWeightFramesWithinWindowOnly = "EQUAL_SCENE_WINDOW_WEIGHT;FRAMES_WITHIN_WINDOW_ONLY"
+}
+
+public struct V4TemporalWindowPolicy: Codable, Sendable, Equatable, Hashable {
     public let targetFrameCount: Int
     public let minimumRequiredFrameCount: Int
     public let warmupFrameCount: Int
     /// Windows are equally weighted at the scene/window level.  Frames only
     /// contribute within their own window, so a 16-frame window cannot drown
     /// out an 11-frame window merely by having more samples.
-    public let weightingPolicy: String
+    public let weightingPolicy: V4TemporalWeightingPolicy
 
     public init(
         targetFrameCount: Int = 16,
         minimumRequiredFrameCount: Int = 8,
         warmupFrameCount: Int = 1,
-        weightingPolicy: String = "EQUAL_SCENE_WINDOW_WEIGHT;FRAMES_WITHIN_WINDOW_ONLY"
+        weightingPolicy: V4TemporalWeightingPolicy = .equalSceneWindowWeightFramesWithinWindowOnly
     ) {
         self.targetFrameCount = targetFrameCount
         self.minimumRequiredFrameCount = minimumRequiredFrameCount
@@ -67,6 +74,8 @@ public struct V4TemporalWindowPolicy: Codable, Sendable, Equatable {
     }
 
     public static let v5 = V4TemporalWindowPolicy()
+
+    public var weightingPolicyDescription: String { weightingPolicy.rawValue }
 
     public func decision(actualDecodedFrameCount: Int) -> V4TemporalWindowDecision {
         let actual = max(actualDecodedFrameCount, 0)
@@ -194,33 +203,45 @@ public struct V4HoldoutProvenanceAudit: Codable, Sendable, Equatable {
 /// never eligible for a future Virgin Frozen set, even though their sealed
 /// input manifests remain untouched.
 public enum V6VirginHoldoutPolicy {
-    public static let version = "v6-virgin-holdout-exclusion-v2"
-    public static let attempt1State = "INCOMPLETE"
-    public static let objectivePixelsRead = false
-    public static let objectiveMetricsObserved = false
-    public static let procedurallyConsumed = true
-    public static let retryPermitted = false
-    public static let consumedPairIDs: Set<String> = [
-        "solemates_unh0400_0010",
-        "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
-        "live_8_drawing_3840x2160_15000k"
-    ]
-    /// Attempt-1 exclusion is byte-bound as well as ID-bound.  Renaming or
-    /// re-registering either consumed asset cannot make it virgin again.
-    public static let consumedAssetPairs: [String: V6InputHashes] = [
-        "solemates_unh0400_0010": V6InputHashes(
-            sdrSHA256: "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
-            hdrSHA256: "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136"
-        ),
-        "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg": V6InputHashes(
-            sdrSHA256: "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
-            hdrSHA256: "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01"
-        ),
-        "live_8_drawing_3840x2160_15000k": V6InputHashes(
-            sdrSHA256: "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
-            hdrSHA256: "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c"
-        )
-    ]
+    /// This is the single semantic owner of the V6 consumed boundary.  The
+    /// compatibility accessors below are projections for older audit code;
+    /// they do not carry independent literals.
+    public static let semanticDefinition = V4HoldoutSemanticDefinition(
+        semanticVersion: "v6-virgin-holdout-exclusion-v2",
+        attempt1State: "INCOMPLETE",
+        objectivePixelsRead: false,
+        objectiveMetricsObserved: false,
+        procedurallyConsumed: true,
+        retryPermitted: false,
+        consumedPairIDs: [
+            "solemates_unh0400_0010",
+            "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+            "live_8_drawing_3840x2160_15000k"
+        ],
+        consumedAssetPairs: [
+            "solemates_unh0400_0010": V6InputHashes(
+                sdrSHA256: "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c",
+                hdrSHA256: "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136"
+            ),
+            "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg": V6InputHashes(
+                sdrSHA256: "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90",
+                hdrSHA256: "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01"
+            ),
+            "live_8_drawing_3840x2160_15000k": V6InputHashes(
+                sdrSHA256: "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee",
+                hdrSHA256: "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c"
+            )
+        ]
+    )
+
+    public static var version: String { semanticDefinition.semanticVersion }
+    public static var attempt1State: String { semanticDefinition.attempt1State }
+    public static var objectivePixelsRead: Bool { semanticDefinition.objectivePixelsRead }
+    public static var objectiveMetricsObserved: Bool { semanticDefinition.objectiveMetricsObserved }
+    public static var procedurallyConsumed: Bool { semanticDefinition.procedurallyConsumed }
+    public static var retryPermitted: Bool { semanticDefinition.retryPermitted }
+    public static var consumedPairIDs: Set<String> { semanticDefinition.consumedSet }
+    public static var consumedAssetPairs: [String: V6InputHashes] { semanticDefinition.consumedAssetPairs }
 
     public static func isExcluded(_ pairID: String) -> Bool {
         consumedPairIDs.contains(pairID)
@@ -231,13 +252,7 @@ public enum V6VirginHoldoutPolicy {
         sdrSHA256: String?,
         hdrSHA256: String?
     ) -> Bool {
-        if isExcluded(pairID) { return true }
-        let sdr = sdrSHA256?.lowercased()
-        let hdr = hdrSHA256?.lowercased()
-        return consumedAssetPairs.values.contains { consumed in
-            (sdr != nil && sdr == consumed.sdrSHA256) ||
-                (hdr != nil && hdr == consumed.hdrSHA256)
-        }
+        semanticDefinition.isExcluded(pairID: pairID, sdrSHA256: sdrSHA256, hdrSHA256: hdrSHA256)
     }
 }
 

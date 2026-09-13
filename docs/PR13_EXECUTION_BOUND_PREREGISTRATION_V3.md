@@ -2,7 +2,7 @@
 
 This report is generated from the typed `PreregisteredCalibrationExperiment` object. The execution API derives its runtime configuration from the same object and verifies the runtime semantic identity before candidate generation.
 
-- Status: `PREREGISTERED_V3_EXECUTION_BOUND_SEMANTIC_ONLY`
+- Status: `AUDIT_INVALIDATED` (historical V3 artifact; retained for audit history only)
 - Correctness baseline: `bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9`
 - Candidate policies: `bt709SourceLinear, bt1886ReferenceDisplay`
 - Global/local candidates per policy: `128/64`
@@ -439,7 +439,7 @@ This report is generated from the typed `PreregisteredCalibrationExperiment` obj
     "semanticVersion" : "sdr-preparation-definition-v3"
   },
   "preparationDefinitionHashV3" : "672f489e7f51b61d5c4b6d156861c454cbd59f0dd5367c54755d9ad087b98336",
-  "preregistrationInvalidated" : false,
+  "preregistrationInvalidated" : true,
   "retiredV1SearchDefinitionHash" : "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
   "searchAlgorithmDefinitionHash" : "d53e3a597eb8a8cee05eb4b967c63d69cc55cc681489643e473e47bbb8e38976",
   "searchDefinition" : {
@@ -599,7 +599,7 @@ This report is generated from the typed `PreregisteredCalibrationExperiment` obj
     ]
   },
   "searchDefinitionHashV3" : "7a2fcf82bb40b45f774d942dac62a57d5c75b7cba16b5415a295ed8a68db8889",
-  "status" : "PREREGISTERED_V3_EXECUTION_BOUND_SEMANTIC_ONLY",
+  "status" : "AUDIT_INVALIDATED",
   "tune" : "NOT_RUN",
   "validation" : "NOT_RUN"
 }

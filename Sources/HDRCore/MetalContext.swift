@@ -27,6 +27,20 @@ internal struct HDRShaderParameters {
     var sceneStatisticsValid: UInt32
     var sceneStatisticsReserved: UInt32
     var histogramStrategy: UInt32
+    var sceneProxyWidth: UInt32
+    var sceneProxyHeight: UInt32
+    var sceneHistogramBinCount: UInt32
+    var sceneLinear16HistogramBinCount: UInt32
+    var sceneInputMinimum: Float
+    var sceneInputMaximum: Float
+    var sceneHistogramUpperExclusive: Float
+    var sceneHistogramLogMinimumExponent: Float
+    var sceneHistogramLogMaximumExponent: Float
+    var sceneShadowDenseBreakpoint: Float
+    var sceneShadowDenseLowerBinCount: UInt32
+    var sceneShadowDenseUpperSpan: Float
+    var sceneQuantizationMaximum: Float
+    var sceneQuantizationRounding: Float
     var sceneP01: Float
     var sceneP05: Float
     var sceneP50: Float
@@ -53,6 +67,103 @@ internal struct HDRShaderParameters {
     var chromaReconstructionMode: UInt32
     var chromaSampleCenterX: Float
     var chromaSampleCenterY: Float
+
+    // Calibration color-science identity. These values are copied from the
+    // same immutable definition used by the scalar reference path.
+    var bt709LumaR: Float
+    var bt709LumaG: Float
+    var bt709LumaB: Float
+    var bt2020LumaR: Float
+    var bt2020LumaG: Float
+    var bt2020LumaB: Float
+    var bt709ToBT2020_00: Float
+    var bt709ToBT2020_01: Float
+    var bt709ToBT2020_02: Float
+    var bt709ToBT2020_10: Float
+    var bt709ToBT2020_11: Float
+    var bt709ToBT2020_12: Float
+    var bt709ToBT2020_20: Float
+    var bt709ToBT2020_21: Float
+    var bt709ToBT2020_22: Float
+    var bt709InverseBreakPoint: Float
+    var bt709InverseLinearScale: Float
+    var bt709InverseOffset: Float
+    var bt709InverseScale: Float
+    var bt709InverseExponent: Float
+    var srgbInverseBreakPoint: Float
+    var srgbInverseLinearScale: Float
+    var srgbInverseOffset: Float
+    var srgbInverseScale: Float
+    var srgbInverseExponent: Float
+    var bt601ToRGB_00: Float
+    var bt601ToRGB_01: Float
+    var bt601ToRGB_02: Float
+    var bt601ToRGB_10: Float
+    var bt601ToRGB_11: Float
+    var bt601ToRGB_12: Float
+    var bt601ToRGB_20: Float
+    var bt601ToRGB_21: Float
+    var bt601ToRGB_22: Float
+    var bt709ToRGB_00: Float
+    var bt709ToRGB_01: Float
+    var bt709ToRGB_02: Float
+    var bt709ToRGB_10: Float
+    var bt709ToRGB_11: Float
+    var bt709ToRGB_12: Float
+    var bt709ToRGB_20: Float
+    var bt709ToRGB_21: Float
+    var bt709ToRGB_22: Float
+    var bt2020ToRGB_00: Float
+    var bt2020ToRGB_01: Float
+    var bt2020ToRGB_02: Float
+    var bt2020ToRGB_10: Float
+    var bt2020ToRGB_11: Float
+    var bt2020ToRGB_12: Float
+    var bt2020ToRGB_20: Float
+    var bt2020ToRGB_21: Float
+    var bt2020ToRGB_22: Float
+    var pqM1: Float
+    var pqM2: Float
+    var pqC1: Float
+    var pqC2: Float
+    var pqC3: Float
+    var pqAbsolutePeakNits: Float
+    var p010StorageDenominator: Float
+    var p010RightShift: UInt32
+    var p010CodeMaximum: Float
+
+    // Calibration tone-mapping identity. The shader must consume these
+    // values rather than owning a second copy of the production equation.
+    var toneInputMinimum: Float
+    var toneInputMaximum: Float
+    var toneSmoothstepFloor: Float
+    var toneSmoothstepLinear: Float
+    var toneSmoothstepQuadratic: Float
+    var toneShoulderBase: Float
+    var toneShoulderContrast: Float
+    var toneLegacyShadowLower: Float
+    var toneLegacyShadowUpper: Float
+    var toneSceneFloorLower: Float
+    var toneSceneFloorUpper: Float
+    var toneSceneFloorFallback: Float
+    var toneSceneTopMinimumDelta: Float
+    var toneSceneTopFallback: Float
+    var toneSceneTopUpper: Float
+    var toneSceneLowMidCoefficient: Float
+    var toneSceneProtectionCoefficient: Float
+    var toneDefaultPresenceLower: Float
+    var toneDefaultPresenceUpper: Float
+    var toneDefaultFadeLower: Float
+    var toneDefaultFadeUpper: Float
+    var toneDefaultAttenuationCoefficient: Float
+    var toneChromaStart: Float
+    var toneChromaPeakMinimum: Float
+    var toneChromaCoefficient: Float
+    var toneGamutLuminanceFloor: Float
+    var toneGamutDenominatorFloor: Float
+    var toneChromaScaleMinimum: Float
+    var toneChromaScaleMaximum: Float
+    var toneOutputMinimum: Float
 }
 
 internal final class MetalContext {

@@ -12,12 +12,23 @@ public struct ReferenceFrame {
     public let rgbNits: [SIMD3<Float>]
     public let lumaNits: [Float]
 
-    public init(timestampSeconds: Double, width: Int, height: Int, rgbNits: [SIMD3<Float>]) {
+    public init(
+        timestampSeconds: Double,
+        width: Int,
+        height: Int,
+        rgbNits: [SIMD3<Float>],
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) {
         self.timestampSeconds = timestampSeconds
         self.width = width
         self.height = height
         self.rgbNits = rgbNits
-        self.lumaNits = rgbNits.map { simd_dot($0, HDRColorMath.bt2020Luminance) }
+        let coefficients = SIMD3<Float>(
+            Float(colorScience.yCbCr.bt2020Luminance[0]),
+            Float(colorScience.yCbCr.bt2020Luminance[1]),
+            Float(colorScience.yCbCr.bt2020Luminance[2])
+        )
+        self.lumaNits = rgbNits.map { simd_dot($0, coefficients) }
     }
 }
 
@@ -40,6 +51,7 @@ public struct GeneratedFrame {
         width: Int,
         height: Int,
         rgbNits: [SIMD3<Float>],
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4,
         temporalAdaptationUsed: Float = 1,
         sceneShadowFloorUsed: Float = HDRSceneStatistics.neutral.shadowFloor,
         sceneShadowTopUsed: Float = HDRSceneStatistics.neutral.shadowTop,
@@ -49,7 +61,12 @@ public struct GeneratedFrame {
         self.width = width
         self.height = height
         self.rgbNits = rgbNits
-        self.lumaNits = rgbNits.map { simd_dot($0, HDRColorMath.bt2020Luminance) }
+        let coefficients = SIMD3<Float>(
+            Float(colorScience.yCbCr.bt2020Luminance[0]),
+            Float(colorScience.yCbCr.bt2020Luminance[1]),
+            Float(colorScience.yCbCr.bt2020Luminance[2])
+        )
+        self.lumaNits = rgbNits.map { simd_dot($0, coefficients) }
         self.temporalAdaptationUsed = temporalAdaptationUsed
         self.sceneShadowFloorUsed = sceneShadowFloorUsed
         self.sceneShadowTopUsed = sceneShadowTopUsed
@@ -58,43 +75,69 @@ public struct GeneratedFrame {
 }
 
 public enum HDRReferenceTransferMath {
-    public static func decodeNits(signal: Float, transfer: ReferenceTransfer, targetPeakNits: Float = 1_000) -> Float {
+    public static func decodeNits(
+        signal: Float,
+        transfer: ReferenceTransfer,
+        targetPeakNits: Float = 1_000,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) -> Float {
         switch transfer {
         case .pq:
-            return HDRColorMath.pqDecodeNits(signal: signal)
+            return HDRColorMath.pqDecodeNits(signal: signal, definition: colorScience.pq)
         case .hlg:
-            return hlgDisplayNits(signal: signal, peakNits: targetPeakNits)
+            return hlgDisplayNits(signal: signal, peakNits: targetPeakNits, colorScience: colorScience)
         case .unknown:
             return .nan
         }
     }
 
-    public static func hlgDisplayNits(signal: Float, peakNits: Float = 1_000) -> Float {
-        hlgDisplayRGBNits(signal: SIMD3(repeating: signal), peakNits: peakNits).x
+    public static func hlgDisplayNits(
+        signal: Float,
+        peakNits: Float = 1_000,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) -> Float {
+        hlgDisplayRGBNits(
+            signal: SIMD3(repeating: signal), peakNits: peakNits, colorScience: colorScience
+        ).x
     }
 
     /// BT.2100 HLG inverse OETF followed by the display-side OOTF. The OOTF
     /// is a vector operation: system gamma is derived from BT.2020 scene
     /// luminance and applied as one gain to RGB, preserving hue/chroma ratios.
-    public static func hlgDisplayRGBNits(signal: SIMD3<Float>, peakNits: Float = 1_000) -> SIMD3<Float> {
-        let a: Float = 0.17883277
-        let b: Float = 1 - 4 * a
-        let c: Float = 0.55991073
+    public static func hlgDisplayRGBNits(
+        signal: SIMD3<Float>,
+        peakNits: Float = 1_000,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) -> SIMD3<Float> {
+        let definition = colorScience.hlg
+        let a = Float(definition.inverseOETFExponentialA)
+        let b = Float(definition.inverseOETFExponentialB)
+        let c = Float(definition.inverseOETFExponentialC)
         func inverseOETF(_ value: Float) -> Float {
-            let clamped = min(max(value, 0), 1)
-            return clamped <= 0.5
-                ? (clamped * clamped) / 3
-                : (exp((clamped - c) / a) + b) / 12
+            let clamped = min(
+                max(value, Float(definition.signalMinimum)),
+                Float(definition.signalMaximum)
+            )
+            return clamped <= Float(definition.inverseOETFBreakpoint)
+                ? (clamped * clamped) * Float(definition.inverseOETFLinearScale)
+                : (exp((clamped - c) / a) + b) * Float(definition.inverseOETFExponentialScale)
         }
         let scene = SIMD3(
             inverseOETF(signal.x), inverseOETF(signal.y), inverseOETF(signal.z)
         )
-        let sceneLuminance = max(simd_dot(scene, HDRColorMath.bt2020Luminance), 0)
-        let systemGamma = 1.2 + 0.42 * log10(max(peakNits, 100) / 1_000)
+        let coefficients = SIMD3<Float>(
+            Float(colorScience.yCbCr.bt2020Luminance[0]),
+            Float(colorScience.yCbCr.bt2020Luminance[1]),
+            Float(colorScience.yCbCr.bt2020Luminance[2])
+        )
+        let sceneLuminance = max(simd_dot(scene, coefficients), 0)
+        let systemGamma = Float(definition.systemGammaOffset) + Float(definition.systemGammaPeakScale) *
+            log10(max(peakNits, Float(definition.systemGammaMinimumPeakNits)) /
+                Float(definition.systemGammaReferencePeakNits))
         let ootfGain = sceneLuminance > 0
             ? pow(sceneLuminance, systemGamma - 1)
             : 0
-        let display = scene * ootfGain * max(peakNits, 1)
+        let display = scene * ootfGain * max(peakNits, Float(definition.displayMinimumPeakNits))
         return SIMD3(
             display.x.isFinite ? max(display.x, 0) : 0,
             display.y.isFinite ? max(display.y, 0) : 0,
@@ -110,7 +153,8 @@ public enum HDRReferenceDecoder {
         width: Int = 32,
         height: Int = 18,
         transfer: ReferenceTransfer = .pq,
-        referencePeakNits: Float = 1_000
+        referencePeakNits: Float = 1_000,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
     ) throws -> ReferenceFrame {
         let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
         guard format == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange ||
@@ -141,28 +185,45 @@ public enum HDRReferenceDecoder {
             for gx in 0..<width {
                 let sourceX = min(sourceWidth - 1, gx * sourceWidth / width)
                 let uvX = min(max(0, CVPixelBufferGetWidthOfPlane(pixelBuffer, 1) - 1), sourceX / 2)
-                let yCode = Float(yRow[sourceX] >> 6)
-                let cbCode = Float(uvRow[uvX * 2] >> 6)
-                let crCode = Float(uvRow[uvX * 2 + 1] >> 6)
-                let y = fullRange ? yCode / 1023 : min(max((yCode - 64) / 876, 0), 1)
-                let cb = fullRange ? (cbCode - 512) / 1023 : (cbCode - 512) / 896
-                let cr = fullRange ? (crCode - 512) / 1023 : (crCode - 512) / 896
+                let rightShift = colorScience.yCbCr.p010RightShift
+                let yCode = Float(yRow[sourceX] >> rightShift)
+                let cbCode = Float(uvRow[uvX * 2] >> rightShift)
+                let crCode = Float(uvRow[uvX * 2 + 1] >> rightShift)
+                let y = fullRange
+                    ? yCode / Float(colorScience.yCbCr.fullRange10Denominator)
+                    : min(
+                        max(
+                            (yCode - Float(colorScience.yCbCr.videoRange10LumaOffset)) /
+                                Float(colorScience.yCbCr.videoRange10LumaDenominator),
+                            0
+                        ),
+                        1
+                    )
+                let cb = fullRange
+                    ? (cbCode - Float(colorScience.yCbCr.videoRange10ChromaCenter)) /
+                        Float(colorScience.yCbCr.fullRange10Denominator)
+                    : (cbCode - Float(colorScience.yCbCr.videoRange10ChromaCenter)) /
+                        Float(colorScience.yCbCr.videoRange10ChromaDenominator)
+                let cr = fullRange
+                    ? (crCode - Float(colorScience.yCbCr.videoRange10ChromaCenter)) /
+                        Float(colorScience.yCbCr.fullRange10Denominator)
+                    : (crCode - Float(colorScience.yCbCr.videoRange10ChromaCenter)) /
+                        Float(colorScience.yCbCr.videoRange10ChromaDenominator)
+                let converted = colorScience.yCbCr.rgb(from: .bt2020, y: Double(y), cb: Double(cb), cr: Double(cr))
                 let signal = SIMD3<Float>(
-                    y + 1.4746 * cr,
-                    y - 0.164553 * cb - 0.571353 * cr,
-                    y + 1.8814 * cb
+                    Float(converted.0), Float(converted.1), Float(converted.2)
                 )
                 let decoded: SIMD3<Float>
                 switch transfer {
                 case .pq:
                     decoded = SIMD3<Float>(
-                        HDRReferenceTransferMath.decodeNits(signal: signal.x, transfer: .pq),
-                        HDRReferenceTransferMath.decodeNits(signal: signal.y, transfer: .pq),
-                        HDRReferenceTransferMath.decodeNits(signal: signal.z, transfer: .pq)
+                        HDRReferenceTransferMath.decodeNits(signal: signal.x, transfer: .pq, colorScience: colorScience),
+                        HDRReferenceTransferMath.decodeNits(signal: signal.y, transfer: .pq, colorScience: colorScience),
+                        HDRReferenceTransferMath.decodeNits(signal: signal.z, transfer: .pq, colorScience: colorScience)
                     )
                 case .hlg:
                     decoded = HDRReferenceTransferMath.hlgDisplayRGBNits(
-                        signal: signal, peakNits: referencePeakNits
+                        signal: signal, peakNits: referencePeakNits, colorScience: colorScience
                     )
                 case .unknown:
                     throw CalibrationError.unsupportedReference("unknown transfer")
@@ -172,7 +233,10 @@ public enum HDRReferenceDecoder {
                 )
             }
         }
-        return ReferenceFrame(timestampSeconds: timestampSeconds, width: width, height: height, rgbNits: rgb)
+        return ReferenceFrame(
+            timestampSeconds: timestampSeconds, width: width, height: height,
+            rgbNits: rgb, colorScience: colorScience
+        )
     }
 
     private static func finiteOrZero(_ value: Float) -> Float {
@@ -186,9 +250,18 @@ public final class HDRCoreOfflineEvaluator {
     private let processor: HDRProcessor
     private let gridWidth: Int
     private let gridHeight: Int
+    private let colorScience: HDRColorScienceSemanticDefinition
+    private let toneMapping: HDRToneMappingSemanticDefinition
+    private let sceneStatistics: HDRSceneStatisticsSemanticDefinition
     private var readbackTexture: MTLTexture?
 
-    public init(device: MTLDevice, configuration: HDRConfiguration, gridWidth: Int = 32, gridHeight: Int = 18) throws {
+    public init(
+        device: MTLDevice,
+        configuration: HDRConfiguration,
+        gridWidth: Int = 32,
+        gridHeight: Int = 18,
+        colorScience: HDRColorScienceSemanticDefinition? = nil
+    ) throws {
         self.device = device
         self.processor = try HDRProcessor(device: device, configuration: configuration)
         // Offline evaluation must execute the same causal GPU estimator as
@@ -197,6 +270,15 @@ public final class HDRCoreOfflineEvaluator {
         self.processor.automaticTemporalEstimationEnabled = true
         self.gridWidth = gridWidth
         self.gridHeight = gridHeight
+        let effectiveColorScience = colorScience ?? configuration.colorScience
+        guard effectiveColorScience == configuration.colorScience else {
+            throw CalibrationError.decodeFailed(
+                "offline evaluator color-science definition differs from HDR configuration"
+            )
+        }
+        self.colorScience = effectiveColorScience
+        self.toneMapping = configuration.toneMapping
+        self.sceneStatistics = configuration.toneMapping.sceneStatistics
         self.readbackTexture = nil
     }
 
@@ -212,6 +294,16 @@ public final class HDRCoreOfflineEvaluator {
         averageLuminance: Float? = nil,
         sceneCut: Bool = false
     ) throws -> GeneratedFrame {
+        guard configuration.colorScience == colorScience else {
+            throw CalibrationError.decodeFailed(
+                "offline evaluator color-science definition differs from HDR configuration"
+            )
+        }
+        guard configuration.toneMapping == toneMapping else {
+            throw CalibrationError.decodeFailed(
+                "offline evaluator tone-mapping definition differs from HDR configuration"
+            )
+        }
         try processor.update(configuration: configuration)
         if let averageLuminance, !processor.automaticTemporalEstimationEnabled {
             processor.updateTemporalEstimate(averageLuminance: averageLuminance, sceneCut: sceneCut)
@@ -273,6 +365,7 @@ public final class HDRCoreOfflineEvaluator {
             width: gridWidth,
             height: gridHeight,
             rgbNits: rgb,
+            colorScience: colorScience,
             temporalAdaptationUsed: temporalAdaptationUsed,
             sceneShadowFloorUsed: sceneShadowUsed.floor,
             sceneShadowTopUsed: sceneShadowUsed.top,
@@ -317,7 +410,12 @@ public final class HDRCoreOfflineEvaluator {
     /// is used rather than exact CPU percentiles.
     public func updateSceneStatistics(sdrBT709Signals: [Float], sceneCut: Bool = false) {
         processor.updateSceneStatistics(
-            HDRSceneStatistics(productionLinearSamples: sdrBT709Signals.map { HDRColorMath.inverseBT709($0) }),
+            HDRSceneStatistics(
+                productionLinearSamples: sdrBT709Signals.map {
+                HDRColorMath.inverseBT709($0, colorScience: colorScience)
+                },
+                semantics: sceneStatistics
+            ),
             sceneCut: sceneCut
         )
     }
@@ -332,8 +430,9 @@ public final class HDRCoreOfflineEvaluator {
         processor.updateSceneStatistics(
             HDRSceneStatistics(
                 productionLinearSamples: sdrSignals.map {
-                    HDRColorMath.inverseTransfer($0, function: transfer)
-                }
+                HDRColorMath.inverseTransfer($0, function: transfer, colorScience: colorScience)
+                },
+                semantics: sceneStatistics
             ),
             sceneCut: sceneCut
         )

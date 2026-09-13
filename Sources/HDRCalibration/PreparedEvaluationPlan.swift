@@ -33,6 +33,22 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherVersion: String
     public let matcherConfiguration: V6MatcherConfiguration
     public let matcherConfigurationHash: String
+    public let descriptorSemantics: V6DescriptorSemanticConfiguration
+    public let sequenceValidationSemantics: V6SequenceValidationSemanticConfiguration
+    public let alignmentSemantics: V6AlignmentSemanticConfiguration
+    public let sceneSegmentationSemantics: V6SceneSegmentationSemanticConfiguration
+    public let representativeFrameSemantics: V6RepresentativeFrameSemanticConfiguration
+    public let temporalSelectionSemantics: V6TemporalSelectionSemanticConfiguration
+    public let spatialGeometrySemantics: V6SpatialGeometrySemanticConfiguration
+    public let planValidationSemantics: V6PreparationValidationSemanticConfiguration
+    public let decoderMetadataSemantics: V6DecoderMetadataSemanticConfiguration
+    public let frameSamplingSemantics: V6FrameSamplingSemanticConfiguration
+    /// The exact color conversion used while producing source/reference
+    /// preparation samples.  Preparation and metric evaluation share this
+    /// immutable definition; neither side owns a second copy.
+    public let colorScience: HDRColorScienceSemanticDefinition
+    public let referenceGridWidth: Int
+    public let referenceGridHeight: Int
     public let sdrInterpretationPolicyVersion: String
     public let sdrInterpretationPolicy: SDRInputInterpretationPolicy
     public let untaggedSDRFallback: SDRUntaggedFallbackPolicy
@@ -60,6 +76,19 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
         temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window",
         matcherConfiguration: V6MatcherConfiguration = .v6,
+        descriptorSemantics: V6DescriptorSemanticConfiguration = .v6,
+        sequenceValidationSemantics: V6SequenceValidationSemanticConfiguration = .v6,
+        alignmentSemantics: V6AlignmentSemanticConfiguration = .v6,
+        sceneSegmentationSemantics: V6SceneSegmentationSemanticConfiguration = .v6,
+        representativeFrameSemantics: V6RepresentativeFrameSemanticConfiguration = .v6,
+        temporalSelectionSemantics: V6TemporalSelectionSemanticConfiguration = .v6,
+        spatialGeometrySemantics: V6SpatialGeometrySemanticConfiguration = .v6,
+        planValidationSemantics: V6PreparationValidationSemanticConfiguration = .v6,
+        decoderMetadataSemantics: V6DecoderMetadataSemanticConfiguration = .v6,
+        frameSamplingSemantics: V6FrameSamplingSemanticConfiguration = .v6,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4,
+        referenceGridWidth: Int = 32,
+        referenceGridHeight: Int = 18,
         sdrInterpretationPolicyVersion: String = "sdr-input-interpretation-policy-v1",
         sdrInterpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
         untaggedSDRFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
@@ -96,6 +125,19 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
             // digest is substituted for a failed semantic encoding.
             self.matcherConfigurationHash = "INVALID_SEMANTIC_IDENTITY"
         }
+        self.descriptorSemantics = descriptorSemantics
+        self.sequenceValidationSemantics = sequenceValidationSemantics
+        self.alignmentSemantics = alignmentSemantics
+        self.sceneSegmentationSemantics = sceneSegmentationSemantics
+        self.representativeFrameSemantics = representativeFrameSemantics
+        self.temporalSelectionSemantics = temporalSelectionSemantics
+        self.spatialGeometrySemantics = spatialGeometrySemantics
+        self.planValidationSemantics = planValidationSemantics
+        self.decoderMetadataSemantics = decoderMetadataSemantics
+        self.frameSamplingSemantics = frameSamplingSemantics
+        self.colorScience = colorScience
+        self.referenceGridWidth = referenceGridWidth
+        self.referenceGridHeight = referenceGridHeight
         self.sdrInterpretationPolicyVersion = sdrInterpretationPolicyVersion
         self.sdrInterpretationPolicy = sdrInterpretationPolicy
         self.untaggedSDRFallback = untaggedSDRFallback
@@ -146,6 +188,19 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
             sceneSelectionPolicy: sceneSelectionPolicy,
             temporalSelectionPolicy: temporalSelectionPolicy,
             matcherConfiguration: matcherConfiguration,
+            descriptorSemantics: descriptorSemantics,
+            sequenceValidationSemantics: sequenceValidationSemantics,
+            alignmentSemantics: alignmentSemantics,
+            sceneSegmentationSemantics: sceneSegmentationSemantics,
+            representativeFrameSemantics: representativeFrameSemantics,
+            temporalSelectionSemantics: temporalSelectionSemantics,
+            spatialGeometrySemantics: spatialGeometrySemantics,
+            planValidationSemantics: planValidationSemantics,
+            decoderMetadataSemantics: decoderMetadataSemantics,
+            frameSamplingSemantics: frameSamplingSemantics,
+            colorScience: colorScience,
+            referenceGridWidth: referenceGridWidth,
+            referenceGridHeight: referenceGridHeight,
             sdrInterpretationPolicyVersion: sdrInterpretationPolicyVersion,
             sdrInterpretationPolicy: policy,
             untaggedSDRFallback: untaggedSDRFallback,
@@ -158,7 +213,10 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     /// Codable keeps newly added stored fields in this identity; the field
     /// coverage guard below makes such additions an explicit test change.
     public func canonicalSHA256() throws -> String {
-        try HDRCanonicalIdentity.sha256(self)
+        if let failure = validationFailure() {
+            throw CalibrationError.incompleteEvaluation(failure)
+        }
+        return try HDRCanonicalIdentity.sha256(self)
     }
 
     public static let canonicalFieldNames: Set<String> = [
@@ -170,13 +228,33 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         "hdrPixelFormat", "frameDecoderPolicy", "referenceDecoderPolicy",
         "pathResolutionPolicy", "sceneSelectionPolicy", "temporalSelectionPolicy",
         "preparationAlgorithmVersion", "matcherVersion", "matcherConfiguration",
-        "matcherConfigurationHash", "sdrInterpretationPolicyVersion",
+        "matcherConfigurationHash", "descriptorSemantics", "sequenceValidationSemantics",
+        "alignmentSemantics", "sceneSegmentationSemantics",
+        "representativeFrameSemantics", "temporalSelectionSemantics", "spatialGeometrySemantics",
+        "planValidationSemantics", "decoderMetadataSemantics", "frameSamplingSemantics",
+        "colorScience", "referenceGridWidth", "referenceGridHeight",
+        "sdrInterpretationPolicyVersion",
         "sdrInterpretationPolicy", "untaggedSDRFallback", "bt1886Parameters",
         "sdrInterpretationPolicyHash"
     ]
 
     func validationFailure() -> String? {
         if let failure = matcherConfiguration.validationFailure() { return failure }
+        guard descriptorSemantics.isValid,
+              descriptorSemantics.gridWidth == matcherConfiguration.gridWidth,
+              descriptorSemantics.gridHeight == matcherConfiguration.gridHeight,
+              descriptorSemantics.histogramBinCount == sequenceValidationSemantics.histogramBinCount,
+              sequenceValidationSemantics.isValid,
+              alignmentSemantics.isValid,
+              sceneSegmentationSemantics.isValid,
+              representativeFrameSemantics.isValid,
+              temporalSelectionSemantics.isValid,
+              spatialGeometrySemantics.isValid,
+              planValidationSemantics.isValid,
+              decoderMetadataSemantics.isValid,
+              frameSamplingSemantics.isValid else {
+            return "preparation semantic subconfiguration is invalid"
+        }
         let doubleValues = [
             alignmentConfidenceThreshold,
             acceptedConfidenceThreshold,
@@ -185,22 +263,19 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         guard doubleValues.allSatisfy(\.isFinite), referenceTargetPeakNits.isFinite else {
             return "preparation configuration contains a non-finite value"
         }
-        do {
-            let data = try HDRCanonicalIdentity.data(self)
-            guard let object = try JSONSerialization.jsonObject(
-                with: data, options: [.fragmentsAllowed]
-            ) as? [String: Any], Set(object.keys) == Self.canonicalFieldNames else {
-                return "preparation configuration semantic field coverage is incomplete"
-            }
-        } catch {
-            return "preparation configuration identity encoding failed"
+        let storedFieldNames = Set(Mirror(reflecting: self).children.compactMap(\.label))
+        guard storedFieldNames == Self.canonicalFieldNames else {
+            return "preparation configuration semantic field coverage is incomplete"
         }
         guard !version.isEmpty,
               !frameDecoderPolicy.isEmpty,
               !referenceDecoderPolicy.isEmpty,
               !pathResolutionPolicy.isEmpty,
               !sceneSelectionPolicy.isEmpty,
-              !temporalSelectionPolicy.isEmpty else {
+              !temporalSelectionPolicy.isEmpty,
+              colorScience.isValid,
+              referenceGridWidth > 0,
+              referenceGridHeight > 0 else {
             return "preparation configuration contains an empty policy identifier"
         }
         let expectedPolicyHash: String
@@ -219,18 +294,20 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               sdrInterpretationPolicyHash == expectedPolicyHash else {
             return "preparation SDR interpretation identity is invalid"
         }
-        guard (1...512).contains(maxFramesPerScene),
-              (1...512).contains(maxDecodedFrames),
+        let validation = planValidationSemantics
+        guard (1...validation.maximumFramesPerScene).contains(maxFramesPerScene),
+              (1...validation.maximumDecodedFrames).contains(maxDecodedFrames),
               maxDecodedFrames >= maxFramesPerScene,
-              (16...512).contains(proxyWidth) else {
+              (validation.minimumProxyWidth...validation.maximumProxyWidth).contains(proxyWidth) else {
             return "preparation frame or proxy bounds are invalid"
         }
-        guard alignmentConfidenceThreshold == 0,
+        guard (!validation.alignmentConfidenceMustBeZero || alignmentConfidenceThreshold == 0),
               (0...1).contains(acceptedConfidenceThreshold),
               acceptedConfidenceThreshold == matcherConfiguration.acceptedConfidenceThreshold else {
             return "preparation and matcher confidence thresholds are invalid or inconsistent"
         }
-        guard temporalFramesPerSecond >= 1, temporalFramesPerSecond <= 240,
+        guard temporalFramesPerSecond >= validation.minimumTemporalFPS,
+              temporalFramesPerSecond <= validation.maximumTemporalFPS,
               temporalTargetFrameCount > 0,
               temporalTargetFrameCount <= maxDecodedFrames,
               temporalMinimumFrameCount > 0,
@@ -239,7 +316,8 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
               temporalWarmupFrameCount < temporalTargetFrameCount else {
             return "preparation temporal-window bounds are invalid"
         }
-        guard referenceTargetPeakNits >= 1, referenceTargetPeakNits <= 10_000,
+        guard referenceTargetPeakNits >= validation.minimumReferencePeakNits,
+              referenceTargetPeakNits <= validation.maximumReferencePeakNits,
               sdrPixelFormat == CalibrationPixelFormat.sdrNV12,
               hdrPixelFormat == CalibrationPixelFormat.hdrP010 else {
             return "preparation reference or pixel-format values are invalid"
@@ -730,6 +808,7 @@ private enum V6PreparedEvaluationPlanSemantics {
         for pair in plan.pairs {
             let alignment = pair.alignment
             let matcher = plan.preparation.matcherConfiguration
+            let validation = plan.preparation.planValidationSemantics
             let offsetMinimum = matcher.offsetMinimumSeconds
             let offsetMaximum = matcher.offsetMaximumSeconds
             let permittedOffsetRange = offsetMinimum...offsetMaximum
@@ -739,8 +818,11 @@ private enum V6PreparedEvaluationPlanSemantics {
             let sortedConfidences = alignment.matchedFrames.map(\.confidence).sorted()
             let expectedMedian = sortedConfidences.isEmpty
                 ? -1 : sortedConfidences[sortedConfidences.count / 2]
-            let expectedQuantiles = confidenceQuantiles(sortedConfidences)
-            let expectedStatus = abs(alignment.coarseOffsetSeconds) > 0.01 ||
+            let expectedQuantiles = confidenceQuantiles(
+                sortedConfidences,
+                configuration: plan.preparation.alignmentSemantics
+            )
+            let expectedStatus = abs(alignment.coarseOffsetSeconds) > plan.preparation.alignmentSemantics.statusOffsetToleranceSeconds ||
                 alignment.rejectedFrameCount > 0
                 ? "PAIR_NEEDS_ALIGNMENT" : "ALIGNED"
             guard !pair.pairID.isEmpty,
@@ -749,10 +831,10 @@ private enum V6PreparedEvaluationPlanSemantics {
                   portable(pair.sdrPath), portable(pair.hdrPath),
                   canonicalSHA256(pair.inputHashes.sdrSHA256),
                   canonicalSHA256(pair.inputHashes.hdrSHA256),
-                  (1...512).contains(pair.decode.sdrWidth),
-                  (1...512).contains(pair.decode.hdrWidth),
-                  (2...4_096).contains(pair.decode.sdrHeight),
-                  (2...4_096).contains(pair.decode.hdrHeight),
+                  (1...validation.maximumDecodedWidth).contains(pair.decode.sdrWidth),
+                  (1...validation.maximumDecodedWidth).contains(pair.decode.hdrWidth),
+                  (2...validation.maximumDecodedHeight).contains(pair.decode.sdrHeight),
+                  (2...validation.maximumDecodedHeight).contains(pair.decode.hdrHeight),
                   pair.decode.sdrHeight.isMultiple(of: 2),
                   pair.decode.hdrHeight.isMultiple(of: 2),
                   pair.decode.decodedSDRFrameCount > 0,
@@ -761,10 +843,10 @@ private enum V6PreparedEvaluationPlanSemantics {
                   pair.decode.decodedHDRFrameCount <= plan.preparation.maxDecodedFrames,
                   pair.decode.sdrNominalFrameRate.isFinite,
                   pair.decode.sdrNominalFrameRate > 0,
-                  pair.decode.sdrNominalFrameRate <= 1_000,
+                  pair.decode.sdrNominalFrameRate <= validation.maximumNominalFPS,
                   pair.decode.hdrNominalFrameRate.isFinite,
                   pair.decode.hdrNominalFrameRate > 0,
-                  pair.decode.hdrNominalFrameRate <= 1_000,
+                  pair.decode.hdrNominalFrameRate <= validation.maximumNominalFPS,
                   pair.decode.sdrDurationSeconds.isFinite,
                   pair.decode.hdrDurationSeconds.isFinite,
                   pair.decode.sdrDurationSeconds >= 0,
@@ -793,17 +875,17 @@ private enum V6PreparedEvaluationPlanSemantics {
                   alignment.coarseOffsetSeconds.isFinite,
                   alignment.secondBestOffsetSeconds.isFinite,
                   alignment.bestVersusSecondMargin.isFinite,
-                  alignment.bestVersusSecondMargin >= -1e-12,
+                  alignment.bestVersusSecondMargin >= -validation.evidenceTolerance,
                   permittedOffsetRange.contains(alignment.coarseOffsetSeconds),
                   permittedOffsetRange.contains(alignment.secondBestOffsetSeconds),
                   alignment.offsetDriftSeconds.isFinite,
                   alignment.offsetDriftSeconds >= 0,
                   !alignment.perWindowOffsets.isEmpty,
-                  alignment.perWindowOffsets.count <= 8,
+                  alignment.perWindowOffsets.count <= validation.maximumPerWindowOffsetCount,
                   alignment.perWindowOffsets.allSatisfy({
                     $0.isFinite && permittedOffsetRange.contains($0)
                   }),
-                  abs(expectedDrift - alignment.offsetDriftSeconds) <= 1e-12,
+                  abs(expectedDrift - alignment.offsetDriftSeconds) <= validation.evidenceTolerance,
                   alignment.confidenceQuantiles == expectedQuantiles,
                   identitiesAreValid(alignment.matchedFrames),
                   identitiesAreValid(alignment.acceptedFrames),
@@ -828,7 +910,7 @@ private enum V6PreparedEvaluationPlanSemantics {
                     $0.confidence >= plan.preparation.acceptedConfidenceThreshold
                   }),
                   expectedRawAccepted == alignment.rawAcceptedFrameCount,
-                  abs(expectedRatio - alignment.rawAcceptanceRatio) <= 1e-12,
+                  abs(expectedRatio - alignment.rawAcceptanceRatio) <= validation.evidenceTolerance,
                   Set(alignment.matchedFrames.map(\.sdrSequencePosition)).count ==
                     alignment.matchedFrames.count,
                   Set(alignment.matchedFrames.map(\.hdrSequencePosition)).count ==
@@ -906,7 +988,8 @@ private enum V6PreparedEvaluationPlanSemantics {
     }
 
     private static func confidenceQuantiles(
-        _ sortedValues: [Double]
+        _ sortedValues: [Double],
+        configuration: V6AlignmentSemanticConfiguration
     ) -> V6ConfidenceQuantiles {
         func value(_ fraction: Double) -> Double {
             guard !sortedValues.isEmpty else { return 0 }
@@ -915,14 +998,15 @@ private enum V6PreparedEvaluationPlanSemantics {
                 Int(Double(sortedValues.count - 1) * fraction)
             )]
         }
+        let fractions = configuration.quantileFractions
         return V6ConfidenceQuantiles(
-            minimum: value(0),
-            p10: value(0.10),
-            p25: value(0.25),
-            p50: value(0.50),
-            p75: value(0.75),
-            p90: value(0.90),
-            maximum: value(1)
+            minimum: value(fractions[0]),
+            p10: value(fractions[1]),
+            p25: value(fractions[2]),
+            p50: value(fractions[3]),
+            p75: value(fractions[4]),
+            p90: value(fractions[5]),
+            maximum: value(fractions[6])
         )
     }
 
@@ -1063,6 +1147,7 @@ enum V6PreparedEvaluationPlanBuilder {
             )
         }
         for record in records {
+            let validation = plan.preparation.planValidationSemantics
             guard let pair = plan.pairPlan(for: record.id),
                   pair.split == record.split,
                   pair.sdrPath == record.sdr,
@@ -1096,7 +1181,7 @@ enum V6PreparedEvaluationPlanBuilder {
                   abs(pair.alignment.rawAcceptanceRatio -
                       (pair.alignment.matchedFrames.isEmpty ? 0 :
                         Double(pair.alignment.rawAcceptedFrameCount) /
-                            Double(pair.alignment.matchedFrames.count))) <= 1e-12,
+                            Double(pair.alignment.matchedFrames.count))) <= validation.evidenceTolerance,
                   pair.alignment.offsetDriftSeconds >= 0,
                   !pair.alignment.perWindowOffsets.isEmpty,
                   pair.alignment.acceptedFrameCount == pair.alignment.acceptedFrames.count,
@@ -1401,7 +1486,10 @@ enum V6PreparedEvaluationPlanBuilder {
         let rawAcceptedCount = raw.filter {
             $0.confidence >= configuration.acceptedConfidenceThreshold
         }.count
-        let rawQuantiles = confidenceQuantiles(raw.map(\.confidence))
+        let rawQuantiles = confidenceQuantiles(
+            raw.map(\.confidence),
+            configuration: configuration.alignmentSemantics
+        )
         let decode = V6DecodeMetadata(
             sdrWidth: prepared.sdrSequence.width,
             sdrHeight: prepared.sdrSequence.height,
@@ -1484,15 +1572,19 @@ enum V6PreparedEvaluationPlanBuilder {
         return hashes
     }
 
-    private static func confidenceQuantiles(_ values: [Double]) -> V6ConfidenceQuantiles {
+    private static func confidenceQuantiles(
+        _ values: [Double],
+        configuration: V6AlignmentSemanticConfiguration
+    ) -> V6ConfidenceQuantiles {
         let sorted = values.sorted()
         func value(_ fraction: Double) -> Double {
             guard !sorted.isEmpty else { return 0 }
             return sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * fraction))]
         }
+        let fractions = configuration.quantileFractions
         return V6ConfidenceQuantiles(
-            minimum: value(0), p10: value(0.10), p25: value(0.25), p50: value(0.50),
-            p75: value(0.75), p90: value(0.90), maximum: value(1)
+            minimum: value(fractions[0]), p10: value(fractions[1]), p25: value(fractions[2]), p50: value(fractions[3]),
+            p75: value(fractions[4]), p90: value(fractions[5]), maximum: value(fractions[6])
         )
     }
 

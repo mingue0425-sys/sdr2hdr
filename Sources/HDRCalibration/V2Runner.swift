@@ -406,6 +406,7 @@ public enum V6PreparedPlanCausalVerifier {
 final class V2EvaluationEngine {
     private let device: MTLDevice
     private let metricConfiguration: V2MetricSemanticConfiguration
+    private let runnerSemanticConfiguration: V4RunnerSemanticConfiguration?
     private var evaluators: [String: HDRCoreOfflineEvaluator] = [:]
     /// Temporal history belongs to a (pair, configuration) evaluation.  A
     /// cached evaluator may be reused for speed, but changing parameters must
@@ -413,18 +414,27 @@ final class V2EvaluationEngine {
     private var evaluatorConfigurationKeys: [String: String] = [:]
     private var preparedEvaluationPlan: PreparedEvaluationPlan?
 
-    init(device: MTLDevice, weights: V2ObjectiveWeights) {
+    init(
+        device: MTLDevice,
+        weights: V2ObjectiveWeights,
+        runnerSemanticConfiguration: V4RunnerSemanticConfiguration? = nil
+    ) {
         self.device = device
-        var metricConfiguration = V2MetricSemanticConfiguration.current
-        metricConfiguration.objectiveWeights = weights
+        let metricConfiguration = V2MetricSemanticConfiguration(objectiveWeights: weights)
         self.metricConfiguration = metricConfiguration
+        self.runnerSemanticConfiguration = runnerSemanticConfiguration
         self.preparedEvaluationPlan = nil
     }
 
-    init(device: MTLDevice, metricConfiguration: V2MetricSemanticConfiguration) throws {
+    init(
+        device: MTLDevice,
+        metricConfiguration: V2MetricSemanticConfiguration,
+        runnerSemanticConfiguration: V4RunnerSemanticConfiguration? = nil
+    ) throws {
         try metricConfiguration.validate()
         self.device = device
         self.metricConfiguration = metricConfiguration
+        self.runnerSemanticConfiguration = runnerSemanticConfiguration
         self.preparedEvaluationPlan = nil
     }
 
@@ -473,7 +483,10 @@ final class V2EvaluationEngine {
         }
         var videos: [V2VideoEvaluation] = []
         for prepared in preparedPairs {
-            let configuration = try parameters.configuration()
+            let configuration = try parameters.configuration(
+                outputMode: runnerSemanticConfiguration?.outputModeValue ?? .edr,
+                inputFallbackPolicy: runnerSemanticConfiguration?.inputFallbackPolicyValue ?? .bt709VideoRange
+            )
             let configurationKey = try Self.configurationKey(parameters)
             let evaluator: HDRCoreOfflineEvaluator
             if let cached = evaluators[prepared.record.id] {
@@ -486,7 +499,13 @@ final class V2EvaluationEngine {
                     evaluatorConfigurationKeys[prepared.record.id] = configurationKey
                 }
             } else {
-                let created = try HDRCoreOfflineEvaluator(device: device, configuration: configuration)
+                let created = try HDRCoreOfflineEvaluator(
+                    device: device,
+                    configuration: configuration,
+                    gridWidth: metricConfiguration.referenceGridWidth,
+                    gridHeight: metricConfiguration.referenceGridHeight,
+                    colorScience: metricConfiguration.colorScience
+                )
                 evaluators[prepared.record.id] = created
                 evaluatorConfigurationKeys[prepared.record.id] = configurationKey
                 evaluator = created
@@ -561,7 +580,7 @@ final class V2EvaluationEngine {
                 evaluator: evaluator,
                 configuration: configuration
             )
-            let oldTemporalContribution = videoMetrics.weightedContributions["temporal"] ?? 0
+            let oldTemporalContribution = videoMetrics.weightedContributions["temporal"] ?? metricConfiguration.emptyAverageValue
             let temporalContribution = metricConfiguration.objectiveWeights.temporal * (
                 temporal.luminance * metricConfiguration.temporalLuminanceWeight +
                     temporal.highlight * metricConfiguration.temporalHighlightWeight +
@@ -624,9 +643,30 @@ final class V2EvaluationEngine {
         var values: [(Double, Double, Double)] = []
         var overshoots: [Double] = []
         var recoveries: [Double] = []
-        for window in windows {
-            evaluator.clearTemporalHistory()
-            evaluator.automaticTemporalEstimationEnabled = true
+        let orderedWindows: [PreparedTemporalWindow]
+        switch metricConfiguration.stableTemporalWindowOrderingRule {
+        case .sceneIDUTF8AscendingThenStartSecondsThenOffsetSeconds:
+            orderedWindows = windows.sorted { lhs, rhs in
+                let leftScene = Data(lhs.sceneID.utf8)
+                let rightScene = Data(rhs.sceneID.utf8)
+                if leftScene != rightScene {
+                    return leftScene.lexicographicallyPrecedes(rightScene)
+                }
+                if lhs.startSeconds != rhs.startSeconds {
+                    return lhs.startSeconds < rhs.startSeconds
+                }
+                if lhs.offsetSeconds != rhs.offsetSeconds {
+                    return lhs.offsetSeconds < rhs.offsetSeconds
+                }
+                return lhs.frames.count < rhs.frames.count
+            }
+        }
+        for window in orderedWindows {
+            switch metricConfiguration.temporalHistoryResetRule {
+            case .beforeEachWindow:
+                evaluator.clearTemporalHistory()
+            }
+            evaluator.automaticTemporalEstimationEnabled = metricConfiguration.temporalAutomaticEstimationEnabled
             var frames: [V2FrameData] = []
             frames.reserveCapacity(window.frames.count)
             var adaptations: [Float] = []
@@ -636,7 +676,11 @@ final class V2EvaluationEngine {
                     timestampSeconds: item.sdr.descriptor.timestampSeconds,
                     configuration: configuration,
                     averageLuminance: nil,
-                    sceneCut: false
+                    sceneCut: {
+                        switch metricConfiguration.temporalSceneCutInputRule {
+                        case .alwaysFalse: return false
+                        }
+                    }()
                 )
                 adaptations.append(generated.temporalAdaptationUsed)
                 frames.append(V2FrameData(
@@ -649,20 +693,27 @@ final class V2EvaluationEngine {
             )
             values.append(metric)
             if adaptations.count > 1 {
-                let settled = adaptations.suffix(min(4, adaptations.count)).reduce(0, +) / Float(min(4, adaptations.count))
+                let settledCount = min(metricConfiguration.temporalSettledSampleCount, adaptations.count)
+                let settled = adaptations.suffix(settledCount).reduce(0, +) / Float(settledCount)
                 overshoots.append(Double(abs(adaptations[0] - settled)))
-                let tolerance = max(abs(settled) * 0.005, 0.0005)
+                let tolerance = max(
+                    abs(settled) * Float(metricConfiguration.temporalRecoveryRelativeTolerance),
+                    Float(metricConfiguration.temporalRecoveryAbsoluteTolerance)
+                )
                 let recovered = adaptations.firstIndex { abs($0 - settled) <= tolerance } ?? adaptations.count
                 recoveries.append(Double(recovered))
             }
         }
         func average(_ key: ((Double, Double, Double)) -> Double) -> Double {
-            values.isEmpty ? 0 : values.map(key).reduce(0, +) / Double(values.count)
+            values.isEmpty ? metricConfiguration.insufficientTemporalMetricValue :
+                values.map(key).reduce(0, +) / Double(values.count)
         }
         return (
             average { $0.0 }, average { $0.1 }, average { $0.2 },
-            overshoots.isEmpty ? 0 : overshoots.reduce(0, +) / Double(overshoots.count),
-            recoveries.isEmpty ? 0 : recoveries.reduce(0, +) / Double(recoveries.count)
+            overshoots.isEmpty ? metricConfiguration.insufficientTemporalMetricValue :
+                overshoots.reduce(0, +) / Double(overshoots.count),
+            recoveries.isEmpty ? metricConfiguration.insufficientTemporalMetricValue :
+                recoveries.reduce(0, +) / Double(recoveries.count)
         )
     }
 

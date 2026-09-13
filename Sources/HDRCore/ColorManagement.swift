@@ -323,14 +323,16 @@ public struct HDRInputMetadata: Equatable, Sendable {
         fallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         interpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
         untaggedFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
-        bt1886Parameters: BT1886TransferParameters = .idealReference
+        bt1886Parameters: BT1886TransferParameters = .idealReference,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
     ) throws -> HDRInputMetadata {
         try HDRColorMetadataResolver.resolve(
             pixelBuffer: pixelBuffer,
             fallbackPolicy: fallbackPolicy,
             interpretationPolicy: interpretationPolicy,
             untaggedFallback: untaggedFallback,
-            bt1886Parameters: bt1886Parameters
+            bt1886Parameters: bt1886Parameters,
+            colorScience: colorScience
         ).metadata
     }
 
@@ -391,33 +393,96 @@ public struct HDRInputMetadata: Equatable, Sendable {
 }
 
 public enum HDRColorMath {
-    public static let bt709ToBT2020 = simd_float3x3(columns: (
-        SIMD3<Float>(0.6274040, 0.0690970, 0.0163916),
-        SIMD3<Float>(0.3292820, 0.9195400, 0.0880132),
-        SIMD3<Float>(0.0433136, 0.0113623, 0.8955950)
-    ))
+    public static var bt709ToBT2020: simd_float3x3 {
+        let values = HDRColorScienceSemanticDefinition.calibrationV4.bt709ToBT2020
+        return simd_float3x3(columns: (
+            SIMD3<Float>(Float(values[0]), Float(values[1]), Float(values[2])),
+            SIMD3<Float>(Float(values[3]), Float(values[4]), Float(values[5])),
+            SIMD3<Float>(Float(values[6]), Float(values[7]), Float(values[8]))
+        ))
+    }
 
-    public static let bt709Luminance = SIMD3<Float>(0.2126, 0.7152, 0.0722)
-    public static let bt2020Luminance = SIMD3<Float>(0.2627, 0.6780, 0.0593)
+    /// Compatibility accessors backed by the calibration color-science
+    /// definition.  Production calibration code must not own a second copy
+    /// of these coefficients.
+    public static var bt709Luminance: SIMD3<Float> {
+        let values = HDRColorScienceSemanticDefinition.calibrationV4.yCbCr.bt709Luminance
+        return SIMD3(Float(values[0]), Float(values[1]), Float(values[2]))
+    }
+
+    public static var bt2020Luminance: SIMD3<Float> {
+        let values = HDRColorScienceSemanticDefinition.calibrationV4.yCbCr.bt2020Luminance
+        return SIMD3(Float(values[0]), Float(values[1]), Float(values[2]))
+    }
 
     public static func inverseBT709(_ signal: Float) -> Float {
+        inverseBT709(signal, colorScience: .calibrationV4)
+    }
+
+    public static func inverseBT709(
+        _ signal: Float,
+        colorScience: HDRColorScienceSemanticDefinition
+    ) -> Float {
+        let definition = colorScience.transfer
         let value = max(signal, 0)
-        return value < 0.081 ? value / 4.5 : pow((value + 0.099) / 1.099, 1 / 0.45)
+        return value < Float(definition.bt709InverseBreakPoint)
+            ? value / Float(definition.bt709InverseLinearScale)
+            : pow(
+                (value + Float(definition.bt709InverseOffset)) /
+                    Float(definition.bt709InverseScale),
+                Float(definition.bt709InverseExponent)
+            )
     }
 
     public static func bt709(_ linear: Float) -> Float {
+        bt709(linear, colorScience: .calibrationV4)
+    }
+
+    public static func bt709(
+        _ linear: Float,
+        colorScience: HDRColorScienceSemanticDefinition
+    ) -> Float {
+        let definition = colorScience.transfer
         let value = max(linear, 0)
-        return value < 0.018 ? value * 4.5 : 1.099 * pow(value, 0.45) - 0.099
+        return value < Float(definition.bt709ForwardBreakPoint)
+            ? value * Float(definition.bt709ForwardLinearScale)
+            : Float(definition.bt709ForwardScale) * pow(value, Float(definition.bt709ForwardExponent)) -
+                Float(definition.bt709ForwardOffset)
     }
 
     public static func inverseSRGB(_ signal: Float) -> Float {
+        inverseSRGB(signal, colorScience: .calibrationV4)
+    }
+
+    public static func inverseSRGB(
+        _ signal: Float,
+        colorScience: HDRColorScienceSemanticDefinition
+    ) -> Float {
+        let definition = colorScience.transfer
         let value = max(signal, 0)
-        return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        return value <= Float(definition.srgbInverseBreakPoint)
+            ? value / Float(definition.srgbInverseLinearScale)
+            : pow(
+                (value + Float(definition.srgbInverseOffset)) /
+                    Float(definition.srgbInverseScale),
+                Float(definition.srgbInverseExponent)
+            )
     }
 
     public static func srgb(_ linear: Float) -> Float {
+        srgb(linear, colorScience: .calibrationV4)
+    }
+
+    public static func srgb(
+        _ linear: Float,
+        colorScience: HDRColorScienceSemanticDefinition
+    ) -> Float {
+        let definition = colorScience.transfer
         let value = max(linear, 0)
-        return value <= 0.0031308 ? value * 12.92 : 1.055 * pow(value, 1 / 2.4) - 0.055
+        return value <= Float(definition.srgbForwardBreakPoint)
+            ? value * Float(definition.srgbForwardLinearScale)
+            : Float(definition.srgbForwardScale) * pow(value, Float(definition.srgbForwardExponent)) -
+                Float(definition.srgbForwardOffset)
     }
 
     /// BT.1886 EOTF parameterized by black and white luminance. This is the
@@ -437,12 +502,16 @@ public enum HDRColorMath {
         )
     }
 
-    public static func inverseTransfer(_ signal: Float, function: HDRTransferFunction) -> Float {
+    public static func inverseTransfer(
+        _ signal: Float,
+        function: HDRTransferFunction,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) -> Float {
         switch function {
         case .bt709:
-            return inverseBT709(signal)
+            return inverseBT709(signal, colorScience: colorScience)
         case .sRGB:
-            return inverseSRGB(signal)
+            return inverseSRGB(signal, colorScience: colorScience)
         case .gamma(let gamma):
             guard gamma.isFinite, gamma > 0 else { return 0 }
             return pow(max(signal, 0), gamma)
@@ -468,26 +537,32 @@ public enum HDRColorMath {
         return try HDRCanonicalIdentity.sha256(value)
     }
 
-    public static func pqEncode(normalizedAbsoluteLuminance: Float) -> Float {
+    public static func pqEncode(
+        normalizedAbsoluteLuminance: Float,
+        definition: HDRPQSemanticDefinition = .st2084
+    ) -> Float {
         // ST.2084 uses L normalized to 10,000 cd/m². The output is the
         // normalized PQ signal, not a display-relative EDR component value.
-        let m1: Float = 2610.0 / 16384.0
-        let m2: Float = 2523.0 / 32.0
-        let c1: Float = 3424.0 / 4096.0
-        let c2: Float = 2413.0 / 128.0
-        let c3: Float = 2392.0 / 128.0
+        let m1 = Float(definition.m1)
+        let m2 = Float(definition.m2)
+        let c1 = Float(definition.c1)
+        let c2 = Float(definition.c2)
+        let c3 = Float(definition.c3)
         let luminance = min(max(normalizedAbsoluteLuminance, 0), 1)
         let powered = pow(luminance, m1)
         return pow((c1 + c2 * powered) / (1 + c3 * powered), m2)
     }
 
-    public static func pqDecode(normalizedSignal: Float) -> Float {
+    public static func pqDecode(
+        normalizedSignal: Float,
+        definition: HDRPQSemanticDefinition = .st2084
+    ) -> Float {
         // Returns normalized absolute luminance, where 1.0 is 10,000 nits.
-        let m1: Float = 2610.0 / 16384.0
-        let m2: Float = 2523.0 / 32.0
-        let c1: Float = 3424.0 / 4096.0
-        let c2: Float = 2413.0 / 128.0
-        let c3: Float = 2392.0 / 128.0
+        let m1 = Float(definition.m1)
+        let m2 = Float(definition.m2)
+        let c1 = Float(definition.c1)
+        let c2 = Float(definition.c2)
+        let c3 = Float(definition.c3)
         let signal = min(max(normalizedSignal, 0), 1)
         let powered = pow(signal, 1 / m2)
         let numerator = max(powered - c1, 0)
@@ -495,12 +570,21 @@ public enum HDRColorMath {
         return pow(numerator / denominator, 1 / m1)
     }
 
-    public static func pqEncode(nits: Float) -> Float {
-        pqEncode(normalizedAbsoluteLuminance: max(nits, 0) / 10_000)
+    public static func pqEncode(
+        nits: Float,
+        definition: HDRPQSemanticDefinition = .st2084
+    ) -> Float {
+        pqEncode(
+            normalizedAbsoluteLuminance: max(nits, 0) / Float(definition.absolutePeakNits),
+            definition: definition
+        )
     }
 
-    public static func pqDecodeNits(signal: Float) -> Float {
-        pqDecode(normalizedSignal: signal) * 10_000
+    public static func pqDecodeNits(
+        signal: Float,
+        definition: HDRPQSemanticDefinition = .st2084
+    ) -> Float {
+        pqDecode(normalizedSignal: signal, definition: definition) * Float(definition.absolutePeakNits)
     }
 }
 
@@ -520,7 +604,8 @@ internal enum HDRColorMetadataResolver {
         fallbackPolicy: HDRInputFallbackPolicy,
         interpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
         untaggedFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
-        bt1886Parameters: BT1886TransferParameters = .idealReference
+        bt1886Parameters: BT1886TransferParameters = .idealReference,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
     ) throws -> ResolvedColorDescription {
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
         let inputFormat = HDRInputPixelFormat(coreVideoFormat: pixelFormat)
@@ -528,11 +613,21 @@ internal enum HDRColorMetadataResolver {
         let isYUV = inputFormat?.isYUV == true
         let isFullRange = inputFormat?.isFullRange == true
         let bitDepth = inputFormat?.bitDepth ?? 8
-        let denominator = Float((1 << bitDepth) - 1)
-        let yVideoOffset = bitDepth == 10 ? 64 / denominator : 16 / denominator
-        let yVideoScale = bitDepth == 10 ? denominator / 876 : denominator / 219
-        let chromaVideoOffset = bitDepth == 10 ? 512 / denominator : 128 / denominator
-        let chromaVideoScale = bitDepth == 10 ? denominator / 896 : denominator / 224
+        let denominator = bitDepth == 10
+            ? Float(colorScience.yCbCr.fullRange10Denominator)
+            : Float(colorScience.yCbCr.fullRange8Denominator)
+        let yVideoOffset = bitDepth == 10
+            ? Float(colorScience.yCbCr.videoRange10LumaOffset) / denominator
+            : Float(colorScience.yCbCr.videoRange8LumaOffset) / denominator
+        let yVideoScale = bitDepth == 10
+            ? denominator / Float(colorScience.yCbCr.videoRange10LumaDenominator)
+            : denominator / Float(colorScience.yCbCr.videoRange8LumaDenominator)
+        let chromaVideoOffset = bitDepth == 10
+            ? Float(colorScience.yCbCr.videoRange10ChromaCenter) / denominator
+            : Float(colorScience.yCbCr.videoRange8ChromaCenter) / denominator
+        let chromaVideoScale = bitDepth == 10
+            ? denominator / Float(colorScience.yCbCr.videoRange10ChromaDenominator)
+            : denominator / Float(colorScience.yCbCr.videoRange8ChromaDenominator)
 
         let primaries = attachment(kCVImageBufferColorPrimariesKey, from: pixelBuffer)
         let transfer = attachment(kCVImageBufferTransferFunctionKey, from: pixelBuffer)
@@ -677,10 +772,10 @@ internal enum HDRColorMetadataResolver {
             ),
             pixelFormat: inputFormat ?? .bgra8,
             chromaGeometry: chromaGeometry,
-            yOffset: rangeIsFull ? 0 : (bitDepth == 10 ? 64 / 1023 : 16 / 255),
-            yScale: rangeIsFull ? 1 : (bitDepth == 10 ? 1023 / 876 : 255 / 219),
-            chromaOffset: bitDepth == 10 ? 512 / 1023 : 128 / 255,
-            chromaScale: rangeIsFull ? 1 : (bitDepth == 10 ? 1023 / 896 : 255 / 224)
+                yOffset: rangeIsFull ? 0 : yVideoOffset,
+                yScale: rangeIsFull ? 1 : yVideoScale,
+                chromaOffset: chromaVideoOffset,
+                chromaScale: rangeIsFull ? 1 : chromaVideoScale
         )
     }
 

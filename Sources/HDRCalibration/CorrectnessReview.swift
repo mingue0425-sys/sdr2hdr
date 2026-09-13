@@ -2193,7 +2193,7 @@ public enum V4CorrectnessReview {
             "- Target: \(configuration.temporalWindowPolicy.targetFrameCount)",
             "- Minimum: \(configuration.temporalWindowPolicy.minimumRequiredFrameCount)",
             "- Short-window rules: full target passes; at/above minimum passes with VALID_SHORT_WINDOW_ABOVE_MINIMUM; below minimum fails",
-            "- Weighting: \(configuration.temporalWindowPolicy.weightingPolicy)",
+            "- Weighting: \(configuration.temporalWindowPolicy.weightingPolicy.rawValue)",
             "",
             "## I. Real Window Results",
             "",

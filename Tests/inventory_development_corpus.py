@@ -143,7 +143,7 @@ def is_under_root(relative_path: str, root_relative: str) -> bool:
     return normalized_path == normalized_root or normalized_path.startswith(normalized_root + "/")
 
 
-def _lstat_components(path: Path, start: Optional[Path] = None) -> bool:
+def _lstat_components(path: Path, start: Path) -> bool:
     """lstat every existing component without resolving any component.
 
     The return value is false when a component is absent. A symlink is an
@@ -152,19 +152,12 @@ def _lstat_components(path: Path, start: Optional[Path] = None) -> bool:
 
     if not path.is_absolute():
         raise InventoryError(f"component safety check requires an absolute path: {path}")
-    if start is None:
-        # The approved materialization base is itself the trust boundary. Do
-        # not reject platform-owned aliases such as macOS /var merely because
-        # they are parents of that already-approved base.
-        try:
-            component_stat = os.lstat(path)
-        except FileNotFoundError:
-            return False
-        except OSError as error:
-            raise InventoryError(f"cannot lstat approved path component: {path}") from error
-        if stat.S_ISLNK(component_stat.st_mode):
-            raise InventoryError(f"symlink path component rejected before walk: {path}")
-        return True
+    if not start.is_absolute():
+        raise InventoryError(f"trusted anchor must be an explicit absolute path: {start}")
+    try:
+        relative_parts = path.relative_to(start).parts
+    except ValueError as error:
+        raise InventoryError(f"path escapes trusted filesystem anchor: {path}") from error
 
     current = start
     try:
@@ -175,7 +168,6 @@ def _lstat_components(path: Path, start: Optional[Path] = None) -> bool:
         raise InventoryError(f"cannot lstat approved path component: {current}") from error
     if stat.S_ISLNK(start_stat.st_mode):
         raise InventoryError(f"symlink path component rejected before walk: {current}")
-    relative_parts = path.relative_to(start).parts
     for component in relative_parts:
         current = current / component
         try:
@@ -194,20 +186,33 @@ def _lstat_components(path: Path, start: Optional[Path] = None) -> bool:
 def validate_no_symlink_components(
     materialization_root: Path,
     root_relative: Optional[str] = None,
+    trusted_anchor: Optional[Path] = None,
 ) -> Path:
-    """Validate the lexical root chain before any traversal or resolution."""
+    """Validate every lexical component from a trusted anchor before walking.
+
+    ``trusted_anchor`` is an explicit trust-boundary input.  The function does
+    not resolve the path first: it lstat-checks the anchor and each lexical
+    descendant, so a symlink in a parent of the materialization root is caught
+    before any existence check or recursive traversal can follow it.
+    """
 
     if not materialization_root.is_absolute():
         raise InventoryError("materialization root must be an explicit absolute path")
+    if trusted_anchor is None:
+        raise InventoryError("trusted filesystem anchor is required")
+    if not trusted_anchor.is_absolute():
+        raise InventoryError("trusted filesystem anchor must be an explicit absolute path")
     if ".." in PurePosixPath(materialization_root.as_posix()).parts:
         raise InventoryError("materialization root contains a lexical parent escape")
-    if not _lstat_components(materialization_root):
+    if ".." in PurePosixPath(trusted_anchor.as_posix()).parts:
+        raise InventoryError("trusted filesystem anchor contains a lexical parent escape")
+    if not _lstat_components(materialization_root, start=trusted_anchor):
         raise InventoryError(f"materialization root is unavailable: {materialization_root}")
     requested = materialization_root
     if root_relative is not None:
         validate_root_locator(root_relative, [])
         requested = materialization_root.joinpath(*PurePosixPath(root_relative).parts)
-    _lstat_components(requested, start=materialization_root)
+    _lstat_components(requested, start=trusted_anchor)
     return requested
 
 
@@ -215,11 +220,14 @@ def walk_approved_root(
     materialization_root: Path,
     root_relative: str,
     excluded_roots: Sequence[str],
+    trusted_anchor: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """Walk one already-approved root, collecting metadata only."""
 
     validate_root_locator(root_relative, excluded_roots)
-    root_path = validate_no_symlink_components(materialization_root, root_relative)
+    root_path = validate_no_symlink_components(
+        materialization_root, root_relative, trusted_anchor=trusted_anchor
+    )
     if not root_path.exists() or not root_path.is_dir():
         return []
 
@@ -745,7 +753,7 @@ def run(
     materialization_root: Path,
 ) -> Dict[str, Any]:
     scope, included_entries, excluded_roots = load_scope(scope_path)
-    validate_no_symlink_components(materialization_root)
+    validate_no_symlink_components(materialization_root, trusted_anchor=REPO_ROOT)
     normalized_materialization_root = Path(os.path.normpath(materialization_root.as_posix()))
     known_bases = {
         Path(os.path.normpath(base.as_posix())) for base in known_manifest_locator_bases()
@@ -761,7 +769,9 @@ def run(
     missing_roots: List[str] = []
     for entry in included_entries:
         root_relative = entry["path"]
-        root_records = walk_approved_root(materialization_root, root_relative, excluded_roots)
+        root_records = walk_approved_root(
+            materialization_root, root_relative, excluded_roots, trusted_anchor=REPO_ROOT
+        )
         if not (materialization_root / root_relative).exists():
             missing_roots.append(root_relative)
         root_counts[root_relative] = len(root_records)

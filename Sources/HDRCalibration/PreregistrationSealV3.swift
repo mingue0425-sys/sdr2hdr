@@ -706,6 +706,7 @@ public enum PreregisteredCalibrationExecutionError: Error, LocalizedError, Equat
     case policyNotPreregistered
     case preregistrationMismatch
     case mediaExecutionDisabledForVerification
+    case historicalPreregistrationInvalidated
 
     public var errorDescription: String? {
         switch self {
@@ -715,6 +716,8 @@ public enum PreregisteredCalibrationExecutionError: Error, LocalizedError, Equat
             return "PREREGISTRATION_MISMATCH: runtime semantics differ from the sealed experiment"
         case .mediaExecutionDisabledForVerification:
             return "media execution is disabled for this verify-only task"
+        case .historicalPreregistrationInvalidated:
+            return "historical V3 preregistration is audit-invalidated; use the V4 execution-bound runner"
         }
     }
 }
@@ -789,8 +792,7 @@ public final class PreregisteredCalibrationRunner {
     public let experiment: PreregisteredCalibrationExperiment
 
     public init(experiment: PreregisteredCalibrationExperiment) throws {
-        try experiment.validate()
-        self.experiment = experiment
+        throw PreregisteredCalibrationExecutionError.historicalPreregistrationInvalidated
     }
 
     public func verifyOnly() throws -> [PreregisteredCalibrationRuntimeConfiguration] {

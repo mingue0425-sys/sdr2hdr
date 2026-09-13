@@ -62,7 +62,10 @@ public enum HDRCanonicalIdentity {
 
     public static func sha256<T: Encodable>(_ value: T) throws -> String {
         SHA256.hash(data: try data(value))
-            .map { String(format: "%02x", $0) }
+            .map {
+                let text = String($0, radix: 16)
+                return text.count == 1 ? "0" + text : text
+            }
             .joined()
     }
 
@@ -72,13 +75,25 @@ public enum HDRCanonicalIdentity {
     public static func number(_ value: Double) throws -> String {
         guard value.isFinite else { throw HDRCanonicalIdentityError.nonFiniteNumber }
         if value == 0 { return "0" }
-        return String(format: "%.17g", locale: Locale(identifier: "en_US_POSIX"), value)
+        if value.rounded(.towardZero) == value,
+           value > Double(Int64.min), value < Double(Int64.max) {
+            return String(Int64(value))
+        }
+        // Swift's floating-point description is locale independent and uses
+        // the shortest round-trippable representation.  Avoid Foundation's
+        // variadic String(format:) here: identity generation also runs from
+        // the async CLI path, where that ABI bridge is not reliable.
+        return value.description
     }
 
     public static func number(_ value: Float) throws -> String {
         guard value.isFinite else { throw HDRCanonicalIdentityError.nonFiniteNumber }
         if value == 0 { return "0" }
-        return String(format: "%.9g", locale: Locale(identifier: "en_US_POSIX"), value)
+        if value.rounded(.towardZero) == value,
+           value > Float(Int64.min), value < Float(Int64.max) {
+            return String(Int64(value))
+        }
+        return value.description
     }
 
     private static func render(_ value: Any) throws -> Data {
@@ -137,7 +152,12 @@ public enum HDRCanonicalIdentity {
             return Data(String(value.int64Value).utf8)
         case "C", "I", "S", "L", "Q":
             return Data(String(value.uint64Value).utf8)
-        case "f", "d":
+        case "f":
+            // Preserve the schema's Float representation instead of widening
+            // it to Double.  This keeps the canonical form stable while
+            // still normalizing -0 and rejecting non-finite values.
+            return Data(try number(value.floatValue).utf8)
+        case "d":
             return Data(try number(value.doubleValue).utf8)
         default:
             throw HDRCanonicalIdentityError.unsupportedValue
