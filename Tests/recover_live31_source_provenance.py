@@ -68,7 +68,7 @@ OFFICIAL_CONTENT_NAMES = [
     "Yoga",
 ]
 
-EXPECTED_OFFICIAL_BLOB_BY_NAME = {
+EXPECTED_OFFICIAL_GIT_BLOB_OID_BY_NAME = {
     "Balance_Forest": "cef861df07f073d7e087096d9cfff9a334cc42c8",
     "Basketball_Afternoon": "49848a8edb1721dd8c71cfc82b4159a5e3497036",
     "Basketball_Evening": "6201eb7a91be17a36bee06649bda2de9ea5661a9",
@@ -124,6 +124,8 @@ def load_authority_index(relative_path: str) -> dict[str, Any]:
         fail("pinned authority index schema is unsupported")
     if not isinstance(index.get("publisher"), str) or not isinstance(index.get("repository"), str):
         fail("pinned authority index is missing publisher/repository")
+    if index.get("gitObjectFormat") != "sha1":
+        fail("pinned authority index must identify Git object format as sha1")
     if not re.fullmatch(r"[0-9a-f]{40}", str(index.get("repositoryCommit", ""))):
         fail("pinned authority index commit is not an exact commit SHA")
     records = index.get("canonicalSources")
@@ -134,13 +136,13 @@ def load_authority_index(relative_path: str) -> dict[str, Any]:
         if not isinstance(record, dict):
             fail("pinned authority index contains a non-object source")
         if not all(isinstance(record.get(field), str) and record[field] for field in (
-            "canonicalOfficialName", "sourceMasterId", "repositoryPath", "blobSHA256", "provenanceURL"
+            "canonicalOfficialName", "sourceMasterId", "repositoryPath", "gitBlobOID", "provenanceURL"
         )):
             fail("pinned authority index source lacks canonical identity or provenance")
-        if not re.fullmatch(r"[0-9a-f]{40}", record["blobSHA256"]):
+        if not re.fullmatch(r"[0-9a-f]{40}", record["gitBlobOID"]):
             fail(f"pinned authority blob identity is invalid: {record.get('canonicalOfficialName')}")
         name = record["canonicalOfficialName"]
-        if name in seen_names or name not in EXPECTED_OFFICIAL_BLOB_BY_NAME:
+        if name in seen_names or name not in EXPECTED_OFFICIAL_GIT_BLOB_OID_BY_NAME:
             fail(f"pinned authority canonical source name is not unique/known: {name}")
         seen_names.add(name)
         if record["sourceMasterId"] != f"AVT-VQDB-UHD-2-HDR/{name}":
@@ -151,7 +153,7 @@ def load_authority_index(relative_path: str) -> dict[str, Any]:
             fail(f"pinned authority repository path does not bind: {name}")
         if record["provenanceURL"] != expected_url:
             fail(f"pinned authority provenance URL does not bind: {name}")
-        if record["blobSHA256"] != EXPECTED_OFFICIAL_BLOB_BY_NAME[name]:
+        if record["gitBlobOID"] != EXPECTED_OFFICIAL_GIT_BLOB_OID_BY_NAME[name]:
             fail(f"pinned authority blob identity drift: {name}")
     if seen_names != set(OFFICIAL_CONTENT_NAMES):
         fail("pinned authority canonical source set is incomplete")
@@ -636,7 +638,8 @@ def main() -> None:
                     "metricRecord": authority_record["repositoryPath"],
                     "repository": authority["repository"],
                     "repositoryCommit": authority["repositoryCommit"],
-                    "repositoryBlob": authority_record["blobSHA256"],
+                    "gitBlobOID": authority_record["gitBlobOID"],
+                    "gitObjectFormat": authority["gitObjectFormat"],
                     "provenanceURL": authority_record["provenanceURL"],
                 },
                 "evidenceSources": [

@@ -38,6 +38,7 @@ jobs:
           python3 Tests/test_live31_source_provenance.py
           python3 Tests/verify_live31_regeneration.py
           python3 Tests/verify_preregistration_v2.py
+          python3 Tests/verify_preregistration_v3.py
           python3 -m json.tool Tests/RealMediaRegression/manifest.json >/dev/null
           python3 -m json.tool Tests/RealMediaRegression/gates.json >/dev/null
           python3 -m json.tool data_video/real_media/external-manifest.json >/dev/null
@@ -130,7 +131,7 @@ jobs:
       - name: Remaining Metal reference tests
         run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests --skip HDRMetalReferenceTests/testBGRAFallbackUsesZeroCopyTexturePathAndMatchesReference
 
-      - name: Independent Stage B re-audit
+      - name: Independent execution-bound V3 re-audit
         env:
           MTL_DEBUG_LAYER: 1
-        run: python3 Tests/independent_stage_b_reaudit.py
+        run: python3 Tests/independent_execution_bound_reaudit.py

@@ -233,6 +233,11 @@ deterministically regenerates the sealed plan from the exact sealed inputs.
 ./RUN_MACOS_VERIFY.sh fast
 ./RUN_MACOS_VERIFY.sh full
 ./.build/debug/HDRCalibrate verify-prepared-plan \
+  --manifest data_video/manifest-v4.json \
+  --prepared-plan results/v6-prepared-evaluation-plan.json \
+  --policy bt709SourceLinear
+# Structural checks alone are explicitly weaker:
+./.build/debug/HDRCalibrate verify-prepared-plan-structure \
   --prepared-plan results/v6-prepared-evaluation-plan.json
 ```
 
@@ -240,6 +245,29 @@ The checked-in `results/v6-prepared-evaluation-plan.json` is a historical
 artifact from before causal generation binding and is intentionally rejected
 as calibration evidence. A current plan must be regenerated from exact sealed
 inputs by the current preparation implementation before evaluator entry.
+
+## PR #13 execution-bound preregistration V3
+
+The current preregistration is one canonical object. Its typed preparation,
+matcher, metric, policy, and search definitions are hashed, and the
+preregistered runner derives its runtime configuration from that object before
+the first candidate. The verify-only command performs no media or objective
+evaluation:
+
+```bash
+./.build/debug/HDRCalibrate preregister-v3 \
+  --output results/calibration-rebase-preregistration-v3.json \
+  --documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V3.md
+./.build/debug/HDRCalibrate run-preregistered --verify-only \
+  --preregistration results/calibration-rebase-preregistration-v3.json
+```
+
+V1 is retired/invalidated and V2 is audit-invalidated; neither identity is
+eligible for Tune or Validation. CorpusDefinitionHash and
+ExperimentBindingHash remain `NOT_YET_CREATED` until a later media
+qualification phase. The standalone `verify-prepared-plan` command performs
+causal regeneration; `verify-prepared-plan-structure` reports structural
+integrity only and explicitly does not prove causal provenance.
 
 Fast mode caches expensive preparation/evaluation work. Explicit manifest/lock
 control files, Swift/Metal sources and cached output artifacts are byte-bound

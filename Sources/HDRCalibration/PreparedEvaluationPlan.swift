@@ -118,6 +118,63 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
 
     public static let v6 = V6PreparationConfiguration()
 
+    /// Derive the exact preparation configuration for one preregistered
+    /// interpretation candidate.  All non-policy preparation inputs are
+    /// copied from this typed configuration; the candidate is the only
+    /// permitted policy variation between the two outer-loop executions.
+    public func forInterpretationPolicy(
+        _ policy: SDRInputInterpretationPolicy
+    ) -> V6PreparationConfiguration {
+        V6PreparationConfiguration(
+            version: version,
+            maxFramesPerScene: maxFramesPerScene,
+            maxDecodedFrames: maxDecodedFrames,
+            proxyWidth: proxyWidth,
+            alignmentConfidenceThreshold: alignmentConfidenceThreshold,
+            acceptedConfidenceThreshold: acceptedConfidenceThreshold,
+            temporalFramesPerSecond: temporalFramesPerSecond,
+            temporalTargetFrameCount: temporalTargetFrameCount,
+            temporalMinimumFrameCount: temporalMinimumFrameCount,
+            temporalWarmupFrameCount: temporalWarmupFrameCount,
+            referenceTargetPeakNits: referenceTargetPeakNits,
+            allowHLGModel: allowHLGModel,
+            sdrPixelFormat: sdrPixelFormat,
+            hdrPixelFormat: hdrPixelFormat,
+            frameDecoderPolicy: frameDecoderPolicy,
+            referenceDecoderPolicy: referenceDecoderPolicy,
+            pathResolutionPolicy: pathResolutionPolicy,
+            sceneSelectionPolicy: sceneSelectionPolicy,
+            temporalSelectionPolicy: temporalSelectionPolicy,
+            matcherConfiguration: matcherConfiguration,
+            sdrInterpretationPolicyVersion: sdrInterpretationPolicyVersion,
+            sdrInterpretationPolicy: policy,
+            untaggedSDRFallback: untaggedSDRFallback,
+            bt1886Parameters: bt1886Parameters
+        )
+    }
+
+    /// Canonical identity of the exact typed preparation configuration used
+    /// by PairEvaluator and V6PreparedEvaluationPlanBuilder. Synthesized
+    /// Codable keeps newly added stored fields in this identity; the field
+    /// coverage guard below makes such additions an explicit test change.
+    public func canonicalSHA256() throws -> String {
+        try HDRCanonicalIdentity.sha256(self)
+    }
+
+    public static let canonicalFieldNames: Set<String> = [
+        "version", "maxFramesPerScene", "maxDecodedFrames", "proxyWidth",
+        "alignmentConfidenceThreshold", "acceptedConfidenceThreshold",
+        "temporalFramesPerSecond", "temporalTargetFrameCount",
+        "temporalMinimumFrameCount", "temporalWarmupFrameCount",
+        "referenceTargetPeakNits", "allowHLGModel", "sdrPixelFormat",
+        "hdrPixelFormat", "frameDecoderPolicy", "referenceDecoderPolicy",
+        "pathResolutionPolicy", "sceneSelectionPolicy", "temporalSelectionPolicy",
+        "preparationAlgorithmVersion", "matcherVersion", "matcherConfiguration",
+        "matcherConfigurationHash", "sdrInterpretationPolicyVersion",
+        "sdrInterpretationPolicy", "untaggedSDRFallback", "bt1886Parameters",
+        "sdrInterpretationPolicyHash"
+    ]
+
     func validationFailure() -> String? {
         if let failure = matcherConfiguration.validationFailure() { return failure }
         let doubleValues = [
@@ -127,6 +184,16 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         ]
         guard doubleValues.allSatisfy(\.isFinite), referenceTargetPeakNits.isFinite else {
             return "preparation configuration contains a non-finite value"
+        }
+        do {
+            let data = try HDRCanonicalIdentity.data(self)
+            guard let object = try JSONSerialization.jsonObject(
+                with: data, options: [.fragmentsAllowed]
+            ) as? [String: Any], Set(object.keys) == Self.canonicalFieldNames else {
+                return "preparation configuration semantic field coverage is incomplete"
+            }
+        } catch {
+            return "preparation configuration identity encoding failed"
         }
         guard !version.isEmpty,
               !frameDecoderPolicy.isEmpty,

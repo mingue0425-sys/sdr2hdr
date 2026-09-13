@@ -40,6 +40,14 @@ def fake_mapping(
 
 
 def test_current_artifact_contract() -> None:
+    authority = json.loads(
+        (ROOT / "config/live31-source-authority-index.json").read_text(encoding="utf-8")
+    )
+    require(authority["gitObjectFormat"] == "sha1", "Git object format is not explicit")
+    require(
+        all("gitBlobOID" in source and "blobSHA256" not in source for source in authority["canonicalSources"]),
+        "Git blob OID field is mislabeled as SHA-256",
+    )
     artifact = json.loads(
         (ROOT / "results/live31-source-provenance-recovery.json").read_text(encoding="utf-8")
     )
@@ -51,6 +59,15 @@ def test_current_artifact_contract() -> None:
     require(artifact["summary"]["oneToOneOfficialMapping"] == "PASS", "one-to-one mapping failed")
     require(artifact["summary"]["duplicateMappings"] == [], "duplicate mapping recorded")
     require(artifact["summary"]["unmappedOfficial"] == [], "official mapping is incomplete")
+    require(
+        all(
+            "gitBlobOID" in mapping["officialSourceEvidence"]
+            and mapping["officialSourceEvidence"].get("gitObjectFormat") == "sha1"
+            and "repositoryBlob" not in mapping["officialSourceEvidence"]
+            for mapping in artifact["mappings"]
+        ),
+        "official Git identity field is mislabeled",
+    )
     require(all(recovery.is_promotion_eligible(mapping) for mapping in artifact["mappings"]), "ineligible proven mapping")
     claims = recovery.validate_artifact_contract(artifact)
     require(claims["mappingCount"] == 31, "mapping claims were not recomputed")

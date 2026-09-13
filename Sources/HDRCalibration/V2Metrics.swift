@@ -10,27 +10,34 @@ struct V2FrameData {
 }
 
 public enum PerceptualColorV2 {
-    public static func ictcp(rgbNits: SIMD3<Float>) -> SIMD3<Double> {
+    public static func ictcp(
+        rgbNits: SIMD3<Float>,
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> SIMD3<Double> {
         let rgb = SIMD3<Double>(
-            max(Double(rgbNits.x), 0),
-            max(Double(rgbNits.y), 0),
-            max(Double(rgbNits.z), 0)
+            max(Double(rgbNits.x), configuration.perceptualColorInputMinimumNits),
+            max(Double(rgbNits.y), configuration.perceptualColorInputMinimumNits),
+            max(Double(rgbNits.z), configuration.perceptualColorInputMinimumNits)
         )
         let l = (1688.0 * rgb.x + 2146.0 * rgb.y + 262.0 * rgb.z) / 4096.0
         let m = (683.0 * rgb.x + 2951.0 * rgb.y + 462.0 * rgb.z) / 4096.0
         let s = (99.0 * rgb.x + 309.0 * rgb.y + 3688.0 * rgb.z) / 4096.0
-        let lp = Double(HDRColorMath.pqEncode(nits: Float(min(max(l, 0), 10_000))))
-        let mp = Double(HDRColorMath.pqEncode(nits: Float(min(max(m, 0), 10_000))))
-        let sp = Double(HDRColorMath.pqEncode(nits: Float(min(max(s, 0), 10_000))))
+        let lp = Double(HDRColorMath.pqEncode(nits: Float(min(max(l, configuration.perceptualColorInputMinimumNits), configuration.perceptualColorInputMaximumNits))))
+        let mp = Double(HDRColorMath.pqEncode(nits: Float(min(max(m, configuration.perceptualColorInputMinimumNits), configuration.perceptualColorInputMaximumNits))))
+        let sp = Double(HDRColorMath.pqEncode(nits: Float(min(max(s, configuration.perceptualColorInputMinimumNits), configuration.perceptualColorInputMaximumNits))))
         let i = (2048.0 * lp + 2048.0 * mp) / 4096.0
         let ct = (6610.0 * lp - 13613.0 * mp + 7003.0 * sp) / 4096.0
         let cp = (17933.0 * lp - 17390.0 * mp - 543.0 * sp) / 4096.0
         return SIMD3(i, ct, cp)
     }
 
-    public static func hueError(reference: SIMD3<Float>, generated: SIMD3<Float>) -> Double {
-        let ref = ictcp(rgbNits: reference)
-        let gen = ictcp(rgbNits: generated)
+    public static func hueError(
+        reference: SIMD3<Float>,
+        generated: SIMD3<Float>,
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> Double {
+        let ref = ictcp(rgbNits: reference, configuration: configuration)
+        let gen = ictcp(rgbNits: generated, configuration: configuration)
         let refHue = atan2(ref.z, ref.y)
         let genHue = atan2(gen.z, gen.y)
         var delta = abs(refHue - genHue)
@@ -44,35 +51,49 @@ enum V2MetricsEvaluator {
     /// It starts above the observed scene-relative shadow anchors and ends
     /// below the calibrated V4 shoulder start, leaving margin on both sides.
     /// The range is signal-defined and contains no face/skin classification.
-    static let diffuseMidtoneSourceRange: ClosedRange<Double> = 0.15...0.45
+    static var diffuseMidtoneSourceRange: ClosedRange<Double> {
+        let range = V2MetricSemanticConfiguration.current.diffuseMidtoneSourceRange
+        return range.lowerPercentile...range.upperPercentile
+    }
 
     static func evaluateScene(
         pairID: String,
         scene: SceneRange,
         frames: [V2FrameData],
         configuration: CalibrationParameters,
-        weights: V2ObjectiveWeights
+        metricConfiguration: V2MetricSemanticConfiguration
     ) -> V2SceneEvaluation {
+        // The preregistered execution path supplies this exact object from
+        // its sealed semantic definition. Legacy callers use the overload
+        // below and remain visibly separate from that path.
+        let weights = metricConfiguration.objectiveWeights
         let lumaPairs = pairedFiniteLuminance(frames)
         let pairedReference = lumaPairs.reference
         let pairedGenerated = lumaPairs.generated
-        let refPercentiles = percentiles(pairedReference)
-        let genPercentiles = percentiles(pairedGenerated)
+        let refPercentiles = percentiles(pairedReference, configuration: metricConfiguration)
+        let genPercentiles = percentiles(pairedGenerated, configuration: metricConfiguration)
 
-        let luminanceError = logError(pairedReference, pairedGenerated)
-        let absoluteNitError = meanZip(pairedReference, pairedGenerated) { abs($0 - $1) / 1_000 }
-        let midtoneError = regionError(pairedReference, pairedGenerated, lower: 0.10, upper: 0.90)
-        let diffuseWhiteError = regionError(pairedReference, pairedGenerated, lower: 0.75, upper: 0.95)
-        let highlightError = regionError(pairedReference, pairedGenerated, lower: 0.90, upper: 1.0)
-        let shadowError = regionError(pairedReference, pairedGenerated, lower: 0.0, upper: 0.10)
-        let diffuseMidtone = diffuseMidtoneMetrics(frames)
+        let luminanceError = logError(
+            pairedReference, pairedGenerated,
+            offset: metricConfiguration.additiveLuminanceOffsetNits,
+            invalidValue: metricConfiguration.invalidMetricScore
+        )
+        let absoluteNitError = meanZip(
+            pairedReference, pairedGenerated,
+            emptyValue: metricConfiguration.invalidMetricScore
+        ) { abs($0 - $1) / metricConfiguration.absoluteNitsNormalizer }
+        let midtoneError = regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["midtone"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore)
+        let diffuseWhiteError = regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["diffuseWhite"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore)
+        let highlightError = regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["highlight"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore)
+        let shadowError = regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["shadow"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore)
+        let diffuseMidtone = diffuseMidtoneMetrics(frames, configuration: metricConfiguration)
         let regionErrors = [
-            "p0_p1": regionError(pairedReference, pairedGenerated, lower: 0, upper: 0.01),
-            "p1_p10": regionError(pairedReference, pairedGenerated, lower: 0.01, upper: 0.10),
-            "p10_p50": regionError(pairedReference, pairedGenerated, lower: 0.10, upper: 0.50),
-            "p50_p90": regionError(pairedReference, pairedGenerated, lower: 0.50, upper: 0.90),
-            "p90_p99": regionError(pairedReference, pairedGenerated, lower: 0.90, upper: 0.99),
-            "p99_p100": regionError(pairedReference, pairedGenerated, lower: 0.99, upper: 1.0),
+            "p0_p1": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p0_p1"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
+            "p1_p10": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p1_p10"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
+            "p10_p50": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p10_p50"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
+            "p50_p90": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p50_p90"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
+            "p90_p99": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p90_p99"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
+            "p99_p100": regionError(pairedReference, pairedGenerated, region: metricConfiguration.regionPercentiles["p99_p100"]!, offset: metricConfiguration.additiveLuminanceOffsetNits, invalidValue: metricConfiguration.invalidMetricScore),
             "diffuse_midtone": diffuseMidtone.error,
             "diffuse_midtone_signed": diffuseMidtone.signed,
             "diffuse_midtone_positive_overshoot": diffuseMidtone.positive,
@@ -88,85 +109,117 @@ enum V2MetricsEvaluator {
         // diagnostic-only observation into an accidental O(n^2 log n) path.
         let highlightThreshold = refPercentiles.p90
         let highlightPairs = zip(pairedReference, pairedGenerated).filter { $0.0 >= highlightThreshold }
-        let highlightUnderReach = fraction(highlightPairs) { $0.1 < $0.0 * 0.80 }
-        let highlightOvershoot = fraction(highlightPairs) { $0.1 > max($0.0 * 1.25, $0.0 + 20) }
-        let specularReference = refPercentiles.p999
-        let specularGenerated = genPercentiles.p999
-        let specularUnder = max(specularReference - specularGenerated, 0) / max(specularReference, 1)
-        let specularOver = max(specularGenerated - specularReference, 0) / max(specularReference, 1)
-        let referenceSlope = max(refPercentiles.p99 - refPercentiles.p90, 1)
-        let generatedSlope = max(genPercentiles.p99 - genPercentiles.p90, 0)
+        let highlightUnderReach = fraction(highlightPairs) { $0.1 < $0.0 * metricConfiguration.highlightUnderreachRatio }
+        let highlightOvershoot = fraction(highlightPairs) {
+            $0.1 > max(
+                $0.0 * metricConfiguration.highlightOvershootRatio,
+                $0.0 + metricConfiguration.highlightOvershootAbsoluteNits
+            )
+        }
+        let specularReference = percentile(pairedReference, metricConfiguration.specularPercentile)
+        let specularGenerated = percentile(pairedGenerated, metricConfiguration.specularPercentile)
+        let specularUnder = max(specularReference - specularGenerated, metricConfiguration.nonNegativeClampFloor) /
+            max(specularReference, metricConfiguration.slopeFloorNits)
+        let specularOver = max(specularGenerated - specularReference, metricConfiguration.nonNegativeClampFloor) /
+            max(specularReference, metricConfiguration.slopeFloorNits)
+        let referenceSlope = max(refPercentiles.p99 - refPercentiles.p90, metricConfiguration.slopeFloorNits)
+        let generatedSlope = max(genPercentiles.p99 - genPercentiles.p90, metricConfiguration.nonNegativeClampFloor)
         let compressionError = abs(generatedSlope / referenceSlope - 1)
-        let clipping = pairedGenerated.isEmpty ? 0 : Double(pairedGenerated.filter { $0 >= Double(configuration.peakNits) * 0.999 }.count) / Double(pairedGenerated.count)
+        let clipping = pairedGenerated.isEmpty ? 0 : Double(pairedGenerated.filter {
+            $0 >= Double(configuration.peakNits) * metricConfiguration.clippingPeakRatio
+        }.count) / Double(pairedGenerated.count)
 
         let shadowPairs = zip(pairedReference, pairedGenerated).filter { $0.0 <= refPercentiles.p10 }
-        let blackCrush = fraction(shadowPairs) { $0.0 > 1 && $0.1 < min(0.5, $0.0 * 0.25) }
-        let shadowLift = fraction(shadowPairs) { $0.1 > max($0.0 * 1.5, $0.0 + 2) }
-        let referenceNearBlackRange = max(refPercentiles.p10 - refPercentiles.p1, 1)
-        let generatedNearBlackRange = max(genPercentiles.p10 - genPercentiles.p1, 0)
-        let nearBlackContrastLoss = max(1 - generatedNearBlackRange / referenceNearBlackRange, 0)
+        let blackCrush = fraction(shadowPairs) {
+            $0.0 > metricConfiguration.blackCrushReferenceThresholdNits &&
+            $0.1 < min(
+                metricConfiguration.blackCrushGeneratedAbsoluteNits,
+                $0.0 * metricConfiguration.blackCrushGeneratedRatio
+            )
+        }
+        let shadowLift = fraction(shadowPairs) {
+            $0.1 > max(
+                $0.0 * metricConfiguration.shadowLiftRatio,
+                $0.0 + metricConfiguration.shadowLiftAbsoluteNits
+            )
+        }
+        let referenceNearBlackRange = max(
+            refPercentiles.p10 - refPercentiles.p1,
+            metricConfiguration.nearBlackReferenceRangeFloorNits
+        )
+        let generatedNearBlackRange = max(genPercentiles.p10 - genPercentiles.p1, metricConfiguration.nonNegativeClampFloor)
+        let nearBlackContrastLoss = max(1 - generatedNearBlackRange / referenceNearBlackRange, metricConfiguration.nonNegativeClampFloor)
 
-        let color = colorMetrics(frames)
-        let temporal = temporalMetrics(frames)
-        let structure = structureError(frames)
+        let color = colorMetrics(frames, configuration: metricConfiguration)
+        let temporal = temporalMetrics(frames, configuration: metricConfiguration)
+        let structure = structureError(
+            frames,
+            epsilon: metricConfiguration.correlationEpsilon,
+            lowerBound: metricConfiguration.correlationLowerBound,
+            upperBound: metricConfiguration.correlationUpperBound
+        )
         let invalidCount = invalidPairedPixelCount(frames)
 
         var contributions: [String: Double] = [
-            "luminance": weights.luminance * finite(luminanceError),
-            "absolute_nits": weights.absoluteNits * finite(absoluteNitError),
-            "midtone": weights.midtone * finite(midtoneError),
-            "diffuse_white": weights.diffuseWhite * finite(diffuseWhiteError),
-            "highlight": weights.highlight * finite(highlightError),
-            "shadow": weights.shadow * finite(shadowError),
-            "chroma": weights.chroma * finite(color.chroma),
-            "saturation": weights.saturation * finite(color.saturation),
-            "hue": weights.hue * finite(color.hueMean * 0.65 + color.hueP95 * 0.35),
-            "temporal": weights.temporal * finite(temporal.luminance * 0.45 + temporal.highlight * 0.35 + temporal.flicker * 0.20),
-            "structure": weights.structure * finite(structure),
+            "luminance": weights.luminance * finite(luminanceError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "absolute_nits": weights.absoluteNits * finite(absoluteNitError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "midtone": weights.midtone * finite(midtoneError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "diffuse_white": weights.diffuseWhite * finite(diffuseWhiteError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "highlight": weights.highlight * finite(highlightError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "shadow": weights.shadow * finite(shadowError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "chroma": weights.chroma * finite(color.chroma, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "saturation": weights.saturation * finite(color.saturation, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "hue": weights.hue * finite(color.hueMean * metricConfiguration.hueMeanWeight + color.hueP95 * metricConfiguration.hueP95Weight, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "temporal": weights.temporal * finite(temporal.luminance * metricConfiguration.temporalLuminanceWeight + temporal.highlight * metricConfiguration.temporalHighlightWeight + temporal.flicker * metricConfiguration.temporalFlickerWeight, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            "structure": weights.structure * finite(structure, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
             "penalty_clipping": weights.clippingPenalty * clipping,
             "penalty_black_crush": weights.blackCrushPenalty * blackCrush,
             "penalty_saturation": weights.saturationPenalty * color.overSaturation,
             "penalty_invalid": weights.invalidPenalty * Double(invalidCount)
         ]
-        contributions = contributions.mapValues(finite)
+        contributions = contributions.mapValues {
+            finite($0, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration)
+        }
         let objective = contributions.values.reduce(0, +)
         let breakdown = V2MetricBreakdown(
             objective: objective,
-            luminanceError: finite(luminanceError),
-            absoluteNitError: finite(absoluteNitError),
-            midtoneError: finite(midtoneError),
-            diffuseWhiteError: finite(diffuseWhiteError),
-            highlightError: finite(highlightError),
-            shadowError: finite(shadowError),
-            chromaError: finite(color.chroma),
-            saturationError: finite(color.saturation),
-            hueMeanError: finite(color.hueMean),
-            hueP95Error: finite(color.hueP95),
-            highChromaHueError: finite(color.highChromaHue),
-            skinLikeHueError: finite(color.skinHue),
-            temporalLuminanceError: finite(temporal.luminance),
-            highlightPumping: finite(temporal.highlight),
-            temporalFlicker: finite(temporal.flicker),
+            luminanceError: finite(luminanceError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            absoluteNitError: finite(absoluteNitError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            midtoneError: finite(midtoneError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            diffuseWhiteError: finite(diffuseWhiteError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            highlightError: finite(highlightError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            shadowError: finite(shadowError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            chromaError: finite(color.chroma, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            saturationError: finite(color.saturation, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            hueMeanError: finite(color.hueMean, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            hueP95Error: finite(color.hueP95, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            highChromaHueError: finite(color.highChromaHue, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            skinLikeHueError: finite(color.skinHue, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            temporalLuminanceError: finite(temporal.luminance, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            highlightPumping: finite(temporal.highlight, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            temporalFlicker: finite(temporal.flicker, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
             sceneCutOvershoot: 0,
             sceneCutRecovery: 0,
-            structureError: finite(structure),
+            structureError: finite(structure, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
             clippingRatio: clipping,
             blackCrushRatio: blackCrush,
             shadowLiftRatio: shadowLift,
-            nearBlackContrastLoss: finite(nearBlackContrastLoss),
+            nearBlackContrastLoss: finite(nearBlackContrastLoss, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
             highlightUnderReachRatio: highlightUnderReach,
             highlightOvershootRatio: highlightOvershoot,
-            highlightCompressionError: finite(compressionError),
-            specularPeakUnderReach: finite(specularUnder),
-            specularPeakOvershoot: finite(specularOver),
-            referenceDiffuseWhiteNits: finite(percentile(pairedReference, 0.90)),
-            generatedDiffuseWhiteNits: finite(percentile(pairedGenerated, 0.90)),
+            highlightCompressionError: finite(compressionError, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            specularPeakUnderReach: finite(specularUnder, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            specularPeakOvershoot: finite(specularOver, invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            referenceDiffuseWhiteNits: finite(percentile(pairedReference, metricConfiguration.percentileFractions["p90"]!), invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
+            generatedDiffuseWhiteNits: finite(percentile(pairedGenerated, metricConfiguration.percentileFractions["p90"]!), invalidValue: metricConfiguration.invalidMetricScore, configuration: metricConfiguration),
             overSaturationRatio: color.overSaturation,
             underSaturationRatio: color.underSaturation,
             invalidSampleCount: invalidCount,
             // Region diagnostics include a signed log residual. Clamping that
             // value to zero erases under-prediction without changing the score.
-            luminanceRegionErrors: regionErrors.mapValues { $0.isFinite ? $0 : 1 },
+            luminanceRegionErrors: regionErrors.mapValues {
+                $0.isFinite ? $0 : metricConfiguration.invalidMetricScore
+            },
             weightedContributions: contributions
         )
         let confidence = frames.isEmpty ? 0 : frames.map(\.confidence).reduce(0, +) / Double(frames.count)
@@ -179,12 +232,38 @@ enum V2MetricsEvaluator {
             referenceLuminance: refPercentiles,
             generatedLuminance: genPercentiles,
             metrics: breakdown,
-            failures: failureTaxonomy(metrics: breakdown, confidence: confidence)
+            failures: failureTaxonomy(metrics: breakdown, confidence: confidence, configuration: metricConfiguration)
         )
     }
 
-    static func aggregate(_ values: [V2MetricBreakdown]) -> V2MetricBreakdown {
-        guard !values.isEmpty else { return zeroMetric(invalid: 1) }
+    static func evaluateScene(
+        pairID: String,
+        scene: SceneRange,
+        frames: [V2FrameData],
+        configuration: CalibrationParameters,
+        weights: V2ObjectiveWeights
+    ) -> V2SceneEvaluation {
+        var metricConfiguration = V2MetricSemanticConfiguration.current
+        metricConfiguration.objectiveWeights = weights
+        return evaluateScene(
+            pairID: pairID,
+            scene: scene,
+            frames: frames,
+            configuration: configuration,
+            metricConfiguration: metricConfiguration
+        )
+    }
+
+    static func aggregate(
+        _ values: [V2MetricBreakdown],
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> V2MetricBreakdown {
+        guard !values.isEmpty else {
+            return zeroMetric(
+                invalid: configuration.emptyAggregateInvalidSampleCount,
+                configuration: configuration
+            )
+        }
         func average(_ key: (V2MetricBreakdown) -> Double) -> Double {
             values.map(key).reduce(0, +) / Double(values.count)
         }
@@ -233,7 +312,10 @@ enum V2MetricsEvaluator {
         )
     }
 
-    static func alignmentStatistics(prepared: PreparedPair) -> V2AlignmentStatistics {
+    static func alignmentStatistics(
+        prepared: PreparedPair,
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> V2AlignmentStatistics {
         let confidences = prepared.alignment.matches.map(\.confidence).sorted()
         let offsets = prepared.alignment.matches.map { $0.hdrTimeSeconds - $0.sdrTimeSeconds }
         let meanOffset = average(offsets)
@@ -245,56 +327,79 @@ enum V2MetricsEvaluator {
             rejectedFrames: prepared.alignment.rejectedFrames,
             matchRatio: sampled > 0 ? Double(prepared.alignment.matches.count) / Double(sampled) : 0,
             meanConfidence: average(confidences),
-            medianConfidence: percentile(confidences, 0.50),
-            p10Confidence: percentile(confidences, 0.10),
-            p50Confidence: percentile(confidences, 0.50),
-            p90Confidence: percentile(confidences, 0.90),
+            medianConfidence: percentile(confidences, configuration.percentileFractions["p50"]!),
+            p10Confidence: percentile(confidences, configuration.percentileFractions["p10"]!),
+            p50Confidence: percentile(confidences, configuration.percentileFractions["p50"]!),
+            p90Confidence: percentile(confidences, configuration.percentileFractions["p90"]!),
             estimatedTimeOffset: prepared.alignment.coarseOffsetSeconds,
             offsetVariance: variance
         )
     }
 
-    static func categories(scenes: [V2SceneEvaluation]) -> [String] {
+    static func categories(
+        scenes: [V2SceneEvaluation],
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> [String] {
         guard !scenes.isEmpty else { return ["UNCLASSIFIED_CONTENT"] }
         var result = Set(scenes.flatMap(\.tags))
-        let metrics = aggregate(scenes.map(\.metrics))
-        if metrics.referenceDiffuseWhiteNits > 150 { result.insert("HIGH_KEY") }
-        if metrics.referenceDiffuseWhiteNits < 60 { result.insert("LOW_KEY") }
-        if metrics.chromaError > 0.08 || metrics.overSaturationRatio > 0.1 { result.insert("HIGH_SATURATION") }
-        if metrics.highlightUnderReachRatio > 0.2 { result.insert("HIGHLIGHT_RICH") }
+        let metrics = aggregate(scenes.map(\.metrics), configuration: configuration)
+        if metrics.referenceDiffuseWhiteNits > configuration.categoryHighKeyThresholdNits { result.insert("HIGH_KEY") }
+        if metrics.referenceDiffuseWhiteNits < configuration.categoryLowKeyThresholdNits { result.insert("LOW_KEY") }
+        if metrics.chromaError > configuration.categoryHighSaturationChromaThreshold ||
+            metrics.overSaturationRatio > configuration.categoryHighSaturationRatio {
+            result.insert("HIGH_SATURATION")
+        }
+        if metrics.highlightUnderReachRatio > configuration.categoryHighlightRichUnderreachRatio { result.insert("HIGHLIGHT_RICH") }
         if result.isEmpty { result.insert("UNCLASSIFIED_CONTENT") }
         return result.sorted()
     }
 
-    static func percentiles(_ values: [Double]) -> V2Percentiles {
+    static func percentiles(
+        _ values: [Double],
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> V2Percentiles {
         V2Percentiles(
-            p1: percentile(values, 0.01), p10: percentile(values, 0.10),
-            p25: percentile(values, 0.25), p50: percentile(values, 0.50),
-            p75: percentile(values, 0.75), p90: percentile(values, 0.90),
-            p95: percentile(values, 0.95), p99: percentile(values, 0.99),
-            p999: percentile(values, 0.999)
+            p1: percentile(values, configuration.percentileFractions["p1"]!),
+            p10: percentile(values, configuration.percentileFractions["p10"]!),
+            p25: percentile(values, configuration.percentileFractions["p25"]!),
+            p50: percentile(values, configuration.percentileFractions["p50"]!),
+            p75: percentile(values, configuration.percentileFractions["p75"]!),
+            p90: percentile(values, configuration.percentileFractions["p90"]!),
+            p95: percentile(values, configuration.percentileFractions["p95"]!),
+            p99: percentile(values, configuration.percentileFractions["p99"]!),
+            p999: percentile(values, configuration.percentileFractions["p999"]!)
         )
     }
 
-    static func failureTaxonomy(metrics: V2MetricBreakdown, confidence: Double) -> [String] {
+    static func failureTaxonomy(
+        metrics: V2MetricBreakdown,
+        confidence: Double,
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> [String] {
         var result: [String] = []
-        if metrics.highlightUnderReachRatio > 0.20 { result.append("HIGHLIGHT_UNDERREACH") }
-        if metrics.highlightOvershootRatio > 0.10 { result.append("HIGHLIGHT_OVERSHOOT") }
-        if metrics.generatedDiffuseWhiteNits < metrics.referenceDiffuseWhiteNits * 0.8 { result.append("DIFFUSE_WHITE_LOW") }
-        if metrics.generatedDiffuseWhiteNits > metrics.referenceDiffuseWhiteNits * 1.2 { result.append("DIFFUSE_WHITE_HIGH") }
-        if metrics.midtoneError > 0.25 { result.append("MIDTONE_LOW") }
-        if metrics.blackCrushRatio > 0.05 { result.append("BLACK_CRUSH") }
-        if metrics.shadowLiftRatio > 0.10 { result.append("SHADOW_LIFT") }
-        if metrics.underSaturationRatio > 0.15 { result.append("SATURATION_LOW") }
-        if metrics.overSaturationRatio > 0.15 { result.append("SATURATION_HIGH") }
-        if metrics.hueP95Error > 0.10 { result.append("HUE_SHIFT") }
-        if metrics.temporalFlicker > 0.08 { result.append("TEMPORAL_FLICKER") }
-        if confidence < 0.60 { result.append("ALIGNMENT_UNCERTAIN") }
-        if metrics.hueP95Error > 0.2 && metrics.luminanceError > 0.4 { result.append("REFERENCE_MISMATCH") }
+        if metrics.highlightUnderReachRatio > configuration.failureHighlightUnderreachRatio { result.append("HIGHLIGHT_UNDERREACH") }
+        if metrics.highlightOvershootRatio > configuration.failureHighlightOvershootRatio { result.append("HIGHLIGHT_OVERSHOOT") }
+        if metrics.generatedDiffuseWhiteNits < metrics.referenceDiffuseWhiteNits * configuration.failureDiffuseWhiteLowRatio { result.append("DIFFUSE_WHITE_LOW") }
+        if metrics.generatedDiffuseWhiteNits > metrics.referenceDiffuseWhiteNits * configuration.failureDiffuseWhiteHighRatio { result.append("DIFFUSE_WHITE_HIGH") }
+        if metrics.midtoneError > configuration.failureMidtoneError { result.append("MIDTONE_LOW") }
+        if metrics.blackCrushRatio > configuration.failureBlackCrushRatio { result.append("BLACK_CRUSH") }
+        if metrics.shadowLiftRatio > configuration.failureShadowLiftRatio { result.append("SHADOW_LIFT") }
+        if metrics.underSaturationRatio > configuration.failureSaturationRatio { result.append("SATURATION_LOW") }
+        if metrics.overSaturationRatio > configuration.failureSaturationRatio { result.append("SATURATION_HIGH") }
+        if metrics.hueP95Error > configuration.failureHueP95Error { result.append("HUE_SHIFT") }
+        if metrics.temporalFlicker > configuration.failureTemporalFlicker { result.append("TEMPORAL_FLICKER") }
+        if confidence < configuration.failureAlignmentConfidence { result.append("ALIGNMENT_UNCERTAIN") }
+        if metrics.hueP95Error > configuration.failureReferenceMismatchHue &&
+            metrics.luminanceError > configuration.failureReferenceMismatchLuminance {
+            result.append("REFERENCE_MISMATCH")
+        }
         return result.isEmpty ? ["UNKNOWN"] : result
     }
 
-    private static func colorMetrics(_ frames: [V2FrameData]) -> (
+    private static func colorMetrics(
+        _ frames: [V2FrameData],
+        configuration: V2MetricSemanticConfiguration
+    ) -> (
         chroma: Double, saturation: Double, hueMean: Double, hueP95: Double,
         highChromaHue: Double, skinHue: Double, overSaturation: Double, underSaturation: Double
     ) {
@@ -312,33 +417,47 @@ enum V2MetricsEvaluator {
                       generated.x.isFinite, generated.y.isFinite, generated.z.isFinite else {
                     continue
                 }
-                let ref = PerceptualColorV2.ictcp(rgbNits: reference)
-                let gen = PerceptualColorV2.ictcp(rgbNits: generated)
+                let ref = PerceptualColorV2.ictcp(
+                    rgbNits: reference, configuration: configuration
+                )
+                let gen = PerceptualColorV2.ictcp(
+                    rgbNits: generated, configuration: configuration
+                )
                 let refChroma = hypot(ref.y, ref.z)
                 let genChroma = hypot(gen.y, gen.z)
-                let refSaturation = refChroma / max(ref.x, 0.01)
-                let genSaturation = genChroma / max(gen.x, 0.01)
+                let refSaturation = refChroma / max(ref.x, configuration.saturationDenominatorFloor)
+                let genSaturation = genChroma / max(gen.x, configuration.saturationDenominatorFloor)
                 chromaErrors.append(abs(genChroma - refChroma))
                 saturationErrors.append(abs(genSaturation - refSaturation))
-                if refChroma > 0.01 && genChroma > 0.005 {
-                    let hue = PerceptualColorV2.hueError(reference: reference, generated: generated)
+                if refChroma > configuration.minimumReferenceChroma &&
+                    genChroma > configuration.minimumGeneratedChroma {
+                    let hue = PerceptualColorV2.hueError(
+                        reference: reference,
+                        generated: generated,
+                        configuration: configuration
+                    )
                     hueErrors.append(hue)
-                    if refChroma > 0.08 { highChroma.append(hue) }
-                    if isSkinLike(reference) { skin.append(hue) }
+                    if refChroma > configuration.highChromaThreshold { highChroma.append(hue) }
+                    if isSkinLike(reference, configuration: configuration) { skin.append(hue) }
                 }
-                if genSaturation > refSaturation * 1.25 + 0.01 { over += 1 }
-                if genSaturation < refSaturation * 0.75 - 0.01 { under += 1 }
+                if genSaturation > refSaturation * configuration.saturationOvershootRatio + configuration.saturationOvershootAbsolute { over += 1 }
+                if genSaturation < refSaturation * configuration.saturationUndershootRatio - configuration.saturationUndershootAbsolute { under += 1 }
                 count += 1
             }
         }
         return (
-            average(chromaErrors), average(saturationErrors), average(hueErrors), percentile(hueErrors, 0.95),
+            average(chromaErrors), average(saturationErrors), average(hueErrors), percentile(
+                hueErrors, configuration.percentileFractions["p95"]!
+            ),
             average(highChroma), average(skin), count > 0 ? Double(over) / Double(count) : 0,
             count > 0 ? Double(under) / Double(count) : 0
         )
     }
 
-    static func temporalMetrics(_ frames: [V2FrameData]) -> (luminance: Double, highlight: Double, flicker: Double) {
+    static func temporalMetrics(
+        _ frames: [V2FrameData],
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> (luminance: Double, highlight: Double, flicker: Double) {
         let sorted = frames.sorted { $0.generated.timestampSeconds < $1.generated.timestampSeconds }
         guard sorted.count > 1 else { return (0, 0, 0) }
         let framePairs = sorted.compactMap { frame -> (reference: [Double], generated: [Double])? in
@@ -349,22 +468,38 @@ enum V2MetricsEvaluator {
         guard framePairs.count > 1 else { return (0, 0, 0) }
         let referenceMeans = framePairs.map { average($0.reference) }
         let generatedMeans = framePairs.map { average($0.generated) }
-        let referenceHighlights = framePairs.map { percentile($0.reference, 0.95) }
-        let generatedHighlights = framePairs.map { percentile($0.generated, 0.95) }
-        let luma = deltaError(referenceMeans, generatedMeans)
-        let highlight = deltaError(referenceHighlights, generatedHighlights)
+        let p95 = configuration.percentileFractions["p95"]!
+        let referenceHighlights = framePairs.map { percentile($0.reference, p95) }
+        let generatedHighlights = framePairs.map { percentile($0.generated, p95) }
+        let luma = deltaError(
+            referenceMeans,
+            generatedMeans,
+            offset: configuration.additiveLuminanceOffsetNits,
+            clampFloor: configuration.nonNegativeClampFloor
+        )
+        let highlight = deltaError(
+            referenceHighlights,
+            generatedHighlights,
+            offset: configuration.additiveLuminanceOffsetNits,
+            clampFloor: configuration.nonNegativeClampFloor
+        )
         var second: [Double] = []
         if sorted.count > 2 {
             for index in 2..<sorted.count {
-                let ref = logRatio(referenceMeans[index], referenceMeans[index - 1]) - logRatio(referenceMeans[index - 1], referenceMeans[index - 2])
-                let gen = logRatio(generatedMeans[index], generatedMeans[index - 1]) - logRatio(generatedMeans[index - 1], generatedMeans[index - 2])
+                let ref = logRatio(referenceMeans[index], referenceMeans[index - 1], offset: configuration.additiveLuminanceOffsetNits, clampFloor: configuration.nonNegativeClampFloor) - logRatio(referenceMeans[index - 1], referenceMeans[index - 2], offset: configuration.additiveLuminanceOffsetNits, clampFloor: configuration.nonNegativeClampFloor)
+                let gen = logRatio(generatedMeans[index], generatedMeans[index - 1], offset: configuration.additiveLuminanceOffsetNits, clampFloor: configuration.nonNegativeClampFloor) - logRatio(generatedMeans[index - 1], generatedMeans[index - 2], offset: configuration.additiveLuminanceOffsetNits, clampFloor: configuration.nonNegativeClampFloor)
                 second.append(abs(ref - gen))
             }
         }
         return (luma, highlight, average(second))
     }
 
-    private static func structureError(_ frames: [V2FrameData]) -> Double {
+    private static func structureError(
+        _ frames: [V2FrameData],
+        epsilon: Double,
+        lowerBound: Double,
+        upperBound: Double
+    ) -> Double {
         let errors = frames.compactMap { frame -> Double? in
             let count = min(frame.sourceLuma.count, frame.generated.lumaNits.count)
             var source: [Double] = []
@@ -376,7 +511,13 @@ enum V2MetricsEvaluator {
                 source.append(lhs)
                 generated.append(rhs)
             }
-            guard let correlation = correlation(source, generated) else { return nil }
+            guard let correlation = correlation(
+                source,
+                generated,
+                epsilon: epsilon,
+                lowerBound: lowerBound,
+                upperBound: upperBound
+            ) else { return nil }
             return 1 - correlation
         }
         return average(errors)
@@ -437,14 +578,21 @@ enum V2MetricsEvaluator {
         }
     }
 
-    private static func isSkinLike(_ rgb: SIMD3<Float>) -> Bool {
+    private static func isSkinLike(
+        _ rgb: SIMD3<Float>,
+        configuration: V2MetricSemanticConfiguration
+    ) -> Bool {
         let maxValue = max(rgb.x, max(rgb.y, rgb.z))
-        guard maxValue > 1 else { return false }
+        guard maxValue > Float(configuration.skinMinimumPeakNits) else { return false }
         let normalized = rgb / maxValue
-        return normalized.x > normalized.y && normalized.y > normalized.z && normalized.x - normalized.z > 0.12
+        return normalized.x > normalized.y && normalized.y > normalized.z &&
+            normalized.x - normalized.z > Float(configuration.skinRedBlueSeparation)
     }
 
-    private static func diffuseMidtoneMetrics(_ frames: [V2FrameData]) -> (
+    private static func diffuseMidtoneMetrics(
+        _ frames: [V2FrameData],
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> (
         error: Double,
         signed: Double,
         positive: Double,
@@ -465,9 +613,11 @@ enum V2MetricsEvaluator {
                 let source = Double(frame.sourceLuma[index])
                 let reference = Double(frame.reference.lumaNits[index])
                 let generated = Double(frame.generated.lumaNits[index])
-                guard source.isFinite, diffuseMidtoneSourceRange.contains(source),
+                guard source.isFinite,
+                      configuration.diffuseMidtoneSourceRange.lowerPercentile...configuration.diffuseMidtoneSourceRange.upperPercentile ~= source,
                       reference.isFinite, generated.isFinite else { continue }
-                let signedError = log((generated + 1) / (reference + 1))
+                let signedError = log((generated + configuration.additiveLuminanceOffsetNits) /
+                    (reference + configuration.additiveLuminanceOffsetNits))
                 guard signedError.isFinite else { continue }
                 absoluteErrors.append(abs(signedError))
                 signedErrors.append(signedError)
@@ -475,7 +625,12 @@ enum V2MetricsEvaluator {
                 negativeUndershoots.append(max(-signedError, 0))
             }
         }
-        guard !absoluteErrors.isEmpty else { return (1, 0, 0, 0, 1, 0, 0, 0) }
+        guard !absoluteErrors.isEmpty else {
+            return (
+                configuration.invalidMetricScore, 0, 0, 0,
+                configuration.invalidMetricScore, 0, 0, 0
+            )
+        }
         let error = absoluteErrors.reduce(0, +) / Double(absoluteErrors.count)
         let signed = signedErrors.reduce(0, +) / Double(signedErrors.count)
         let positive = positiveOvershoots.reduce(0, +) / Double(positiveOvershoots.count)
@@ -488,39 +643,65 @@ enum V2MetricsEvaluator {
             negative,
             error,
             overshoot,
-            percentile(positiveOvershoots, 0.95),
+            percentile(positiveOvershoots, configuration.percentileFractions["p95"]!),
             absoluteErrors.count
         )
     }
 
-    private static func regionError(_ reference: [Double], _ generated: [Double], lower: Double, upper: Double) -> Double {
-        guard !reference.isEmpty, !generated.isEmpty else { return 1 }
-        let low = percentile(reference, lower)
-        let high = percentile(reference, upper)
+    private static func regionError(
+        _ reference: [Double],
+        _ generated: [Double],
+        region: V2MetricRegionDefinition,
+        offset: Double = V2MetricSemanticConfiguration.current.additiveLuminanceOffsetNits,
+        invalidValue: Double = V2MetricSemanticConfiguration.current.invalidMetricScore
+    ) -> Double {
+        guard !reference.isEmpty, !generated.isEmpty else { return invalidValue }
+        let low = percentile(reference, region.lowerPercentile)
+        let high = percentile(reference, region.upperPercentile)
         let pairs = zip(reference, generated).filter { $0.0 >= low && $0.0 <= high }
-        return logError(pairs.map(\.0), pairs.map(\.1))
+        return logError(pairs.map(\.0), pairs.map(\.1), offset: offset, invalidValue: invalidValue)
     }
 
-    private static func logError(_ lhs: [Double], _ rhs: [Double]) -> Double {
-        meanZip(lhs, rhs) { abs(log(($1 + 1) / ($0 + 1))) }
+    private static func logError(
+        _ lhs: [Double],
+        _ rhs: [Double],
+        offset: Double = V2MetricSemanticConfiguration.current.additiveLuminanceOffsetNits,
+        invalidValue: Double = V2MetricSemanticConfiguration.current.invalidMetricScore
+    ) -> Double {
+        meanZip(lhs, rhs, emptyValue: invalidValue) { abs(log(($1 + offset) / ($0 + offset))) }
     }
 
-    private static func deltaError(_ reference: [Double], _ generated: [Double]) -> Double {
+    private static func deltaError(
+        _ reference: [Double],
+        _ generated: [Double],
+        offset: Double = V2MetricSemanticConfiguration.current.additiveLuminanceOffsetNits,
+        clampFloor: Double = V2MetricSemanticConfiguration.current.nonNegativeClampFloor
+    ) -> Double {
         guard reference.count > 1, generated.count > 1 else { return 0 }
         var values: [Double] = []
         for index in 1..<min(reference.count, generated.count) {
-            values.append(abs(logRatio(reference[index], reference[index - 1]) - logRatio(generated[index], generated[index - 1])))
+            values.append(abs(logRatio(reference[index], reference[index - 1], offset: offset, clampFloor: clampFloor) - logRatio(generated[index], generated[index - 1], offset: offset, clampFloor: clampFloor)))
         }
         return average(values)
     }
 
-    private static func logRatio(_ lhs: Double, _ rhs: Double) -> Double {
-        log((max(lhs, 0) + 1) / (max(rhs, 0) + 1))
+    private static func logRatio(
+        _ lhs: Double,
+        _ rhs: Double,
+        offset: Double = V2MetricSemanticConfiguration.current.additiveLuminanceOffsetNits,
+        clampFloor: Double = V2MetricSemanticConfiguration.current.nonNegativeClampFloor
+    ) -> Double {
+        log((max(lhs, clampFloor) + offset) / (max(rhs, clampFloor) + offset))
     }
 
-    private static func meanZip(_ lhs: [Double], _ rhs: [Double], transform: (Double, Double) -> Double) -> Double {
+    private static func meanZip(
+        _ lhs: [Double],
+        _ rhs: [Double],
+        emptyValue: Double = V2MetricSemanticConfiguration.current.invalidMetricScore,
+        transform: (Double, Double) -> Double
+    ) -> Double {
         let count = min(lhs.count, rhs.count)
-        guard count > 0 else { return 1 }
+        guard count > 0 else { return emptyValue }
         return (0..<count).map { transform(lhs[$0], rhs[$0]) }.reduce(0, +) / Double(count)
     }
 
@@ -529,7 +710,13 @@ enum V2MetricsEvaluator {
         return Double(pairs.filter(predicate).count) / Double(pairs.count)
     }
 
-    private static func correlation(_ lhs: [Double], _ rhs: [Double]) -> Double? {
+    private static func correlation(
+        _ lhs: [Double],
+        _ rhs: [Double],
+        epsilon: Double = V2MetricSemanticConfiguration.current.correlationEpsilon,
+        lowerBound: Double = V2MetricSemanticConfiguration.current.correlationLowerBound,
+        upperBound: Double = V2MetricSemanticConfiguration.current.correlationUpperBound
+    ) -> Double? {
         guard lhs.count == rhs.count, lhs.count > 1 else { return nil }
         let lm = average(lhs), rm = average(rhs)
         var numerator = 0.0, lv = 0.0, rv = 0.0
@@ -538,7 +725,7 @@ enum V2MetricsEvaluator {
             numerator += l * r; lv += l * l; rv += r * r
         }
         let denominator = sqrt(lv * rv)
-        return denominator > 1e-12 ? max(-1, min(1, numerator / denominator)) : nil
+        return denominator > epsilon ? max(lowerBound, min(upperBound, numerator / denominator)) : nil
     }
 
     static func percentile(_ values: [Double], _ fraction: Double) -> Double {
@@ -552,13 +739,20 @@ enum V2MetricsEvaluator {
         return finiteValues.isEmpty ? 0 : finiteValues.reduce(0, +) / Double(finiteValues.count)
     }
 
-    private static func finite(_ value: Double) -> Double {
-        value.isFinite ? max(value, 0) : 1
+    private static func finite(
+        _ value: Double,
+        invalidValue: Double = V2MetricSemanticConfiguration.current.invalidMetricScore,
+        configuration: V2MetricSemanticConfiguration = .current
+    ) -> Double {
+        value.isFinite ? max(value, configuration.nonNegativeClampFloor) : invalidValue
     }
 
-    private static func zeroMetric(invalid: Int) -> V2MetricBreakdown {
+    private static func zeroMetric(
+        invalid: Int,
+        configuration: V2MetricSemanticConfiguration
+    ) -> V2MetricBreakdown {
         V2MetricBreakdown(
-            objective: invalid > 0 ? 10 : 0, luminanceError: 0, absoluteNitError: 0, midtoneError: 0,
+            objective: invalid > 0 ? configuration.emptyAggregateObjective : 0, luminanceError: 0, absoluteNitError: 0, midtoneError: 0,
             diffuseWhiteError: 0, highlightError: 0, shadowError: 0, chromaError: 0, saturationError: 0,
             hueMeanError: 0, hueP95Error: 0, highChromaHueError: 0, skinLikeHueError: 0,
             temporalLuminanceError: 0, highlightPumping: 0, temporalFlicker: 0, sceneCutOvershoot: 0,

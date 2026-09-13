@@ -125,7 +125,7 @@
     "sourceGridLuminanceSemantics" : "OfflinePixelSampler.linearLumaGrid; source-grid luminance is computed before objective access"
   },
   "preparationDefinitionHash" : "33a9b85be030612556e37bdca5372ec250f3db0b4ee5675eac68c38a83886ce6",
-  "preregistrationInvalidated" : false,
+  "preregistrationInvalidated" : true,
   "searchDefinition" : {
     "failurePolicy" : [
       "infrastructure failure before metric exposure may rerun the same sealed configuration",
@@ -201,7 +201,7 @@
     ]
   },
   "searchDefinitionHashV2" : "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41",
-  "status" : "PREREGISTERED_V2_SEMANTIC_ONLY",
+  "status" : "AUDIT_INVALIDATED",
   "tune" : "NOT_RUN",
   "validation" : "NOT_RUN"
 }

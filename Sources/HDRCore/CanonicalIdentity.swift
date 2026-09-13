@@ -221,6 +221,25 @@ public struct SDRPolicyDefinition: Codable, Hashable, Sendable {
         untaggedFallback: .assumeBT709SourceLinear
     )
 
+    /// V3 keeps the retired V2 definition available for historical artifact
+    /// decoding, while the current preregistration receives a new explicit
+    /// semantic identity.
+    public static let currentV3 = SDRPolicyDefinition(
+        policyVersion: "sdr-input-interpretation-policy-v1",
+        candidateList: [
+            SDRInputInterpretationPolicy.bt709SourceLinear.rawValue,
+            SDRInputInterpretationPolicy.bt1886ReferenceDisplay.rawValue
+        ],
+        bt1886Parameters: .idealReference,
+        untaggedFallback: .assumeBT709SourceLinear,
+        semanticVersion: "sdr-policy-definition-v3",
+        bt709SourceLinearSemanticVersion: "bt709-source-linear-v3",
+        bt1886ReferenceDisplaySemanticVersion: "bt1886-reference-display-v3",
+        sRGBSemanticVersion: "srgb-source-v3",
+        explicitGammaSemanticVersion: "explicit-gamma-v3",
+        linearSemanticVersion: "linear-source-v3"
+    )
+
     public static func currentSHA256() throws -> String {
         try HDRCanonicalIdentity.sha256(current)
     }

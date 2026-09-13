@@ -384,8 +384,10 @@ public struct SDRCalibrationPreregistrationV2: Codable, Hashable, Sendable {
         oldSearchDefinitionHash: String = SDRCalibrationRebaseProtocol.oldSearchDefinitionHash
     ) {
         self.artifactVersion = 2
-        self.status = "PREREGISTERED_V2_SEMANTIC_ONLY"
-        self.preregistrationInvalidated = false
+        // V2 remains decodable historical evidence, but its identity is
+        // audit-invalidated and must never be accepted for calibration.
+        self.status = "AUDIT_INVALIDATED"
+        self.preregistrationInvalidated = true
         self.correctnessBaseline = correctnessBaseline
         self.policyDefinition = seal.policyDefinition
         self.preparationDefinition = seal.preparationDefinition

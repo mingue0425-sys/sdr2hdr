@@ -51,10 +51,28 @@ public struct V6MatcherConfiguration: Codable, Hashable, Sendable {
 
     public static let v6 = V6MatcherConfiguration()
 
+    public static let canonicalFieldNames: Set<String> = [
+        "preparationAlgorithmVersion", "matcherVersion", "gridWidth", "gridHeight",
+        "offsetMinimumSeconds", "offsetMaximumSeconds", "offsetStepSeconds",
+        "acceptedConfidenceThreshold", "rankWeight", "signedGradientWeight",
+        "multiScaleNCCWeight", "edgeMaskWeight", "localContrastWeight",
+        "multiScaleWidths"
+    ]
+
     /// Returns a deterministic failure reason for configurations that could
     /// hang, over-allocate, or produce confidence values outside [0, 1].
     /// Production plan validators and the runtime aligner share this check.
     func validationFailure() -> String? {
+        do {
+            let data = try HDRCanonicalIdentity.data(self)
+            guard let object = try JSONSerialization.jsonObject(
+                with: data, options: [.fragmentsAllowed]
+            ) as? [String: Any], Set(object.keys) == Self.canonicalFieldNames else {
+                return "matcher semantic field coverage is incomplete"
+            }
+        } catch {
+            return "matcher configuration identity encoding failed"
+        }
         let scalarValues = [
             offsetMinimumSeconds, offsetMaximumSeconds, offsetStepSeconds,
             acceptedConfidenceThreshold, rankWeight, signedGradientWeight,

@@ -10,10 +10,14 @@ private struct CLI {
     let candidate: URL?
     let preparedPlan: URL?
     let preparedFrozenPlan: URL?
+    let preregistration: URL?
+    let documentation: URL?
+    let policy: SDRInputInterpretationPolicy?
     let seed: UInt64
     let root: URL?
     let dryRun: Bool
     let selectionCount: Int
+    let verifyOnly: Bool
 
     init(arguments: [String]) throws {
         guard arguments.count > 1 else { throw CLIError.usage }
@@ -24,10 +28,14 @@ private struct CLI {
         var candidate: URL?
         var preparedPlan: URL?
         var preparedFrozenPlan: URL?
+        var preregistration: URL?
+        var documentation: URL?
+        var policy: SDRInputInterpretationPolicy?
         var seed: UInt64 = 42
         var root: URL?
         var dryRun = false
         var selectionCount = 6
+        var verifyOnly = false
         var index = 2
         while index < arguments.count {
             switch arguments[index] {
@@ -66,6 +74,27 @@ private struct CLI {
                     relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 ).standardizedFileURL
                 index += 2
+            case "--preregistration":
+                guard index + 1 < arguments.count else { throw CLIError.usage }
+                preregistration = URL(
+                    fileURLWithPath: arguments[index + 1],
+                    relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                ).standardizedFileURL
+                index += 2
+            case "--documentation":
+                guard index + 1 < arguments.count else { throw CLIError.usage }
+                documentation = URL(
+                    fileURLWithPath: arguments[index + 1],
+                    relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                ).standardizedFileURL
+                index += 2
+            case "--policy":
+                guard index + 1 < arguments.count,
+                      let value = SDRInputInterpretationPolicy(rawValue: arguments[index + 1]) else {
+                    throw CLIError.usage
+                }
+                policy = value
+                index += 2
             case "--seed":
                 guard index + 1 < arguments.count, let value = UInt64(arguments[index + 1]) else { throw CLIError.usage }
                 seed = value
@@ -84,6 +113,9 @@ private struct CLI {
             case "--dry-run":
                 dryRun = true
                 index += 1
+            case "--verify-only":
+                verifyOnly = true
+                index += 1
             case "--help", "-h":
                 throw CLIError.usage
             default:
@@ -95,10 +127,14 @@ private struct CLI {
         self.candidate = candidate
         self.preparedPlan = preparedPlan
         self.preparedFrozenPlan = preparedFrozenPlan
+        self.preregistration = preregistration
+        self.documentation = documentation
+        self.policy = policy
         self.seed = seed
         self.root = root
         self.dryRun = dryRun
         self.selectionCount = selectionCount
+        self.verifyOnly = verifyOnly
     }
 
     func requiredManifest() throws -> URL {
@@ -115,6 +151,11 @@ private struct CLI {
         guard let preparedPlan else { throw CLIError.missingPreparedPlan }
         return preparedPlan
     }
+
+    func requiredPreregistration() throws -> URL {
+        guard let preregistration else { throw CLIError.missingPreregistration }
+        return preregistration
+    }
 }
 
 private enum CLIError: Error, LocalizedError {
@@ -123,6 +164,8 @@ private enum CLIError: Error, LocalizedError {
     case missingRoot
     case missingCandidate
     case missingPreparedPlan
+    case missingPreregistration
+    case missingPolicy
     case unknownOption(String)
 
     var errorDescription: String? {
@@ -132,6 +175,8 @@ private enum CLIError: Error, LocalizedError {
         case .missingRoot: return "--root is required"
         case .missingCandidate: return "--candidate is required"
         case .missingPreparedPlan: return "--prepared-plan is required"
+        case .missingPreregistration: return "--preregistration is required"
+        case .missingPolicy: return "--policy is required for causal prepared-plan verification"
         case .unknownOption(let option): return "unknown option: \(option)\n\n\(Self.usageText)"
         }
     }
@@ -155,8 +200,11 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-evaluate --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6-development-evaluation.json
       HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
-      HDRCalibrate preregister-v2 --output results/calibration-rebase-preregistration-v2.json
-      HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
+      HDRCalibrate preregister-v2 --output results/calibration-rebase-preregistration-v2.json (retired; rejects)
+      HDRCalibrate preregister-v3 --output results/calibration-rebase-preregistration-v3.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V3.md]
+      HDRCalibrate run-preregistered --verify-only --preregistration results/calibration-rebase-preregistration-v3.json
+      HDRCalibrate verify-prepared-plan --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --policy bt709SourceLinear
+      HDRCalibrate verify-prepared-plan-structure --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-import-live --root "/path/to/LIVE" --manifest data_video/manifest-v4.json --select 6 [--dry-run]
@@ -175,11 +223,29 @@ private func loadCalibrationReport(from url: URL) throws -> CalibrationReport {
     try JSONDecoder().decode(CalibrationReport.self, from: Data(contentsOf: url))
 }
 
+private func verifyPreparedPlanCausally(cli: CLI) async throws {
+    let manifestURL = try cli.requiredManifest()
+    let planURL = try cli.requiredPreparedPlan()
+    guard let policy = cli.policy else { throw CLIError.missingPolicy }
+    let planHash = try await V6PreparedPlanCausalVerifier.verify(
+        manifestURL: manifestURL,
+        preparedPlanURL: planURL,
+        preparationConfiguration: V6PreparationConfiguration.v6.forInterpretationPolicy(policy)
+    )
+    print("PreparedEvaluationPlan causally verified: \(planHash)")
+    print("CAUSAL_PROVENANCE_VERIFIED_BY_CURRENT_IMPLEMENTATION")
+}
+
 private func run(arguments: [String]) async throws {
     let cli = try CLI(arguments: arguments)
     if cli.command == "preregister-v2" {
-        let seal = try SDRCalibrationSemanticSealV2.current()
-        let artifact = SDRCalibrationPreregistrationV2(seal: seal)
+        throw CalibrationError.incompleteEvaluation(
+            "SearchDefinitionHashV2 is audit-invalidated; preregister-v3 is the only current generator"
+        )
+    }
+    if cli.command == "preregister-v3" {
+        let artifact = try PreregisteredCalibrationExperiment.current()
+        try artifact.validate()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.nonConformingFloatEncodingStrategy = .throw
@@ -188,25 +254,65 @@ private func run(arguments: [String]) async throws {
             withIntermediateDirectories: true
         )
         try encoder.encode(artifact).write(to: cli.output, options: .atomic)
-        print("PolicyDefinitionHash: \(artifact.policyDefinitionHash)")
-        print("PreparationDefinitionHash: \(artifact.preparationDefinitionHash)")
-        print("MetricDefinitionHash: \(artifact.metricDefinitionHash)")
-        print("SearchDefinitionHashV2: \(artifact.searchDefinitionHashV2)")
+        if let documentation = cli.documentation {
+            try FileManager.default.createDirectory(
+                at: documentation.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try artifact.writeHumanReadableDocumentation(to: documentation)
+        }
+        print("PolicyDefinitionHashV3: \(artifact.policyDefinitionHashV3)")
+        print("PreparationDefinitionHashV3: \(artifact.preparationDefinitionHashV3)")
+        print("MetricDefinitionHashV3: \(artifact.metricDefinitionHashV3)")
+        print("SearchAlgorithmDefinitionHash: \(artifact.searchAlgorithmDefinitionHash)")
+        print("SearchDefinitionHashV3: \(artifact.searchDefinitionHashV3)")
         print("CorpusDefinitionHash: NOT_YET_CREATED")
         print("ExperimentBindingHash: NOT_YET_CREATED")
         print("preregistration: \(cli.output.path)")
         return
     }
+    if cli.command == "run-preregistered" {
+        guard cli.verifyOnly else {
+            throw PreregisteredCalibrationExecutionError.mediaExecutionDisabledForVerification
+        }
+        guard cli.seed == 42, cli.selectionCount == 6, cli.policy == nil else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        let preregistrationURL = cli.preregistration ?? URL(
+            fileURLWithPath: "results/calibration-rebase-preregistration-v3.json",
+            relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        ).standardizedFileURL
+        let artifact = try JSONDecoder().decode(
+            PreregisteredCalibrationExperiment.self,
+            from: Data(contentsOf: preregistrationURL)
+        )
+        let runner = try PreregisteredCalibrationRunner(experiment: artifact)
+        let runtimes = try runner.verifyOnly()
+        print("preregistered execution binding: PASS")
+        print("runtime derived from seal: YES")
+        print("runtime semantic identity match: PASS")
+        print("candidate policies: \(runtimes.map { $0.policy.rawValue }.joined(separator: ", "))")
+        print("global/local candidates per policy: \(runtimes[0].globalCandidates)/\(runtimes[0].localCandidates)")
+        print("budget per policy: \(runtimes[0].totalCandidatesPerPolicy)")
+        print("shortlist: \(runtimes[0].shortlistSize)")
+        print("objective evaluations: 0")
+        print("media execution: NOT RUN")
+        return
+    }
     if cli.command == "verify-prepared-plan" {
-        let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
+        try await verifyPreparedPlanCausally(cli: cli)
+        return
+    }
+    if cli.command == "verify-prepared-plan-structure" {
+        let artifact = try V6PreparedEvaluationPlanArtifact.load(
             from: try cli.requiredPreparedPlan()
         )
-        guard artifact.plan.preparation == .v6 else {
-            throw CalibrationError.incompleteEvaluation(
-                "PreparedEvaluationPlan does not use the current fully sealed V6 preparation configuration"
-            )
+        guard try artifact.verified() else {
+            throw CalibrationError.incompleteEvaluation("PreparedEvaluationPlan artifact hash mismatch")
         }
-        print("PreparedEvaluationPlan verified: \(artifact.planSHA256)")
+        print("PreparedEvaluationPlan structural hash: \(artifact.planSHA256)")
+        print("STRUCTURAL_INTEGRITY_ONLY")
+        print("CAUSAL_PROVENANCE_NOT_PROVEN")
         return
     }
     if cli.command == "dataset-import-live" {

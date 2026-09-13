@@ -88,7 +88,7 @@ NV12 and P010 use the same normalized signal domain and policy. Range normalizat
 
 ## 8. Tune preregistration
 
-`results/calibration-rebase-preregistration.json` is the historical v1 record. It is retained for audit lineage, but it is invalidated and cannot authorize calibration. The repaired semantic-only v2 record is generated separately at `results/calibration-rebase-preregistration-v2.json` after the implementation and mandatory tests are frozen.
+`results/calibration-rebase-preregistration.json` is the historical v1 record. It is retained for audit lineage, but it is invalidated and cannot authorize calibration. The V2 semantic-only record at `results/calibration-rebase-preregistration-v2.json` is also retained as historical evidence and is audit-invalidated. The current execution-bound object is generated at `results/calibration-rebase-preregistration-v3.json` only after the repaired implementation and mandatory tests are frozen.
 
 The retired v1 search-definition hash is:
 
@@ -96,7 +96,7 @@ The retired v1 search-definition hash is:
 7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608
 ```
 
-The retired v1 record is not a corpus seal. The v2 artifact separates policy, preparation, metric, and search identities; it intentionally does not create a corpus or experiment-binding identity before media qualification. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
+The retired v1 record is not a corpus seal. The audit-invalidated v2 record is not eligible for calibration. The V3 artifact derives runtime policy, preparation, metric, and search settings from one canonical object and intentionally does not create a corpus or experiment-binding identity before media qualification. An old V5 preparation plan cannot be accepted by adding a sidecar or policy name.
 
 ## 9. Family-disjoint corpus reissue preflight
 
