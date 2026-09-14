@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -31,6 +32,7 @@ EXPECTED_STATUS_COUNTS = {
     "CORRUPT_OR_UNREADABLE": 0,
     "NOT_QUALIFIED": 0,
 }
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def assert_no_local_path_leakage(value: object, path: str = "artifact") -> None:
@@ -51,6 +53,14 @@ def fail(message: str) -> None:
     raise SystemExit(f"partial qualification verification failed: {message}")
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def main() -> int:
     path = Path("results/live31-partial-media-qualification-v1.json")
     artifact = json.loads(path.read_text())
@@ -64,15 +74,30 @@ def main() -> int:
     if artifact["searchDefinitionHashV4Status"] != "AUDIT_INVALIDATED":
         fail("V4 search identity must remain audit-invalidated")
     if artifact["searchDefinitionHashV5"] != "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e":
-        fail("V5 search identity drift")
-    if artifact["searchDefinitionHashV5Status"] != "CURRENT":
-        fail("V5 search identity must be current")
+        fail("V5 historical search identity drift")
+    if artifact["searchDefinitionHashV5Status"] != "AUDIT_INVALIDATED_BY_REAUDIT":
+        fail("V5 search identity must be audit-invalidated")
+    if artifact["searchDefinitionHashV6"] != "45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8":
+        fail("V6 search identity drift")
+    if artifact["searchDefinitionHashV6Status"] != "CURRENT":
+        fail("V6 search identity must be current")
     if artifact["qualificationDisposition"] != "READY_FOR_PARTIAL_CORPUS_SEAL":
         fail("qualification disposition")
     if artifact["exactTemporalStatus"] != "PROVEN":
         fail("exact temporal proof status")
     if artifact["historicalPrereRegistrations"]["V4"] != "AUDIT_INVALIDATED":
         fail("V4 historical status")
+    if artifact["historicalPrereRegistrations"]["V5"] != "AUDIT_INVALIDATED_BY_REAUDIT":
+        fail("V5 historical status")
+    if artifact["historicalPrereRegistrations"]["V6"] != "CURRENT":
+        fail("V6 current status")
+    root_identity = artifact.get("approvedRootIdentity")
+    if root_identity != {
+        "category": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+        "logicalId": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+        "proof": "trusted-anchor-no-follow-component-walk-plus-pinned-development-acquisition-topology",
+    }:
+        fail("approved root identity proof")
     if artifact["scope"] != {
         "acquisitionPending": 11,
         "canonicalContents": 31,
@@ -146,10 +171,29 @@ def main() -> int:
         value = inputs.get(key)
         if not isinstance(value, str) or len(value) != 64 or value != value.lower():
             fail(f"qualification input SHA-256: {key}")
-    if inputs.get("preregistrationArtifactPath") != "results/calibration-rebase-preregistration-v5.json":
-        fail("qualification must bind the V5 preregistration artifact")
+    if inputs.get("preregistrationArtifactPath") != "results/calibration-rebase-preregistration-v6.json":
+        fail("qualification must bind the V6 preregistration artifact")
     if inputs.get("preregistrationArtifactStatus") != "CURRENT":
-        fail("qualification input V5 status")
+        fail("qualification input V6 status")
+    if inputs.get("v5SearchDefinitionHashStatus") != "AUDIT_INVALIDATED_BY_REAUDIT":
+        fail("qualification input V5 invalidation status")
+    if inputs.get("v6SearchDefinitionHash") != artifact["searchDefinitionHashV6"]:
+        fail("qualification input V6 identity")
+
+    provenance_path = ROOT / "results/live31-source-provenance-recovery.json"
+    preregistration_path = ROOT / str(inputs["preregistrationArtifactPath"])
+    if sha256_file(provenance_path) != inputs["live31ProvenanceArtifactSHA256"]:
+        fail("repository provenance SHA-256 does not match recorded input digest")
+    if sha256_file(preregistration_path) != inputs["preregistrationArtifactSHA256"]:
+        fail("V6 preregistration SHA-256 does not match recorded input digest")
+    preregistration = json.loads(preregistration_path.read_text())
+    if (
+        preregistration.get("artifactVersion") != 6
+        or preregistration.get("status") != "PREREGISTERED_V6_CORPUS_CONTRACT_EXECUTION_BOUND"
+        or preregistration.get("preregistrationInvalidated") is not False
+        or preregistration.get("searchDefinitionHashV6") != artifact["searchDefinitionHashV6"]
+    ):
+        fail("recorded preregistration input is not the current V6 artifact")
     encoded = json.dumps(artifact, sort_keys=True)
     # Acquisition-declared hashes are retained under explicit declared fields;
     # no computed media content hash may appear in this artifact.

@@ -1,16 +1,19 @@
-## PR #13 — V4 invalidation enforcement + V5 qualification hardening
+## PR #13 — V5 invalidation enforcement + V6 corpus-contract execution binding
 
-This PR preserves the failed preregistration history and creates a new V5
-execution-bound semantic identity. It does not qualify a corpus for Tune and
-does not run Tune, Validation, Frozen evaluation, or objective evaluation.
+This PR preserves the failed preregistration history and creates the current
+V6 semantic identity. The V6 corpus contract is a typed immutable object used
+by the final runner and by the pre-objective corpus gate. This PR does not
+hash media, create a corpus seal, run Tune, run Validation, open Frozen data,
+or evaluate an objective.
 
 ### Current remote state
 
 ```text
-HEAD = see PR #13 remote metadata after the final push
+HEAD = update from PR #13 remote metadata after the final push
 Base = main
 Unexpected files = 0
 PR = OPEN / MERGE BLOCKED
+Latest CI = update after the final push
 ```
 
 ### Honest preregistration lineage
@@ -28,46 +31,50 @@ V3 = AUDIT_INVALIDATED
 V4 = bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc
 V4 = AUDIT_INVALIDATED
 
+V5 = 6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e
+V5 = AUDIT_INVALIDATED_BY_REAUDIT
+
 V4 initially accepted
 → later audit found the final policy-runtime seal missing
-→ V4 audit-invalidated
 → V4 executable paths disabled
-→ prior qualification temporal/root evidence invalidated
-→ V5 remediation created
+→ V5 remediation was independently invalidated because corpus semantics were hash-only
+→ V5 executable paths disabled
+→ V6 corpus contract is bound to the actual runner
 ```
 
-V4 remains available for historical inspection only. Its artifact declares
-`status = AUDIT_INVALIDATED` and `preregistrationInvalidated = true`; V4
-calibration and verify-only execution reject it.
+V1–V5 remain available for historical inspection only. Their hashes are not
+eligible for Tune or Validation.
 
-### V5 semantic identity
+### V6 semantic identity
 
 ```text
-ColorScienceDefinitionHashV5 = 057db1bf0d85ab954fee1a65ecbd331c471304cbb7a2209178155e604d724895
-PolicyDefinitionHashV5 = b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4
-PreparationDefinitionHashV5 = bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2
-MetricDefinitionHashV5 = e91298bf754ddbd2729e0e0179ae7b8a93fc53e078769246788d685f920a40ea
-GateDefinitionHashV5 = eff07a7558d8d35a1a16def158721c9303bb74632029b6e6d7d394eae36f62e9
-SearchAlgorithmDefinitionHashV5 = 64c00c0155a3f43c1bde3b5ec0374b69655c367580e85dc6c610d3ba6863c064
-RunnerDefinitionHashV5 = 72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494
-BT709FinalRunnerSemanticHash = bd7e4dcc95ac5db393278c2ee7aadef134dc8b8304c509a5e7c841755dbfe6d0
-BT1886FinalRunnerSemanticHash = ef9c88acb91ac0d42ee27b806007591f93de5f3231a80de276248b45761471a2
-SearchDefinitionHashV5 = 6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e
+ColorScienceDefinitionHashV6 = 08b7bf442d5aa261df981d49c8fc464cd79709a6aafc20ff4f893c49cf3d6ab7
+PolicyDefinitionHashV6 = 063ffbb862922b6893682945bdf56b6f6751b284836752821be9d45d1de8f846
+PreparationDefinitionHashV6 = 0b7985f71ff08784db87648e934bb9c5dc82de6568ac32b5edeb6d61eec021d8
+MetricDefinitionHashV6 = cab02e9c7da8355b01ae744e8f0a7c3c649f92f02981e0be8c44e8b8e98548bb
+GateDefinitionHashV6 = 8038b78c0d650546164d5292ff3b82995d77d4a76870c4666d71a9417b8876b3
+SearchAlgorithmDefinitionHashV6 = 2855a026b9cf18dcba7ea3d5a328ace98d6127407fa29d865857af4215135257
+RunnerDefinitionHashV6 = e750ec2491428ca75c7012d6930e0d39fa44737be57bce6f83f07a3384ffe6d3
+BT709FinalRunnerSemanticHashV6 = 048c58845e12df5ba7c815250ddcf2618e6d0cd660873aebd7b58021658fdb54
+BT1886FinalRunnerSemanticHashV6 = 7c02ed29bf1cedab080cdd8fcb79261651a38ebea81d417ae0a69d01abc3b2cc
+SearchDefinitionHashV6 = 45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8
 ```
 
-The V5 runtime derives the final runner configuration for each policy, hashes
-that actual adapted configuration, and compares it to the sealed
-policy-specific identity before candidate generation. Candidate shortlist
-size is `3`; validation corpus minimum cardinality is a separate semantic
-value of `6`. No corpus identity is created in this PR.
+The final runner derives both policies from the V6 artifact and compares the
+actual policy-specific adapter identity with the sealed value before search.
+The typed corpus contract is also installed on that runner. It enforces
+`Tune >= 5`, `Validation >= 6`, `AT_LEAST` comparison semantics, `LIVE` family
+coverage, and family-disjoint source-master roles. Candidate shortlist `3` is
+separate from dataset cardinality.
 
 ### Qualification evidence
 
-The partial qualification artifact is bound to the current V5 artifact using
-non-media input SHA-256 values. It records exact rational SDR/HDR presentation
-timeline comparison, root-containment checks, fixed structural decode probes,
-and acquisition-declared media hashes as `NOT_RECOMPUTED`. It contains no
-computed media content SHA-256.
+The partial qualification artifact is now bound to the canonical V6 artifact
+and independently rechecks repository-resident input SHA-256 values. It
+records exact rational SDR/HDR presentation timeline comparison, root
+containment checks, fixed structural decode probes, and acquisition-declared
+media hashes as `NOT_RECOMPUTED`. It contains no computed media content
+SHA-256.
 
 ```text
 Downloaded pairs = 20 / 20
@@ -80,9 +87,11 @@ Content hash / split / corpus seal = NOT RUN
 ### Verification boundary
 
 ```text
-V4 historical invalidation tests = PASS
-V5 semantic/mutation/conformance tests = PASS
-Approved-root containment and synthetic symlink matrix = PASS
+V5 historical invalidation tests = PASS
+V6 canonical regeneration and runtime binding = PASS
+V6 corpus cardinality/family/disjoint/coverage tests = PASS
+V6 runtime override and fake-artifact rejection = PASS
+Approved-root containment and synthetic protected-root matrix = PASS
 Exact rational temporal synthetic matrix = PASS
 Qualification artifact/provenance verifier = PASS
 Frozen media accessed = NO
@@ -92,6 +101,5 @@ Tune = NO
 Validation = NO
 ```
 
-The next step is an independent V5 re-audit. This PR does not claim media
-qualification acceptance, calibration success, a policy winner, or production
-readiness.
+The next step is an independent V6 re-audit. This PR does not claim corpus
+sealing, calibration success, a policy winner, or production readiness.

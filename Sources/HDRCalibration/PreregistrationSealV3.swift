@@ -707,6 +707,7 @@ public enum PreregisteredCalibrationExecutionError: Error, LocalizedError, Equat
     case preregistrationMismatch
     case mediaExecutionDisabledForVerification
     case historicalPreregistrationInvalidated
+    case corpusContractMismatch
 
     public var errorDescription: String? {
         switch self {
@@ -718,6 +719,8 @@ public enum PreregisteredCalibrationExecutionError: Error, LocalizedError, Equat
             return "media execution is disabled for this verify-only task"
         case .historicalPreregistrationInvalidated:
             return "historical preregistration is audit-invalidated and cannot execute; use the current versioned seal"
+        case .corpusContractMismatch:
+            return "CORPUS_CONTRACT_MISMATCH: supplied Tune/Validation corpus violates the sealed V6 requirement"
         }
     }
 }

@@ -536,6 +536,15 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     public var preparationSemanticConfiguration: V6PreparationSemanticConfiguration? = nil
     public var metricSemanticConfiguration: V2MetricSemanticConfiguration? = nil
     public var preregistrationSearchDefinitionHashV4: String? = nil
+    /// V6 binds corpus cardinality/family/coverage semantics to the actual
+    /// runner configuration.  Legacy V4 callers leave this nil and retain
+    /// their historical manifest contract.
+    public var v6CorpusContract: V6CorpusContract? = nil
+    /// Exact structural corpus evidence already validated by the V6 entry
+    /// point.  Keeping the same typed object on the production configuration
+    /// prevents the legacy manifest adapter from reconstructing independent
+    /// cardinality/family semantics.
+    public var v6CorpusExecutionInput: V6CorpusExecutionInput? = nil
     /// Captures the identity at the seal-to-runner boundary.  Recomputing an
     /// identity after a caller mutates this value type is not a seal check;
     /// the adapted configuration must equal this expected value.
@@ -677,6 +686,9 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     }
 
     public func validatePreregisteredExecutionBinding() throws {
+        if let v6CorpusContract {
+            try v6CorpusContract.validate()
+        }
         guard let runnerSemanticConfiguration,
               let preparationSemanticConfiguration,
               let metricSemanticConfiguration,
@@ -1788,11 +1800,27 @@ public final class CalibrationV4Runner {
         let virgin = manifest.pairs.filter {
             $0.split == .frozen && $0.virginFrozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id)
         }
-        guard tune.count == runner.requiredTunePairCount,
-              validation.count == runner.requiredValidationPairCount,
-              virgin.count >= configuration.minimumVirginFrozenPairs else {
+        if let corpusContract = configuration.v6CorpusContract {
+            let corpus = configuration.v6CorpusExecutionInput ?? V6CorpusExecutionInput(
+                tunePairs: tune.map {
+                    V6CorpusPairIdentity(sourceMasterId: $0.source, familyLabel: $0.contentFamily ?? "UNCLASSIFIED")
+                },
+                validationPairs: validation.map {
+                    V6CorpusPairIdentity(sourceMasterId: $0.source, familyLabel: $0.contentFamily ?? "UNCLASSIFIED")
+                }
+            )
+            try corpusContract.validate(corpus)
+        } else {
+            guard tune.count == runner.requiredTunePairCount,
+                  validation.count == runner.requiredValidationPairCount else {
+                throw CalibrationError.invalidManifest(
+                    String(format: "V4 expected Tune=%d and Validation=%d; got %d, %d", runner.requiredTunePairCount, runner.requiredValidationPairCount, tune.count, validation.count)
+                )
+            }
+        }
+        guard virgin.count >= configuration.minimumVirginFrozenPairs else {
             throw CalibrationError.invalidManifest(
-                String(format: "V4 expected Tune=%d, Validation=%d, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", runner.requiredTunePairCount, runner.requiredValidationPairCount, configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
+                String(format: "V4 expected at least %d unconsumed Virgin Frozen records; got %d", configuration.minimumVirginFrozenPairs, virgin.count)
             )
         }
     }

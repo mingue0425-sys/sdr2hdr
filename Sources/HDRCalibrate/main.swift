@@ -215,9 +215,12 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate preregister-v2 --output results/calibration-rebase-preregistration-v2.json (retired; rejects)
       HDRCalibrate preregister-v3 --output results/calibration-rebase-preregistration-v3.json (audit-invalidated; rejects)
       HDRCalibrate preregister-v4 --output results/calibration-rebase-preregistration-v4.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V4.md] (historical; invalidated)
-      HDRCalibrate preregister-v5 --output results/calibration-rebase-preregistration-v5.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V5.md]
-      HDRCalibrate run-preregistered --verify-only --preregistration results/calibration-rebase-preregistration-v4.json
-      HDRCalibrate run-preregistered-v5 --verify-only --preregistration results/calibration-rebase-preregistration-v5.json
+      HDRCalibrate preregister-v5 --output results/calibration-rebase-preregistration-v5.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V5.md] (historical; audit-invalidated)
+      HDRCalibrate preregister-v6 --output results/calibration-rebase-preregistration-v6.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V6.md]
+      HDRCalibrate run-preregistered --verify-only --preregistration results/calibration-rebase-preregistration-v4.json (historical; rejects)
+      HDRCalibrate run-preregistered-v5 --verify-only --preregistration results/calibration-rebase-preregistration-v5.json (historical; rejects)
+      HDRCalibrate run-preregistered-v6 --verify-only --preregistration results/calibration-rebase-preregistration-v6.json
+      HDRCalibrate verify-preregistration-v6 --preregistration results/calibration-rebase-preregistration-v6.json
       HDRCalibrate verify-prepared-plan --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --policy bt709SourceLinear
       HDRCalibrate verify-prepared-plan-structure --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -255,12 +258,12 @@ private func run(arguments: [String]) async throws {
     let cli = try CLI(arguments: arguments)
     if cli.command == "preregister-v2" {
         throw CalibrationError.incompleteEvaluation(
-            "SearchDefinitionHashV2 is audit-invalidated; use preregister-v4 after semantic closure"
+            "SearchDefinitionHashV2 is audit-invalidated; use the current preregister-v6 generator"
         )
     }
     if cli.command == "preregister-v3" {
         throw CalibrationError.incompleteEvaluation(
-            "SearchDefinitionHashV3 is audit-invalidated; preregister-v4 is the current generator"
+            "SearchDefinitionHashV3 is audit-invalidated; use the current preregister-v6 generator"
         )
     }
     if cli.command == "preregister-v4" {
@@ -322,6 +325,39 @@ private func run(arguments: [String]) async throws {
         print("BT709FinalRunnerSemanticHash: \(artifact.bt709FinalRunnerSemanticHash)")
         print("BT1886FinalRunnerSemanticHash: \(artifact.bt1886FinalRunnerSemanticHash)")
         print("SearchDefinitionHashV5: \(artifact.searchDefinitionHashV5)")
+        print("CorpusDefinitionHash: NOT_YET_CREATED")
+        print("ExperimentBindingHash: NOT_YET_CREATED")
+        print("preregistration: \(cli.output.path)")
+        return
+    }
+    if cli.command == "preregister-v6" {
+        let artifact = try PreregisteredCalibrationExperimentV6.current()
+        try artifact.validateAgainstCurrentSemantics()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.nonConformingFloatEncodingStrategy = .throw
+        try FileManager.default.createDirectory(
+            at: cli.output.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(artifact).write(to: cli.output, options: .atomic)
+        if let documentation = cli.documentation {
+            try FileManager.default.createDirectory(
+                at: documentation.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try artifact.humanReadableDocumentation().write(to: documentation, atomically: true, encoding: .utf8)
+        }
+        print("ColorScienceDefinitionHashV6: \(artifact.colorScienceDefinitionHashV6)")
+        print("PolicyDefinitionHashV6: \(artifact.policyDefinitionHashV6)")
+        print("PreparationDefinitionHashV6: \(artifact.preparationDefinitionHashV6)")
+        print("MetricDefinitionHashV6: \(artifact.metricDefinitionHashV6)")
+        print("GateDefinitionHashV6: \(artifact.gateDefinitionHashV6)")
+        print("SearchAlgorithmDefinitionHashV6: \(artifact.searchAlgorithmDefinitionHashV6)")
+        print("RunnerDefinitionHashV6: \(artifact.runnerDefinitionHashV6)")
+        print("BT709FinalRunnerSemanticHashV6: \(artifact.bt709FinalRunnerSemanticHashV6)")
+        print("BT1886FinalRunnerSemanticHashV6: \(artifact.bt1886FinalRunnerSemanticHashV6)")
+        print("SearchDefinitionHashV6: \(artifact.searchDefinitionHashV6)")
         print("CorpusDefinitionHash: NOT_YET_CREATED")
         print("ExperimentBindingHash: NOT_YET_CREATED")
         print("preregistration: \(cli.output.path)")
@@ -398,6 +434,49 @@ private func run(arguments: [String]) async throws {
         print("budget per policy: \(runtimes[0].baseV4Runtime.totalCandidatesPerPolicy)")
         print("candidate shortlist: \(artifact.candidateShortlistSize)")
         print("validation corpus minimum pairs: \(artifact.validationCorpusRequirement.minimumValidationPairCount)")
+        print("objective evaluations: 0")
+        print("media execution: NOT RUN")
+        return
+    }
+    if cli.command == "run-preregistered-v6" || cli.command == "verify-preregistration-v6" {
+        guard cli.command == "verify-preregistration-v6" || cli.verifyOnly else {
+            throw PreregisteredCalibrationExecutionError.mediaExecutionDisabledForVerification
+        }
+        guard !cli.seedWasProvided,
+              !cli.selectionCountWasProvided,
+              !cli.policyWasProvided,
+              cli.manifest == nil,
+              cli.candidate == nil,
+              cli.preparedPlan == nil,
+              cli.preparedFrozenPlan == nil,
+              cli.root == nil,
+              !cli.dryRun else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        let preregistrationURL = cli.preregistration ?? URL(
+            fileURLWithPath: "results/calibration-rebase-preregistration-v6.json",
+            relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        ).standardizedFileURL
+        let artifact = try JSONDecoder().decode(
+            PreregisteredCalibrationExperimentV6.self,
+            from: Data(contentsOf: preregistrationURL)
+        )
+        try artifact.validateAgainstCurrentSemantics()
+        let runtimes = try PreregisteredCalibrationRunnerV6(experiment: artifact).verifyOnly()
+        print("V6 preregistration canonical validation: PASS")
+        print("V6 preregistered execution binding: PASS")
+        print("runtime derived from seal: YES")
+        print("corpus contract consumed by runner: YES")
+        print("policy-specific final runner identity match: PASS")
+        print("candidate policies: \(runtimes.map { $0.policy.rawValue }.joined(separator: ", "))")
+        print("global/local candidates per policy: \(runtimes[0].baseV4Runtime.globalCandidates)/\(runtimes[0].baseV4Runtime.localCandidates)")
+        print("budget per policy: \(runtimes[0].baseV4Runtime.totalCandidatesPerPolicy)")
+        print("candidate shortlist: \(artifact.candidateShortlistSize)")
+        print("minimum Tune pairs: \(artifact.corpusContract.minimumTunePairCount)")
+        print("minimum Validation pairs: \(artifact.corpusContract.minimumValidationPairCount)")
+        print("validation comparison: \(artifact.corpusContract.validationCardinalityOperator.rawValue)")
+        print("required family labels: \(artifact.corpusContract.requiredFamilyLabels.joined(separator: ", "))")
+        print("family-disjoint roles: \(artifact.corpusContract.familyDisjointRoles ? "YES" : "NO")")
         print("objective evaluations: 0")
         print("media execution: NOT RUN")
         return

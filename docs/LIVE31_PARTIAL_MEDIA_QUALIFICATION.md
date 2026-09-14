@@ -9,7 +9,7 @@ was performed.
 - Code/V4 head: `b605d8cbab02d21e2de95cf7e025175af30a1877`
 - Correctness baseline: `bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9`
 - SearchDefinitionHashV4: `bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc`
-- SearchDefinitionHashV5 input: `6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e`
+- SearchDefinitionHashV6 input: `45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8`
 - Qualification version: `live31-partial-media-qualification-v1`
 - Downloaded pairs: 20 / 20
 - Acquisition-pending contents: 11 / 11

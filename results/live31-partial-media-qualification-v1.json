@@ -79,6 +79,11 @@
     }
   ],
   "approvedRootId": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+  "approvedRootIdentity": {
+    "category": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+    "logicalId": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+    "proof": "trusted-anchor-no-follow-component-walk-plus-pinned-development-acquisition-topology"
+  },
   "artifactKind": "LIVE31_PARTIAL_MEDIA_QUALIFICATION",
   "artifactVersion": 1,
   "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
@@ -107185,19 +107190,23 @@
     }
   ],
   "exactTemporalStatus": "PROVEN",
-  "generatedAt": "2026-09-14T10:29:19.037857+00:00",
+  "generatedAt": "2026-09-14T12:29:56.807568+00:00",
   "historicalPrereRegistrations": {
     "V1": "RETIRED_INVALIDATED",
     "V2": "AUDIT_INVALIDATED",
     "V3": "AUDIT_INVALIDATED",
-    "V4": "AUDIT_INVALIDATED"
+    "V4": "AUDIT_INVALIDATED",
+    "V5": "AUDIT_INVALIDATED_BY_REAUDIT",
+    "V6": "CURRENT"
   },
   "inputProvenance": {
     "acquisitionManifestSHA256": "cdd3a2207fdc4dddfd089eaa8846648f51e3edb7a7efb9e12cec6f43845dadbe",
     "live31ProvenanceArtifactSHA256": "b66b1d2d56ae693a3b102cbf157ca8ca95a94837d1bacd6ec6f8ebb305e35bf6",
-    "preregistrationArtifactPath": "results/calibration-rebase-preregistration-v5.json",
-    "preregistrationArtifactSHA256": "07fdf5343e87e638a087a07bb1a09d93b438f78bc560d3ce1a21e73bfbac382c",
-    "preregistrationArtifactStatus": "CURRENT"
+    "preregistrationArtifactPath": "results/calibration-rebase-preregistration-v6.json",
+    "preregistrationArtifactSHA256": "260abe89b3c866d47dae47ed6b86726a6006c73a9c2dd1408232512d45ef6459",
+    "preregistrationArtifactStatus": "CURRENT",
+    "v5SearchDefinitionHashStatus": "AUDIT_INVALIDATED_BY_REAUDIT",
+    "v6SearchDefinitionHash": "45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8"
   },
   "metadataSummary": {
     "HDR10": {
@@ -107313,7 +107322,9 @@
   "searchDefinitionHashV4": "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
   "searchDefinitionHashV4Status": "AUDIT_INVALIDATED",
   "searchDefinitionHashV5": "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
-  "searchDefinitionHashV5Status": "CURRENT",
+  "searchDefinitionHashV5Status": "AUDIT_INVALIDATED_BY_REAUDIT",
+  "searchDefinitionHashV6": "45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8",
+  "searchDefinitionHashV6Status": "CURRENT",
   "summary": {
     "acquisitionPendingCount": 11,
     "canonicalContents": 31,
@@ -107345,5 +107356,6 @@
     "ptsCommandSemantics": "ffprobe -v error -select_streams v:0 -show_frames -show_entries frame=best_effort_timestamp exact-path; original presentation sequence retained",
     "structuralProbeConcurrency": 4
   },
-  "v4SemanticHead": "b605d8cbab02d21e2de95cf7e025175af30a1877"
+  "v4SemanticHead": "b605d8cbab02d21e2de95cf7e025175af30a1877",
+  "v6SemanticHead": "V6_SOURCE_SEMANTICS"
 }

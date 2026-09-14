@@ -252,7 +252,10 @@ public struct V5PreregisteredCalibrationRuntimeConfiguration: Sendable {
 
 public struct PreregisteredCalibrationExperimentV5: Codable, Hashable, Sendable {
     public static let artifactVersion = 5
-    public static let currentStatus = "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY"
+    /// V5 is retained as historical evidence only.  The independent re-audit
+    /// found that its corpus declarations were not consumed by the final
+    /// execution path, so no V5 artifact is execution eligible.
+    public static let currentStatus = "AUDIT_INVALIDATED_BY_REAUDIT"
     public static let invalidatedV4SearchDefinitionHash = "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
     public static let retiredV1SearchDefinitionHash = "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608"
     public static let invalidatedV2SearchDefinitionHash = "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41"
@@ -326,7 +329,7 @@ public struct PreregisteredCalibrationExperimentV5: Codable, Hashable, Sendable 
         let searchHash = try search.canonicalSHA256()
         self.artifactVersion = Self.artifactVersion
         self.status = Self.currentStatus
-        self.preregistrationInvalidated = false
+        self.preregistrationInvalidated = true
         self.correctnessBaseline = correctnessBaseline
         self.seal = seal
         self.searchDefinition = search
@@ -380,7 +383,7 @@ public struct PreregisteredCalibrationExperimentV5: Codable, Hashable, Sendable 
         let expectedSearchHash = try searchDefinition.canonicalSHA256()
         guard artifactVersion == Self.artifactVersion,
               status == Self.currentStatus,
-              !preregistrationInvalidated,
+              preregistrationInvalidated,
               correctnessBaseline == "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
               invalidatedV4SearchDefinitionHash == Self.invalidatedV4SearchDefinitionHash,
               invalidatedV4SearchDefinitionHash == seal.searchDefinitionHashV4,
@@ -436,11 +439,11 @@ public struct PreregisteredCalibrationExperimentV5: Codable, Hashable, Sendable 
         encoder.nonConformingFloatEncodingStrategy = .throw
         let json = String(decoding: try encoder.encode(self), as: UTF8.self)
         return """
-        # PR #13 — V5 execution-bound preregistration
+        # PR #13 — V5 historical invalidated preregistration
 
-        V4 is historical and audit-invalidated. This V5 object is the current
-        semantic-only preregistration. No media corpus, objective evaluation,
-        Tune, Validation, or Frozen evaluation is included.
+        V4 and V5 are historical and audit-invalidated. This object is retained
+        for reproducible audit history only and cannot execute. No media corpus,
+        objective evaluation, Tune, Validation, or Frozen evaluation is included.
 
         - status: `\(status)`
         - V4 source identity: `\(invalidatedV4SearchDefinitionHash)` (`AUDIT_INVALIDATED`)
@@ -480,7 +483,7 @@ public final class PreregisteredCalibrationRunnerV5 {
 
     public init(experiment: PreregisteredCalibrationExperimentV5) throws {
         try experiment.validate()
-        self.experiment = experiment
+        throw PreregisteredCalibrationExecutionError.historicalPreregistrationInvalidated
     }
 
     /// Verify-only is the only enabled V5 entry point in this no-data phase.

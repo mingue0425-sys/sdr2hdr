@@ -27,9 +27,11 @@ from typing import Any
 
 
 CODE_BASELINE = "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9"
+ROOT = Path(__file__).resolve().parents[1]
 V4_HEAD = "b605d8cbab02d21e2de95cf7e025175af30a1877"
 SEARCH_DEFINITION_V4 = "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
 SEARCH_DEFINITION_V5 = "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e"
+SEARCH_DEFINITION_V6 = "45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8"
 QUALIFICATION_VERSION = "live31-partial-media-qualification-v1"
 QUALIFICATION_DISPOSITION = "REGENERATE_REQUIRED"
 V4_HASH_STATUS = "AUDIT_INVALIDATED"
@@ -68,6 +70,7 @@ PROTECTED_PATH_TOKENS = {
     "old_contaminated_frozen",
     "holdout",
     "holdouts",
+    "protected-token",
 }
 
 
@@ -181,6 +184,10 @@ def safe_component_check(path: Path, approved_root: Path, trusted_anchor: Path) 
     except ValueError:
         return {"exists": False, "safe": False, "reason": "OUTSIDE_APPROVED_ROOT"}
 
+    approved_components = approved_root.relative_to(trusted_anchor).parts
+    if any(component.casefold() in PROTECTED_PATH_TOKENS for component in approved_components):
+        return {"exists": False, "safe": False, "reason": "PROTECTED_APPROVED_ROOT_COMPONENT"}
+
     current = Path(trusted_anchor.anchor)
     components = list(trusted_anchor.relative_to(Path(trusted_anchor.anchor)).parts)
     components.extend(approved_root.relative_to(trusted_anchor).parts)
@@ -207,6 +214,47 @@ def safe_component_check(path: Path, approved_root: Path, trusted_anchor: Path) 
         "fileType": _file_type(mode),
         "byteSize": os.lstat(path).st_size if stat.S_ISREG(mode) else None,
     }
+
+
+def derive_approved_root_identity(root: Path, trusted_anchor: Path) -> dict[str, str]:
+    """Prove the supplied root is the named development category.
+
+    The returned identity is portable and contains no machine-specific path.
+    The proof is the trusted-anchor component walk plus the pinned acquisition
+    topology, not a caller-supplied logical string.
+    """
+
+    check = safe_component_check(root, root, trusted_anchor)
+    if not check.get("exists") or not check.get("safe") or check.get("fileType") != "directory":
+        raise RuntimeError(f"approved development root is unavailable or unsafe: {check}")
+    parts = tuple(component.casefold() for component in root.relative_to(trusted_anchor).parts)
+    if len(parts) < 2 or parts[-1] != "references" or "live31-development-acquisition" not in parts:
+        raise RuntimeError("approved root is not the pinned LIVE31 development-acquisition references category")
+    return {
+        "logicalId": APPROVED_ROOT_ID,
+        "category": "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES",
+        "proof": "trusted-anchor-no-follow-component-walk-plus-pinned-development-acquisition-topology",
+    }
+
+
+def validate_preregistration_input(path: Path) -> None:
+    """Use the canonical Swift V6 validator before any media probe."""
+
+    binary = ROOT / ".build/debug/HDRCalibrate"
+    command = [str(binary)] if binary.is_file() else ["swift", "run", "HDRCalibrate"]
+    result = subprocess.run(
+        command + ["verify-preregistration-v6", "--preregistration", str(path)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "qualification preregistration failed canonical V6 validation: "
+            + (result.stderr or result.stdout or "unknown validation failure")
+        )
 
 
 def sha256_file(path: Path) -> str:
@@ -787,7 +835,7 @@ def build_document(artifact: dict[str, Any]) -> str:
         f"- Code/V4 head: `{artifact['v4SemanticHead']}`",
         f"- Correctness baseline: `{artifact['correctnessBaseline']}`",
         f"- SearchDefinitionHashV4: `{artifact['searchDefinitionHashV4']}`",
-        f"- SearchDefinitionHashV5 input: `{artifact['searchDefinitionHashV5']}`",
+        f"- SearchDefinitionHashV6 input: `{artifact['searchDefinitionHashV6']}`",
         f"- Qualification version: `{artifact['qualificationVersion']}`",
         f"- Downloaded pairs: {summary['downloadedPairCount']} / 20",
         f"- Acquisition-pending contents: {summary['acquisitionPendingCount']} / 11",
@@ -881,23 +929,18 @@ def main() -> int:
         raise RuntimeError("approved development root must be absolute")
     if not args.manifest.is_file() or not args.provenance.is_file() or not args.preregistration.is_file():
         raise RuntimeError("qualification inputs must be ordinary non-media files")
+    validate_preregistration_input(args.preregistration)
     preregistration = json.loads(args.preregistration.read_text())
     if (
-        preregistration.get("artifactVersion") != 5
-        or preregistration.get("status") != "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY"
+        preregistration.get("artifactVersion") != 6
+        or preregistration.get("status") != "PREREGISTERED_V6_CORPUS_CONTRACT_EXECUTION_BOUND"
         or preregistration.get("preregistrationInvalidated") is not False
-        or preregistration.get("searchDefinitionHashV5") != SEARCH_DEFINITION_V5
+        or preregistration.get("searchDefinitionHashV6") != SEARCH_DEFINITION_V6
     ):
-        raise RuntimeError("qualification must bind the current V5 preregistration artifact")
+        raise RuntimeError("qualification must bind the current canonical V6 preregistration artifact")
     rows, mapping_by_local = read_inputs(args.manifest, args.provenance)
     trusted_anchor = Path("/Volumes")
-    root_check = safe_component_check(args.root, args.root, trusted_anchor)
-    if (
-        not root_check.get("exists")
-        or not root_check.get("safe")
-        or root_check.get("fileType") != "directory"
-    ):
-        raise RuntimeError(f"approved development root is unavailable or unsafe: {root_check}")
+    approved_root_identity = derive_approved_root_identity(args.root, trusted_anchor)
 
     downloaded = [row for row in rows if row["SDR_download_succeeded"] == "True" and row["HDR10_download_succeeded"] == "True"]
     pending = [row for row in rows if row not in downloaded]
@@ -1033,10 +1076,13 @@ def main() -> int:
         "generatedAt": generated_at,
         "correctnessBaseline": CODE_BASELINE,
         "v4SemanticHead": V4_HEAD,
+        "v6SemanticHead": "V6_SOURCE_SEMANTICS",
         "searchDefinitionHashV4": SEARCH_DEFINITION_V4,
         "searchDefinitionHashV4Status": V4_HASH_STATUS,
         "searchDefinitionHashV5": SEARCH_DEFINITION_V5,
-        "searchDefinitionHashV5Status": "CURRENT",
+        "searchDefinitionHashV5Status": "AUDIT_INVALIDATED_BY_REAUDIT",
+        "searchDefinitionHashV6": SEARCH_DEFINITION_V6,
+        "searchDefinitionHashV6Status": "CURRENT",
         "qualificationDisposition": "READY_FOR_PARTIAL_CORPUS_SEAL" if qualification_ready else QUALIFICATION_DISPOSITION,
         "qualificationEvidenceStatus": (
             "REGENERATED_STRUCTURAL_METADATA_DECODE_AND_EXACT_RATIONAL_TEMPORAL"
@@ -1049,6 +1095,8 @@ def main() -> int:
             "V2": "AUDIT_INVALIDATED",
             "V3": "AUDIT_INVALIDATED",
             "V4": "AUDIT_INVALIDATED",
+            "V5": "AUDIT_INVALIDATED_BY_REAUDIT",
+            "V6": "CURRENT",
         },
         "scope": {
             "canonicalContents": 31,
@@ -1063,13 +1111,16 @@ def main() -> int:
             "protectedDataAccessed": False,
             "corpusPromotionAllowed": False,
         },
-        "approvedRootId": APPROVED_ROOT_ID,
+        "approvedRootId": approved_root_identity["logicalId"],
+        "approvedRootIdentity": approved_root_identity,
         "inputProvenance": {
             "acquisitionManifestSHA256": sha256_file(args.manifest),
             "live31ProvenanceArtifactSHA256": sha256_file(args.provenance),
             "preregistrationArtifactSHA256": sha256_file(args.preregistration),
-            "preregistrationArtifactPath": "results/calibration-rebase-preregistration-v5.json",
+            "preregistrationArtifactPath": "results/calibration-rebase-preregistration-v6.json",
             "preregistrationArtifactStatus": "CURRENT",
+            "v5SearchDefinitionHashStatus": "AUDIT_INVALIDATED_BY_REAUDIT",
+            "v6SearchDefinitionHash": SEARCH_DEFINITION_V6,
         },
         "tools": {
             "ffprobePath": Path(args.ffprobe).name,

@@ -16,7 +16,7 @@
   "objectiveEvaluations" : 0,
   "policyDefinitionHashV5" : "b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4",
   "preparationDefinitionHashV5" : "bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2",
-  "preregistrationInvalidated" : false,
+  "preregistrationInvalidated" : true,
   "retiredV1SearchDefinitionHash" : "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
   "runnerDefinitionHashV5" : "72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494",
   "seal" : {
@@ -2601,7 +2601,7 @@
     }
   },
   "searchDefinitionHashV5" : "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
-  "status" : "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY",
+  "status" : "AUDIT_INVALIDATED_BY_REAUDIT",
   "tune" : "NOT_RUN",
   "validation" : "NOT_RUN",
   "validationCorpusRequirement" : {

@@ -1,38 +1,41 @@
-# PR #13 — V5 historical invalidated preregistration
-
-V4 and V5 are historical and audit-invalidated. This object is retained
-for reproducible audit history only and cannot execute. No media corpus,
-objective evaluation, Tune, Validation, or Frozen evaluation is included.
-
-- status: `AUDIT_INVALIDATED_BY_REAUDIT`
-- V4 source identity: `bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc` (`AUDIT_INVALIDATED`)
-- candidate shortlist: `3`
-- minimum validation corpus pairs: `6`
-- corpus identity: `NOT_YET_CREATED`
-- experiment binding: `NOT_YET_CREATED`
-
-```json
 {
-  "artifactVersion" : 5,
-  "bt1886FinalRunnerSemanticHash" : "ef9c88acb91ac0d42ee27b806007591f93de5f3231a80de276248b45761471a2",
-  "bt709FinalRunnerSemanticHash" : "bd7e4dcc95ac5db393278c2ee7aadef134dc8b8304c509a5e7c841755dbfe6d0",
+  "artifactVersion" : 6,
+  "bt1886FinalRunnerSemanticHashV6" : "7c02ed29bf1cedab080cdd8fcb79261651a38ebea81d417ae0a69d01abc3b2cc",
+  "bt709FinalRunnerSemanticHashV6" : "048c58845e12df5ba7c815250ddcf2618e6d0cd660873aebd7b58021658fdb54",
   "candidateShortlistSize" : 3,
-  "colorScienceDefinitionHashV5" : "057db1bf0d85ab954fee1a65ecbd331c471304cbb7a2209178155e604d724895",
+  "colorScienceDefinitionHashV6" : "08b7bf442d5aa261df981d49c8fc464cd79709a6aafc20ff4f893c49cf3d6ab7",
+  "corpusContract" : {
+    "coverageRule" : {
+      "missingCategoryPolicy" : "REJECT_BEFORE_OBJECTIVE_EVALUATION",
+      "requiredDimensions" : [
+        "FAMILY_LABEL"
+      ],
+      "semanticVersion" : "sdr-corpus-coverage-rule-v6"
+    },
+    "failurePolicy" : "REJECT_BEFORE_OBJECTIVE_EVALUATION",
+    "familyDisjointRoles" : true,
+    "minimumTunePairCount" : 5,
+    "minimumValidationPairCount" : 6,
+    "requiredFamilyLabels" : [
+      "LIVE"
+    ],
+    "semanticVersion" : "sdr-corpus-contract-v6",
+    "tuneCardinalityOperator" : "AT_LEAST",
+    "validationCardinalityOperator" : "AT_LEAST"
+  },
   "corpusDefinitionHash" : "NOT_YET_CREATED",
   "correctnessBaseline" : "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
   "experimentBindingHash" : "NOT_YET_CREATED",
-  "gateDefinitionHashV5" : "eff07a7558d8d35a1a16def158721c9303bb74632029b6e6d7d394eae36f62e9",
-  "invalidatedV2SearchDefinitionHash" : "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41",
-  "invalidatedV3SearchDefinitionHash" : "7a2fcf82bb40b45f774d942dac62a57d5c75b7cba16b5415a295ed8a68db8889",
+  "gateDefinitionHashV6" : "8038b78c0d650546164d5292ff3b82995d77d4a76870c4666d71a9417b8876b3",
   "invalidatedV4SearchDefinitionHash" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
+  "invalidatedV5SearchDefinitionHash" : "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
   "mediaQualification" : "NOT_RUN",
-  "metricDefinitionHashV5" : "e91298bf754ddbd2729e0e0179ae7b8a93fc53e078769246788d685f920a40ea",
+  "metricDefinitionHashV6" : "cab02e9c7da8355b01ae744e8f0a7c3c649f92f02981e0be8c44e8b8e98548bb",
   "objectiveEvaluations" : 0,
-  "policyDefinitionHashV5" : "b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4",
-  "preparationDefinitionHashV5" : "bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2",
-  "preregistrationInvalidated" : true,
-  "retiredV1SearchDefinitionHash" : "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
-  "runnerDefinitionHashV5" : "72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494",
+  "policyDefinitionHashV6" : "063ffbb862922b6893682945bdf56b6f6751b284836752821be9d45d1de8f846",
+  "preparationDefinitionHashV6" : "0b7985f71ff08784db87648e934bb9c5dc82de6568ac32b5edeb6d61eec021d8",
+  "preregistrationInvalidated" : false,
+  "runnerDefinitionHashV6" : "e750ec2491428ca75c7012d6930e0d39fa44737be57bce6f83f07a3384ffe6d3",
   "seal" : {
     "colorScienceDefinitionHash" : "ebb8093fd84a84962e1ef9d09c305eb23a4350363e637d84e617b08934daf463",
     "gateDefinition" : {
@@ -1908,7 +1911,7 @@ objective evaluation, Tune, Validation, or Frozen evaluation is included.
     },
     "searchDefinitionHashV4" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
   },
-  "searchAlgorithmDefinitionHashV5" : "64c00c0155a3f43c1bde3b5ec0374b69655c367580e85dc6c610d3ba6863c064",
+  "searchAlgorithmDefinitionHashV6" : "2855a026b9cf18dcba7ea3d5a328ace98d6127407fa29d865857af4215135257",
   "searchDefinition" : {
     "baseV4SearchDefinition" : {
       "colorScienceDefinitionHash" : "ebb8093fd84a84962e1ef9d09c305eb23a4350363e637d84e617b08934daf463",
@@ -2585,47 +2588,52 @@ objective evaluation, Tune, Validation, or Frozen evaluation is included.
       "shortlistSize" : 3,
       "splitSeed" : 92
     },
-    "bt1886FinalRunnerSemanticHash" : "ef9c88acb91ac0d42ee27b806007591f93de5f3231a80de276248b45761471a2",
-    "bt709FinalRunnerSemanticHash" : "bd7e4dcc95ac5db393278c2ee7aadef134dc8b8304c509a5e7c841755dbfe6d0",
+    "bt1886FinalRunnerSemanticHashV6" : "7c02ed29bf1cedab080cdd8fcb79261651a38ebea81d417ae0a69d01abc3b2cc",
+    "bt709FinalRunnerSemanticHashV6" : "048c58845e12df5ba7c815250ddcf2618e6d0cd660873aebd7b58021658fdb54",
     "candidatePolicies" : [
       "bt709SourceLinear",
       "bt1886ReferenceDisplay"
     ],
     "candidateShortlistSize" : 3,
-    "colorScienceDefinitionHashV5" : "057db1bf0d85ab954fee1a65ecbd331c471304cbb7a2209178155e604d724895",
-    "gateDefinitionHashV5" : "eff07a7558d8d35a1a16def158721c9303bb74632029b6e6d7d394eae36f62e9",
-    "invalidatedV4SearchDefinitionHash" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
-    "metricDefinitionHashV5" : "e91298bf754ddbd2729e0e0179ae7b8a93fc53e078769246788d685f920a40ea",
-    "policyDefinitionHashV5" : "b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4",
-    "preparationDefinitionHashV5" : "bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2",
-    "runnerDefinitionHashV5" : "72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494",
-    "searchAlgorithmDefinitionHashV5" : "64c00c0155a3f43c1bde3b5ec0374b69655c367580e85dc6c610d3ba6863c064",
-    "searchBudgetPerPolicy" : 192,
-    "seed" : 20260912,
-    "semanticVersion" : "sdr-search-definition-v5",
-    "splitSeed" : 92,
-    "validationCorpusRequirement" : {
-      "coverageRule" : "minimum-cardinality-plus-preregistered-structural-coverage",
+    "colorScienceDefinitionHashV6" : "08b7bf442d5aa261df981d49c8fc464cd79709a6aafc20ff4f893c49cf3d6ab7",
+    "corpusContract" : {
+      "coverageRule" : {
+        "missingCategoryPolicy" : "REJECT_BEFORE_OBJECTIVE_EVALUATION",
+        "requiredDimensions" : [
+          "FAMILY_LABEL"
+        ],
+        "semanticVersion" : "sdr-corpus-coverage-rule-v6"
+      },
+      "failurePolicy" : "REJECT_BEFORE_OBJECTIVE_EVALUATION",
       "familyDisjointRoles" : true,
+      "minimumTunePairCount" : 5,
       "minimumValidationPairCount" : 6,
       "requiredFamilyLabels" : [
         "LIVE"
       ],
-      "semanticVersion" : "sdr-validation-corpus-requirement-v5"
-    }
+      "semanticVersion" : "sdr-corpus-contract-v6",
+      "tuneCardinalityOperator" : "AT_LEAST",
+      "validationCardinalityOperator" : "AT_LEAST"
+    },
+    "gateDefinitionHashV6" : "8038b78c0d650546164d5292ff3b82995d77d4a76870c4666d71a9417b8876b3",
+    "invalidatedV5SearchDefinitionHash" : "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
+    "metricDefinitionHashV6" : "cab02e9c7da8355b01ae744e8f0a7c3c649f92f02981e0be8c44e8b8e98548bb",
+    "policyDefinitionHashV6" : "063ffbb862922b6893682945bdf56b6f6751b284836752821be9d45d1de8f846",
+    "preparationDefinitionHashV6" : "0b7985f71ff08784db87648e934bb9c5dc82de6568ac32b5edeb6d61eec021d8",
+    "runnerDefinitionHashV6" : "e750ec2491428ca75c7012d6930e0d39fa44737be57bce6f83f07a3384ffe6d3",
+    "searchAlgorithmDefinitionHashV6" : "2855a026b9cf18dcba7ea3d5a328ace98d6127407fa29d865857af4215135257",
+    "searchBudgetPerPolicy" : 192,
+    "seed" : 20260912,
+    "semanticVersion" : "sdr-search-definition-v6",
+    "splitSeed" : 92
   },
-  "searchDefinitionHashV5" : "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
-  "status" : "AUDIT_INVALIDATED_BY_REAUDIT",
+  "searchDefinitionHashV6" : "45e6ff97c31d0c3ee8597434b7901e81e05f7bcf3db250ee0caec9ff9d9d94f8",
+  "status" : "PREREGISTERED_V6_CORPUS_CONTRACT_EXECUTION_BOUND",
   "tune" : "NOT_RUN",
-  "validation" : "NOT_RUN",
-  "validationCorpusRequirement" : {
-    "coverageRule" : "minimum-cardinality-plus-preregistered-structural-coverage",
-    "familyDisjointRoles" : true,
-    "minimumValidationPairCount" : 6,
-    "requiredFamilyLabels" : [
-      "LIVE"
-    ],
-    "semanticVersion" : "sdr-validation-corpus-requirement-v5"
-  }
+  "v1Status" : "RETIRED_INVALIDATED",
+  "v2Status" : "AUDIT_INVALIDATED",
+  "v3Status" : "AUDIT_INVALIDATED",
+  "v4Status" : "AUDIT_INVALIDATED",
+  "v5Status" : "AUDIT_INVALIDATED_BY_REAUDIT",
+  "validation" : "NOT_RUN"
 }
-```

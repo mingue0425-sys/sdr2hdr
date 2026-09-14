@@ -50,8 +50,8 @@ def load(path: Path) -> dict[str, object]:
 
 def check_artifact(artifact: dict[str, object]) -> None:
     require(artifact.get("artifactVersion") == 5, "artifact version is not V5")
-    require(artifact.get("status") == "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY", "V5 status drift")
-    require(artifact.get("preregistrationInvalidated") is False, "V5 is invalidated")
+    require(artifact.get("status") == "AUDIT_INVALIDATED_BY_REAUDIT", "V5 invalidation status drift")
+    require(artifact.get("preregistrationInvalidated") is True, "V5 must be invalidated")
     require(artifact.get("correctnessBaseline") == BASELINE, "baseline drift")
     require(artifact.get("invalidatedV4SearchDefinitionHash") == V4, "V4 historical identity drift")
     require(artifact.get("candidateShortlistSize") == 3, "candidate shortlist drift")
@@ -96,22 +96,13 @@ def check_regeneration(committed: dict[str, object]) -> None:
     print("canonical regenerated V5 artifact == canonical committed artifact: PASS")
 
 
-def check_verify_only() -> None:
+def check_verify_rejected() -> None:
     relative = str(ARTIFACT.relative_to(ROOT))
     result = run_cli(["run-preregistered-v5", "--verify-only", "--preregistration", relative])
-    require(result.returncode == 0, f"V5 verify-only failed: {result.stdout}{result.stderr}")
+    require(result.returncode != 0, "invalidated V5 verify-only execution was accepted")
     output = result.stdout + result.stderr
-    for marker in (
-        "V5 preregistered execution binding: PASS",
-        "runtime derived from seal: YES",
-        "policy-specific final runner identity match: PASS",
-        "candidate shortlist: 3",
-        "validation corpus minimum pairs: 6",
-        "objective evaluations: 0",
-        "media execution: NOT RUN",
-    ):
-        require(marker in output, f"V5 verify-only output missing: {marker}")
-    print("V5 verify-only execution binding: PASS")
+    require("historical preregistration" in output.lower(), "V5 rejection did not identify historical invalidation")
+    print("V5 historical execution rejection: PASS")
 
 
 def check_overrides() -> None:
@@ -120,8 +111,8 @@ def check_overrides() -> None:
         result = run_cli(["run-preregistered-v5", "--verify-only", *override, "--preregistration", relative])
         output = result.stdout + result.stderr
         require(result.returncode != 0, f"runtime override accepted: {' '.join(override)}")
-        require("PREREGISTRATION_MISMATCH" in output, f"wrong override error: {' '.join(override)}")
-    print("V5 runtime override rejection before candidate generation: PASS")
+        require("PREREGISTRATION" in output.upper() or "HISTORICAL" in output.upper(), f"wrong override error: {' '.join(override)}")
+    print("V5 invalidated runtime route remains rejected: PASS")
 
 
 def check_adapter_mutation_rejection(artifact: dict[str, object]) -> None:
@@ -147,7 +138,7 @@ def main() -> int:
     artifact = load(ARTIFACT)
     check_artifact(artifact)
     check_regeneration(artifact)
-    check_verify_only()
+    check_verify_rejected()
     check_overrides()
     check_adapter_mutation_rejection(artifact)
     print("V5 preregistration verification: PASS")

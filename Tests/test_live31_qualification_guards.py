@@ -107,6 +107,20 @@ def test_path_matrix() -> None:
             "symlink to synthetic protected root accepted",
         )
 
+        for name in ("Frozen", "Virgin", "virgin_candidates", "protected-token"):
+            protected_root = base / name
+            protected_root.mkdir()
+            require(
+                not MODULE.safe_component_check(protected_root, protected_root, base)["safe"],
+                f"protected approved root accepted: {name}",
+            )
+            try:
+                MODULE.derive_approved_root_identity(protected_root, base)
+            except RuntimeError:
+                pass
+            else:
+                raise SystemExit(f"LIVE31 qualification guards: FAIL: protected root identity accepted: {name}")
+
 
 def main() -> int:
     test_temporal_matrix()

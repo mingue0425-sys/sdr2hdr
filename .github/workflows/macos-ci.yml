@@ -41,6 +41,7 @@ jobs:
           python3 Tests/verify_preregistration_v3.py
           python3 Tests/verify_preregistration_v4.py
           python3 Tests/verify_preregistration_v5.py
+          python3 Tests/verify_preregistration_v6.py
           python3 Tests/independent_v4_semantic_reaudit.py
           python3 Tests/test_live31_qualification_guards.py
           python3 Tests/verify_live31_partial_media_qualification.py
@@ -56,6 +57,7 @@ jobs:
           python3 -m json.tool config/v4-semantic-source-inventory.json >/dev/null
           python3 -m json.tool results/calibration-rebase-preregistration-v4.json >/dev/null
           python3 -m json.tool results/calibration-rebase-preregistration-v5.json >/dev/null
+          python3 -m json.tool results/calibration-rebase-preregistration-v6.json >/dev/null
           python3 -m json.tool results/live31-partial-media-qualification-v1.json >/dev/null
       - name: Check self-contained media tools
         run: |
