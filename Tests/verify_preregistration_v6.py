@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -43,15 +42,12 @@ def command_prefix() -> list[str]:
 
 
 def run_cli(arguments: list[str]) -> subprocess.CompletedProcess[str]:
-    environment = os.environ.copy()
-    environment["HDR_V6_VERIFY_TRACE"] = "1"
     return subprocess.run(
         command_prefix() + arguments,
         cwd=ROOT,
         text=True,
         capture_output=True,
         check=False,
-        env=environment,
     )
 
 

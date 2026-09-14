@@ -457,15 +457,11 @@ private func run(arguments: [String]) async throws {
             fileURLWithPath: "results/calibration-rebase-preregistration-v6.json",
             relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         ).standardizedFileURL
-        v6VerificationTrace("before decode")
         let artifact = try JSONDecoder().decode(
             PreregisteredCalibrationExperimentV6.self,
             from: Data(contentsOf: preregistrationURL)
         )
-        v6VerificationTrace("after decode")
-        v6VerificationTrace("before runner construction")
         let runtimes = try PreregisteredCalibrationRunnerV6(experiment: artifact).verifyOnly()
-        v6VerificationTrace("after runner verification")
         print("V6 preregistration canonical validation: PASS")
         print("V6 preregistered execution binding: PASS")
         print("runtime derived from seal: YES")
@@ -755,11 +751,6 @@ private func run(arguments: [String]) async throws {
     default:
         throw CLIError.unknownOption(cli.command)
     }
-}
-
-private func v6VerificationTrace(_ message: String) {
-    guard ProcessInfo.processInfo.environment["HDR_V6_VERIFY_TRACE"] == "1" else { return }
-    FileHandle.standardError.write(Data("V6_VERIFY_TRACE \(message)\n".utf8))
 }
 
 @main
