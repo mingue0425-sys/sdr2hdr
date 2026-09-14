@@ -365,6 +365,10 @@ public struct V6PreregisteredCalibrationRuntimeConfiguration: Sendable {
         v6RuntimeVerificationTrace("before experiment validation")
         try experiment.validate()
         v6RuntimeVerificationTrace("after experiment validation")
+        try self.init(validatedExperiment: experiment, policy: policy)
+    }
+
+    fileprivate init(validatedExperiment experiment: PreregisteredCalibrationExperimentV6, policy: SDRInputInterpretationPolicy) throws {
         guard experiment.searchDefinition.candidatePolicies.contains(policy) else {
             throw PreregisteredCalibrationExecutionError.policyNotPreregistered
         }
@@ -649,7 +653,7 @@ public final class PreregisteredCalibrationRunnerV6 {
     public func verifyOnly() throws -> [V6PreregisteredCalibrationRuntimeConfiguration] {
         v6RuntimeVerificationTrace("before V6 runtime map")
         let runtimes = try experiment.searchDefinition.candidatePolicies.map {
-            try V6PreregisteredCalibrationRuntimeConfiguration(experiment: experiment, policy: $0)
+            try V6PreregisteredCalibrationRuntimeConfiguration(validatedExperiment: experiment, policy: $0)
         }
         v6RuntimeVerificationTrace("after V6 runtime map")
         guard runtimes.map(\.policy) == [.bt709SourceLinear, .bt1886ReferenceDisplay],
