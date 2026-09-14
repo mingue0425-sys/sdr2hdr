@@ -362,29 +362,39 @@ public struct V6PreregisteredCalibrationRuntimeConfiguration: Sendable {
     public var candidateShortlistSize: Int { finalRunnerConfiguration.candidateShortlistSize }
 
     public init(experiment: PreregisteredCalibrationExperimentV6, policy: SDRInputInterpretationPolicy) throws {
+        v6RuntimeVerificationTrace("before experiment validation")
         try experiment.validate()
+        v6RuntimeVerificationTrace("after experiment validation")
         guard experiment.searchDefinition.candidatePolicies.contains(policy) else {
             throw PreregisteredCalibrationExecutionError.policyNotPreregistered
         }
+        v6RuntimeVerificationTrace("before V4 runtime adapter")
         let base = try V4PreregisteredCalibrationRuntimeConfiguration(
             seal: experiment.seal,
             experimentSearchDefinitionHashV4: experiment.seal.searchDefinitionHashV4,
             policy: policy
         )
+        v6RuntimeVerificationTrace("after V4 runtime adapter")
         var adapted = try V4CalibrationConfiguration(preregisteredRuntime: base)
+        v6RuntimeVerificationTrace("after V4 configuration adapter")
         adapted.v6CorpusContract = experiment.corpusContract
         try adapted.validatePreregisteredExecutionBinding()
+        v6RuntimeVerificationTrace("after V4 binding validation")
         let production = try adapted.finalRunnerSemanticConfiguration()
+        v6RuntimeVerificationTrace("after production runner semantic configuration")
         let final = try V6FinalRunnerSemanticConfiguration(
             policy: policy,
             productionAdapterConfiguration: production,
             corpusContract: experiment.corpusContract
         )
+        v6RuntimeVerificationTrace("after V6 final runner semantic configuration")
         let actual = try final.canonicalSHA256()
+        v6RuntimeVerificationTrace("after V6 final runner hash")
         let sealed = experiment.sealedFinalRunnerSemanticHash(for: policy)
         guard actual == sealed else {
             throw PreregisteredCalibrationExecutionError.preregistrationMismatch
         }
+        v6RuntimeVerificationTrace("after sealed identity comparison")
         self.policy = policy
         self.baseV4Runtime = base
         self.productionRunnerConfiguration = adapted
@@ -637,9 +647,11 @@ public final class PreregisteredCalibrationRunnerV6 {
     /// an objective.  Actual corpus execution must use the overload accepting
     /// V6CorpusExecutionInput below.
     public func verifyOnly() throws -> [V6PreregisteredCalibrationRuntimeConfiguration] {
+        v6RuntimeVerificationTrace("before V6 runtime map")
         let runtimes = try experiment.searchDefinition.candidatePolicies.map {
             try V6PreregisteredCalibrationRuntimeConfiguration(experiment: experiment, policy: $0)
         }
+        v6RuntimeVerificationTrace("after V6 runtime map")
         guard runtimes.map(\.policy) == [.bt709SourceLinear, .bt1886ReferenceDisplay],
               runtimes.allSatisfy({ $0.candidateShortlistSize == experiment.candidateShortlistSize }),
               runtimes.allSatisfy({ $0.productionRunnerConfiguration.v6CorpusContract == experiment.corpusContract }) else {
@@ -692,4 +704,9 @@ public final class PreregisteredCalibrationRunnerV6 {
         }
         return reports
     }
+}
+
+private func v6RuntimeVerificationTrace(_ message: String) {
+    guard ProcessInfo.processInfo.environment["HDR_V6_VERIFY_TRACE"] == "1" else { return }
+    FileHandle.standardError.write(Data("V6_VERIFY_TRACE \(message)\n".utf8))
 }
