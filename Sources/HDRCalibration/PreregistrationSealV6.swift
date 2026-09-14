@@ -2,6 +2,35 @@ import Foundation
 import HDRCore
 import Metal
 
+/// Transient, process-local derivation cache.  It is not serialized and does
+/// not participate in any identity.  It only lets artifact construction and
+/// the immediately following execution binding share the same typed V4
+/// runtime values instead of reconstructing the large adapter repeatedly.
+private final class V6RuntimeRegistry: @unchecked Sendable {
+    static let shared = V6RuntimeRegistry()
+
+    private let lock = NSLock()
+    private var values: [String: [SDRInputInterpretationPolicy: V4PreregisteredCalibrationRuntimeConfiguration]] = [:]
+
+    func store(
+        _ runtimes: [SDRInputInterpretationPolicy: V4PreregisteredCalibrationRuntimeConfiguration],
+        for searchDefinitionHash: String
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        values[searchDefinitionHash] = runtimes
+    }
+
+    func runtime(
+        for searchDefinitionHash: String,
+        policy: SDRInputInterpretationPolicy
+    ) -> V4PreregisteredCalibrationRuntimeConfiguration? {
+        lock.lock()
+        defer { lock.unlock() }
+        return values[searchDefinitionHash]?[policy]
+    }
+}
+
 /// V6 makes corpus requirements executable semantics.  The same immutable
 /// value is serialized into the preregistration identity and installed on the
 /// production runner before it can inspect a manifest or evaluate a candidate.
@@ -373,11 +402,12 @@ public struct V6PreregisteredCalibrationRuntimeConfiguration: Sendable {
             throw PreregisteredCalibrationExecutionError.policyNotPreregistered
         }
         v6RuntimeVerificationTrace("before V4 runtime adapter")
-        let base = try V4PreregisteredCalibrationRuntimeConfiguration(
-            seal: experiment.seal,
-            experimentSearchDefinitionHashV4: experiment.seal.searchDefinitionHashV4,
+        guard let base = V6RuntimeRegistry.shared.runtime(
+            for: experiment.searchDefinitionHashV6,
             policy: policy
-        )
+        ) else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
         v6RuntimeVerificationTrace("after V4 runtime adapter")
         var adapted = try V4CalibrationConfiguration(preregisteredRuntime: base)
         v6RuntimeVerificationTrace("after V4 configuration adapter")
@@ -461,8 +491,26 @@ public struct PreregisteredCalibrationExperimentV6: Codable, Hashable, Sendable 
         let gateHash = try V6ComponentIdentity(component: "gate", sourceV4Identity: seal.gateDefinitionHash).canonicalSHA256()
         let algorithmHash = try V6ComponentIdentity(component: "search-algorithm", sourceV4Identity: seal.searchAlgorithmDefinitionHashV4).canonicalSHA256()
         let runnerHash = try V6ComponentIdentity(component: "runner", sourceV4Identity: seal.runnerDefinitionHash).canonicalSHA256()
-        let finalBT709 = try Self.deriveFinalRunner(seal: seal, policy: .bt709SourceLinear, corpusContract: corpusContract).canonicalSHA256()
-        let finalBT1886 = try Self.deriveFinalRunner(seal: seal, policy: .bt1886ReferenceDisplay, corpusContract: corpusContract).canonicalSHA256()
+        let baseBT709 = try V4PreregisteredCalibrationRuntimeConfiguration(
+            seal: seal,
+            experimentSearchDefinitionHashV4: seal.searchDefinitionHashV4,
+            policy: .bt709SourceLinear
+        )
+        let baseBT1886 = try V4PreregisteredCalibrationRuntimeConfiguration(
+            seal: seal,
+            experimentSearchDefinitionHashV4: seal.searchDefinitionHashV4,
+            policy: .bt1886ReferenceDisplay
+        )
+        let finalBT709 = try Self.deriveFinalRunner(
+            base: baseBT709,
+            policy: .bt709SourceLinear,
+            corpusContract: corpusContract
+        ).canonicalSHA256()
+        let finalBT1886 = try Self.deriveFinalRunner(
+            base: baseBT1886,
+            policy: .bt1886ReferenceDisplay,
+            corpusContract: corpusContract
+        ).canonicalSHA256()
         let search = V6SearchDefinition(
             invalidatedV5SearchDefinitionHash: Self.invalidatedV5SearchDefinitionHash,
             policyDefinitionHashV6: policyHash,
@@ -509,6 +557,10 @@ public struct PreregisteredCalibrationExperimentV6: Codable, Hashable, Sendable 
         self.tune = "NOT_RUN"
         self.validation = "NOT_RUN"
         self.objectiveEvaluations = 0
+        V6RuntimeRegistry.shared.store(
+            [.bt709SourceLinear: baseBT709, .bt1886ReferenceDisplay: baseBT1886],
+            for: searchHash
+        )
     }
 
     public static func current() throws -> PreregisteredCalibrationExperimentV6 {
@@ -618,15 +670,10 @@ public struct PreregisteredCalibrationExperimentV6: Codable, Hashable, Sendable 
     }
 
     private static func deriveFinalRunner(
-        seal: SDRCalibrationSemanticSealV4,
+        base: V4PreregisteredCalibrationRuntimeConfiguration,
         policy: SDRInputInterpretationPolicy,
         corpusContract: V6CorpusContract
     ) throws -> V6FinalRunnerSemanticConfiguration {
-        let base = try V4PreregisteredCalibrationRuntimeConfiguration(
-            seal: seal,
-            experimentSearchDefinitionHashV4: seal.searchDefinitionHashV4,
-            policy: policy
-        )
         var adapted = try V4CalibrationConfiguration(preregisteredRuntime: base)
         adapted.v6CorpusContract = corpusContract
         try adapted.validatePreregisteredExecutionBinding()
