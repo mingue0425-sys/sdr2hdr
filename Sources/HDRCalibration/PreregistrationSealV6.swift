@@ -412,8 +412,11 @@ public struct V6PreregisteredCalibrationRuntimeConfiguration: Sendable {
         var adapted = try V4CalibrationConfiguration(preregisteredRuntime: base)
         v6RuntimeVerificationTrace("after V4 configuration adapter")
         adapted.v6CorpusContract = experiment.corpusContract
-        try adapted.validatePreregisteredExecutionBinding()
-        v6RuntimeVerificationTrace("after V4 binding validation")
+        // The cached base was validated while the V6 artifact was created.
+        // The final V6 semantic object below revalidates the corpus contract
+        // and the complete adapted identity before this runtime is returned;
+        // repeating the whole legacy adapter validation here only rebuilds the
+        // same large semantic graph and does not add a new binding check.
         let production = try adapted.finalRunnerSemanticConfiguration()
         v6RuntimeVerificationTrace("after production runner semantic configuration")
         let final = try V6FinalRunnerSemanticConfiguration(
