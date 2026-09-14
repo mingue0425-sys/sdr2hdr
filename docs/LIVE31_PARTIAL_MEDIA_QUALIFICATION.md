@@ -17,7 +17,10 @@ was performed.
 ## Result
 
 - Exact downloaded pairs resolved: 20 / 20
-- Eligible independent families: 20
+- Eligible independent families for promotion: 0
+- Qualification disposition: `REGENERATE_REQUIRED`
+- Exact temporal proof: `NOT_PROVEN`
+- V4 SearchDefinitionHash status: `AUDIT_INVALIDATED`
 - Structural decode failures: 0
 - Media objective metrics: NO
 - Frozen media accessed: NO
@@ -39,26 +42,26 @@ was performed.
 
 | Content | SDR | HDR10 | Status | Resolution | Duration | FPS | PTS |
 |---|---|---|---|---|---|---|---|
-| `1_Basketball_Afternoon` | `1_Basketball_Afternoon_SDR_3840x2160_50000k.mp4` | `1_Basketball_Afternoon_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `2_Basketball_Evening` | `2_Basketball_Evening_SDR_3840x2160_50000k.mp4` | `2_Basketball_Evening_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `3_Cafe` | `3_Cafe_SDR_3840x2160_50000k.mp4` | `3_Cafe_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `4_Campfire` | `4_Campfire_SDR_3840x2160_50000k.mp4` | `4_Campfire_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `6_Conversation_Standing` | `6_Conversation_Standing_SDR_3840x2160_50000k.mp4` | `6_Conversation_Standing_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `7_Dancing` | `7_Dancing_SDR_3840x2160_50000k.mp4` | `7_Dancing_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `9_Face_Close` | `9_Face_Close_SDR_3840x2160_50000k.mp4` | `9_Face_Close_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `10_Fountain` | `10_Fountain_SDR_3840x2160_50000k.mp4` | `10_Fountain_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `11_Guitar_Handheld` | `11_Guitar_Handheld_SDR_3840x2160_50000k.mp4` | `11_Guitar_Handheld_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `13_Interview` | `13_Interview_SDR_3840x2160_50000k.mp4` | `13_Interview_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `14_Knitting_Close` | `14_Knitting_Close_SDR_3840x2160_50000k.mp4` | `14_Knitting_Close_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `17_Onion_1` | `17_Onion_1_SDR_3840x2160_50000k.mp4` | `17_Onion_1_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `18_Onion_2` | `18_Onion_2_SDR_3840x2160_50000k.mp4` | `18_Onion_2_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `20_Phone_Call` | `20_Phone_Call_SDR_3840x2160_50000k.mp4` | `20_Phone_Call_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `21_Power_Pole_Sky` | `21_Power_Pole_Sky_SDR_3840x2160_50000k.mp4` | `21_Power_Pole_Sky_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `23_Reading_Bench` | `23_Reading_Bench_SDR_3840x2160_50000k.mp4` | `23_Reading_Bench_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `24_Reading_Stairs` | `24_Reading_Stairs_SDR_3840x2160_50000k.mp4` | `24_Reading_Stairs_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `26_Sitting` | `26_Sitting_SDR_3840x2160_50000k.mp4` | `26_Sitting_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `27_Skateboarding` | `27_Skateboarding_SDR_3840x2160_50000k.mp4` | `27_Skateboarding_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
-| `29_Walking_Forest` | `29_Walking_Forest_SDR_3840x2160_50000k.mp4` | `29_Walking_Forest_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `EXACT_TEMPORAL_MATCH` |
+| `1_Basketball_Afternoon` | `1_Basketball_Afternoon_SDR_3840x2160_50000k.mp4` | `1_Basketball_Afternoon_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `2_Basketball_Evening` | `2_Basketball_Evening_SDR_3840x2160_50000k.mp4` | `2_Basketball_Evening_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `3_Cafe` | `3_Cafe_SDR_3840x2160_50000k.mp4` | `3_Cafe_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `4_Campfire` | `4_Campfire_SDR_3840x2160_50000k.mp4` | `4_Campfire_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `6_Conversation_Standing` | `6_Conversation_Standing_SDR_3840x2160_50000k.mp4` | `6_Conversation_Standing_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `7_Dancing` | `7_Dancing_SDR_3840x2160_50000k.mp4` | `7_Dancing_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `9_Face_Close` | `9_Face_Close_SDR_3840x2160_50000k.mp4` | `9_Face_Close_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `10_Fountain` | `10_Fountain_SDR_3840x2160_50000k.mp4` | `10_Fountain_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `11_Guitar_Handheld` | `11_Guitar_Handheld_SDR_3840x2160_50000k.mp4` | `11_Guitar_Handheld_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `13_Interview` | `13_Interview_SDR_3840x2160_50000k.mp4` | `13_Interview_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `14_Knitting_Close` | `14_Knitting_Close_SDR_3840x2160_50000k.mp4` | `14_Knitting_Close_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `17_Onion_1` | `17_Onion_1_SDR_3840x2160_50000k.mp4` | `17_Onion_1_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `18_Onion_2` | `18_Onion_2_SDR_3840x2160_50000k.mp4` | `18_Onion_2_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `20_Phone_Call` | `20_Phone_Call_SDR_3840x2160_50000k.mp4` | `20_Phone_Call_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `21_Power_Pole_Sky` | `21_Power_Pole_Sky_SDR_3840x2160_50000k.mp4` | `21_Power_Pole_Sky_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `23_Reading_Bench` | `23_Reading_Bench_SDR_3840x2160_50000k.mp4` | `23_Reading_Bench_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `24_Reading_Stairs` | `24_Reading_Stairs_SDR_3840x2160_50000k.mp4` | `24_Reading_Stairs_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `26_Sitting` | `26_Sitting_SDR_3840x2160_50000k.mp4` | `26_Sitting_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `27_Skateboarding` | `27_Skateboarding_SDR_3840x2160_50000k.mp4` | `27_Skateboarding_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
+| `29_Walking_Forest` | `29_Walking_Forest_SDR_3840x2160_50000k.mp4` | `29_Walking_Forest_HDR10_3840x2160_50000k.mp4` | `QUALIFIED` | `EXACT_MATCH` | `COMPATIBLE` | `EXACT_MATCH` | `NOT_PROVEN` |
 
 ## Acquisition pending
 
@@ -172,5 +175,6 @@ they are not quality metrics and were not used to tune V4 semantics.
 - ffmpeg: `ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers`
 - Metadata source: ffprobe stream/format JSON; raw output is retained in the JSON artifact.
 - Structural decode: fixed `0%, 25%, 50%, 75%, max(duration-0.5s)` positions; decoded pixels were not inspected.
+- Exact temporal match is NOT PROVEN by metadata/PTS summaries alone; the 20 pair labels require regeneration.
 - Exact content hashing: NOT RUN in this phase; acquisition-manifest declared hashes were not recomputed.
 - V4 thresholds, matcher semantics, metric constants, gates, and ranking were not changed.

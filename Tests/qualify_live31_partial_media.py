@@ -28,6 +28,8 @@ CODE_BASELINE = "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9"
 V4_HEAD = "b605d8cbab02d21e2de95cf7e025175af30a1877"
 SEARCH_DEFINITION_V4 = "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
 QUALIFICATION_VERSION = "live31-partial-media-qualification-v1"
+QUALIFICATION_DISPOSITION = "REGENERATE_REQUIRED"
+V4_HASH_STATUS = "AUDIT_INVALIDATED"
 EXPECTED_REFERENCE_RESOLUTION = [3840, 2160]
 EXPECTED_DOWNLOADED_COUNT = 20
 EXPECTED_PENDING = {
@@ -587,7 +589,7 @@ def pair_qualification(sdr: dict[str, Any], hdr: dict[str, Any]) -> tuple[str, l
     sdr_pts = sdr.get("ptsStructure") or {}
     hdr_pts = hdr.get("ptsStructure") or {}
     if sdr_pts.get("status") == "PASS" and hdr_pts.get("status") == "PASS":
-        exact = (
+        structurally_consistent = (
             sdr_pts.get("presentationOrderMonotonic")
             and hdr_pts.get("presentationOrderMonotonic")
             and sdr_pts.get("duplicateCount", 0) == 0
@@ -596,12 +598,15 @@ def pair_qualification(sdr: dict[str, Any], hdr: dict[str, Any]) -> tuple[str, l
             and hdr_pts.get("negativeTimestampCount", 0) == 0
             and sdr_pts.get("vfrLike") == hdr_pts.get("vfrLike")
         )
-        compatibility["pts"] = "EXACT_TEMPORAL_MATCH" if exact and sdr_pts.get("vfrLike") is False else "COMPATIBLE_WITH_ALIGNMENT"
-        if compatibility["pts"] != "EXACT_TEMPORAL_MATCH":
-            add_issue(issues, "NEEDS_ALIGNMENT_CHECK", "PTS cadence or structural timestamps differ")
+        compatibility["pts"] = "NOT_PROVEN"
+        compatibility["ptsStructuralEvidence"] = (
+            "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE"
+            if structurally_consistent
+            else "STRUCTURAL_TIMESTAMP_VARIANCE"
+        )
     else:
-        compatibility["pts"] = "NEEDS_ALIGNMENT_CHECK"
-        add_issue(issues, "NEEDS_ALIGNMENT_CHECK", "PTS structure unavailable for both assets")
+        compatibility["pts"] = "NOT_PROVEN"
+        compatibility["ptsStructuralEvidence"] = "INSUFFICIENT_TIMESTAMP_EVIDENCE"
 
     codes = {issue["code"] for issue in issues}
     if "CORRUPT_OR_UNREADABLE" in codes:
@@ -657,7 +662,10 @@ def build_document(artifact: dict[str, Any]) -> str:
         "## Result",
         "",
         f"- Exact downloaded pairs resolved: {summary['exactDownloadedPairsResolved']} / 20",
-        f"- Eligible independent families: {summary['eligibleIndependentFamilies']}",
+        f"- Eligible independent families for promotion: {summary['eligibleIndependentFamilies']}",
+        f"- Qualification disposition: `{artifact['qualificationDisposition']}`",
+        f"- Exact temporal proof: `{artifact['exactTemporalStatus']}`",
+        f"- V4 SearchDefinitionHash status: `{artifact['searchDefinitionHashV4Status']}`",
         f"- Structural decode failures: {summary['structuralDecodeFailureCount']}",
         f"- Media objective metrics: NO",
         f"- Frozen media accessed: NO",
@@ -713,6 +721,7 @@ def build_document(artifact: dict[str, Any]) -> str:
             f"- ffmpeg: `{artifact['tools']['ffmpegVersion']}`",
             "- Metadata source: ffprobe stream/format JSON; raw output is retained in the JSON artifact.",
             "- Structural decode: fixed `0%, 25%, 50%, 75%, max(duration-0.5s)` positions; decoded pixels were not inspected.",
+            "- Exact temporal match is NOT PROVEN by metadata/PTS summaries alone; the 20 pair labels require regeneration.",
             "- Exact content hashing: NOT RUN in this phase; acquisition-manifest declared hashes were not recomputed.",
             "- V4 thresholds, matcher semantics, metric constants, gates, and ranking were not changed.",
             "",
@@ -841,11 +850,15 @@ def main() -> int:
         "correctnessBaseline": CODE_BASELINE,
         "v4SemanticHead": V4_HEAD,
         "searchDefinitionHashV4": SEARCH_DEFINITION_V4,
+        "searchDefinitionHashV4Status": V4_HASH_STATUS,
+        "qualificationDisposition": QUALIFICATION_DISPOSITION,
+        "qualificationEvidenceStatus": "RETAINED_STRUCTURAL_METADATA_AND_DECODE_ONLY",
+        "exactTemporalStatus": "NOT_PROVEN",
         "historicalPrereRegistrations": {
             "V1": "RETIRED_INVALIDATED",
             "V2": "AUDIT_INVALIDATED",
             "V3": "AUDIT_INVALIDATED",
-            "V4": "CURRENT",
+            "V4": "AUDIT_INVALIDATED",
         },
         "scope": {
             "canonicalContents": 31,
@@ -858,6 +871,7 @@ def main() -> int:
             "frozenEvaluationRun": False,
             "objectiveEvaluations": 0,
             "protectedDataAccessed": False,
+            "corpusPromotionAllowed": False,
         },
         "approvedDevelopmentRoot": str(args.root),
         "inputManifest": str(args.manifest),
@@ -894,7 +908,8 @@ def main() -> int:
             ),
             "acquisitionPendingCount": len(pending_items),
             "statusCounts": status_counts,
-            "eligibleIndependentFamilies": status_counts.get("QUALIFIED", 0) + status_counts.get("QUALIFIED_WITH_DOCUMENTED_VARIANCE", 0),
+            "eligibleIndependentFamilies": 0,
+            "promotionBlockedReason": "REGENERATE_REQUIRED_AND_EXACT_TEMPORAL_NOT_PROVEN",
             "structuralDecodeFailureCount": decode_failures,
             "qualityBasedSelection": False,
         },

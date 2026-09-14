@@ -46,10 +46,19 @@ def main() -> int:
         fail("wrong qualification version")
     if artifact["searchDefinitionHashV4"] != "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc":
         fail("V4 search identity drift")
+    if artifact["searchDefinitionHashV4Status"] != "AUDIT_INVALIDATED":
+        fail("V4 search identity must remain audit-invalidated")
+    if artifact["qualificationDisposition"] != "REGENERATE_REQUIRED":
+        fail("qualification disposition")
+    if artifact["exactTemporalStatus"] != "NOT_PROVEN":
+        fail("exact temporal proof status")
+    if artifact["historicalPrereRegistrations"]["V4"] != "AUDIT_INVALIDATED":
+        fail("V4 historical status")
     if artifact["scope"] != {
         "acquisitionPending": 11,
         "canonicalContents": 31,
         "contentHashingRun": False,
+        "corpusPromotionAllowed": False,
         "downloadedPairs": 20,
         "frozenEvaluationRun": False,
         "objectiveEvaluations": 0,
@@ -69,8 +78,8 @@ def main() -> int:
         fail("status counts")
     if artifact["summary"]["exactDownloadedPairsResolved"] != 20:
         fail("exact path resolution")
-    if artifact["summary"]["eligibleIndependentFamilies"] != 20:
-        fail("eligible family count")
+    if artifact["summary"]["eligibleIndependentFamilies"] != 0:
+        fail("promotion-eligible family count")
     if artifact["summary"]["structuralDecodeFailureCount"] != 0:
         fail("structural decode failure")
 
@@ -89,8 +98,8 @@ def main() -> int:
             fail(f"pair resolution: {pair['canonicalLocalName']}")
         if pair["compatibility"]["fps"]["status"] != "EXACT_MATCH":
             fail(f"pair fps: {pair['canonicalLocalName']}")
-        if pair["compatibility"]["pts"] != "EXACT_TEMPORAL_MATCH":
-            fail(f"pair PTS: {pair['canonicalLocalName']}")
+        if pair["compatibility"]["pts"] != "NOT_PROVEN":
+            fail(f"pair exact temporal status: {pair['canonicalLocalName']}")
 
     pending = artifact["acquisitionPending"]
     if {item["canonicalLocalName"] for item in pending} != EXPECTED_PENDING:
@@ -100,7 +109,10 @@ def main() -> int:
 
     print("LIVE31 partial qualification artifact: PASS")
     print("downloaded pairs: 20")
-    print("qualified pairs: 20")
+    print("qualified evidence pairs: 20")
+    print("qualification disposition: REGENERATE_REQUIRED")
+    print("exact temporal proof: NOT_PROVEN")
+    print("promotion-eligible families: 0")
     print("acquisition pending: 11")
     print("content SHA-256 hashing: NOT RUN")
     print("quality/objective evaluation: NOT RUN")

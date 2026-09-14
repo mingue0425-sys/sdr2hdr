@@ -101,7 +101,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -623,7 +624,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -1145,7 +1147,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -1667,7 +1670,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -2189,7 +2193,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -2711,7 +2716,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -3233,7 +3239,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -3755,7 +3762,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -4277,7 +4285,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -4799,7 +4808,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -5321,7 +5331,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -5843,7 +5854,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -6365,7 +6377,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -6887,7 +6900,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -7409,7 +7423,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -7931,7 +7946,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -8453,7 +8469,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -8975,7 +8992,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -9497,7 +9515,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -10019,7 +10038,8 @@
           "fpsSDR": "60000/1001",
           "status": "EXACT_MATCH"
         },
-        "pts": "EXACT_TEMPORAL_MATCH",
+        "pts": "NOT_PROVEN",
+        "ptsStructuralEvidence": "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE",
         "resolution": "EXACT_MATCH"
       },
       "hdr10": {
@@ -10524,12 +10544,13 @@
       "status": "QUALIFIED"
     }
   ],
-  "generatedAt": "2026-09-14T08:15:31.224897+00:00",
+  "exactTemporalStatus": "NOT_PROVEN",
+  "generatedAt": "2026-09-14T09:02:50.487409+00:00",
   "historicalPrereRegistrations": {
     "V1": "RETIRED_INVALIDATED",
     "V2": "AUDIT_INVALIDATED",
     "V3": "AUDIT_INVALIDATED",
-    "V4": "CURRENT"
+    "V4": "AUDIT_INVALIDATED"
   },
   "inputManifest": "/Volumes/game/LIVE31-development-acquisition/LIVE31_pair_manifest.csv",
   "inputProvenanceArtifact": "results/live31-source-provenance-recovery.json",
@@ -10617,6 +10638,8 @@
       }
     }
   },
+  "qualificationDisposition": "REGENERATE_REQUIRED",
+  "qualificationEvidenceStatus": "RETAINED_STRUCTURAL_METADATA_AND_DECODE_ONLY",
   "qualificationRules": {
     "decodeProbePositions": "0%, 25%, 50%, 75%, max(duration-0.5s)",
     "durationRelativeTolerance": 0.005,
@@ -10632,6 +10655,7 @@
     "acquisitionPending": 11,
     "canonicalContents": 31,
     "contentHashingRun": false,
+    "corpusPromotionAllowed": false,
     "downloadedPairs": 20,
     "frozenEvaluationRun": false,
     "objectiveEvaluations": 0,
@@ -10641,12 +10665,14 @@
     "validationRun": false
   },
   "searchDefinitionHashV4": "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
+  "searchDefinitionHashV4Status": "AUDIT_INVALIDATED",
   "summary": {
     "acquisitionPendingCount": 11,
     "canonicalContents": 31,
     "downloadedPairCount": 20,
-    "eligibleIndependentFamilies": 20,
+    "eligibleIndependentFamilies": 0,
     "exactDownloadedPairsResolved": 20,
+    "promotionBlockedReason": "REGENERATE_REQUIRED_AND_EXACT_TEMPORAL_NOT_PROVEN",
     "qualityBasedSelection": false,
     "statusCounts": {
       "CORRUPT_OR_UNREADABLE": 0,
