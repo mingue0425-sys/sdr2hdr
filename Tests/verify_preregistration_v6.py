@@ -121,7 +121,10 @@ def check_regeneration(committed: dict[str, object]) -> None:
 def check_verify_only() -> None:
     relative = str(ARTIFACT.relative_to(ROOT))
     result = run_cli(["run-preregistered-v6", "--verify-only", "--preregistration", relative])
-    require(result.returncode == 0, f"V6 verify-only failed: {result.stdout}{result.stderr}")
+    require(
+        result.returncode == 0,
+        f"V6 verify-only failed (exit {result.returncode}): {result.stdout}{result.stderr}",
+    )
     output = result.stdout + result.stderr
     for marker in (
         "V6 preregistration canonical validation: PASS",
