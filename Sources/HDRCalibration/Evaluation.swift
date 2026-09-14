@@ -391,15 +391,18 @@ public final class PairEvaluator {
     private let device: MTLDevice
     private let experiment: ExperimentConfig
     private let matcherConfiguration: V6MatcherConfiguration
+    private let preparationConfiguration: V6PreparationConfiguration?
 
     public init(
         device: MTLDevice,
         experiment: ExperimentConfig = ExperimentConfig(),
-        matcherConfiguration: V6MatcherConfiguration = .v6
+        matcherConfiguration: V6MatcherConfiguration = .v6,
+        preparationConfiguration: V6PreparationConfiguration? = nil
     ) {
         self.device = device
         self.experiment = experiment
-        self.matcherConfiguration = matcherConfiguration
+        self.matcherConfiguration = preparationConfiguration?.matcherConfiguration ?? matcherConfiguration
+        self.preparationConfiguration = preparationConfiguration
     }
 
     /// Single alignment entry point shared by the production calibration
@@ -408,53 +411,84 @@ public final class PairEvaluator {
         sdr: FrameSequence,
         hdr: FrameSequence,
         confidenceThreshold: Double,
-        matcherConfiguration: V6MatcherConfiguration = .v6
+        matcherConfiguration: V6MatcherConfiguration = .v6,
+        descriptorConfiguration: V6DescriptorSemanticConfiguration = .v6,
+        alignmentConfiguration: V6AlignmentSemanticConfiguration = .v6,
+        sequenceValidationConfiguration: V6SequenceValidationSemanticConfiguration = .v6
     ) -> AlignmentResult {
         TemporalAligner.align(
             sdr: sdr,
             hdr: hdr,
             confidenceThreshold: confidenceThreshold,
-            matcherConfiguration: matcherConfiguration
+            matcherConfiguration: matcherConfiguration,
+            descriptorConfiguration: descriptorConfiguration,
+            alignmentConfiguration: alignmentConfiguration,
+            sequenceValidationConfiguration: sequenceValidationConfiguration
         )
     }
 
     func prepare(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
-        guard (1...512).contains(experiment.maxFramesPerScene) else {
+        let preparation = preparationConfiguration
+        let validationSemantics = preparation?.planValidationSemantics ?? .v6
+        guard (1...validationSemantics.maximumFramesPerScene).contains(
+            preparation?.maxFramesPerScene ?? experiment.maxFramesPerScene
+        ) else {
             throw CalibrationError.incompleteEvaluation(
-                "maxFramesPerScene is outside the supported 1...512 range"
+                "maxFramesPerScene is outside the sealed preparation validation range"
             )
         }
         let urls = record.resolvedURLs(relativeTo: manifestURL)
         let hdrMetadata = try await MetadataProbe.probe(url: urls.hdr)
-        if hdrMetadata.color.referenceTransfer == .hlg && !experiment.allowHLGModel {
+        if hdrMetadata.color.referenceTransfer == .hlg && !(preparation?.allowHLGModel ?? experiment.allowHLGModel) {
             throw CalibrationError.unsupportedReference("HLG model disabled for \(record.id)")
         }
 
-        let maxFrames = max(64, min(experiment.maxFramesPerScene, 32) * 16)
+        let maxFrames = preparation?.maxDecodedFrames ?? max(64, min(experiment.maxFramesPerScene, 32) * 16)
+        let sdrPixelFormat = preparation?.sdrPixelFormat ?? CalibrationPixelFormat.sdrNV12
+        let hdrPixelFormat = preparation?.hdrPixelFormat ?? CalibrationPixelFormat.hdrP010
+        let proxyWidth = preparation?.proxyWidth ?? 320
         let sdrSequence = try await FrameReader.read(
             url: urls.sdr,
-            pixelFormat: CalibrationPixelFormat.sdrNV12,
-            maxFrames: maxFrames
+            pixelFormat: sdrPixelFormat,
+            maxFrames: maxFrames,
+            proxyWidth: proxyWidth,
+            descriptorSemantics: preparation?.descriptorSemantics ?? .v6,
+            colorScience: preparation?.colorScience ?? .calibrationV4,
+            validationSemantics: preparation?.planValidationSemantics ?? .v6,
+            metadataSemantics: preparation?.decoderMetadataSemantics ?? .v6,
+            samplingSemantics: preparation?.frameSamplingSemantics ?? .v6
         )
         let hdrSequence = try await FrameReader.read(
             url: urls.hdr,
-            pixelFormat: CalibrationPixelFormat.hdrP010,
-            maxFrames: maxFrames
+            pixelFormat: hdrPixelFormat,
+            maxFrames: maxFrames,
+            proxyWidth: proxyWidth,
+            descriptorSemantics: preparation?.descriptorSemantics ?? .v6,
+            colorScience: preparation?.colorScience ?? .calibrationV4,
+            validationSemantics: preparation?.planValidationSemantics ?? .v6,
+            metadataSemantics: preparation?.decoderMetadataSemantics ?? .v6,
+            samplingSemantics: preparation?.frameSamplingSemantics ?? .v6
         )
+        let effectiveMatcher = preparation?.matcherConfiguration ?? matcherConfiguration
         let alignment = Self.align(
             sdr: sdrSequence,
             hdr: hdrSequence,
-            confidenceThreshold: experiment.alignmentConfidenceThreshold,
-            matcherConfiguration: matcherConfiguration
+            confidenceThreshold: preparation?.alignmentConfidenceThreshold ?? experiment.alignmentConfidenceThreshold,
+            matcherConfiguration: effectiveMatcher,
+            descriptorConfiguration: preparation?.descriptorSemantics ?? .v6,
+            alignmentConfiguration: preparation?.alignmentSemantics ?? .v6,
+            sequenceValidationConfiguration: preparation?.sequenceValidationSemantics ?? .v6
         )
         let sortedConfidence = alignment.matches.map(\.confidence).sorted()
-        let p10Index = max(0, Int(Double(max(sortedConfidence.count - 1, 0)) * 0.10))
+        let p10Fraction = preparation?.alignmentSemantics.p10QuantileFraction ?? 0.10
+        let p10Index = max(0, Int(Double(max(sortedConfidence.count - 1, 0)) * p10Fraction))
         let p10Confidence = sortedConfidence.isEmpty ? 0 : sortedConfidence[p10Index]
         let policyStatus = V4AlignmentPolicy.status(
             sampledFrames: sdrSequence.samples.count,
             matchedFrames: alignment.matches.count,
             medianConfidence: alignment.medianConfidence,
-            p10Confidence: p10Confidence
+            p10Confidence: p10Confidence,
+            configuration: preparation?.alignmentSemantics ?? .v6
         )
         guard alignment.status != "REJECT", policyStatus != "REJECT" else {
             throw CalibrationError.alignmentFailed(
@@ -462,12 +496,18 @@ public final class PairEvaluator {
             )
         }
 
-        let scenes = SceneDetector.detect(sequence: sdrSequence)
+        let scenes = SceneDetector.detect(
+            sequence: sdrSequence,
+            configuration: preparation?.sceneSegmentationSemantics ?? .v6,
+            descriptorConfiguration: preparation?.descriptorSemantics ?? .v6
+        )
         let selectedMatches = representativeMatches(
             alignment.matches,
             scenes: scenes,
             sdrSamples: sdrSequence.samples,
-            maxPerScene: experiment.maxFramesPerScene
+            maxPerScene: preparation?.maxFramesPerScene ?? experiment.maxFramesPerScene,
+            configuration: preparation?.representativeFrameSemantics ?? .v6,
+            colorScience: preparation?.colorScience ?? .calibrationV4
         )
         var preparedMatches: [PreparedMatch] = []
         preparedMatches.reserveCapacity(selectedMatches.count)
@@ -479,13 +519,20 @@ public final class PairEvaluator {
             let reference = try HDRReferenceDecoder.decode(
                 pixelBuffer: hdr.pixelBuffer,
                 timestampSeconds: match.hdrTimeSeconds,
+                width: preparation?.referenceGridWidth ?? 32,
+                height: preparation?.referenceGridHeight ?? 18,
                 transfer: hdrMetadata.color.referenceTransfer,
-                referencePeakNits: experiment.referenceTargetPeakNits
+                referencePeakNits: preparation?.referenceTargetPeakNits ?? experiment.referenceTargetPeakNits,
+                colorScience: preparation?.colorScience ?? .calibrationV4
             )
             let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                 pixelBuffer: sdr.pixelBuffer,
                 width: reference.width,
-                height: reference.height
+                height: reference.height,
+                interpretationPolicy: preparation?.sdrInterpretationPolicy ?? experiment.sdrInterpretationPolicy,
+                untaggedFallback: preparation?.untaggedSDRFallback ?? experiment.untaggedSDRFallback,
+                bt1886Parameters: preparation?.bt1886Parameters ?? experiment.bt1886Parameters,
+                colorScience: preparation?.colorScience ?? .calibrationV4
             )
             preparedMatches.append(PreparedMatch(
                 match: match,
@@ -503,7 +550,8 @@ public final class PairEvaluator {
             alignment: alignment,
             sdrURL: urls.sdr,
             hdrURL: urls.hdr,
-            hdrTransfer: hdrMetadata.color.referenceTransfer
+            hdrTransfer: hdrMetadata.color.referenceTransfer,
+            configuration: preparation
         )
         return PreparedPair(
             record: record,
@@ -577,13 +625,21 @@ public final class PairEvaluator {
             url: manifestURLs.sdr,
             pixelFormat: preparation.sdrPixelFormat,
             maxFrames: preparation.maxDecodedFrames,
-            proxyWidth: preparation.proxyWidth
+            proxyWidth: preparation.proxyWidth,
+            descriptorSemantics: preparation.descriptorSemantics,
+            colorScience: preparation.colorScience,
+            validationSemantics: preparation.planValidationSemantics,
+            samplingSemantics: preparation.frameSamplingSemantics
         )
         let hdrSequence = try await FrameReader.read(
             url: manifestURLs.hdr,
             pixelFormat: preparation.hdrPixelFormat,
             maxFrames: preparation.maxDecodedFrames,
-            proxyWidth: preparation.proxyWidth
+            proxyWidth: preparation.proxyWidth,
+            descriptorSemantics: preparation.descriptorSemantics,
+            colorScience: preparation.colorScience,
+            validationSemantics: preparation.planValidationSemantics,
+            samplingSemantics: preparation.frameSamplingSemantics
         )
         let actualDecode = V6DecodeMetadata(
             sdrWidth: sdrSequence.width,
@@ -644,12 +700,19 @@ public final class PairEvaluator {
             let reference = try HDRReferenceDecoder.decode(
                 pixelBuffer: hdr.pixelBuffer,
                 timestampSeconds: identity.hdrTimestampSeconds,
+                width: preparation.referenceGridWidth,
+                height: preparation.referenceGridHeight,
                 transfer: transfer,
-                referencePeakNits: preparation.referenceTargetPeakNits
+                referencePeakNits: preparation.referenceTargetPeakNits,
+                colorScience: preparation.colorScience
             )
             let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                 pixelBuffer: sdr.pixelBuffer,
-                width: reference.width, height: reference.height
+                width: reference.width, height: reference.height,
+                interpretationPolicy: preparation.sdrInterpretationPolicy,
+                untaggedFallback: preparation.untaggedSDRFallback,
+                bt1886Parameters: preparation.bt1886Parameters,
+                colorScience: preparation.colorScience
             )
             preparedMatches.append(PreparedMatch(
                 match: match, sdr: sdr, hdr: hdr,
@@ -750,14 +813,24 @@ public final class PairEvaluator {
                 startSeconds: plan.startSeconds,
                 frameCount: preparation.temporalTargetFrameCount,
                 framesPerSecond: preparation.temporalFramesPerSecond,
-                proxyWidth: preparation.proxyWidth
+                proxyWidth: preparation.proxyWidth,
+                descriptorSemantics: preparation.descriptorSemantics,
+                colorScience: preparation.colorScience,
+                validationSemantics: preparation.planValidationSemantics,
+                metadataSemantics: preparation.decoderMetadataSemantics,
+                samplingSemantics: preparation.frameSamplingSemantics
             )
             let hdr = try await FrameReader.readWindow(
                 url: hdrURL, pixelFormat: preparation.hdrPixelFormat,
                 startSeconds: max(plan.startSeconds + plan.offsetSeconds, 0),
                 frameCount: preparation.temporalTargetFrameCount,
                 framesPerSecond: preparation.temporalFramesPerSecond,
-                proxyWidth: preparation.proxyWidth
+                proxyWidth: preparation.proxyWidth,
+                descriptorSemantics: preparation.descriptorSemantics,
+                colorScience: preparation.colorScience,
+                validationSemantics: preparation.planValidationSemantics,
+                metadataSemantics: preparation.decoderMetadataSemantics,
+                samplingSemantics: preparation.frameSamplingSemantics
             )
             let count = min(sdr.samples.count, hdr.samples.count)
             let temporalPolicy = V4TemporalWindowPolicy(
@@ -790,12 +863,19 @@ public final class PairEvaluator {
                 let reference = try HDRReferenceDecoder.decode(
                     pixelBuffer: hdrFrame.pixelBuffer,
                     timestampSeconds: identity.hdrTimestampSeconds,
+                    width: preparation.referenceGridWidth,
+                    height: preparation.referenceGridHeight,
                     transfer: hdrTransfer,
-                    referencePeakNits: preparation.referenceTargetPeakNits
+                    referencePeakNits: preparation.referenceTargetPeakNits,
+                    colorScience: preparation.colorScience
                 )
                 let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                     pixelBuffer: sdrFrame.pixelBuffer,
-                    width: reference.width, height: reference.height
+                    width: reference.width, height: reference.height,
+                    interpretationPolicy: preparation.sdrInterpretationPolicy,
+                    untaggedFallback: preparation.untaggedSDRFallback,
+                    bt1886Parameters: preparation.bt1886Parameters,
+                    colorScience: preparation.colorScience
                 )
                 frames.append(PreparedTemporalFrame(
                     sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,
@@ -828,8 +908,20 @@ public final class PairEvaluator {
         alignment: AlignmentResult,
         sdrURL: URL,
         hdrURL: URL,
-        hdrTransfer: ReferenceTransfer
+        hdrTransfer: ReferenceTransfer,
+        configuration: V6PreparationConfiguration?
     ) async throws -> [PreparedTemporalWindow] {
+        let preparation = configuration ?? preparationConfiguration
+        let targetFrameCount = preparation?.temporalTargetFrameCount ?? V4TemporalWindowPolicy.v5.targetFrameCount
+        let framesPerSecond = preparation?.temporalFramesPerSecond ?? 30
+        let proxyWidth = preparation?.proxyWidth ?? 320
+        let sdrPixelFormat = preparation?.sdrPixelFormat ?? CalibrationPixelFormat.sdrNV12
+        let hdrPixelFormat = preparation?.hdrPixelFormat ?? CalibrationPixelFormat.hdrP010
+        let temporalPolicy = V4TemporalWindowPolicy(
+            targetFrameCount: targetFrameCount,
+            minimumRequiredFrameCount: preparation?.temporalMinimumFrameCount ?? V4TemporalWindowPolicy.v5.minimumRequiredFrameCount,
+            warmupFrameCount: preparation?.temporalWarmupFrameCount ?? V4TemporalWindowPolicy.v5.warmupFrameCount
+        )
         var windows: [PreparedTemporalWindow] = []
         windows.reserveCapacity(scenes.count)
         for scene in scenes {
@@ -837,24 +929,49 @@ public final class PairEvaluator {
                 guard let position = $0.sdrSequencePosition else { return false }
                 return scene.contains(sequencePosition: position)
             }
-            guard let anchor = sceneMatches.max(by: { $0.confidence < $1.confidence }) else { continue }
+            let temporalSemantics = preparation?.temporalSelectionSemantics ?? .v6
+            guard let anchor = sceneMatches.max(by: { lhs, rhs in
+                !temporalSemantics.prefersAnchor(
+                    candidate: (
+                        confidence: lhs.confidence,
+                        sequencePosition: lhs.sdrSequencePosition ?? lhs.sdrIndex
+                    ),
+                    over: (
+                        confidence: rhs.confidence,
+                        sequencePosition: rhs.sdrSequencePosition ?? rhs.sdrIndex
+                    )
+                )
+            }) else { continue }
             // Start at the detected shot boundary so the first sample exercises
             // scene-cut reset, followed by 15 genuinely sequential frames.
-            let start = max(anchor.sdrTimeSeconds - 0.05, 0)
+            let start = max(
+                anchor.sdrTimeSeconds - temporalSemantics.startOffsetSeconds,
+                temporalSemantics.minimumStartSeconds
+            )
             let offset = anchor.hdrTimeSeconds - anchor.sdrTimeSeconds
             let sdr = try await FrameReader.readWindow(
-                url: sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12,
-                startSeconds: start, frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                framesPerSecond: 30
+                url: sdrURL, pixelFormat: sdrPixelFormat,
+                startSeconds: start, frameCount: targetFrameCount,
+                framesPerSecond: framesPerSecond, proxyWidth: proxyWidth,
+                descriptorSemantics: preparation?.descriptorSemantics ?? .v6,
+                colorScience: preparation?.colorScience ?? .calibrationV4,
+                validationSemantics: preparation?.planValidationSemantics ?? .v6,
+                metadataSemantics: preparation?.decoderMetadataSemantics ?? .v6,
+                samplingSemantics: preparation?.frameSamplingSemantics ?? .v6
             )
             let hdr = try await FrameReader.readWindow(
-                url: hdrURL, pixelFormat: CalibrationPixelFormat.hdrP010,
-                startSeconds: max(start + offset, 0),
-                frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
-                framesPerSecond: 30
+                url: hdrURL, pixelFormat: hdrPixelFormat,
+                startSeconds: max(start + offset, temporalSemantics.minimumStartSeconds),
+                frameCount: targetFrameCount,
+                framesPerSecond: framesPerSecond, proxyWidth: proxyWidth,
+                descriptorSemantics: preparation?.descriptorSemantics ?? .v6,
+                colorScience: preparation?.colorScience ?? .calibrationV4,
+                validationSemantics: preparation?.planValidationSemantics ?? .v6,
+                metadataSemantics: preparation?.decoderMetadataSemantics ?? .v6,
+                samplingSemantics: preparation?.frameSamplingSemantics ?? .v6
             )
             let count = min(sdr.samples.count, hdr.samples.count)
-            let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
+            let decision = temporalPolicy.decision(actualDecodedFrameCount: count)
             guard decision.accepted else { continue }
             var frames: [PreparedTemporalFrame] = []
             frames.reserveCapacity(count)
@@ -863,12 +980,19 @@ public final class PairEvaluator {
                 let reference = try HDRReferenceDecoder.decode(
                     pixelBuffer: hdr.samples[index].pixelBuffer,
                     timestampSeconds: hdr.samples[index].descriptor.timestampSeconds,
+                    width: preparation?.referenceGridWidth ?? 32,
+                    height: preparation?.referenceGridHeight ?? 18,
                     transfer: hdrTransfer,
-                    referencePeakNits: experiment.referenceTargetPeakNits
+                    referencePeakNits: preparation?.referenceTargetPeakNits ?? experiment.referenceTargetPeakNits,
+                    colorScience: preparation?.colorScience ?? .calibrationV4
                 )
                 let sourceLuma = try OfflinePixelSampler.linearLumaGrid(
                     pixelBuffer: sdrFrame.pixelBuffer,
-                    width: reference.width, height: reference.height
+                    width: reference.width, height: reference.height,
+                    interpretationPolicy: preparation?.sdrInterpretationPolicy ?? experiment.sdrInterpretationPolicy,
+                    untaggedFallback: preparation?.untaggedSDRFallback ?? experiment.untaggedSDRFallback,
+                    bt1886Parameters: preparation?.bt1886Parameters ?? experiment.bt1886Parameters,
+                    colorScience: preparation?.colorScience ?? .calibrationV4
                 )
                 frames.append(PreparedTemporalFrame(
                     sdr: sdrFrame, reference: reference, sourceLuma: sourceLuma,
@@ -893,7 +1017,9 @@ public final class PairEvaluator {
         _ matches: [MatchedFrame],
         scenes: [SceneRange],
         sdrSamples: [FrameSample],
-        maxPerScene: Int
+        maxPerScene: Int,
+        configuration: V6RepresentativeFrameSemanticConfiguration,
+        colorScience: HDRColorScienceSemanticDefinition
     ) -> [MatchedFrame] {
         guard !matches.isEmpty, maxPerScene > 0 else { return [] }
         var selected: [MatchedFrame] = []
@@ -913,31 +1039,58 @@ public final class PairEvaluator {
                       }) else { return }
                 candidates.append(match)
             }
-            appendUnique(sceneMatches.first)
-            appendUnique(sceneMatches[sceneMatches.count / 2])
-            appendUnique(sceneMatches.last)
+            for rule in configuration.anchorRules {
+                switch rule {
+                case .first: appendUnique(sceneMatches.first)
+                case .middle: appendUnique(sceneMatches[sceneMatches.count / 2])
+                case .last: appendUnique(sceneMatches.last)
+                }
+            }
 
             let withSamples = sceneMatches.compactMap { match in
                 sample(for: match.sdrSequencePosition, sourceIndex: match.sdrIndex, in: sdrSamples)
                     .map { (match, $0) }
             }
-            appendUnique(withSamples.max { $0.1.descriptor.meanLuma < $1.1.descriptor.meanLuma }?.0)
-            appendUnique(withSamples.max { $0.1.descriptor.variance < $1.1.descriptor.variance }?.0)
-            appendUnique(withSamples.max { $0.1.descriptor.edgeEnergy < $1.1.descriptor.edgeEnergy }?.0)
-            appendUnique(withSamples.max {
-                Self.percentile($0.1.lumaGrid, 0.95) < Self.percentile($1.1.lumaGrid, 0.95)
-            }?.0)
-            appendUnique(withSamples.max {
-                OfflinePixelSampler.chromaMagnitude(pixelBuffer: $0.1.pixelBuffer) <
-                    OfflinePixelSampler.chromaMagnitude(pixelBuffer: $1.1.pixelBuffer)
-            }?.0)
+            func maximum(_ score: (FrameSample) -> Double) -> MatchedFrame? {
+                withSamples.max { lhs, rhs in
+                    let lhsPosition = lhs.0.sdrSequencePosition ?? lhs.0.sdrIndex
+                    let rhsPosition = rhs.0.sdrSequencePosition ?? rhs.0.sdrIndex
+                    return !configuration.prefersMaximum(
+                        value: score(lhs.1),
+                        sequencePosition: lhsPosition,
+                        over: score(rhs.1),
+                        otherSequencePosition: rhsPosition
+                    )
+                }?.0
+            }
+            for rule in configuration.maximumRules {
+                switch rule {
+                case .meanLuma:
+                    appendUnique(maximum { Double($0.descriptor.meanLuma) })
+                case .variance:
+                    appendUnique(maximum { Double($0.descriptor.variance) })
+                case .edgeEnergy:
+                    appendUnique(maximum { Double($0.descriptor.edgeEnergy) })
+                case .lumaP95:
+                    appendUnique(maximum {
+                        Double(Self.percentile($0.lumaGrid, configuration.lumaP95Fraction))
+                    })
+                case .chromaMagnitude:
+                    appendUnique(maximum {
+                        Double(OfflinePixelSampler.chromaMagnitude(
+                            pixelBuffer: $0.pixelBuffer,
+                            configuration: configuration,
+                            colorScience: colorScience
+                        ))
+                    })
+                }
+            }
 
             if candidates.count < count {
                 for index in 0..<count {
-                    let normalized = count == 1 ? 0.5 : Double(index) / Double(count - 1)
-                    let sourceIndex = min(
-                        sceneMatches.count - 1,
-                        max(0, Int((normalized * Double(sceneMatches.count - 1)).rounded()))
+                    let sourceIndex = configuration.fallbackSourceIndex(
+                        index: index,
+                        count: sceneMatches.count
                     )
                     appendUnique(sceneMatches[sourceIndex])
                 }

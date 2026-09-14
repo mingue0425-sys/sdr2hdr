@@ -144,6 +144,102 @@ final class P010Tests: XCTestCase {
         XCTAssertLessThanOrEqual(maximumDifference, 0.002)
     }
 
+    func testProductionNV12P010PolicyMatrixUsesIndependentCPUOracle() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device unavailable")
+        }
+
+        let nv12Codes: [UInt8] = [16, 17, 33, 34, 128, 200, 234, 235]
+        let p010Codes: [UInt16] = [64, 65, 135, 136, 512, 800, 936, 940]
+        let nv12 = try makeNV12(
+            width: nv12Codes.count,
+            height: 2,
+            yCodes: nv12Codes + nv12Codes,
+            cbCode: 128,
+            crCode: 128
+        )
+        let p010 = try makeP010(
+            width: p010Codes.count,
+            height: 2,
+            yCodes: p010Codes + p010Codes,
+            cbCode: 512,
+            crCode: 512,
+            fullRange: false
+        )
+
+        let nonZeroBlack = BT1886TransferParameters(
+            blackLuminance: 0.01,
+            whiteLuminance: 1,
+            gamma: 2.4
+        )
+        let cases: [(String, SDRInputInterpretationPolicy, BT1886TransferParameters)] = [
+            ("BT709", .bt709SourceLinear, .idealReference),
+            ("BT1886 ideal black", .bt1886ReferenceDisplay, .idealReference),
+            ("BT1886 non-zero black", .bt1886ReferenceDisplay, nonZeroBlack)
+        ]
+
+        for (label, policy, parameters) in cases {
+            var configuration = HDRConfiguration(
+                paperWhiteNits: 100,
+                peakNits: 101,
+                highlightStrength: 0,
+                contrastStrength: 0,
+                saturationCompensation: 0,
+                shadowProtection: 0,
+                temporalStability: 0,
+                outputMode: .edr,
+                displayHeadroom: 1,
+                toneCurveRevision: .legacyV2,
+                inputFallbackPolicy: .requireMetadata,
+                sdrInterpretationPolicy: policy,
+                bt1886Parameters: parameters
+            )
+            configuration.untaggedSDRFallback = .reject
+
+            let nv12Output = try process(
+                pixelBuffer: nv12,
+                device: device,
+                configuration: configuration
+            )
+            let p010Output = try process(
+                pixelBuffer: p010,
+                device: device,
+                configuration: configuration
+            )
+
+            for index in nv12Codes.indices {
+                let nvSignal = (Float(nv12Codes[index]) - 16) / 219
+                let p010Signal = (Float(p010Codes[index]) - 64) / 876
+                let nvExpected = independentNeutralBT2020(
+                    signal: nvSignal,
+                    policy: policy,
+                    parameters: parameters
+                )
+                let p010Expected = independentNeutralBT2020(
+                    signal: p010Signal,
+                    policy: policy,
+                    parameters: parameters
+                )
+                let nvOffset = index * 4
+                let p010Offset = index * 4
+                for channel in 0..<3 {
+                    XCTAssertEqual(
+                        Float(nv12Output[nvOffset + channel]),
+                        nvExpected[channel],
+                        accuracy: 0.003,
+                        "\(label) NV12 code \(nv12Codes[index]) channel \(channel)"
+                    )
+                    XCTAssertEqual(
+                        Float(p010Output[p010Offset + channel]),
+                        p010Expected[channel],
+                        accuracy: 0.003,
+                        "\(label) P010 code \(p010Codes[index]) channel \(channel)"
+                    )
+                }
+            }
+        }
+    }
+
     func testP010PreservesMoreNearBlackLevelsThanNV12() throws {
         let tenBitCodes: [UInt16] = [64, 65, 66, 67, 68, 72, 80, 96]
         let eightBitCodes = tenBitCodes.map { UInt8($0 / 4) }
@@ -223,7 +319,19 @@ final class P010Tests: XCTestCase {
     }
 
     private func process(pixelBuffer: CVPixelBuffer, device: MTLDevice) throws -> [Float16] {
-        let processor = try HDRProcessor(device: device, configuration: .calibratedV4)
+        try process(
+            pixelBuffer: pixelBuffer,
+            device: device,
+            configuration: .calibratedV4
+        )
+    }
+
+    private func process(
+        pixelBuffer: CVPixelBuffer,
+        device: MTLDevice,
+        configuration: HDRConfiguration
+    ) throws -> [Float16] {
+        let processor = try HDRProcessor(device: device, configuration: configuration)
         let commandBuffer = try processor.makeCommandBuffer()
         let frame = try processor.process(pixelBuffer: pixelBuffer, commandBuffer: commandBuffer)
         commandBuffer.commit()
@@ -231,6 +339,41 @@ final class P010Tests: XCTestCase {
         XCTAssertEqual(commandBuffer.status, .completed)
         XCTAssertNil(commandBuffer.error)
         return try readRGBA16FloatPixels(from: frame.texture, device: device)
+    }
+
+    /// Independent neutral-pixel oracle. This intentionally duplicates the
+    /// mathematical constants in test code instead of calling HDRColorMath or
+    /// HDRReference, so production transfer helpers cannot define their own
+    /// expected result.
+    private func independentNeutralBT2020(
+        signal: Float,
+        policy: SDRInputInterpretationPolicy,
+        parameters: BT1886TransferParameters
+    ) -> [Float] {
+        let encoded = min(max(signal, 0), 1)
+        let linear: Float
+        switch policy {
+        case .bt709SourceLinear:
+            linear = encoded < 0.081
+                ? encoded / 4.5
+                : pow((encoded + 0.099) / 1.099, 1 / 0.45)
+        case .bt1886ReferenceDisplay:
+            let blackRoot = pow(parameters.blackLuminance, 1 / parameters.gamma)
+            let whiteRoot = pow(parameters.whiteLuminance, 1 / parameters.gamma)
+            let span = whiteRoot - blackRoot
+            let a = pow(span, parameters.gamma)
+            let b = blackRoot / span
+            linear = a * pow(max(encoded + b, 0), parameters.gamma)
+        default:
+            fatalError("test oracle only covers the two preregistered policies")
+        }
+
+        // Column-major BT.709 -> BT.2020 matrix, written out independently.
+        return [
+            0.6274040 * linear + 0.3292820 * linear + 0.0433136 * linear,
+            0.0690970 * linear + 0.9195400 * linear + 0.0113623 * linear,
+            0.0163916 * linear + 0.0880132 * linear + 0.8955950 * linear
+        ].map { min(max($0, 0), 1) }
     }
 
     private func makeP010(

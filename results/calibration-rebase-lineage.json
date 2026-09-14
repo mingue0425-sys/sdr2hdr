@@ -1,0 +1,21 @@
+{
+  "preregistrationInvalidated": true,
+  "oldHashEligibleForCalibration": false,
+  "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "sdrPolicyVersion": "sdr-input-interpretation-policy-v1",
+  "preparationVersion": "v6-prepared-evaluation-plan-v6-sdr-interpretation-policy",
+  "metricVersion": "v2-objective-with-v61-directional-diagnostics",
+  "tuneIdentity": "UNAVAILABLE",
+  "validationIdentity": "UNAVAILABLE",
+  "searchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+  "selectedPolicy": null,
+  "selectedCandidate": null,
+  "candidateConfigurationHash": null,
+  "frozenAccessed": false,
+  "objectiveEvaluations": 0,
+  "oldCalibrationReusable": false,
+  "productionDefaultChanged": false,
+  "verdict": "BLOCKED_MISSING_DATA",
+  "reason": "approved Tune/Validation manifest is not configured; no calibration media was opened"
+}

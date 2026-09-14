@@ -525,6 +525,9 @@ public struct V4AlignmentSummary: Codable, Sendable {
 }
 
 public enum V4AlignmentPolicy {
+    /// Legacy defaults retained for development/audit compatibility.  The
+    /// preregistered V4 preparation path passes its immutable alignment
+    /// semantic configuration explicitly.
     public static let minimumMatchedFrames = 8
     public static let minimumMatchRatio = 0.60
     public static let minimumP10Confidence = 0.60
@@ -555,12 +558,47 @@ public enum V4AlignmentPolicy {
             ? "ALIGNED" : "CONDITIONAL"
     }
 
+    public static func status(
+        sampledFrames: Int,
+        matchedFrames: Int,
+        medianConfidence: Double,
+        p10Confidence: Double,
+        configuration: V6AlignmentSemanticConfiguration
+    ) -> String {
+        guard sampledFrames >= configuration.minimumMatchedFrames,
+              matchedFrames >= configuration.minimumMatchedFrames else {
+            return "REJECT"
+        }
+        let matchRatio = Double(matchedFrames) / Double(sampledFrames)
+        guard matchRatio.isFinite,
+              matchRatio >= configuration.minimumMatchRatio,
+              medianConfidence.isFinite,
+              p10Confidence.isFinite else {
+            return "REJECT"
+        }
+        return medianConfidence >= configuration.alignedMedianConfidence &&
+            p10Confidence >= configuration.minimumP10Confidence ? "ALIGNED" : "CONDITIONAL"
+    }
+
     public static func supportsMainCalibration(_ summary: V4AlignmentSummary) -> Bool {
         summary.status == "ALIGNED" && status(
             sampledFrames: summary.sampledFrames,
             matchedFrames: summary.matchedFrames,
             medianConfidence: summary.medianConfidence,
             p10Confidence: summary.p10Confidence
+        ) == "ALIGNED"
+    }
+
+    public static func supportsMainCalibration(
+        _ summary: V4AlignmentSummary,
+        configuration: V6AlignmentSemanticConfiguration
+    ) -> Bool {
+        summary.status == "ALIGNED" && status(
+            sampledFrames: summary.sampledFrames,
+            matchedFrames: summary.matchedFrames,
+            medianConfidence: summary.medianConfidence,
+            p10Confidence: summary.p10Confidence,
+            configuration: configuration
         ) == "ALIGNED"
     }
 }

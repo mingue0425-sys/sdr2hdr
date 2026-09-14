@@ -9,6 +9,8 @@ struct SDRToHDRParameters {
     uint matrixKind;
     uint transferFunction;
     float gamma;
+    float bt1886BlackLuminance;
+    float bt1886WhiteLuminance;
     uint outputMode;
     uint toneCurveRevision;
     float paperWhiteNits;
@@ -25,6 +27,20 @@ struct SDRToHDRParameters {
     uint sceneStatisticsValid;
     uint sceneStatisticsReserved;
     uint histogramStrategy;
+    uint sceneProxyWidth;
+    uint sceneProxyHeight;
+    uint sceneHistogramBinCount;
+    uint sceneLinear16HistogramBinCount;
+    float sceneInputMinimum;
+    float sceneInputMaximum;
+    float sceneHistogramUpperExclusive;
+    float sceneHistogramLogMinimumExponent;
+    float sceneHistogramLogMaximumExponent;
+    float sceneShadowDenseBreakpoint;
+    uint sceneShadowDenseLowerBinCount;
+    float sceneShadowDenseUpperSpan;
+    float sceneQuantizationMaximum;
+    float sceneQuantizationRounding;
     float sceneP01;
     float sceneP05;
     float sceneP50;
@@ -51,6 +67,99 @@ struct SDRToHDRParameters {
     uint chromaReconstructionMode;
     float chromaSampleCenterX;
     float chromaSampleCenterY;
+
+    float bt709LumaR;
+    float bt709LumaG;
+    float bt709LumaB;
+    float bt2020LumaR;
+    float bt2020LumaG;
+    float bt2020LumaB;
+    float bt709ToBT2020_00;
+    float bt709ToBT2020_01;
+    float bt709ToBT2020_02;
+    float bt709ToBT2020_10;
+    float bt709ToBT2020_11;
+    float bt709ToBT2020_12;
+    float bt709ToBT2020_20;
+    float bt709ToBT2020_21;
+    float bt709ToBT2020_22;
+    float bt709InverseBreakPoint;
+    float bt709InverseLinearScale;
+    float bt709InverseOffset;
+    float bt709InverseScale;
+    float bt709InverseExponent;
+    float srgbInverseBreakPoint;
+    float srgbInverseLinearScale;
+    float srgbInverseOffset;
+    float srgbInverseScale;
+    float srgbInverseExponent;
+    float bt601ToRGB_00;
+    float bt601ToRGB_01;
+    float bt601ToRGB_02;
+    float bt601ToRGB_10;
+    float bt601ToRGB_11;
+    float bt601ToRGB_12;
+    float bt601ToRGB_20;
+    float bt601ToRGB_21;
+    float bt601ToRGB_22;
+    float bt709ToRGB_00;
+    float bt709ToRGB_01;
+    float bt709ToRGB_02;
+    float bt709ToRGB_10;
+    float bt709ToRGB_11;
+    float bt709ToRGB_12;
+    float bt709ToRGB_20;
+    float bt709ToRGB_21;
+    float bt709ToRGB_22;
+    float bt2020ToRGB_00;
+    float bt2020ToRGB_01;
+    float bt2020ToRGB_02;
+    float bt2020ToRGB_10;
+    float bt2020ToRGB_11;
+    float bt2020ToRGB_12;
+    float bt2020ToRGB_20;
+    float bt2020ToRGB_21;
+    float bt2020ToRGB_22;
+    float pqM1;
+    float pqM2;
+    float pqC1;
+    float pqC2;
+    float pqC3;
+    float pqAbsolutePeakNits;
+    float p010StorageDenominator;
+    uint p010RightShift;
+    float p010CodeMaximum;
+
+    float toneInputMinimum;
+    float toneInputMaximum;
+    float toneSmoothstepFloor;
+    float toneSmoothstepLinear;
+    float toneSmoothstepQuadratic;
+    float toneShoulderBase;
+    float toneShoulderContrast;
+    float toneLegacyShadowLower;
+    float toneLegacyShadowUpper;
+    float toneSceneFloorLower;
+    float toneSceneFloorUpper;
+    float toneSceneFloorFallback;
+    float toneSceneTopMinimumDelta;
+    float toneSceneTopFallback;
+    float toneSceneTopUpper;
+    float toneSceneLowMidCoefficient;
+    float toneSceneProtectionCoefficient;
+    float toneDefaultPresenceLower;
+    float toneDefaultPresenceUpper;
+    float toneDefaultFadeLower;
+    float toneDefaultFadeUpper;
+    float toneDefaultAttenuationCoefficient;
+    float toneChromaStart;
+    float toneChromaPeakMinimum;
+    float toneChromaCoefficient;
+    float toneGamutLuminanceFloor;
+    float toneGamutDenominatorFloor;
+    float toneChromaScaleMinimum;
+    float toneChromaScaleMaximum;
+    float toneOutputMinimum;
 };
 
 struct HDRDebugStats {
@@ -76,35 +185,55 @@ struct TemporalLumaStats {
     atomic_uint histogram[64];
 };
 
-constant float3 kBT709Luma = float3(0.2126, 0.7152, 0.0722);
-constant float3 kBT2020Luma = float3(0.2627, 0.6780, 0.0593);
-constant float3x3 kBT709ToBT2020 = float3x3(
-    float3(0.6274040, 0.0690970, 0.0163916),
-    float3(0.3292820, 0.9195400, 0.0880132),
-    float3(0.0433136, 0.0113623, 0.8955950)
-);
-
 inline float smoothStepSafe(float edge0, float edge1, float value) {
     float denominator = max(edge1 - edge0, 1e-6f);
     float t = clamp((value - edge0) / denominator, 0.0f, 1.0f);
     return t * t * (3.0f - 2.0f * t);
 }
 
-inline float inverseBT709(float value) {
-    value = max(value, 0.0f);
-    return value < 0.081f ? value / 4.5f : pow((value + 0.099f) / 1.099f, 1.0f / 0.45f);
+inline float smoothStepSemantic(float edge0, float edge1, float value, constant SDRToHDRParameters& p) {
+    float denominator = max(edge1 - edge0, p.toneSmoothstepFloor);
+    float t = clamp((value - edge0) / denominator, 0.0f, 1.0f);
+    return t * t * (p.toneSmoothstepLinear - p.toneSmoothstepQuadratic * t);
 }
 
-inline float inverseSRGB(float value) {
+inline float smoothStepRemapSemantic(float value, constant SDRToHDRParameters& p) {
+    float t = clamp(value, 0.0f, 1.0f);
+    return t * t * (p.toneSmoothstepLinear - p.toneSmoothstepQuadratic * t);
+}
+
+inline float inverseBT709(float value, constant SDRToHDRParameters& p) {
     value = max(value, 0.0f);
-    return value <= 0.04045f ? value / 12.92f : pow((value + 0.055f) / 1.055f, 2.4f);
+    return value < p.bt709InverseBreakPoint
+        ? value / p.bt709InverseLinearScale
+        : pow((value + p.bt709InverseOffset) / p.bt709InverseScale, p.bt709InverseExponent);
+}
+
+inline float inverseSRGB(float value, constant SDRToHDRParameters& p) {
+    value = max(value, 0.0f);
+    return value <= p.srgbInverseBreakPoint
+        ? value / p.srgbInverseLinearScale
+        : pow((value + p.srgbInverseOffset) / p.srgbInverseScale, p.srgbInverseExponent);
+}
+
+inline float inverseBT1886(float value, constant SDRToHDRParameters& p) {
+    // HDRProcessor validates the complete parameter domain before dispatch.
+    // Keep the valid-domain equation identical to HDRColorMath: no GPU-only
+    // span floor may silently change a valid BT.1886 parameterization.
+    float blackRoot = pow(p.bt1886BlackLuminance, 1.0f / p.gamma);
+    float whiteRoot = pow(p.bt1886WhiteLuminance, 1.0f / p.gamma);
+    float span = whiteRoot - blackRoot;
+    float a = pow(span, p.gamma);
+    float b = blackRoot / span;
+    return a * pow(max(clamp(value, 0.0f, 1.0f) + b, 0.0f), p.gamma);
 }
 
 inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
     switch (p.transferFunction) {
-        case 0: return inverseBT709(value);
-        case 1: return inverseSRGB(value);
+        case 0: return inverseBT709(value, p);
+        case 1: return inverseSRGB(value, p);
         case 2: return pow(max(value, 0.0f), p.gamma);
+        case 4: return inverseBT1886(value, p);
         default: return max(value, 0.0f);
     }
 }
@@ -114,22 +243,22 @@ inline float3 ycbcrToRGB(float y, float2 chroma, constant SDRToHDRParameters& p)
     float cr = (chroma.y - p.chromaOffset) * p.chromaScale;
     if (p.matrixKind == 1) {
         return float3(
-            y + 1.402000f * cr,
-            y - 0.344136f * cb - 0.714136f * cr,
-            y + 1.772000f * cb
+            p.bt601ToRGB_00 * y + p.bt601ToRGB_01 * cb + p.bt601ToRGB_02 * cr,
+            p.bt601ToRGB_10 * y + p.bt601ToRGB_11 * cb + p.bt601ToRGB_12 * cr,
+            p.bt601ToRGB_20 * y + p.bt601ToRGB_21 * cb + p.bt601ToRGB_22 * cr
         );
     }
     if (p.matrixKind == 2) {
         return float3(
-            y + 1.474600f * cr,
-            y - 0.164553f * cb - 0.571353f * cr,
-            y + 1.881400f * cb
+            p.bt2020ToRGB_00 * y + p.bt2020ToRGB_01 * cb + p.bt2020ToRGB_02 * cr,
+            p.bt2020ToRGB_10 * y + p.bt2020ToRGB_11 * cb + p.bt2020ToRGB_12 * cr,
+            p.bt2020ToRGB_20 * y + p.bt2020ToRGB_21 * cb + p.bt2020ToRGB_22 * cr
         );
     }
     return float3(
-        y + 1.574800f * cr,
-        y - 0.187324f * cb - 0.468124f * cr,
-        y + 1.855600f * cb
+        p.bt709ToRGB_00 * y + p.bt709ToRGB_01 * cb + p.bt709ToRGB_02 * cr,
+        p.bt709ToRGB_10 * y + p.bt709ToRGB_11 * cb + p.bt709ToRGB_12 * cr,
+        p.bt709ToRGB_20 * y + p.bt709ToRGB_21 * cb + p.bt709ToRGB_22 * cr
     );
 }
 
@@ -158,14 +287,14 @@ inline HDRToneExpansionBreakdown makeToneExpansionBreakdown(
 }
 
 inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
-    float y = clamp(luminance, 0.0f, 1.0f);
-    float shoulderStart = 0.68f - 0.20f * clamp(p.contrastStrength, 0.0f, 1.0f);
-    float t = smoothStepSafe(shoulderStart, 1.0f, y);
-    float shoulder = t * t * (3.0f - 2.0f * t);
+    float y = clamp(luminance, p.toneInputMinimum, p.toneInputMaximum);
+    float shoulderStart = p.toneShoulderBase - p.toneShoulderContrast * clamp(p.contrastStrength, 0.0f, 1.0f);
+    float shoulderT = smoothStepSemantic(shoulderStart, p.toneInputMaximum, y, p);
+    float shoulder = smoothStepRemapSemantic(shoulderT, p);
     float strength = clamp(p.highlightStrength * p.temporalAdaptation, 0.0f, 1.0f);
 
     if (p.toneCurveRevision == 0) {
-        float legacyShadowGate = smoothStepSafe(0.035f, 0.48f, y);
+        float legacyShadowGate = smoothStepSemantic(p.toneLegacyShadowLower, p.toneLegacyShadowUpper, y, p);
         float legacyProtection = 1.0f - clamp(p.shadowProtection, 0.0f, 1.0f) *
             (1.0f - legacyShadowGate);
         float legacyExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y * legacyProtection;
@@ -176,16 +305,16 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
         // V4: shadow coordinates are derived from the source scene's causal
         // percentile estimator. If the first frame has no history yet, use a
         // conservative neutral band; the estimator updates the next frame.
-        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, p.toneSceneFloorLower, p.toneSceneFloorUpper) : p.toneSceneFloorFallback;
         float shadowTop = p.sceneStatisticsValid != 0
-            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
-            : 0.1125f;
-        shadowTop = min(shadowTop, 0.60f);
-        float shadowWeight = 1.0f - smoothStepSafe(shadowFloor, shadowTop, y);
-        float lowMidTransition = smoothStepSafe(shadowFloor, shadowTop, y);
-        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * 0.08f * lowMidTransition * y;
+            ? max(p.sceneShadowTop, shadowFloor + p.toneSceneTopMinimumDelta)
+            : p.toneSceneTopFallback;
+        shadowTop = min(shadowTop, p.toneSceneTopUpper);
+        float shadowWeight = 1.0f - smoothStepSemantic(shadowFloor, shadowTop, y, p);
+        float lowMidTransition = smoothStepSemantic(shadowFloor, shadowTop, y, p);
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * p.toneSceneLowMidCoefficient * lowMidTransition * y;
         float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
-        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
+        float protection = 1.0f - p.toneSceneProtectionCoefficient * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
         float expanded = y + (lowMidExpansion + shoulderExpansion) * protection;
         return clamp(expanded, y, p.peakRatio);
     }
@@ -196,7 +325,7 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
         // the shoulder. If a scene anchor crosses the shoulder, clip only
         // the low-mid support endpoint; the shadow protection transition
         // remains on the original scene-relative anchor.
-        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, p.toneSceneFloorLower, p.toneSceneFloorUpper) : 0.01f;
         float shadowTop = p.sceneStatisticsValid != 0
             ? max(p.sceneShadowTop, shadowFloor + 0.025f)
             : 0.1125f;
@@ -291,9 +420,9 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
     // smooth shadow-band influence. Exact black and the deepest code values
     // retain unit gain; influence peaks in visible shadows and fades before
     // the highlight shoulder begins.
-    float shadowPresence = smoothStepSafe(0.002f, 0.025f, y) *
-        (1.0f - smoothStepSafe(0.12f, 0.48f, y));
-    float shadowAttenuation = 0.18f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowPresence;
+    float shadowPresence = smoothStepSemantic(p.toneDefaultPresenceLower, p.toneDefaultPresenceUpper, y, p) *
+        (1.0f - smoothStepSemantic(p.toneDefaultFadeLower, p.toneDefaultFadeUpper, y, p));
+    float shadowAttenuation = p.toneDefaultAttenuationCoefficient * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowPresence;
     float protectedBase = y * (1.0f - shadowAttenuation);
     float expansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
     return clamp(protectedBase + max(expansion, 0.0f), 0.0f, p.peakRatio);
@@ -302,14 +431,14 @@ inline float toneExpand(float luminance, constant SDRToHDRParameters& p) {
 // Observation-only decomposition. The production toneExpand() above remains
 // the sole function used to produce output pixels.
 inline HDRToneExpansionBreakdown toneExpandBreakdown(float luminance, constant SDRToHDRParameters& p) {
-    float y = clamp(luminance, 0.0f, 1.0f);
-    float shoulderStart = 0.68f - 0.20f * clamp(p.contrastStrength, 0.0f, 1.0f);
-    float t = smoothStepSafe(shoulderStart, 1.0f, y);
-    float shoulder = t * t * (3.0f - 2.0f * t);
+    float y = clamp(luminance, p.toneInputMinimum, p.toneInputMaximum);
+    float shoulderStart = p.toneShoulderBase - p.toneShoulderContrast * clamp(p.contrastStrength, 0.0f, 1.0f);
+    float shoulderT = smoothStepSemantic(shoulderStart, p.toneInputMaximum, y, p);
+    float shoulder = smoothStepRemapSemantic(shoulderT, p);
     float strength = clamp(p.highlightStrength * p.temporalAdaptation, 0.0f, 1.0f);
 
     if (p.toneCurveRevision == 0) {
-        float legacyShadowGate = smoothStepSafe(0.035f, 0.48f, y);
+        float legacyShadowGate = smoothStepSemantic(p.toneLegacyShadowLower, p.toneLegacyShadowUpper, y, p);
         float legacyProtection = 1.0f - clamp(p.shadowProtection, 0.0f, 1.0f) *
             (1.0f - legacyShadowGate);
         float legacyExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y * legacyProtection;
@@ -323,16 +452,16 @@ inline HDRToneExpansionBreakdown toneExpandBreakdown(float luminance, constant S
     }
 
     if (p.toneCurveRevision == 2) {
-        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, 0.001f, 0.20f) : 0.01f;
+        float shadowFloor = p.sceneStatisticsValid != 0 ? clamp(p.sceneShadowFloor, p.toneSceneFloorLower, p.toneSceneFloorUpper) : p.toneSceneFloorFallback;
         float shadowTop = p.sceneStatisticsValid != 0
-            ? max(p.sceneShadowTop, shadowFloor + 0.025f)
-            : 0.1125f;
-        shadowTop = min(shadowTop, 0.60f);
-        float shadowWeight = 1.0f - smoothStepSafe(shadowFloor, shadowTop, y);
-        float lowMidTransition = smoothStepSafe(shadowFloor, shadowTop, y);
-        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * 0.08f * lowMidTransition * y;
+            ? max(p.sceneShadowTop, shadowFloor + p.toneSceneTopMinimumDelta)
+            : p.toneSceneTopFallback;
+        shadowTop = min(shadowTop, p.toneSceneTopUpper);
+        float shadowWeight = 1.0f - smoothStepSemantic(shadowFloor, shadowTop, y, p);
+        float lowMidTransition = smoothStepSemantic(shadowFloor, shadowTop, y, p);
+        float lowMidExpansion = (p.peakRatio - 1.0f) * strength * p.toneSceneLowMidCoefficient * lowMidTransition * y;
         float shoulderExpansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
-        float protection = 1.0f - 0.90f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
+        float protection = 1.0f - p.toneSceneProtectionCoefficient * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowWeight;
         return makeToneExpansionBreakdown(
             toneExpand(luminance, p),
             max(lowMidExpansion * protection, 0.0f),
@@ -438,9 +567,9 @@ inline HDRToneExpansionBreakdown toneExpandBreakdown(float luminance, constant S
         );
     }
 
-    float shadowPresence = smoothStepSafe(0.002f, 0.025f, y) *
-        (1.0f - smoothStepSafe(0.12f, 0.48f, y));
-    float shadowAttenuation = 0.18f * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowPresence;
+    float shadowPresence = smoothStepSemantic(p.toneDefaultPresenceLower, p.toneDefaultPresenceUpper, y, p) *
+        (1.0f - smoothStepSemantic(p.toneDefaultFadeLower, p.toneDefaultFadeUpper, y, p));
+    float shadowAttenuation = p.toneDefaultAttenuationCoefficient * clamp(p.shadowProtection, 0.0f, 1.0f) * shadowPresence;
     float expansion = (p.peakRatio - 1.0f) * strength * shoulder * y;
     return makeToneExpansionBreakdown(
         toneExpand(luminance, p),
@@ -451,40 +580,30 @@ inline HDRToneExpansionBreakdown toneExpandBreakdown(float luminance, constant S
     );
 }
 
-inline float3 gamutCompress(float3 rgb, float luminance, float peakRatio) {
-    float safeLuminance = max(luminance, 0.0f);
+inline float3 gamutCompress(float3 rgb, float luminance, float peakRatio, constant SDRToHDRParameters& p) {
+    float safeLuminance = max(luminance, p.toneGamutLuminanceFloor);
     float minimum = min(rgb.x, min(rgb.y, rgb.z));
     float maximum = max(rgb.x, max(rgb.y, rgb.z));
     float chromaScale = 1.0f;
     if (minimum < 0.0f && safeLuminance > 0.0f) {
-        chromaScale = min(chromaScale, safeLuminance / max(safeLuminance - minimum, 1e-6f));
+        chromaScale = min(chromaScale, safeLuminance / max(safeLuminance - minimum, p.toneGamutDenominatorFloor));
     }
     if (maximum > peakRatio && maximum > safeLuminance) {
-        chromaScale = min(chromaScale, max(peakRatio - safeLuminance, 0.0f) / max(maximum - safeLuminance, 1e-6f));
+        chromaScale = min(chromaScale, max(peakRatio - safeLuminance, 0.0f) / max(maximum - safeLuminance, p.toneGamutDenominatorFloor));
     }
     float3 neutral = float3(safeLuminance);
-    return neutral + (rgb - neutral) * clamp(chromaScale, 0.0f, 1.0f);
+    return neutral + (rgb - neutral) * clamp(chromaScale, p.toneChromaScaleMinimum, p.toneChromaScaleMaximum);
 }
 
-inline float pqEncode(float normalizedLuminance) {
-    constexpr float m1 = 2610.0f / 16384.0f;
-    constexpr float m2 = 2523.0f / 32.0f;
-    constexpr float c1 = 3424.0f / 4096.0f;
-    constexpr float c2 = 2413.0f / 128.0f;
-    constexpr float c3 = 2392.0f / 128.0f;
+inline float pqEncode(float normalizedLuminance, constant SDRToHDRParameters& p) {
     float luminance = clamp(normalizedLuminance, 0.0f, 1.0f);
-    float powered = pow(luminance, m1);
-    return pow((c1 + c2 * powered) / (1.0f + c3 * powered), m2);
+    float powered = pow(luminance, p.pqM1);
+    return pow((p.pqC1 + p.pqC2 * powered) / (1.0f + p.pqC3 * powered), p.pqM2);
 }
 
-inline float pqDecode(float signal) {
-    constexpr float m1 = 2610.0f / 16384.0f;
-    constexpr float m2 = 2523.0f / 32.0f;
-    constexpr float c1 = 3424.0f / 4096.0f;
-    constexpr float c2 = 2413.0f / 128.0f;
-    constexpr float c3 = 2392.0f / 128.0f;
-    float powered = pow(clamp(signal, 0.0f, 1.0f), 1.0f / m2);
-    return pow(max(powered - c1, 0.0f) / max(c2 - c3 * powered, 1e-6f), 1.0f / m1);
+inline float pqDecode(float signal, constant SDRToHDRParameters& p) {
+    float powered = pow(clamp(signal, 0.0f, 1.0f), 1.0f / p.pqM2);
+    return pow(max(powered - p.pqC1, 0.0f) / max(p.pqC2 - p.pqC3 * powered, p.toneGamutDenominatorFloor), 1.0f / p.pqM1);
 }
 
 inline float3 linearizeSignal(float3 signal, constant SDRToHDRParameters& p) {
@@ -524,10 +643,10 @@ inline void addDiagnosticHistogram(
 inline float3 coreRelativeRGB(float3 encodedOutput, constant SDRToHDRParameters& p) {
     if (p.outputMode == 0) return encodedOutput;
     return float3(
-        pqDecode(encodedOutput.x),
-        pqDecode(encodedOutput.y),
-        pqDecode(encodedOutput.z)
-    ) * (10000.0f / max(p.paperWhiteNits, 1e-6f));
+        pqDecode(encodedOutput.x, p),
+        pqDecode(encodedOutput.y, p),
+        pqDecode(encodedOutput.z, p)
+    ) * (p.pqAbsolutePeakNits / max(p.paperWhiteNits, p.toneGamutDenominatorFloor));
 }
 
 inline bool diagnosticROIContains(
@@ -578,10 +697,17 @@ inline void accumulateDebug(
     uint height
 ) {
     float3 inputLinear = linearizeSignal(inputSignal, p);
-    float inputLuminance = clamp(dot(inputLinear, kBT709Luma), 0.0f, 1.0f);
+    float inputLuminance = clamp(
+        dot(inputLinear, float3(p.bt709LumaR, p.bt709LumaG, p.bt709LumaB)),
+        0.0f,
+        1.0f
+    );
     HDRToneExpansionBreakdown tone = toneExpandBreakdown(inputLuminance, p);
     float3 coreRGB = max(coreRelativeRGB(encodedOutput, p), 0.0f);
-    float coreLuminance = max(dot(coreRGB, kBT2020Luma), 0.0f);
+    float coreLuminance = max(
+        dot(coreRGB, float3(p.bt2020LumaR, p.bt2020LumaG, p.bt2020LumaB)),
+        0.0f
+    );
     float outputPeakRatio = p.outputMode == 0 ? min(p.peakRatio, p.masteringHeadroom) : p.peakRatio;
     float outputLuminance = clamp(coreLuminance / max(outputPeakRatio, 1e-6f), 0.0f, 1.0f);
     // The 256 scale keeps the uint32 sums bounded through 4K frames while
@@ -600,7 +726,7 @@ inline void accumulateDebug(
     atomic_fetch_add_explicit(&stats->shoulderContributionSum, uint(tone.shoulderContribution * kDiagnosticContributionSumScale + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->shadowProtectionSum, uint(clamp(tone.shadowProtectionFactor, 0.0f, 1.0f) * kDiagnosticContributionSumScale + 0.5f), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->highlightPixelCount, inputLuminance >= 0.75f ? 1u : 0u, memory_order_relaxed);
-    float peakSignal = p.outputMode == 0 ? outputPeakRatio : pqEncode(p.peakNits / 10000.0f);
+    float peakSignal = p.outputMode == 0 ? outputPeakRatio : pqEncode(p.peakNits / p.pqAbsolutePeakNits, p);
     atomic_fetch_add_explicit(&stats->clippedPixelCount, max(encodedOutput.x, max(encodedOutput.y, encodedOutput.z)) >= peakSignal - 0.0005f ? 1u : 0u, memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->pixelCount, 1u, memory_order_relaxed);
 
@@ -643,7 +769,10 @@ inline void accumulateDebug(
 
 inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) {
     float3 linear = linearizeSignal(signal, p);
-    float luminance = max(dot(linear, kBT709Luma), 0.0f);
+    float luminance = max(
+        dot(linear, float3(p.bt709LumaR, p.bt709LumaG, p.bt709LumaB)),
+        0.0f
+    );
     float expandedLuminance = toneExpand(luminance, p);
     // Preserve near-black light; only exact black requires a divide guard.
     float gain = luminance > 0.0f ? expandedLuminance / luminance : 0.0f;
@@ -652,24 +781,38 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) 
     // itself as edge1 made every value >= 1.001 land at t=1, collapsing the
     // entire highlight chroma transition into a 0.1% luminance interval.
     float chromaReduction = clamp(
-        p.saturationCompensation * smoothStepSafe(1.0f, max(1.001f, p.peakRatio), expandedLuminance) * 0.35f,
-        0.0f,
-        1.0f
+        p.saturationCompensation * smoothStepSemantic(
+            p.toneChromaStart,
+            max(p.toneChromaPeakMinimum, p.peakRatio),
+            expandedLuminance,
+            p
+        ) * p.toneChromaCoefficient,
+        p.toneChromaScaleMinimum,
+        p.toneChromaScaleMaximum
     );
     expanded = mix(expanded, float3(expandedLuminance), chromaReduction);
 
-    float3 bt2020 = kBT709ToBT2020 * expanded;
+    float3 bt2020 = float3(
+        p.bt709ToBT2020_00 * expanded.x + p.bt709ToBT2020_01 * expanded.y + p.bt709ToBT2020_02 * expanded.z,
+        p.bt709ToBT2020_10 * expanded.x + p.bt709ToBT2020_11 * expanded.y + p.bt709ToBT2020_12 * expanded.z,
+        p.bt709ToBT2020_20 * expanded.x + p.bt709ToBT2020_21 * expanded.y + p.bt709ToBT2020_22 * expanded.z
+    );
     float outputPeakRatio = p.outputMode == 0 ? min(p.peakRatio, p.masteringHeadroom) : p.peakRatio;
-    bt2020 = gamutCompress(bt2020, dot(bt2020, kBT2020Luma), outputPeakRatio);
-    bt2020 = clamp(bt2020, 0.0f, outputPeakRatio);
+    bt2020 = gamutCompress(
+        bt2020,
+        dot(bt2020, float3(p.bt2020LumaR, p.bt2020LumaG, p.bt2020LumaB)),
+        outputPeakRatio,
+        p
+    );
+    bt2020 = clamp(bt2020, p.toneOutputMinimum, outputPeakRatio);
 
     if (p.outputMode == 0) {
         return bt2020;
     }
     return float3(
-        pqEncode(bt2020.x * p.paperWhiteNits / 10000.0f),
-        pqEncode(bt2020.y * p.paperWhiteNits / 10000.0f),
-        pqEncode(bt2020.z * p.paperWhiteNits / 10000.0f)
+        pqEncode(bt2020.x * p.paperWhiteNits / p.pqAbsolutePeakNits, p),
+        pqEncode(bt2020.y * p.paperWhiteNits / p.pqAbsolutePeakNits, p),
+        pqEncode(bt2020.z * p.paperWhiteNits / p.pqAbsolutePeakNits, p)
     );
 }
 
@@ -677,19 +820,23 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) 
 // little-endian 16-bit plane sample. A .r16Unorm/.rg16Unorm read is normalized
 // by Metal against 65535, so recover the integer code value before applying
 // the 10-bit range coefficients supplied by ColorManagement.swift.
-inline float p010CodeFromUnorm(float stored) {
-    return clamp(round(stored * 65535.0f / 64.0f), 0.0f, 1023.0f);
+inline float p010CodeFromUnorm(float stored, constant SDRToHDRParameters& p) {
+    return clamp(
+        round(stored * p.p010StorageDenominator / exp2(float(p.p010RightShift))),
+        0.0f,
+        p.p010CodeMaximum
+    );
 }
 
 inline float p010LumaSignal(float stored, constant SDRToHDRParameters& p) {
-    float code = p010CodeFromUnorm(stored) / 1023.0f;
+    float code = p010CodeFromUnorm(stored, p) / p.p010CodeMaximum;
     return (code - p.yOffset) * p.yScale;
 }
 
 inline float2 p010ChromaSignal(float2 stored, constant SDRToHDRParameters& p) {
     return float2(
-        p010CodeFromUnorm(stored.x) / 1023.0f,
-        p010CodeFromUnorm(stored.y) / 1023.0f
+        p010CodeFromUnorm(stored.x, p) / p.p010CodeMaximum,
+        p010CodeFromUnorm(stored.y, p) / p.p010CodeMaximum
     );
 }
 
@@ -845,23 +992,35 @@ kernel void sdrBGRA8ToHDRDebug(
                     outputTexture.get_width(), outputTexture.get_height());
 }
 
-inline uint sceneHistogramBin(float luminance, uint strategy) {
-    float clamped = clamp(luminance, 0.0f, 0.999999f);
+inline uint sceneHistogramBin(float luminance, constant SDRToHDRParameters& p) {
+    float clamped = clamp(luminance, p.sceneInputMinimum, p.sceneHistogramUpperExclusive);
+    uint strategy = p.histogramStrategy;
+    uint binCount = strategy == 0u ? p.sceneLinear16HistogramBinCount : p.sceneHistogramBinCount;
     if (strategy == 0u) {
-        return min(uint(clamped * 16.0f), 15u);
+        return min(uint(clamped * float(binCount)), binCount - 1u);
     }
     if (strategy == 2u) {
-        float logValue = clamp(luminance, exp2(-16.0f), 1.0f);
-        float normalized = (log2(logValue) + 16.0f) / 16.0f;
-        return min(max(uint(normalized * 64.0f), 0u), 63u);
+        float logValue = clamp(luminance, exp2(p.sceneHistogramLogMinimumExponent), p.sceneInputMaximum);
+        float normalized = (log2(logValue) - p.sceneHistogramLogMinimumExponent) /
+            (p.sceneHistogramLogMaximumExponent - p.sceneHistogramLogMinimumExponent);
+        return min(max(uint(normalized * float(binCount)), 0u), binCount - 1u);
     }
     if (strategy == 3u) {
-        if (clamped < 0.125f) {
-            return min(uint(clamped / 0.125f * 32.0f), 31u);
+        if (clamped < p.sceneShadowDenseBreakpoint) {
+            return min(
+                uint(clamped / p.sceneShadowDenseBreakpoint * float(p.sceneShadowDenseLowerBinCount)),
+                p.sceneShadowDenseLowerBinCount - 1u
+            );
         }
-        return min(32u + uint((clamped - 0.125f) / 0.875f * 32.0f), 63u);
+        return min(
+            p.sceneShadowDenseLowerBinCount + uint(
+                (clamped - p.sceneShadowDenseBreakpoint) / p.sceneShadowDenseUpperSpan *
+                float(binCount - p.sceneShadowDenseLowerBinCount)
+            ),
+            binCount - 1u
+        );
     }
-    return min(uint(clamped * 64.0f), 63u);
+    return min(uint(clamped * float(binCount)), binCount - 1u);
 }
 
 // A 16x9 sparse proxy (144 reads) estimates source luminance asynchronously.
@@ -872,19 +1031,19 @@ kernel void estimateNV12TemporalLuminance(
     constant SDRToHDRParameters& p [[buffer(0)]],
     device TemporalLumaStats* stats [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]) {
-    if (gid.x >= 16 || gid.y >= 9) return;
+    if (gid.x >= p.sceneProxyWidth || gid.y >= p.sceneProxyHeight) return;
     uint2 position = uint2(
-        min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
-        min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
+        min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / p.sceneProxyWidth, yTexture.get_width() - 1),
+        min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / p.sceneProxyHeight, yTexture.get_height() - 1)
     );
     float y = (yTexture.read(position).r - p.yOffset) * p.yScale;
     float3 signalRGB = ycbcrToRGB(y, reconstructedChroma(uvTexture, position, p), p);
     float3 linearRGB = linearizeSignal(signalRGB, p);
-    float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
-    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
+    float luminance = clamp(dot(linearRGB, float3(p.bt709LumaR, p.bt709LumaG, p.bt709LumaB)), p.sceneInputMinimum, p.sceneInputMaximum);
+    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * p.sceneQuantizationMaximum + p.sceneQuantizationRounding), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision >= 2) {
-        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
+        uint bin = sceneHistogramBin(luminance, p);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }
@@ -895,19 +1054,19 @@ kernel void estimateP010TemporalLuminance(
     constant SDRToHDRParameters& p [[buffer(0)]],
     device TemporalLumaStats* stats [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]) {
-    if (gid.x >= 16 || gid.y >= 9) return;
+    if (gid.x >= p.sceneProxyWidth || gid.y >= p.sceneProxyHeight) return;
     uint2 position = uint2(
-        min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / 16, yTexture.get_width() - 1),
-        min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / 9, yTexture.get_height() - 1)
+        min((gid.x * yTexture.get_width() + yTexture.get_width() / 2) / p.sceneProxyWidth, yTexture.get_width() - 1),
+        min((gid.y * yTexture.get_height() + yTexture.get_height() / 2) / p.sceneProxyHeight, yTexture.get_height() - 1)
     );
     float y = p010LumaSignal(yTexture.read(position).r, p);
     float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(reconstructedChroma(uvTexture, position, p), p), p);
     float3 linearRGB = linearizeSignal(signalRGB, p);
-    float luminance = clamp(dot(linearRGB, kBT709Luma), 0.0f, 1.0f);
-    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
+    float luminance = clamp(dot(linearRGB, float3(p.bt709LumaR, p.bt709LumaG, p.bt709LumaB)), p.sceneInputMinimum, p.sceneInputMaximum);
+    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * p.sceneQuantizationMaximum + p.sceneQuantizationRounding), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision >= 2) {
-        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
+        uint bin = sceneHistogramBin(luminance, p);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }
@@ -917,17 +1076,17 @@ kernel void estimateBGRATemporalLuminance(
     constant SDRToHDRParameters& p [[buffer(0)]],
     device TemporalLumaStats* stats [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]) {
-    if (gid.x >= 16 || gid.y >= 9) return;
+    if (gid.x >= p.sceneProxyWidth || gid.y >= p.sceneProxyHeight) return;
     uint2 position = uint2(
-        min((gid.x * inputTexture.get_width() + inputTexture.get_width() / 2) / 16, inputTexture.get_width() - 1),
-        min((gid.y * inputTexture.get_height() + inputTexture.get_height() / 2) / 9, inputTexture.get_height() - 1)
+        min((gid.x * inputTexture.get_width() + inputTexture.get_width() / 2) / p.sceneProxyWidth, inputTexture.get_width() - 1),
+        min((gid.y * inputTexture.get_height() + inputTexture.get_height() / 2) / p.sceneProxyHeight, inputTexture.get_height() - 1)
     );
     float3 linear = linearizeSignal(inputTexture.read(position).rgb, p);
-    float luminance = clamp(dot(linear, kBT709Luma), 0.0f, 1.0f);
-    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * 65535.0f + 0.5f), memory_order_relaxed);
+    float luminance = clamp(dot(linear, float3(p.bt709LumaR, p.bt709LumaG, p.bt709LumaB)), p.sceneInputMinimum, p.sceneInputMaximum);
+    atomic_fetch_add_explicit(&stats->linearLuminanceSum, uint(luminance * p.sceneQuantizationMaximum + p.sceneQuantizationRounding), memory_order_relaxed);
     atomic_fetch_add_explicit(&stats->sampleCount, 1u, memory_order_relaxed);
     if (p.toneCurveRevision >= 2) {
-        uint bin = sceneHistogramBin(luminance, p.histogramStrategy);
+        uint bin = sceneHistogramBin(luminance, p);
         atomic_fetch_add_explicit(&stats->histogram[bin], 1u, memory_order_relaxed);
     }
 }

@@ -1,0 +1,179 @@
+{
+  "version": "v4-semantic-source-inventory-v1",
+  "scope": "bounded-preregistered-v4-call-graph",
+  "status": "REVIEW_AID_NOT_PROOF",
+  "staticCompletenessClaim": "NOT_PROVEN_BY_STATIC_SCRIPT",
+  "objectiveEvaluations": 0,
+  "entries": [
+    {
+      "area": "Preparation",
+      "runtimeSource": [
+        "Sources/HDRCalibration/Evaluation.swift",
+        "Sources/HDRCalibration/Alignment.swift",
+        "Sources/HDRCalibration/PreparedEvaluationPlan.swift"
+      ],
+      "semanticFields": [
+        "frame sampling",
+        "metadata interpretation",
+        "scene segmentation and classification thresholds",
+        "alignment thresholds",
+        "temporal anchor and selection",
+        "representative-frame rules",
+        "geometry",
+        "failure policy"
+      ],
+      "typedOwner": "V6PreparationConfiguration and nested immutable V6 semantic configurations",
+      "identityOwner": "SDRPreparationDefinitionV4 / PreparationDefinitionHashV4",
+      "gap": "V3 did not structurally bind all discovered preparation semantics",
+      "fix": "V4 derives canonical preparation identity from the exact configuration consumed by production preparation",
+      "mutationTest": "V4SemanticClosureTests.testV4PreparationMutationMatrix",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Matcher",
+      "runtimeSource": [
+        "Sources/HDRCalibration/TransferInvariantMatcher.swift",
+        "Sources/HDRCalibration/Alignment.swift"
+      ],
+      "semanticFields": [
+        "grid",
+        "offsets",
+        "scale widths",
+        "weights",
+        "confidence and fallback limits",
+        "validation limits",
+        "stable matcher ordering"
+      ],
+      "typedOwner": "V6MatcherConfiguration and V6MatcherValidationSemanticConfiguration",
+      "identityOwner": "V6PreparationConfiguration / PreparationDefinitionHashV4",
+      "gap": "Matcher fallback and validation semantics previously escaped V3",
+      "fix": "Matcher and alignment consume the sealed matcher object directly",
+      "mutationTest": "V4SemanticClosureTests.testV4PreparationMutationMatrix",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Metric / ICtCp / PQ",
+      "runtimeSource": [
+        "Sources/HDRCalibration/V2Metrics.swift",
+        "Sources/HDRCalibration/V2Runner.swift",
+        "Sources/HDRCore/ColorManagement.swift",
+        "Sources/HDRCore/ColorScienceSemanticDefinition.swift"
+      ],
+      "semanticFields": [
+        "objective thresholds",
+        "weights",
+        "percentiles",
+        "clamps",
+        "aggregation order",
+        "PQ constants",
+        "ICtCp matrices and coefficients",
+        "normalization"
+      ],
+      "typedOwner": "V2MetricSemanticConfiguration containing ColorScienceSemanticDefinition",
+      "identityOwner": "MetricDefinitionHashV4 / ColorScienceDefinitionHash",
+      "gap": "Production color math was not fully owned by the V3 metric identity",
+      "fix": "Metric and color paths consume the shared immutable color-science definition",
+      "mutationTest": "V4SemanticClosureTests.testV4MetricAndColorScienceMutationMatrix",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Gate / ranking / failure",
+      "runtimeSource": [
+        "Sources/HDRCalibration/PreregistrationSealV4.swift",
+        "Sources/HDRCalibration/V4Calibration.swift"
+      ],
+      "semanticFields": [
+        "metric identity",
+        "comparison operator",
+        "threshold",
+        "direction",
+        "NaN behavior",
+        "missing-value behavior",
+        "failure behavior",
+        "tie-break keys",
+        "shortlist policy"
+      ],
+      "typedOwner": "V4GateDefinition, V4CandidateOrderingDefinition, and V4FailurePolicyDefinition",
+      "identityOwner": "GateDefinitionHash / RunnerDefinitionHash / SearchDefinitionHashV4",
+      "gap": "V3 used descriptive gate and ordering strings",
+      "fix": "Typed executable definitions are canonicalized, validated, and consumed by the runner",
+      "mutationTest": "V4SemanticClosureTests.testV4GateRunnerAndSearchMutationMatrix",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Final runner adapter",
+      "runtimeSource": [
+        "Sources/HDRCalibration/PreregistrationSealV4.swift",
+        "Sources/HDRCalibration/V4Calibration.swift",
+        "Sources/HDRCalibration/V4Models.swift"
+      ],
+      "semanticFields": [
+        "adapted ranges",
+        "policy list",
+        "phase budgets",
+        "coverage requirements",
+        "output and fallback",
+        "scene-relative behavior",
+        "final runner inputs"
+      ],
+      "typedOwner": "V4FinalRunnerSemanticConfiguration",
+      "identityOwner": "RunnerDefinitionHash / final runner semantic identity",
+      "gap": "V3 could acquire semantics in the adapter after seal verification",
+      "fix": "The actual adapted configuration is canonicalized and compared before candidate generation",
+      "mutationTest": "V4SemanticClosureTests.testV4FinalRunnerIdentityMatchesSeal",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Deterministic ordering / reduction",
+      "runtimeSource": [
+        "Sources/HDRCalibration/V2Metrics.swift",
+        "Sources/HDRCalibration/V2Runner.swift",
+        "Sources/HDRCalibration/V4Calibration.swift"
+      ],
+      "semanticFields": [
+        "family ordering",
+        "frame ordering",
+        "temporal-window ordering",
+        "floating-point reduction order",
+        "candidate tie-break order"
+      ],
+      "typedOwner": "Typed ordering definitions plus explicit canonical UTF-8 sorting",
+      "identityOwner": "MetricDefinitionHashV4 / SearchAlgorithmDefinitionHashV4 / RunnerDefinitionHash",
+      "gap": "Unordered collection iteration could alter results",
+      "fix": "Calibration-critical values are sorted by explicit semantic keys before reduction and ranking",
+      "mutationTest": "V4SemanticClosureTests.testV4MetricReductionsIgnoreDictionaryInsertionOrder",
+      "classification": "PREREGISTERED_CALIBRATION"
+    },
+    {
+      "area": "Materialization-root path safety",
+      "runtimeSource": [
+        "Tests/inventory_development_corpus.py",
+        "Tests/test_inventory_development_corpus.py"
+      ],
+      "semanticFields": [
+        "trusted anchor",
+        "component-wise no-follow traversal",
+        "root and parent symlink denial",
+        "lexical path denial"
+      ],
+      "typedOwner": "_lstat_components and validate_no_symlink_components",
+      "identityOwner": "Execution safety guard; not a corpus identity",
+      "gap": "The prior trust boundary began below the materialization-root parents",
+      "fix": "Every untrusted component is checked from the trusted anchor before traversal",
+      "mutationTest": "test_inventory_development_corpus.py synthetic path-safety matrix",
+      "classification": "EXECUTION_SAFETY"
+    }
+  ],
+  "unownedSemanticConstants": [],
+  "excludedLegacyOrDevelopmentPaths": [
+    "legacy V2/V3 development search entry points",
+    "v4-run-development",
+    "optional legacy preparation defaults outside V4 preregistered execution",
+    "real corpus discovery and media execution"
+  ],
+  "historicalIncident": {
+    "protectedFilenamePathMetadataExposedPreviously": true,
+    "protectedMediaBytesRead": false,
+    "objectiveEvaluation": false
+  }
+}

@@ -50,6 +50,7 @@ public enum HDRProcessorError: Error, LocalizedError, Sendable {
     case debugBufferCreationFailed
     case metadata(HDRColorMetadataError)
     case configuration(HDRConfigurationError)
+    case semanticDefinitionChanged
 
     public var errorDescription: String? {
         switch self {
@@ -87,6 +88,8 @@ public enum HDRProcessorError: Error, LocalizedError, Sendable {
             return error.localizedDescription
         case .configuration(let error):
             return error.localizedDescription
+        case .semanticDefinitionChanged:
+            return "HDR scene-statistics semantic definition cannot change on a live processor"
         }
     }
 }
@@ -286,10 +289,11 @@ struct HDRAdaptiveCompletionUpdate: Sendable {
 }
 
 private struct HDRAdaptiveState: Sendable {
-    var temporal = HDRTemporalControlState()
-    var scene = HDRTemporalControlState()
+    let semantics: HDRSceneStatisticsSemanticDefinition
+    var temporal: HDRTemporalControlState
+    var scene: HDRTemporalControlState
     /// Causal scene statistics consumed by development controllers.
-    var smoothedStatistics = HDRSceneStatistics.neutral
+    var smoothedStatistics: HDRSceneStatistics
     var generation: UInt64 = 0
     /// The last automatic sequence accepted by the required components.
     /// Scene-relative mode requires this to equal both component sequences;
@@ -297,6 +301,13 @@ private struct HDRAdaptiveState: Sendable {
     var committedSequence: UInt64 = 0
     var lastGPUCompletedSequence: UInt64 = 0
     var lastAdaptiveCommittedSequence: UInt64 = 0
+
+    init(semantics: HDRSceneStatisticsSemanticDefinition = .calibrationV4) {
+        self.semantics = semantics
+        self.temporal = HDRTemporalControlState(semantics: semantics)
+        self.scene = HDRTemporalControlState(semantics: semantics)
+        self.smoothedStatistics = HDRSceneStatistics.neutral(using: semantics)
+    }
 
     func transactionInvariantHolds(sceneRelativeEnabled: Bool) -> Bool {
         snapshot().transactionInvariantHolds(sceneRelativeEnabled: sceneRelativeEnabled)
@@ -325,7 +336,13 @@ private struct HDRAdaptiveState: Sendable {
 /// after every required component has accepted the sequence.
 final class HDRAdaptiveStateStore: @unchecked Sendable {
     private let lock = NSLock()
-    private var state = HDRAdaptiveState()
+    let semantics: HDRSceneStatisticsSemanticDefinition
+    private var state: HDRAdaptiveState
+
+    init(semantics: HDRSceneStatisticsSemanticDefinition = .calibrationV4) {
+        self.semantics = semantics
+        self.state = HDRAdaptiveState(semantics: semantics)
+    }
 
     var generation: UInt64 { lock.withLock { state.generation } }
 
@@ -356,7 +373,7 @@ final class HDRAdaptiveStateStore: @unchecked Sendable {
             if resetTemporal { state.temporal.reset() }
             if resetScene {
                 state.scene.reset()
-                state.smoothedStatistics = .neutral
+                state.smoothedStatistics = .neutral(using: semantics)
             }
         }
     }
@@ -381,7 +398,8 @@ final class HDRAdaptiveStateStore: @unchecked Sendable {
                 target: statistics,
                 stability: stability,
                 sceneCut: shouldSnap,
-                deltaSeconds: HDRTemporalControlState.referenceFrameDurationSeconds
+                deltaSeconds: semantics.referenceFrameDurationSeconds,
+                semantics: semantics
             )
         }
     }
@@ -468,7 +486,8 @@ final class HDRAdaptiveStateStore: @unchecked Sendable {
                     target: statistics,
                     stability: stability,
                     sceneCut: sceneCut,
-                    deltaSeconds: candidate.scene.lastShadowDeltaSeconds
+                    deltaSeconds: candidate.scene.lastShadowDeltaSeconds,
+                    semantics: semantics
                 )
             }
             candidate.committedSequence = sequence
@@ -678,7 +697,7 @@ public final class HDRProcessor {
     private let outputPool: OutputTexturePool
     private let stateLock = NSLock()
     private var currentConfiguration: HDRConfiguration
-    private let adaptiveState = HDRAdaptiveStateStore()
+    private let adaptiveState: HDRAdaptiveStateStore
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
     private var debugPresetLabel = "configuration"
@@ -793,6 +812,9 @@ public final class HDRProcessor {
             throw HDRProcessorError.configuration(error)
         }
         self.device = device
+        self.adaptiveState = HDRAdaptiveStateStore(
+            semantics: self.currentConfiguration.toneMapping.sceneStatistics
+        )
         self.context = try MetalContext(device: device, commandQueue: commandQueue)
         self.outputPool = OutputTexturePool(device: device)
     }
@@ -801,6 +823,9 @@ public final class HDRProcessor {
     public func update(configuration: HDRConfiguration) throws {
         do {
             let validated = try configuration.validated()
+            guard validated.toneMapping.sceneStatistics == currentConfiguration.toneMapping.sceneStatistics else {
+                throw HDRProcessorError.semanticDefinitionChanged
+            }
             stateLock.withLock {
                 currentConfiguration = validated
                 configurationGenerationStorage &+= 1
@@ -1044,7 +1069,11 @@ public final class HDRProcessor {
         do {
             resolvedColor = try HDRColorMetadataResolver.resolve(
                 pixelBuffer: pixelBuffer,
-                fallbackPolicy: configuration.inputFallbackPolicy
+                fallbackPolicy: configuration.inputFallbackPolicy,
+                interpretationPolicy: configuration.sdrInterpretationPolicy,
+                untaggedFallback: configuration.untaggedSDRFallback,
+                bt1886Parameters: configuration.bt1886Parameters,
+                colorScience: configuration.colorScience
             )
         } catch let error as HDRColorMetadataError {
             throw HDRProcessorError.metadata(error)
@@ -1187,6 +1216,13 @@ public final class HDRProcessor {
             inputPixelFormat: inputTextures.pixelFormat.diagnosticName,
             inputBitDepth: inputTextures.pixelFormat.bitDepth,
             inputRange: inputTextures.pixelFormat.diagnosticRangeName,
+            sourceTransferTag: resolvedColor.metadata.sourceTransferTag,
+            requestedInterpretationPolicy: resolvedColor.metadata.requestedInterpretationPolicy,
+            selectedInterpretationPolicy: resolvedColor.metadata.interpretationPolicy,
+            interpretationPolicy: resolvedColor.metadata.interpretationPolicy,
+            effectiveTransfer: resolvedColor.metadata.effectiveTransfer,
+            fallbackUsed: resolvedColor.metadata.fallbackUsed,
+            fallbackReason: resolvedColor.metadata.fallbackReason,
             inputChromaLocation: resolvedColor.chromaGeometry.metadataDescription,
             resolvedChromaSiting: resolvedColor.chromaGeometry.resolvedSiting.rawValue,
             chromaReconstructionMode: chromaReconstructionDecision.effective.diagnosticName,
@@ -1292,7 +1328,11 @@ public final class HDRProcessor {
             )
             encoder.setBuffer(buffer, offset: 0, index: 1)
             encoder.dispatchThreads(
-                MTLSize(width: 16, height: 9, depth: 1),
+                MTLSize(
+                    width: Int(parameters.sceneProxyWidth),
+                    height: Int(parameters.sceneProxyHeight),
+                    depth: 1
+                ),
                 threadsPerThreadgroup: context.threadgroupSize(for: temporalPipeline)
             )
         }
@@ -1327,9 +1367,15 @@ public final class HDRProcessor {
                    let temporalEstimateLifetime {
                     let stats = temporalEstimateLifetime.buffer.contents().assumingMemoryBound(to: TemporalLumaStatsStorage.self).pointee
                     if stats.sampleCount > 0 {
-                        let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) / 65535
+                        let sceneSemantics = adaptiveState.semantics
+                        let average = Float(stats.linearLuminanceSum) / Float(stats.sampleCount) /
+                            Float(sceneSemantics.quantizationMaximum)
                         let update = adaptiveState.updateAutomatic(
-                            statistics: HDRSceneStatistics(histogram: stats.histogram, strategy: histogramStrategy),
+                            statistics: HDRSceneStatistics(
+                                histogram: stats.histogram,
+                                strategy: histogramStrategy,
+                                semantics: sceneSemantics
+                            ),
                             averageLuminance: average,
                             stability: temporalStability,
                             sequence: submission.sequence,
@@ -1406,6 +1452,9 @@ public final class HDRProcessor {
     ) -> (parameters: HDRShaderParameters, temporalVersion: UInt64, sceneVersion: UInt64) {
         // Capture the exact causal values encoded into this frame. Temporal
         // and scene statistics come from one atomic adaptive-state snapshot.
+        let colorScience = configuration.colorScience
+        let tone = configuration.toneMapping
+        let sceneSemantics = tone.sceneStatistics
         let matrixKind: UInt32
         switch color.metadata.yCbCrMatrix {
         case .bt709: matrixKind = 0
@@ -1414,19 +1463,34 @@ public final class HDRProcessor {
         }
         let transferFunction: UInt32
         let gamma: Float
+        let bt1886BlackLuminance: Float
+        let bt1886WhiteLuminance: Float
         switch color.metadata.transferFunction {
         case .bt709:
             transferFunction = 0
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .sRGB:
             transferFunction = 1
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .gamma(let value):
             transferFunction = 2
             gamma = value
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
         case .linear:
             transferFunction = 3
             gamma = 1
+            bt1886BlackLuminance = 0
+            bt1886WhiteLuminance = 1
+        case .bt1886(let parameters):
+            transferFunction = 4
+            gamma = parameters.gamma
+            bt1886BlackLuminance = parameters.blackLuminance
+            bt1886WhiteLuminance = parameters.whiteLuminance
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,
@@ -1436,6 +1500,8 @@ public final class HDRProcessor {
             matrixKind: matrixKind,
             transferFunction: transferFunction,
             gamma: gamma,
+            bt1886BlackLuminance: bt1886BlackLuminance,
+            bt1886WhiteLuminance: bt1886WhiteLuminance,
             outputMode: configuration.outputMode == .edr ? 0 : 1,
             toneCurveRevision: configuration.toneCurveRevision.rawValue,
             paperWhiteNits: configuration.paperWhiteNits,
@@ -1456,6 +1522,20 @@ public final class HDRProcessor {
             ) && shadowCoordinates.valid ? 1 : 0,
             sceneStatisticsReserved: 0,
             histogramStrategy: configuration.sceneHistogramStrategy.metalValue,
+            sceneProxyWidth: UInt32(sceneSemantics.proxyWidth),
+            sceneProxyHeight: UInt32(sceneSemantics.proxyHeight),
+            sceneHistogramBinCount: UInt32(sceneSemantics.histogramBinCount),
+            sceneLinear16HistogramBinCount: UInt32(sceneSemantics.linear16HistogramBinCount),
+            sceneInputMinimum: Float(sceneSemantics.inputMinimum),
+            sceneInputMaximum: Float(sceneSemantics.inputMaximum),
+            sceneHistogramUpperExclusive: Float(sceneSemantics.histogramUpperExclusive),
+            sceneHistogramLogMinimumExponent: Float(sceneSemantics.histogramLogMinimumExponent),
+            sceneHistogramLogMaximumExponent: Float(sceneSemantics.histogramLogMaximumExponent),
+            sceneShadowDenseBreakpoint: Float(sceneSemantics.shadowDenseBreakpoint),
+            sceneShadowDenseLowerBinCount: UInt32(sceneSemantics.shadowDenseLowerBinCount),
+            sceneShadowDenseUpperSpan: Float(sceneSemantics.shadowDenseUpperSpan),
+            sceneQuantizationMaximum: Float(sceneSemantics.quantizationMaximum),
+            sceneQuantizationRounding: Float(sceneSemantics.quantizationRounding),
             sceneP01: shadowCoordinates.statistics.p01,
             sceneP05: shadowCoordinates.statistics.p05,
             sceneP50: shadowCoordinates.statistics.p50,
@@ -1481,7 +1561,98 @@ public final class HDRProcessor {
             developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight,
             chromaReconstructionMode: chromaReconstructionDecision.effective.rawValue,
             chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
-            chromaSampleCenterY: color.chromaGeometry.sampleCenterY
+            chromaSampleCenterY: color.chromaGeometry.sampleCenterY,
+            bt709LumaR: Float(colorScience.yCbCr.bt709Luminance[0]),
+            bt709LumaG: Float(colorScience.yCbCr.bt709Luminance[1]),
+            bt709LumaB: Float(colorScience.yCbCr.bt709Luminance[2]),
+            bt2020LumaR: Float(colorScience.yCbCr.bt2020Luminance[0]),
+            bt2020LumaG: Float(colorScience.yCbCr.bt2020Luminance[1]),
+            bt2020LumaB: Float(colorScience.yCbCr.bt2020Luminance[2]),
+            bt709ToBT2020_00: Float(colorScience.bt709ToBT2020[0]),
+            bt709ToBT2020_01: Float(colorScience.bt709ToBT2020[3]),
+            bt709ToBT2020_02: Float(colorScience.bt709ToBT2020[6]),
+            bt709ToBT2020_10: Float(colorScience.bt709ToBT2020[1]),
+            bt709ToBT2020_11: Float(colorScience.bt709ToBT2020[4]),
+            bt709ToBT2020_12: Float(colorScience.bt709ToBT2020[7]),
+            bt709ToBT2020_20: Float(colorScience.bt709ToBT2020[2]),
+            bt709ToBT2020_21: Float(colorScience.bt709ToBT2020[5]),
+            bt709ToBT2020_22: Float(colorScience.bt709ToBT2020[8]),
+            bt709InverseBreakPoint: Float(colorScience.transfer.bt709InverseBreakPoint),
+            bt709InverseLinearScale: Float(colorScience.transfer.bt709InverseLinearScale),
+            bt709InverseOffset: Float(colorScience.transfer.bt709InverseOffset),
+            bt709InverseScale: Float(colorScience.transfer.bt709InverseScale),
+            bt709InverseExponent: Float(colorScience.transfer.bt709InverseExponent),
+            srgbInverseBreakPoint: Float(colorScience.transfer.srgbInverseBreakPoint),
+            srgbInverseLinearScale: Float(colorScience.transfer.srgbInverseLinearScale),
+            srgbInverseOffset: Float(colorScience.transfer.srgbInverseOffset),
+            srgbInverseScale: Float(colorScience.transfer.srgbInverseScale),
+            srgbInverseExponent: Float(colorScience.transfer.srgbInverseExponent),
+            bt601ToRGB_00: Float(colorScience.yCbCr.bt601ToRGB[0]),
+            bt601ToRGB_01: Float(colorScience.yCbCr.bt601ToRGB[1]),
+            bt601ToRGB_02: Float(colorScience.yCbCr.bt601ToRGB[2]),
+            bt601ToRGB_10: Float(colorScience.yCbCr.bt601ToRGB[3]),
+            bt601ToRGB_11: Float(colorScience.yCbCr.bt601ToRGB[4]),
+            bt601ToRGB_12: Float(colorScience.yCbCr.bt601ToRGB[5]),
+            bt601ToRGB_20: Float(colorScience.yCbCr.bt601ToRGB[6]),
+            bt601ToRGB_21: Float(colorScience.yCbCr.bt601ToRGB[7]),
+            bt601ToRGB_22: Float(colorScience.yCbCr.bt601ToRGB[8]),
+            bt709ToRGB_00: Float(colorScience.yCbCr.bt709ToRGB[0]),
+            bt709ToRGB_01: Float(colorScience.yCbCr.bt709ToRGB[1]),
+            bt709ToRGB_02: Float(colorScience.yCbCr.bt709ToRGB[2]),
+            bt709ToRGB_10: Float(colorScience.yCbCr.bt709ToRGB[3]),
+            bt709ToRGB_11: Float(colorScience.yCbCr.bt709ToRGB[4]),
+            bt709ToRGB_12: Float(colorScience.yCbCr.bt709ToRGB[5]),
+            bt709ToRGB_20: Float(colorScience.yCbCr.bt709ToRGB[6]),
+            bt709ToRGB_21: Float(colorScience.yCbCr.bt709ToRGB[7]),
+            bt709ToRGB_22: Float(colorScience.yCbCr.bt709ToRGB[8]),
+            bt2020ToRGB_00: Float(colorScience.yCbCr.bt2020ToRGB[0]),
+            bt2020ToRGB_01: Float(colorScience.yCbCr.bt2020ToRGB[1]),
+            bt2020ToRGB_02: Float(colorScience.yCbCr.bt2020ToRGB[2]),
+            bt2020ToRGB_10: Float(colorScience.yCbCr.bt2020ToRGB[3]),
+            bt2020ToRGB_11: Float(colorScience.yCbCr.bt2020ToRGB[4]),
+            bt2020ToRGB_12: Float(colorScience.yCbCr.bt2020ToRGB[5]),
+            bt2020ToRGB_20: Float(colorScience.yCbCr.bt2020ToRGB[6]),
+            bt2020ToRGB_21: Float(colorScience.yCbCr.bt2020ToRGB[7]),
+            bt2020ToRGB_22: Float(colorScience.yCbCr.bt2020ToRGB[8]),
+            pqM1: Float(colorScience.pq.m1),
+            pqM2: Float(colorScience.pq.m2),
+            pqC1: Float(colorScience.pq.c1),
+            pqC2: Float(colorScience.pq.c2),
+            pqC3: Float(colorScience.pq.c3),
+            pqAbsolutePeakNits: Float(colorScience.pq.absolutePeakNits),
+            p010StorageDenominator: Float(colorScience.yCbCr.p010StorageDenominator),
+            p010RightShift: UInt32(colorScience.yCbCr.p010RightShift),
+            p010CodeMaximum: Float(colorScience.yCbCr.p010CodeMaximum),
+            toneInputMinimum: Float(tone.inputLuminanceMinimum),
+            toneInputMaximum: Float(tone.inputLuminanceMaximum),
+            toneSmoothstepFloor: Float(tone.smoothstepDenominatorFloor),
+            toneSmoothstepLinear: Float(tone.smoothstepLinearCoefficient),
+            toneSmoothstepQuadratic: Float(tone.smoothstepQuadraticCoefficient),
+            toneShoulderBase: Float(tone.shoulderStartBase),
+            toneShoulderContrast: Float(tone.shoulderContrastCoefficient),
+            toneLegacyShadowLower: Float(tone.legacyShadowGateLower),
+            toneLegacyShadowUpper: Float(tone.legacyShadowGateUpper),
+            toneSceneFloorLower: Float(tone.sceneShadowFloorLower),
+            toneSceneFloorUpper: Float(tone.sceneShadowFloorUpper),
+            toneSceneFloorFallback: Float(tone.sceneShadowFloorFallback),
+            toneSceneTopMinimumDelta: Float(tone.sceneShadowTopMinimumDelta),
+            toneSceneTopFallback: Float(tone.sceneShadowTopFallback),
+            toneSceneTopUpper: Float(tone.sceneShadowTopUpper),
+            toneSceneLowMidCoefficient: Float(tone.sceneLowMidExpansionCoefficient),
+            toneSceneProtectionCoefficient: Float(tone.sceneShadowProtectionCoefficient),
+            toneDefaultPresenceLower: Float(tone.defaultShadowPresenceLower),
+            toneDefaultPresenceUpper: Float(tone.defaultShadowPresenceUpper),
+            toneDefaultFadeLower: Float(tone.defaultShadowFadeLower),
+            toneDefaultFadeUpper: Float(tone.defaultShadowFadeUpper),
+            toneDefaultAttenuationCoefficient: Float(tone.defaultShadowAttenuationCoefficient),
+            toneChromaStart: Float(tone.chromaReductionLuminanceStart),
+            toneChromaPeakMinimum: Float(tone.chromaReductionPeakRatioMinimum),
+            toneChromaCoefficient: Float(tone.chromaReductionCoefficient),
+            toneGamutLuminanceFloor: Float(tone.gamutLuminanceFloor),
+            toneGamutDenominatorFloor: Float(tone.gamutDenominatorFloor),
+            toneChromaScaleMinimum: Float(tone.chromaScaleMinimum),
+            toneChromaScaleMaximum: Float(tone.chromaScaleMaximum),
+            toneOutputMinimum: Float(tone.outputLuminanceMinimum)
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

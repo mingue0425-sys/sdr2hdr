@@ -773,6 +773,8 @@ struct RealMediaRegressionRunner {
         case .sRGB: return "sRGB"
         case .gamma(let value): return "gamma(\(value))"
         case .linear: return "linear"
+        case .bt1886(let parameters):
+            return "bt1886(LB=\(parameters.blackLuminance),LW=\(parameters.whiteLuminance),gamma=\(parameters.gamma))"
         }
     }
 

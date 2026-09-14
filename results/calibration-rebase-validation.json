@@ -1,0 +1,13 @@
+{
+  "lineageID": "calibration-rebase-2026-09-sdr-policy-v1",
+  "stage": "Validation",
+  "status": "BLOCKED_MISSING_DATA",
+  "approvedManifestConfigured": false,
+  "reason": "Tune shortlist cannot be frozen until approved Tune/Validation data is configured",
+  "policyCandidates": [
+    "bt709SourceLinear",
+    "bt1886ReferenceDisplay"
+  ],
+  "candidateEvidence": [],
+  "objectiveEvaluations": 0
+}

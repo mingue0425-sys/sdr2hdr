@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "inventoryScopeVersion": 1,
+  "status": "APPROVED_SCOPE_ONLY",
+  "purpose": "Inventory existing local non-Frozen development media without reading media bytes.",
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "pr": 13,
+  "materialization": {
+    "mode": "EXACT_KNOWN_MANIFEST_LOCATOR_BASE",
+    "inputRequired": true,
+    "absoluteBase": "/Volumes/game/sdr2hdr",
+    "source": "Absolute SDR/HDR locators in v6-development-manifest.json",
+    "notProductionDefault": true,
+    "noParentDiscovery": true
+  },
+  "sourceEvidence": [
+    {
+      "path": "data_video/visual-regression/v6-development-manifest.json",
+      "reason": "Current committed paired development manifest; explicit SDR/HDR locators, pair groups, roles, and virginFrozen=false records."
+    },
+    {
+      "path": "data_video/manifest.json",
+      "reason": "Historical explicit pair manifest used only to preserve conflicting frozen-role provenance."
+    },
+    {
+      "path": "data_video/manifest-v2.json",
+      "reason": "Historical explicit pair manifest used only to preserve frozen-role provenance."
+    },
+    {
+      "path": "data_video/real_media/external-manifest.json",
+      "reason": "Committed local development/validation media manifest; policy frozen=false and pairStatus=unpaired."
+    },
+    {
+      "path": "config/pre-frozen-seal-scope.json",
+      "reason": "PR #11 allowlist-only guard and Frozen policy identity."
+    }
+  ],
+  "includedRoots": [
+    {
+      "path": "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10",
+      "evidence": "v6-development-manifest HDR locators for explicit virginFrozen=false LIVE pairs",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR",
+      "evidence": "v6-development-manifest SDR locators for explicit virginFrozen=false LIVE pairs",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/video1",
+      "evidence": "v6-development-manifest and historical manifests; non-Frozen explicit pair records",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/video2",
+      "evidence": "v6-development-manifest and historical manifests; non-Frozen explicit pair records",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/video4",
+      "evidence": "v6-development-manifest and manifest-v2 validation record; non-Frozen explicit pair record",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/real_media/development",
+      "evidence": "external-manifest exact development locators; policy frozen=false",
+      "recursiveInventoryAllowed": true
+    },
+    {
+      "path": "data_video/real_media/validation",
+      "evidence": "external-manifest exact validation locators; policy frozen=false",
+      "recursiveInventoryAllowed": true
+    }
+  ],
+  "excludedProtectedRoots": [
+    {
+      "path": "data_video/video3",
+      "reason": "The historical manifest marks the pair split as frozen while v6 metadata conflicts; conservative exclusion applies. No directory access performed."
+    },
+    {
+      "path": "data_video/video6",
+      "reason": "manifest-v2 marks the pair split as frozen. No directory access performed."
+    }
+  ],
+  "excludedBroadRoots": [
+    "data_video",
+    "data_video/LIVE Paired Comparison HDR vs. SDR Database",
+    "data_video/real_media",
+    "."
+  ],
+  "protectedPathPatterns": [
+    "Frozen",
+    "Virgin",
+    "virgin_candidates",
+    "quarantined",
+    "holdout",
+    ".hdr-frozen-consumption"
+  ],
+  "guardPolicy": {
+    "scopeMode": "ALLOWLIST_ONLY",
+    "frozenRootConfigured": false,
+    "frozenPathInjectionOnlyForEvaluation": true,
+    "dataVideoDirectoryRoots": "FORBIDDEN",
+    "oldVirginCandidateSet": "QUARANTINED_NON_VIRGIN_NOT_EVALUATION_ELIGIBLE"
+  },
+  "inventoryPolicy": {
+    "protectedRootEnumeration": false,
+    "protectedMetadataProbe": false,
+    "mediaByteRead": false,
+    "mediaHash": false,
+    "ffprobe": false,
+    "decode": false,
+    "frameExtraction": false,
+    "visualInspection": false,
+    "objectiveMetrics": false,
+    "objectiveEvaluations": 0,
+    "symlinkTraversal": false,
+    "onlyIncludedRootsMayBeRecursed": true
+  }
+}

@@ -1,0 +1,2638 @@
+{
+  "artifactKind": "LIVE31_SOURCE_PROVENANCE_RECOVERY",
+  "artifactVersion": 2,
+  "canonicalNameMappingUsed": true,
+  "correctnessBaseline": "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
+  "execution": {
+    "candidateSelection": false,
+    "frozenAccessed": false,
+    "mediaQualification": "NOT_RUN",
+    "newManifestEmitted": false,
+    "objectiveEvaluations": 0,
+    "policyComparison": false,
+    "tuneRun": false,
+    "validationRun": false
+  },
+  "generatedDate": "2026-09-13",
+  "generatorSemanticVersion": "live31-provenance-recovery-v2-pinned-authority",
+  "gitEvidence": {
+    "authorityIndex": "config/live31-source-authority-index.json",
+    "localJODSeparateBlob": "54f5bd9e0501ef93a20a9aa61d8416f92bb99e40",
+    "localManifestBlob": "ffad6c7ad33e5257f8f500f49aaa3af447a5bf7e",
+    "localManifestCommit": "b2f94ca91e0fa425840e6f09394f40aa71c88ef6",
+    "officialAVTRepository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+    "officialAVTRepositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+  },
+  "localInferredGroups": 31,
+  "localSources": [
+    {
+      "claim": "Exact 31 LIVE inferred group IDs and exact candidate paths; no authoritative sourceMasterId was present.",
+      "id": "local-inventory",
+      "location": "results/development-corpus-inventory.json",
+      "type": "committed-inventory-artifact"
+    },
+    {
+      "claim": "Explicit content_name, video_name, video_format, and Type identity fields for the 31 open-source contents.",
+      "commit": "b2f94ca91e0fa425840e6f09394f40aa71c88ef6",
+      "fields": [
+        "video_name",
+        "video_format",
+        "resolution",
+        "bitrate",
+        "content_name",
+        "Type"
+      ],
+      "id": "local-jod-identity",
+      "location": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+      "type": "committed-dataset-identity-metadata"
+    },
+    {
+      "claim": "Explicit same-source HDR/SDR pair records for four LIVE contents; historical role evidence only.",
+      "commit": "b2f94ca91e0fa425840e6f09394f40aa71c88ef6",
+      "id": "local-v6-manifest",
+      "location": "data_video/visual-regression/v6-development-manifest.json",
+      "type": "committed-pair-manifest"
+    }
+  ],
+  "mappings": [
+    {
+      "canonicalLocalName": "0_Balance_Forest",
+      "canonicalOfficialName": "Balance_Forest",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:0_balance_forest",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/0_Balance_Forest_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "0_Balance_Forest",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "0_Balance_Forest",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/0_Balance_Forest_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Balance_Forest",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Balance_Forest",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "cef861df07f073d7e087096d9cfff9a334cc42c8",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Balance_Forest.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Balance_Forest.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Balance_Forest",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "1_Basketball_Afternoon",
+      "canonicalOfficialName": "Basketball_Afternoon",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:1_basketball_afternoon",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/1_Basketball_Afternoon_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "1_Basketball_Afternoon",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "1_Basketball_Afternoon",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/1_Basketball_Afternoon_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Basketball_Afternoon",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Basketball_Afternoon",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "49848a8edb1721dd8c71cfc82b4159a5e3497036",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Basketball_Afternoon.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Basketball_Afternoon.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Basketball_Afternoon",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "2_Basketball_Evening",
+      "canonicalOfficialName": "Basketball_Evening",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:2_basketball_evening",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/2_Basketball_Evening_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "2_Basketball_Evening",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "2_Basketball_Evening",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/2_Basketball_Evening_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Basketball_Evening",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Basketball_Evening",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "6201eb7a91be17a36bee06649bda2de9ea5661a9",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Basketball_Evening.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Basketball_Evening.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Basketball_Evening",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "3_Cafe",
+      "canonicalOfficialName": "Cafe",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:3_cafe",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/3_Cafe_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "3_Cafe",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "3_Cafe",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/3_Cafe_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Cafe",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Cafe",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "7e29e1dbb44aa1b98c3c609f1b5f66c38af4cac1",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Cafe.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Cafe.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Cafe",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "4_Campfire",
+      "canonicalOfficialName": "Campfire",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": {
+        "expectedRelation": "same-source",
+        "historicalRole": "validation",
+        "manifestPairId": "live_4_campfire_3840x2160_15000k",
+        "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+        "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+        "virginFrozen": false
+      },
+      "localGroupId": "live:4_campfire",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/4_Campfire_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 1,
+          "HEURISTIC": 8
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "4_Campfire",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "4_Campfire",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/4_Campfire_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Campfire",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Campfire",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "e0da5179dc3e97f72d70410d8d04f9e9950bb266",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Campfire.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Campfire.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Campfire",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "5_Conversation_Bed",
+      "canonicalOfficialName": "Conversation_Bed",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:5_conversation_bed",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/5_Conversation_Bed_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "5_Conversation_Bed",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "5_Conversation_Bed",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/5_Conversation_Bed_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Conversation_Bed",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Conversation_Bed",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "2c6c24acbfe5be6d9e2a1a281c030a7cda302e80",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Conversation_Bed.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Conversation_Bed.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Conversation_Bed",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "6_Conversation_Standing",
+      "canonicalOfficialName": "Conversation_Standing",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:6_conversation_standing",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/6_Conversation_Standing_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "6_Conversation_Standing",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "6_Conversation_Standing",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/6_Conversation_Standing_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Conversation_Standing",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Conversation_Standing",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "fd95e196eeb6ff5803fa27be22ab1bbdf5a25276",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Conversation_Standing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Conversation_Standing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Conversation_Standing",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "7_Dancing",
+      "canonicalOfficialName": "Dancing",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:7_dancing",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/7_Dancing_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "7_Dancing",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "7_Dancing",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/7_Dancing_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Dancing",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Dancing",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "e30c1743e5044daa9974c301fefedba2fd695a5a",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Dancing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Dancing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Dancing",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "8_Drawing",
+      "canonicalOfficialName": "Drawing",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:8_drawing",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/8_Drawing_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "8_Drawing",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "8_Drawing",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/8_Drawing_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Drawing",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Drawing",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "d391ac47f57ea2c504babd8d7c9f98e0ca031117",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Drawing.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Drawing.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Drawing",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "9_Face_Close",
+      "canonicalOfficialName": "Face_Close",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": {
+        "expectedRelation": "same-source",
+        "historicalRole": "tune",
+        "manifestPairId": "live_9_face_close_3840x2160_15000k",
+        "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+        "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+        "virginFrozen": false
+      },
+      "localGroupId": "live:9_face_close",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/9_Face_Close_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 1,
+          "HEURISTIC": 8
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "9_Face_Close",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "9_Face_Close",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/9_Face_Close_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Face_Close",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Face_Close",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "25b259a75fce9c634a20d0c623041279f046eb15",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Face_Close.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Face_Close.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Face_Close",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "10_Fountain",
+      "canonicalOfficialName": "Fountain",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:10_fountain",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/10_Fountain_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "10_Fountain",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "10_Fountain",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/10_Fountain_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Fountain",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Fountain",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "d090a1a30512f06fd50f2ab341e56b846521dffb",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Fountain.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Fountain.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Fountain",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "11_Guitar_Handheld",
+      "canonicalOfficialName": "Guitar_Handheld",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:11_guitar_handheld",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/11_Guitar_Handheld_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "11_Guitar_Handheld",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "11_Guitar_Handheld",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/11_Guitar_Handheld_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Guitar_Handheld",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Guitar_Handheld",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "92fe69a3976beb9d38cecd267d7c22a64f862f49",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Guitar_Handheld.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Guitar_Handheld.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Guitar_Handheld",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "12_Guitar_Tripod",
+      "canonicalOfficialName": "Guitar_Tripod",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:12_guitar_tripod",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/12_Guitar_Tripod_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "12_Guitar_Tripod",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "12_Guitar_Tripod",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/12_Guitar_Tripod_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Guitar_Tripod",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Guitar_Tripod",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "46d39a839212a801d53460bb7ac71232ee338cd9",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Guitar_Tripod.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Guitar_Tripod.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Guitar_Tripod",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "13_Interview",
+      "canonicalOfficialName": "Interview",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": {
+        "expectedRelation": "same-source",
+        "historicalRole": "tune",
+        "manifestPairId": "live_13_interview_3840x2160_15000k",
+        "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+        "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+        "virginFrozen": false
+      },
+      "localGroupId": "live:13_interview",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/13_Interview_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 1,
+          "HEURISTIC": 8
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "13_Interview",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "13_Interview",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/13_Interview_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Interview",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Interview",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "c7de2afcd02bf6c2e874cafeaec1f0dbdc6b71f2",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Interview.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Interview.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Interview",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "14_Knitting_Close",
+      "canonicalOfficialName": "Knitting_Close",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:14_knitting_close",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/14_Knitting_Close_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "14_Knitting_Close",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "14_Knitting_Close",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/14_Knitting_Close_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Knitting_Close",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Knitting_Close",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "1ee9f7a443adc04c87aa879fa7fb4bf959cb2931",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Knitting_Close.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Knitting_Close.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Knitting_Close",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "15_Knitting_Total",
+      "canonicalOfficialName": "Knitting_Total",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:15_knitting_total",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/15_Knitting_Total_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "15_Knitting_Total",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "15_Knitting_Total",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/15_Knitting_Total_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Knitting_Total",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Knitting_Total",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "ddd6e3dcc540bdaabf1d1ab76bf46dcb3a38093d",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Knitting_Total.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Knitting_Total.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Knitting_Total",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "16_Night_Biking",
+      "canonicalOfficialName": "Night_Biking",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:16_night_biking",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/16_Night_Biking_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "16_Night_Biking",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "16_Night_Biking",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/16_Night_Biking_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Night_Biking",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Night_Biking",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "5a8e4c542056f4e186cafe18148bf1df462fa6f2",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Night_Biking.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Night_Biking.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Night_Biking",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "17_Onion_1",
+      "canonicalOfficialName": "Onion_1",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:17_onion_1",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/17_Onion_1_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "17_Onion_1",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "17_Onion_1",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/17_Onion_1_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Onion_1",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Onion_1",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "7f8cec07c5b97e9f3f193bf88ca328ad22d3e6e4",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Onion_1.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Onion_1.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Onion_1",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "18_Onion_2",
+      "canonicalOfficialName": "Onion_2",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:18_onion_2",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/18_Onion_2_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "18_Onion_2",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "18_Onion_2",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/18_Onion_2_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Onion_2",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Onion_2",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "4340f6c7d39269bab2e391e2486f24bd852d3f33",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Onion_2.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Onion_2.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Onion_2",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "19_Parcours",
+      "canonicalOfficialName": "Parcours",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:19_parcours",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/19_Parcours_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "19_Parcours",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "19_Parcours",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/19_Parcours_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Parcours",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Parcours",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "86b1f64c726f9c29aff18335fb861cd8a6016693",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Parcours.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Parcours.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Parcours",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "20_Phone_Call",
+      "canonicalOfficialName": "Phone_Call",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:20_phone_call",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/20_Phone_Call_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "20_Phone_Call",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "20_Phone_Call",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/20_Phone_Call_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Phone_Call",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Phone_Call",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "b655c91ea57ccde9f90fccfe433ee2d78758de37",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Phone_Call.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Phone_Call.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Phone_Call",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "21_Power_Pole_Sky",
+      "canonicalOfficialName": "Power_Pole_Sky",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:21_power_pole_sky",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/21_Power_Pole_Sky_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "21_Power_Pole_Sky",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "21_Power_Pole_Sky",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/21_Power_Pole_Sky_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Power_Pole_Sky",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Power_Pole_Sky",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "223bf034780d57bf79b26d259e8088b701cb87db",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Power_Pole_Sky.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Power_Pole_Sky.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Power_Pole_Sky",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "22_Programming_Night",
+      "canonicalOfficialName": "Programming_Night",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": {
+        "expectedRelation": "same-source",
+        "historicalRole": "validation",
+        "manifestPairId": "live_22_programming_night_3840x2160_15000k",
+        "source": "LIVE Paired Comparison HDR vs. SDR Database (local)",
+        "sourceURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+        "virginFrozen": false
+      },
+      "localGroupId": "live:22_programming_night",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/22_Programming_Night_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 1,
+          "HEURISTIC": 8
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "22_Programming_Night",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "22_Programming_Night",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/22_Programming_Night_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Programming_Night",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Programming_Night",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "08e18e35debde359cf346a70df0402cd8f9cd110",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Programming_Night.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Programming_Night.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Programming_Night",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "23_Reading_Bench",
+      "canonicalOfficialName": "Reading_Bench",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:23_reading_bench",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/23_Reading_Bench_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "23_Reading_Bench",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "23_Reading_Bench",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/23_Reading_Bench_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Reading_Bench",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Reading_Bench",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "c0825bc86f0fcd96c921a8c4961e81777cba1808",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Reading_Bench.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Reading_Bench.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Reading_Bench",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "24_Reading_Stairs",
+      "canonicalOfficialName": "Reading_Stairs",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:24_reading_stairs",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/24_Reading_Stairs_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "24_Reading_Stairs",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "24_Reading_Stairs",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/24_Reading_Stairs_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Reading_Stairs",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Reading_Stairs",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "c9cdeefbcbd3b0f6d17836e5ee845062d31059c0",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Reading_Stairs.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Reading_Stairs.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Reading_Stairs",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "25_River",
+      "canonicalOfficialName": "River",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:25_river",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/25_River_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "25_River",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "25_River",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/25_River_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/River",
+      "officialSourceEvidence": {
+        "canonicalContentName": "River",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "21c07a52057ae6b089a86cb1e42685d1452d716e",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/River.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/River.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/River",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "26_Sitting",
+      "canonicalOfficialName": "Sitting",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:26_sitting",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/26_Sitting_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "26_Sitting",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "26_Sitting",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/26_Sitting_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Sitting",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Sitting",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "05841a04fac91f3991a40719ca30158e562f530c",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Sitting.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Sitting.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Sitting",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "27_Skateboarding",
+      "canonicalOfficialName": "Skateboarding",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:27_skateboarding",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/27_Skateboarding_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "27_Skateboarding",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "27_Skateboarding",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/27_Skateboarding_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Skateboarding",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Skateboarding",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "360e1845e3366886367ac3a776cf44c95a5116e4",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Skateboarding.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Skateboarding.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Skateboarding",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "28_Swan",
+      "canonicalOfficialName": "Swan",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:28_swan",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/28_Swan_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "28_Swan",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "28_Swan",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/28_Swan_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Swan",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Swan",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "b9209548a23b5fb0f6ac44166f3a7b484d593b3d",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Swan.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Swan.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Swan",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "29_Walking_Forest",
+      "canonicalOfficialName": "Walking_Forest",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:29_walking_forest",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/29_Walking_Forest_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "29_Walking_Forest",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "29_Walking_Forest",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/29_Walking_Forest_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Walking_Forest",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Walking_Forest",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "07dfbc927578b20fe96500c7b74e348cfe45617d",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Walking_Forest.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Walking_Forest.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Walking_Forest",
+      "sourceMasterStatus": "PROVEN"
+    },
+    {
+      "canonicalLocalName": "30_Yoga",
+      "canonicalOfficialName": "Yoga",
+      "evidenceBasis": "LEVEL_3_EXPLICIT_LOCAL_PROVENANCE_PLUS_INDEPENDENT_OFFICIAL_CORROBORATION",
+      "evidenceLevel": "LEVEL_3",
+      "evidenceSources": [
+        "local-inventory",
+        "local-jod-identity",
+        "official-live-page",
+        "official-hdrsdr-paper",
+        "official-avt-repository"
+      ],
+      "historicalManifestPairEvidence": null,
+      "localGroupId": "live:30_yoga",
+      "localHDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_HDR10/30_Yoga_HDR10_960x540_800k.mp4"
+      ],
+      "localInventoryEvidence": {
+        "artifact": "results/development-corpus-inventory.json",
+        "byteIdentity": "NOT_READ",
+        "candidateGroupCount": 9,
+        "pairConfidenceCounts": {
+          "EXPLICIT": 0,
+          "HEURISTIC": 9
+        }
+      },
+      "localJODIdentityEvidence": {
+        "artifact": "data_video/LIVE Paired Comparison HDR vs. SDR Database/JOD_separate.csv",
+        "contentName": "30_Yoga",
+        "exactVideoNameCoverage": "PASS",
+        "qualityFieldsIgnored": [
+          "JOD_ref_compare"
+        ],
+        "qualityFieldsUsed": [],
+        "type": "Open-source",
+        "videoFormats": [
+          "HDR10",
+          "SDR"
+        ],
+        "videoNameCount": 18
+      },
+      "localPreservedSourceId": "30_Yoga",
+      "localPreservedSourceIdStatus": "EXPLICIT_CONTENT_NAME_IN_LOCAL_JOD_METADATA",
+      "localSDRCandidates": [
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_1280x720_2000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_1280x720_4000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_1920x1080_3000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_2560x1440_10000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_3840x2160_15000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_3840x2160_50000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_3840x2160_6000k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_960x540_1500k.mp4",
+        "data_video/LIVE Paired Comparison HDR vs. SDR Database/open-sourced_SDR/30_Yoga_SDR_960x540_800k.mp4"
+      ],
+      "mappingStatus": "PROVEN",
+      "numericPrefixPreserved": true,
+      "officialCandidateSourceId": "AVT-VQDB-UHD-2-HDR/Yoga",
+      "officialSourceEvidence": {
+        "canonicalContentName": "Yoga",
+        "dataset": "AVT-VQDB-UHD-2-HDR",
+        "gitBlobOID": "9532e3604540c3ded2932cd0882e80bbf9be4972",
+        "gitObjectFormat": "sha1",
+        "metricRecord": "metrics/DR_results/Yoga.mov.json",
+        "provenanceURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR/blob/7906224caa49cfcc538a8dacfda0469b597c1247/metrics/DR_results/Yoga.mov.json",
+        "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+        "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247"
+      },
+      "pairRelationship": "PROVEN",
+      "sourceMasterId": "AVT-VQDB-UHD-2-HDR/Yoga",
+      "sourceMasterStatus": "PROVEN"
+    }
+  ],
+  "nextStage": "exact metadata qualification, selected-file hashing, deterministic split, and preflight-v4",
+  "numericCountMatchOnly": true,
+  "numericCountUsedAsProof": false,
+  "officialCanonicalContentNames": [
+    "Balance_Forest",
+    "Basketball_Afternoon",
+    "Basketball_Evening",
+    "Cafe",
+    "Campfire",
+    "Conversation_Bed",
+    "Conversation_Standing",
+    "Dancing",
+    "Drawing",
+    "Face_Close",
+    "Fountain",
+    "Guitar_Handheld",
+    "Guitar_Tripod",
+    "Interview",
+    "Knitting_Close",
+    "Knitting_Total",
+    "Night_Biking",
+    "Onion_1",
+    "Onion_2",
+    "Parcours",
+    "Phone_Call",
+    "Power_Pole_Sky",
+    "Programming_Night",
+    "Reading_Bench",
+    "Reading_Stairs",
+    "River",
+    "Sitting",
+    "Skateboarding",
+    "Swan",
+    "Walking_Forest",
+    "Yoga"
+  ],
+  "officialOpenSourceContentCount": 31,
+  "officialSources": [
+    {
+      "canonicalURL": "https://www.colorado.edu/lab/live/live-paired-comparison-hdr-vs-sdr-database",
+      "documentTitle": "LIVE Paired Comparison HDR vs. SDR Database",
+      "id": "official-live-page",
+      "publisher": "LIVE / University of Colorado Boulder and UT Austin",
+      "retrievedDate": "2026-09-13",
+      "secondaryURL": "https://live.ece.utexas.edu/research/Bowen_SDRHDR/sdr-hdr-bowen.html",
+      "supportedClaim": "The released open-source portion has 31 contents and separate Open-sourced HDR10 and Open-sourced SDR folders."
+    },
+    {
+      "canonicalURL": "https://arxiv.org/html/2505.21831v1",
+      "documentTitle": "HDRSDR-VQA: A Subjective Video Quality Dataset for HDR and SDR Comparative Evaluation",
+      "id": "official-hdrsdr-paper",
+      "publisher": "HDRSDR-VQA authors / arXiv",
+      "retrievedDate": "2026-09-13",
+      "supportedClaim": "The 31 open-source videos are from AVT-VQDB-UHD-2-HDR and are rendered in HDR10 and SDR forms."
+    },
+    {
+      "authorityIndex": "config/live31-source-authority-index.json",
+      "canonicalURL": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+      "documentTitle": "AVT-VQDB-UHD-2-HDR README and metrics tree",
+      "id": "official-avt-repository",
+      "publisher": "AVT group of TU Ilmenau",
+      "repository": "https://github.com/Telecommunication-Telemedia-Assessment/AVT-VQDB-UHD-2-HDR",
+      "repositoryCommit": "7906224caa49cfcc538a8dacfda0469b597c1247",
+      "retrievedDate": "2026-09-13",
+      "supportedClaim": "The pinned repository snapshot exposes the exact canonical source records listed in the authority index."
+    }
+  ],
+  "oldHashEligibleForCalibration": false,
+  "oldSearchDefinitionHash": "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
+  "qualityDataUse": {
+    "JODScoresUsed": false,
+    "frameDecode": false,
+    "mediaHash": false,
+    "objectiveMetricsRun": false,
+    "pixelInspection": false
+  },
+  "searchDefinitionHashStatus": "RETIRED_INVALIDATED",
+  "summary": {
+    "conflict": 0,
+    "crossSourceAliasStatus": "UNKNOWN_NO_ALIAS_REGISTRY",
+    "duplicateMappings": [],
+    "externalDatasetRequired": "NO",
+    "heuristic": 0,
+    "localCorpusProvenance": "SUFFICIENT",
+    "mappingCount": 31,
+    "oneToOneOfficialMapping": "PASS",
+    "pairRelationshipStatus": {
+      "PROVEN": 31
+    },
+    "proven": 31,
+    "provenCount": 31,
+    "sourceMasterIndependence": "PASS_WITHIN_UNIQUE_OFFICIAL_AVT_CANONICAL_CONTENT_SET",
+    "strongNotProven": 0,
+    "uniqueLocalGroupIdCount": 31,
+    "uniqueOfficialCanonicalIDCount": 31,
+    "uniqueProvenPairedSources": 31,
+    "uniqueProvenSourceMasterIds": 31,
+    "uniqueSourceMasterIdCount": 31,
+    "unmappedLocal": [],
+    "unmappedOfficial": [],
+    "unresolved": 0
+  }
+}

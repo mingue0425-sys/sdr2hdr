@@ -71,33 +71,15 @@ public enum FrameReader {
         startSeconds: Double,
         outputIndex: Int,
         outputFramesPerSecond: Double,
-        sourceFramesPerSecond: Double
+        sourceFramesPerSecond: Double,
+        samplingSemantics: V6FrameSamplingSemanticConfiguration = .v6
     ) -> Int? {
-        guard startSeconds.isFinite,
-              startSeconds >= 0,
-              outputIndex >= 0,
-              outputFramesPerSecond.isFinite,
-              outputFramesPerSecond > 0,
-              sourceFramesPerSecond.isFinite,
-              sourceFramesPerSecond > 0 else {
-            return nil
-        }
-
-        let sourceRate = max(
-            sourceFramesPerSecond,
-            outputFramesPerSecond
+        samplingSemantics.sourceFrameIndex(
+            startSeconds: startSeconds,
+            outputIndex: outputIndex,
+            outputFramesPerSecond: outputFramesPerSecond,
+            sourceFramesPerSecond: sourceFramesPerSecond
         )
-        let startPosition = startSeconds * sourceRate
-        let sourceStep = sourceRate / outputFramesPerSecond
-        let position = startPosition + Double(outputIndex) * sourceStep
-
-        guard position.isFinite,
-              position >= 0,
-              position <= Double(Int32.max) else {
-            return nil
-        }
-
-        return Int(position.rounded())
     }
 
     private struct ValidatedVideoMetadata {
@@ -116,16 +98,21 @@ public enum FrameReader {
         startSeconds: Double,
         frameCount: Int = 16,
         framesPerSecond: Double = 30,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        descriptorSemantics: V6DescriptorSemanticConfiguration = .v6,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4,
+        validationSemantics: V6PreparationValidationSemanticConfiguration = .v6,
+        metadataSemantics: V6DecoderMetadataSemanticConfiguration = .v6,
+        samplingSemantics: V6FrameSamplingSemanticConfiguration = .v6
     ) async throws -> FrameSequence {
-        guard (1...512).contains(frameCount),
-              (16...512).contains(proxyWidth),
+        guard (1...validationSemantics.maximumDecodedFrames).contains(frameCount),
+              (validationSemantics.minimumProxyWidth...validationSemantics.maximumProxyWidth).contains(proxyWidth),
               proxyWidth.isMultiple(of: 2),
               isSupported(pixelFormat: pixelFormat),
               startSeconds.isFinite,
               framesPerSecond.isFinite,
-              framesPerSecond >= 0.001,
-              framesPerSecond <= 1_000 else {
+              framesPerSecond >= validationSemantics.minimumTemporalFPS,
+              framesPerSecond <= validationSemantics.maximumTemporalFPS else {
             throw CalibrationError.decodeFailed(
                 "window decode request contains invalid or unsafe bounds"
             )
@@ -144,10 +131,15 @@ public enum FrameReader {
             nominalFrameRate: nominal,
             duration: duration,
             proxyWidth: proxyWidth,
-            url: url
+            validationSemantics: validationSemantics,
+            url: url,
+            samplingSemantics: samplingSemantics
         )
-        let sourcePosition = max(startSeconds, 0) * max(metadata.nominalFrameRate, framesPerSecond)
-        guard sourcePosition.isFinite, sourcePosition <= Double(Int32.max) else {
+        let sourcePosition = max(startSeconds, 0) * samplingSemantics.sourceRate(
+            sourceFramesPerSecond: metadata.nominalFrameRate,
+            outputFramesPerSecond: framesPerSecond
+        )
+        guard sourcePosition.isFinite, sourcePosition <= Double(samplingSemantics.sourceTimelineMaximum) else {
             throw CalibrationError.decodeFailed(
                 "window decode start exceeds the supported source timeline"
             )
@@ -163,7 +155,12 @@ public enum FrameReader {
             nominalFrameRate: metadata.nominalFrameRate,
             durationSeconds: metadata.durationSeconds,
             startSeconds: max(startSeconds, 0),
-            samplingFPS: min(framesPerSecond, metadata.nominalFrameRate > 0 ? metadata.nominalFrameRate : framesPerSecond)
+            samplingFPS: min(framesPerSecond, metadata.nominalFrameRate > 0 ? metadata.nominalFrameRate : framesPerSecond),
+            descriptorSemantics: descriptorSemantics,
+            colorScience: colorScience,
+            validationSemantics: validationSemantics,
+            metadataSemantics: metadataSemantics,
+            samplingSemantics: samplingSemantics
         )
     }
 
@@ -171,10 +168,15 @@ public enum FrameReader {
         url: URL,
         pixelFormat: OSType,
         maxFrames: Int = 240,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        descriptorSemantics: V6DescriptorSemanticConfiguration = .v6,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4,
+        validationSemantics: V6PreparationValidationSemanticConfiguration = .v6,
+        metadataSemantics: V6DecoderMetadataSemanticConfiguration = .v6,
+        samplingSemantics: V6FrameSamplingSemanticConfiguration = .v6
     ) async throws -> FrameSequence {
-        guard (1...512).contains(maxFrames),
-              (16...512).contains(proxyWidth),
+        guard (1...validationSemantics.maximumDecodedFrames).contains(maxFrames),
+              (validationSemantics.minimumProxyWidth...validationSemantics.maximumProxyWidth).contains(proxyWidth),
               proxyWidth.isMultiple(of: 2),
               isSupported(pixelFormat: pixelFormat) else {
             throw CalibrationError.decodeFailed(
@@ -194,7 +196,9 @@ public enum FrameReader {
             nominalFrameRate: nominalFrameRate,
             duration: duration,
             proxyWidth: proxyWidth,
-            url: url
+            validationSemantics: validationSemantics,
+            url: url,
+            samplingSemantics: samplingSemantics
         )
         let formatDescriptions = try await track.load(.formatDescriptions)
         let codec = formatDescriptions.first.map { fourCC(CMFormatDescriptionGetMediaSubType($0)) }
@@ -208,19 +212,26 @@ public enum FrameReader {
                 sourceWidth: metadata.sourceWidth,
                 sourceHeight: metadata.sourceHeight,
                 nominalFrameRate: metadata.nominalFrameRate,
-                durationSeconds: metadata.durationSeconds
+                durationSeconds: metadata.durationSeconds,
+            descriptorSemantics: descriptorSemantics,
+            colorScience: colorScience,
+            validationSemantics: validationSemantics,
+            metadataSemantics: metadataSemantics,
+            samplingSemantics: samplingSemantics
             )
         }
         let estimatedFrames = metadata.nominalFrameRate > 0 && metadata.durationSeconds > 0
             ? metadata.durationSeconds * metadata.nominalFrameRate
             : Double(maxFrames)
-        let strideValue = ceil(estimatedFrames / Double(maxFrames))
-        guard strideValue.isFinite, strideValue <= Double(Int32.max) else {
+        let stride = samplingSemantics.stride(
+            estimatedFrames: estimatedFrames,
+            maximumFrames: maxFrames
+        )
+        guard stride > 0, stride <= Int(samplingSemantics.sourceTimelineMaximum) else {
             throw CalibrationError.decodeFailed(
                 "video timeline exceeds the supported proxy sampling range"
             )
         }
-        let stride = max(1, Int(strideValue))
         let settings: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: pixelFormat,
             kCVPixelBufferWidthKey as String: proxyWidth,
@@ -245,7 +256,12 @@ public enum FrameReader {
                 sourceWidth: metadata.sourceWidth,
                 sourceHeight: metadata.sourceHeight,
                 nominalFrameRate: metadata.nominalFrameRate,
-                durationSeconds: metadata.durationSeconds
+                durationSeconds: metadata.durationSeconds,
+                descriptorSemantics: descriptorSemantics,
+                colorScience: colorScience,
+                validationSemantics: validationSemantics,
+                metadataSemantics: metadataSemantics,
+                samplingSemantics: samplingSemantics
             )
         }
 
@@ -256,8 +272,17 @@ public enum FrameReader {
             guard frameIndex % stride == 0,
                   let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-            let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
-            let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
+            let grid = try OfflinePixelSampler.lumaGrid(
+                pixelBuffer: pixelBuffer,
+                width: descriptorSemantics.gridWidth,
+                height: descriptorSemantics.gridHeight,
+                colorScience: colorScience
+            )
+            let descriptor = FrameDescriptorBuilder.make(
+                timestamp: timestamp,
+                lumaGrid: grid,
+                configuration: descriptorSemantics
+            )
             samples.append(FrameSample(
                 index: frameIndex,
                 sequencePosition: samples.count,
@@ -281,7 +306,12 @@ public enum FrameReader {
                 sourceWidth: metadata.sourceWidth,
                 sourceHeight: metadata.sourceHeight,
                 nominalFrameRate: metadata.nominalFrameRate,
-                durationSeconds: metadata.durationSeconds
+                durationSeconds: metadata.durationSeconds,
+                descriptorSemantics: descriptorSemantics,
+                colorScience: colorScience,
+                validationSemantics: validationSemantics,
+                metadataSemantics: metadataSemantics,
+                samplingSemantics: samplingSemantics
             )
         }
         let actualWidth = samples.first.map { CVPixelBufferGetWidth($0.pixelBuffer) } ?? metadata.sourceWidth
@@ -307,17 +337,19 @@ public enum FrameReader {
         nominalFrameRate: Double,
         duration: CMTime,
         proxyWidth: Int,
-        url: URL
+        validationSemantics: V6PreparationValidationSemanticConfiguration,
+        url: URL,
+        samplingSemantics: V6FrameSamplingSemanticConfiguration
     ) throws -> ValidatedVideoMetadata {
         let durationSeconds = duration.isNumeric ? duration.seconds : 0
         guard naturalSize.width.isFinite,
               naturalSize.height.isFinite,
               naturalSize.width > 0,
               naturalSize.height > 0,
-              naturalSize.width <= 65_536,
-              naturalSize.height <= 65_536,
+              naturalSize.width <= CGFloat(validationSemantics.maximumDecodedWidth),
+              naturalSize.height <= CGFloat(validationSemantics.maximumDecodedHeight),
               nominalFrameRate.isFinite,
-              (0...1_000).contains(nominalFrameRate),
+              (0...validationSemantics.maximumNominalFPS).contains(nominalFrameRate),
               durationSeconds.isFinite,
               durationSeconds >= 0 else {
             throw CalibrationError.decodeFailed(
@@ -328,12 +360,17 @@ public enum FrameReader {
         let sourceWidth = Int(naturalSize.width.rounded())
         let sourceHeight = Int(naturalSize.height.rounded())
         let scaledHeight = Double(proxyWidth) * Double(sourceHeight) / Double(sourceWidth)
-        guard scaledHeight.isFinite, scaledHeight > 0, scaledHeight <= 4_096 else {
+        guard scaledHeight.isFinite, scaledHeight > 0,
+              scaledHeight <= Double(validationSemantics.maximumProxyHeight) else {
             throw CalibrationError.decodeFailed(
                 "video aspect ratio produces an unsafe proxy size: \(url.lastPathComponent)"
             )
         }
-        let proxyHeight = max(2, Int(scaledHeight.rounded()) / 2 * 2)
+        let proxyHeight = samplingSemantics.proxyHeight(
+            proxyWidth: proxyWidth,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight
+        )
         return ValidatedVideoMetadata(
             sourceWidth: sourceWidth,
             sourceHeight: sourceHeight,
@@ -370,7 +407,12 @@ struct FFmpegProxyColorMetadata {
         try self.init(extensions: extensions, pixelFormat: pixelFormat)
     }
 
-    static func resolve(url: URL, formatDescription: CMFormatDescription?, pixelFormat: OSType) async throws -> Self {
+    static func resolve(
+        url: URL,
+        formatDescription: CMFormatDescription?,
+        pixelFormat: OSType,
+        metadataSemantics: V6DecoderMetadataSemanticConfiguration = .v6
+    ) async throws -> Self {
         if let color = try? Self(formatDescription: formatDescription, pixelFormat: pixelFormat) { return color }
         // If AVFoundation does not supply the needed tags, recover explicit
         // ffprobe metadata for the fallback decoder, not invented defaults.
@@ -397,8 +439,8 @@ struct FFmpegProxyColorMetadata {
         case "bt709": transfer = kCVImageBufferTransferFunction_ITU_R_709_2
         case "iec61966-2-1": transfer = kCVImageBufferTransferFunction_sRGB
         case "linear": transfer = kCVImageBufferTransferFunction_Linear
-        case "gamma22": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = 2.2
-        case "gamma28": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = 2.8
+        case "gamma22": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = NSNumber(value: metadataSemantics.gamma22)
+        case "gamma28": transfer = kCVImageBufferTransferFunction_UseGamma; gamma = NSNumber(value: metadataSemantics.gamma28)
         default:
             switch ReferenceTransfer.parse(metadata.transfer) {
             case .pq: transfer = kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ
@@ -477,31 +519,48 @@ private enum FFmpegFrameReader {
         nominalFrameRate: Double,
         durationSeconds: Double,
         startSeconds: Double? = nil,
-        samplingFPS: Double? = nil
+        samplingFPS: Double? = nil,
+        descriptorSemantics: V6DescriptorSemanticConfiguration = .v6,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4,
+        validationSemantics: V6PreparationValidationSemanticConfiguration = .v6,
+        metadataSemantics: V6DecoderMetadataSemanticConfiguration = .v6,
+        samplingSemantics: V6FrameSamplingSemanticConfiguration = .v6
     ) async throws -> FrameSequence {
         guard let executable = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw CalibrationError.decodeFailed("AVAssetReader failed and ffmpeg fallback is unavailable")
         }
         let isP010 = pixelFormat == CalibrationPixelFormat.hdrP010
-        let color = try await FFmpegProxyColorMetadata.resolve(url: url, formatDescription: formatDescription, pixelFormat: pixelFormat)
-        let proxyHeight = max(2, Int((Double(proxyWidth) * Double(sourceHeight) / Double(max(sourceWidth, 1))).rounded() / 2) * 2)
+        let color = try await FFmpegProxyColorMetadata.resolve(
+            url: url,
+            formatDescription: formatDescription,
+            pixelFormat: pixelFormat,
+            metadataSemantics: metadataSemantics
+        )
+        let proxyHeight = samplingSemantics.proxyHeight(
+            proxyWidth: proxyWidth,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight
+        )
         let outputPixelFormat = isP010 ? "p010le" : "nv12"
-        let distributedFPS = durationSeconds > 0
-            ? max(0.25, Double(maxFrames) / durationSeconds)
-            : max(nominalFrameRate, 1)
+        let distributedFPS = samplingSemantics.distributedFPS(
+            maxFrames: maxFrames,
+            durationSeconds: durationSeconds,
+            nominalFrameRate: nominalFrameRate,
+            minimumFPS: descriptorSemantics.minimumFFmpegSamplingFPS
+        )
         let requestedFPS = samplingFPS ?? distributedFPS
         let outputFPS = nominalFrameRate > 0
             ? min(requestedFPS, nominalFrameRate)
-            : min(requestedFPS, 1_000)
+            : min(requestedFPS, validationSemantics.maximumNominalFPS)
         guard outputFPS.isFinite,
-              outputFPS >= 0.001,
-              outputFPS <= 1_000,
-              proxyHeight <= 4_096 else {
+              outputFPS >= validationSemantics.minimumTemporalFPS,
+              outputFPS <= validationSemantics.maximumNominalFPS,
+              proxyHeight <= validationSemantics.maximumProxyHeight else {
             throw CalibrationError.decodeFailed(
                 "ffmpeg proxy rate or dimensions exceed safe bounds"
             )
         }
-        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)"
+        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=\(samplingSemantics.ffmpegFPSRoundingRule),scale=\(proxyWidth):\(proxyHeight):flags=\(samplingSemantics.ffmpegScaleFilter):\(color.scaleOptions)"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         // This is an offline proxy reader, but it must still be bounded and
@@ -530,7 +589,7 @@ private enum FFmpegFrameReader {
         let frameBytes = isP010
             ? proxyWidth * proxyHeight * 2 + proxyWidth * max(1, proxyHeight / 2) * 2
             : proxyWidth * proxyHeight + proxyWidth * max(1, proxyHeight / 2)
-        let outputFPSForTimestamp = max(outputFPS, 0.001)
+        let outputFPSForTimestamp = max(outputFPS, validationSemantics.minimumTemporalFPS)
         var samples: [FrameSample] = []
         var index = 0
         while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
@@ -545,18 +604,29 @@ private enum FFmpegFrameReader {
                 pixelFormat: pixelFormat,
                 color: color
             )
-            let seconds = (startSeconds ?? 0) + Double(index) / outputFPSForTimestamp
-            let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
-            let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
-            let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
+            let seconds = samplingSemantics.timestamp(
+                startSeconds: startSeconds ?? 0,
+                outputIndex: index,
+                outputFPS: outputFPSForTimestamp
+            )
+            let timestamp = CMTime(seconds: seconds, preferredTimescale: samplingSemantics.timestampTimescale)
+            let grid = try OfflinePixelSampler.lumaGrid(
+                pixelBuffer: pixelBuffer,
+                width: descriptorSemantics.gridWidth,
+                height: descriptorSemantics.gridHeight,
+                colorScience: colorScience
+            )
+            let descriptor = FrameDescriptorBuilder.make(
+                timestamp: timestamp,
+                lumaGrid: grid,
+                configuration: descriptorSemantics
+            )
             guard let sourceFrameIndex = FrameReader.sourceFrameIndex(
                 startSeconds: startSeconds ?? 0,
                 outputIndex: index,
                 outputFramesPerSecond: outputFPSForTimestamp,
-                sourceFramesPerSecond: max(
-                    nominalFrameRate,
-                    outputFPSForTimestamp
-                )
+                sourceFramesPerSecond: nominalFrameRate,
+                samplingSemantics: samplingSemantics
             ) else {
                 throw CalibrationError.decodeFailed(
                     "ffmpeg source position exceeds the supported timeline"
@@ -655,7 +725,8 @@ public enum OfflinePixelSampler {
     public static func lumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -680,14 +751,22 @@ public enum OfflinePixelSampler {
                     let value: Float
                     if isP010 {
                         let row = base.advanced(by: sourceY * rowBytes).assumingMemoryBound(to: UInt16.self)
-                        let code = Float(row[sourceX] >> 6)
+                        let code = Float(row[sourceX] >> colorScience.yCbCr.p010RightShift)
                         let full = pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
-                        value = full ? code / 1023 : min(max((code - 64) / 876, 0), 1)
+                        let y = full
+                            ? code / Float(colorScience.yCbCr.fullRange10Denominator)
+                            : (code - Float(colorScience.yCbCr.videoRange10LumaOffset)) /
+                                Float(colorScience.yCbCr.videoRange10LumaDenominator)
+                        value = min(max(y, 0), 1)
                     } else {
                         let row = base.advanced(by: sourceY * rowBytes).assumingMemoryBound(to: UInt8.self)
                         let code = Float(row[sourceX])
                         let full = pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-                        value = full ? code / 255 : min(max((code - 16) / 219, 0), 1)
+                        let y = full
+                            ? code / Float(colorScience.yCbCr.fullRange8Denominator)
+                            : (code - Float(colorScience.yCbCr.videoRange8LumaOffset)) /
+                                Float(colorScience.yCbCr.videoRange8LumaDenominator)
+                        value = min(max(y, 0), 1)
                     }
                     result[y * width + x] = value
                 }
@@ -708,7 +787,9 @@ public enum OfflinePixelSampler {
                 let blue = Float(row[offset]) / 255
                 let green = Float(row[offset + 1]) / 255
                 let red = Float(row[offset + 2]) / 255
-                result[y * width + x] = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+                let coefficients = colorScience.yCbCr.bgraBT709Luminance
+                result[y * width + x] = Float(coefficients[0]) * red +
+                    Float(coefficients[1]) * green + Float(coefficients[2]) * blue
             }
         }
         return result
@@ -721,7 +802,11 @@ public enum OfflinePixelSampler {
     public static func linearLumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        interpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear,
+        untaggedFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear,
+        bt1886Parameters: BT1886TransferParameters = .idealReference,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -734,7 +819,10 @@ public enum OfflinePixelSampler {
         let metadata = try HDRInputMetadata.resolve(
             pixelBuffer: pixelBuffer,
             fallbackPolicy: isFullRange || pixelFormat == kCVPixelFormatType_32BGRA
-                ? .bt709FullRange : .bt709VideoRange
+                ? .bt709FullRange : .bt709VideoRange,
+            interpretationPolicy: interpretationPolicy,
+            untaggedFallback: untaggedFallback,
+            bt1886Parameters: bt1886Parameters
         )
         let matrix = metadata.yCbCrMatrix
 
@@ -745,33 +833,27 @@ public enum OfflinePixelSampler {
         var result = [Float](repeating: 0, count: width * height)
 
         func inverse(_ value: Float) -> Float {
-            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: metadata.transferFunction)
+            HDRColorMath.inverseTransfer(
+                min(max(value, 0), 1),
+                function: metadata.transferFunction,
+                colorScience: colorScience
+            )
         }
 
         func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {
-            let rgb: SIMD3<Float>
-            switch matrix {
-            case .bt601:
-                rgb = SIMD3(
-                    y + 1.402000 * cr,
-                    y - 0.344136 * cb - 0.714136 * cr,
-                    y + 1.772000 * cb
-                )
-            case .bt2020:
-                rgb = SIMD3(
-                    y + 1.474600 * cr,
-                    y - 0.164553 * cb - 0.571353 * cr,
-                    y + 1.881400 * cb
-                )
-            case .bt709:
-                rgb = SIMD3(
-                    y + 1.574800 * cr,
-                    y - 0.187324 * cb - 0.468124 * cr,
-                    y + 1.855600 * cb
-                )
-            }
+            let converted = colorScience.yCbCr.rgb(
+                from: matrix, y: Double(y), cb: Double(cb), cr: Double(cr)
+            )
+            let rgb = SIMD3<Float>(
+                Float(converted.0), Float(converted.1), Float(converted.2)
+            )
             let linear = SIMD3(inverse(rgb.x), inverse(rgb.y), inverse(rgb.z))
-            return max(simd_dot(linear, HDRColorMath.bt709Luminance), 0)
+            let coefficients = SIMD3<Float>(
+                Float(colorScience.yCbCr.bt709Luminance[0]),
+                Float(colorScience.yCbCr.bt709Luminance[1]),
+                Float(colorScience.yCbCr.bt709Luminance[2])
+            )
+            return max(simd_dot(linear, coefficients), 0)
         }
 
         if isNV12 || isP010 {
@@ -795,23 +877,56 @@ public enum OfflinePixelSampler {
                     if isP010 {
                         let yRow = yBase.advanced(by: sourceY * yRowBytes).assumingMemoryBound(to: UInt16.self)
                         let uvRow = uvBase.advanced(by: uvY * uvRowBytes).assumingMemoryBound(to: UInt16.self)
-                        let yCode = Float(yRow[sourceX] >> 6)
-                        let cbCode = Float(uvRow[uvX * 2] >> 6)
-                        let crCode = Float(uvRow[uvX * 2 + 1] >> 6)
-                        ySignal = isFullRange ? yCode / 1023 : min(max((yCode - 64) / 876, 0), 1)
-                        let chromaScale: Float = isFullRange ? 1 : 1023 / 896
-                        cbSignal = (cbCode / 1023 - 512 / 1023) * chromaScale
-                        crSignal = (crCode / 1023 - 512 / 1023) * chromaScale
+                        let rightShift = colorScience.yCbCr.p010RightShift
+                        let yCode = Float(yRow[sourceX] >> rightShift)
+                        let cbCode = Float(uvRow[uvX * 2] >> rightShift)
+                        let crCode = Float(uvRow[uvX * 2 + 1] >> rightShift)
+                        ySignal = isFullRange
+                            ? yCode / Float(colorScience.yCbCr.fullRange10Denominator)
+                            : min(max(
+                                (yCode - Float(colorScience.yCbCr.videoRange10LumaOffset)) /
+                                    Float(colorScience.yCbCr.videoRange10LumaDenominator), 0
+                            ), 1)
+                        let chromaScale: Float = isFullRange
+                            ? 1
+                            : Float(colorScience.yCbCr.fullRange10Denominator) /
+                                Float(colorScience.yCbCr.videoRange10ChromaDenominator)
+                        cbSignal = (
+                            cbCode / Float(colorScience.yCbCr.fullRange10Denominator) -
+                                Float(colorScience.yCbCr.videoRange10ChromaCenter) /
+                                    Float(colorScience.yCbCr.fullRange10Denominator)
+                        ) * chromaScale
+                        crSignal = (
+                            crCode / Float(colorScience.yCbCr.fullRange10Denominator) -
+                                Float(colorScience.yCbCr.videoRange10ChromaCenter) /
+                                    Float(colorScience.yCbCr.fullRange10Denominator)
+                        ) * chromaScale
                     } else {
                         let yRow = yBase.advanced(by: sourceY * yRowBytes).assumingMemoryBound(to: UInt8.self)
                         let uvRow = uvBase.advanced(by: uvY * uvRowBytes).assumingMemoryBound(to: UInt8.self)
                         let yCode = Float(yRow[sourceX])
                         let cbCode = Float(uvRow[uvX * 2])
                         let crCode = Float(uvRow[uvX * 2 + 1])
-                        ySignal = isFullRange ? yCode / 255 : min(max((yCode - 16) / 219, 0), 1)
-                        let chromaScale: Float = isFullRange ? 1 : 255 / 224
-                        cbSignal = (cbCode / 255 - 128 / 255) * chromaScale
-                        crSignal = (crCode / 255 - 128 / 255) * chromaScale
+                        ySignal = isFullRange
+                            ? yCode / Float(colorScience.yCbCr.fullRange8Denominator)
+                            : min(max(
+                                (yCode - Float(colorScience.yCbCr.videoRange8LumaOffset)) /
+                                    Float(colorScience.yCbCr.videoRange8LumaDenominator), 0
+                            ), 1)
+                        let chromaScale: Float = isFullRange
+                            ? 1
+                            : Float(colorScience.yCbCr.fullRange8Denominator) /
+                                Float(colorScience.yCbCr.videoRange8ChromaDenominator)
+                        cbSignal = (
+                            cbCode / Float(colorScience.yCbCr.fullRange8Denominator) -
+                                Float(colorScience.yCbCr.videoRange8ChromaCenter) /
+                                    Float(colorScience.yCbCr.fullRange8Denominator)
+                        ) * chromaScale
+                        crSignal = (
+                            crCode / Float(colorScience.yCbCr.fullRange8Denominator) -
+                                Float(colorScience.yCbCr.videoRange8ChromaCenter) /
+                                    Float(colorScience.yCbCr.fullRange8Denominator)
+                        ) * chromaScale
                     }
                     result[y * width + x] = linearLuminance(y: ySignal, cb: cbSignal, cr: crSignal)
                 }
@@ -835,13 +950,22 @@ public enum OfflinePixelSampler {
                     inverse(Float(row[offset + 1]) / 255),
                     inverse(Float(row[offset]) / 255)
                 )
-                result[y * width + x] = max(simd_dot(rgb, HDRColorMath.bt709Luminance), 0)
+                let coefficients = SIMD3<Float>(
+                    Float(colorScience.yCbCr.bt709Luminance[0]),
+                    Float(colorScience.yCbCr.bt709Luminance[1]),
+                    Float(colorScience.yCbCr.bt709Luminance[2])
+                )
+                result[y * width + x] = max(simd_dot(rgb, coefficients), 0)
             }
         }
         return result
     }
 
-    public static func chromaMagnitude(pixelBuffer: CVPixelBuffer) -> Float {
+    public static func chromaMagnitude(
+        pixelBuffer: CVPixelBuffer,
+        configuration: V6RepresentativeFrameSemanticConfiguration = .v6,
+        colorScience: HDRColorScienceSemanticDefinition = .calibrationV4
+    ) -> Float {
         let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
         let isP010 = format == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange ||
             format == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
@@ -854,24 +978,38 @@ public enum OfflinePixelSampler {
         let width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1)
         let height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1)
         let rowBytes = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1)
-        let stepX = max(1, width / 16)
-        let stepY = max(1, height / 9)
+        let ycbcr = colorScience.yCbCr
+        let isFullRange = format == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange ||
+            format == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+        let p010ChromaDenominator = isFullRange
+            ? ycbcr.fullRange10Denominator
+            : ycbcr.videoRange10ChromaDenominator
+        let nv12ChromaDenominator = isFullRange
+            ? ycbcr.fullRange8Denominator
+            : ycbcr.videoRange8ChromaDenominator
+        let stepX = max(1, width / configuration.chromaSampleGridWidth)
+        let stepY = max(1, height / configuration.chromaSampleGridHeight)
         var total: Float = 0
         var count = 0
         for y in stride(from: 0, to: height, by: stepY) {
             if isP010 {
                 let row = base.advanced(by: y * rowBytes).assumingMemoryBound(to: UInt16.self)
                 for x in stride(from: 0, to: width, by: stepX) {
-                    let cb = (Float(row[x * 2] >> 6) - 512) / 512
-                    let cr = (Float(row[x * 2 + 1] >> 6) - 512) / 512
+                    let rightShift = ycbcr.p010RightShift
+                    let cb = (Float(row[x * 2] >> rightShift) - Float(ycbcr.videoRange10ChromaCenter)) /
+                        Float(p010ChromaDenominator)
+                    let cr = (Float(row[x * 2 + 1] >> rightShift) - Float(ycbcr.videoRange10ChromaCenter)) /
+                        Float(p010ChromaDenominator)
                     total += hypot(cb, cr)
                     count += 1
                 }
             } else {
                 let row = base.advanced(by: y * rowBytes).assumingMemoryBound(to: UInt8.self)
                 for x in stride(from: 0, to: width, by: stepX) {
-                    let cb = (Float(row[x * 2]) - 128) / 128
-                    let cr = (Float(row[x * 2 + 1]) - 128) / 128
+                    let cb = (Float(row[x * 2]) - Float(ycbcr.videoRange8ChromaCenter)) /
+                        Float(nv12ChromaDenominator)
+                    let cr = (Float(row[x * 2 + 1]) - Float(ycbcr.videoRange8ChromaCenter)) /
+                        Float(nv12ChromaDenominator)
                     total += hypot(cb, cr)
                     count += 1
                 }
@@ -899,15 +1037,20 @@ public enum FrameDescriptorBuilder {
         }
     }
 
-    public static func make(timestamp: CMTime, lumaGrid: [Float]) -> FrameDescriptor {
+    public static func make(
+        timestamp: CMTime,
+        lumaGrid: [Float],
+        configuration: V6DescriptorSemanticConfiguration = .v6
+    ) -> FrameDescriptor {
         let finite = lumaGrid.filter(\.isFinite)
         let mean = finite.isEmpty ? 0 : finite.reduce(0, +) / Float(finite.count)
         let variance = finite.isEmpty ? 0 : finite.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Float(finite.count)
-        let histogram = makeHistogram(finite)
+        let histogram = makeHistogram(finite, configuration: configuration)
         var edgeEnergy: Float = 0
-        let width = 64
-        let height = max(1, lumaGrid.count / width)
-        if width > 1, height > 1 {
+        let width = configuration.gridWidth
+        let algorithm = configuration.algorithmSemantics
+        let height = max(algorithm.edgeEnergyMinimumHeight, lumaGrid.count / max(width, 1))
+        if width >= algorithm.edgeEnergyMinimumWidth, height >= algorithm.edgeEnergyMinimumHeight {
             for y in 0..<(height - 1) {
                 for x in 0..<(width - 1) {
                     let index = y * width + x
@@ -915,7 +1058,7 @@ public enum FrameDescriptorBuilder {
                     edgeEnergy += abs(lumaGrid[index + width] - lumaGrid[index])
                 }
             }
-            edgeEnergy /= Float((width - 1) * (height - 1) * 2)
+            edgeEnergy /= Float((width - 1) * (height - 1) * algorithm.edgeEnergyComponentsPerCell)
         }
         return FrameDescriptor(
             timestampSeconds: timestamp.isNumeric ? timestamp.seconds : 0,
@@ -926,24 +1069,38 @@ public enum FrameDescriptorBuilder {
         )
     }
 
-    public static func distance(_ lhs: FrameDescriptor, _ rhs: FrameDescriptor) -> Double {
+    public static func distance(
+        _ lhs: FrameDescriptor,
+        _ rhs: FrameDescriptor,
+        configuration: V6DescriptorSemanticConfiguration = .v6
+    ) -> Double {
         let histogramDistance = zip(lhs.histogram, rhs.histogram).reduce(0) { $0 + abs(Double($1.0 - $1.1)) }
         let meanDistance = abs(Double(lhs.meanLuma - rhs.meanLuma))
         let varianceDistance = abs(Double(lhs.variance - rhs.variance))
         let edgeDistance = abs(Double(lhs.edgeEnergy - rhs.edgeEnergy))
-        return histogramDistance * 0.65 + meanDistance * 0.20 + varianceDistance * 0.10 + edgeDistance * 0.05
+        return histogramDistance * configuration.distanceWeights[0] +
+            meanDistance * configuration.distanceWeights[1] +
+            varianceDistance * configuration.distanceWeights[2] +
+            edgeDistance * configuration.distanceWeights[3]
     }
 
     /// Alignment-only distance. SDR and HLG/PQ versions of the same frame
     /// are expected to have different code-value brightness. Comparing a
     /// freely shifted histogram plus normalized low-frequency statistics is
     /// therefore safer than using encoded luma bins directly.
-    public static func alignmentDistance(_ lhs: FrameDescriptor, _ rhs: FrameDescriptor) -> Double {
-        let histogramDistance = shiftedHistogramDistance(lhs.histogram, rhs.histogram)
-        let meanDistance = boundedLogDistance(lhs.meanLuma, rhs.meanLuma)
-        let varianceDistance = boundedLogDistance(lhs.variance, rhs.variance)
-        let edgeDistance = boundedLogDistance(lhs.edgeEnergy, rhs.edgeEnergy)
-        return histogramDistance * 0.72 + meanDistance * 0.10 + varianceDistance * 0.10 + edgeDistance * 0.08
+    public static func alignmentDistance(
+        _ lhs: FrameDescriptor,
+        _ rhs: FrameDescriptor,
+        configuration: V6DescriptorSemanticConfiguration = .v6
+    ) -> Double {
+        let histogramDistance = shiftedHistogramDistance(lhs.histogram, rhs.histogram, configuration: configuration)
+        let meanDistance = boundedLogDistance(lhs.meanLuma, rhs.meanLuma, configuration: configuration)
+        let varianceDistance = boundedLogDistance(lhs.variance, rhs.variance, configuration: configuration)
+        let edgeDistance = boundedLogDistance(lhs.edgeEnergy, rhs.edgeEnergy, configuration: configuration)
+        return histogramDistance * configuration.alignmentDistanceWeights[0] +
+            meanDistance * configuration.alignmentDistanceWeights[1] +
+            varianceDistance * configuration.alignmentDistanceWeights[2] +
+            edgeDistance * configuration.alignmentDistanceWeights[3]
     }
 
     /// Adds a spatial rank/contrast signature when the proxy grids are
@@ -954,39 +1111,62 @@ public enum FrameDescriptorBuilder {
         _ lhs: FrameDescriptor,
         _ rhs: FrameDescriptor,
         lhsGrid: [Float],
-        rhsGrid: [Float]
+        rhsGrid: [Float],
+        configuration: V6DescriptorSemanticConfiguration = .v6
     ) -> Double {
-        let histogramDistance = shiftedHistogramDistance(lhs.histogram, rhs.histogram)
-        let meanDistance = boundedLogDistance(lhs.meanLuma, rhs.meanLuma)
-        let varianceDistance = boundedLogDistance(lhs.variance, rhs.variance)
-        let edgeDistance = boundedLogDistance(lhs.edgeEnergy, rhs.edgeEnergy)
-        let spatialDistance = gridCorrelationDistance(lhsGrid, rhsGrid)
-        return spatialDistance * 0.62 + histogramDistance * 0.20 + meanDistance * 0.08 + varianceDistance * 0.05 + edgeDistance * 0.05
+        let histogramDistance = shiftedHistogramDistance(lhs.histogram, rhs.histogram, configuration: configuration)
+        let meanDistance = boundedLogDistance(lhs.meanLuma, rhs.meanLuma, configuration: configuration)
+        let varianceDistance = boundedLogDistance(lhs.variance, rhs.variance, configuration: configuration)
+        let edgeDistance = boundedLogDistance(lhs.edgeEnergy, rhs.edgeEnergy, configuration: configuration)
+        let spatialDistance = gridCorrelationDistance(lhsGrid, rhsGrid, configuration: configuration)
+        return spatialDistance * configuration.spatialAlignmentDistanceWeights[0] +
+            histogramDistance * configuration.spatialAlignmentDistanceWeights[1] +
+            meanDistance * configuration.spatialAlignmentDistanceWeights[2] +
+            varianceDistance * configuration.spatialAlignmentDistanceWeights[3] +
+            edgeDistance * configuration.spatialAlignmentDistanceWeights[4]
     }
 
-    private static func shiftedHistogramDistance(_ lhs: [Float], _ rhs: [Float]) -> Double {
-        guard !lhs.isEmpty, !rhs.isEmpty else { return 1 }
+    private static func shiftedHistogramDistance(
+        _ lhs: [Float],
+        _ rhs: [Float],
+        configuration: V6DescriptorSemanticConfiguration
+    ) -> Double {
+        guard !lhs.isEmpty, !rhs.isEmpty else { return configuration.emptyHistogramDistance }
         var best = Double.greatestFiniteMagnitude
-        for shift in -4...4 {
+        for shift in configuration.histogramShiftMinimum...configuration.histogramShiftMaximum {
             var distance = 0.0
             for index in lhs.indices {
                 let rhsIndex = index + shift
-                let rhsValue = rhs.indices.contains(rhsIndex) ? rhs[rhsIndex] : 0
+                let rhsValue = rhs.indices.contains(rhsIndex)
+                    ? rhs[rhsIndex]
+                    : Float(configuration.algorithmSemantics.histogramOutOfBoundsValue)
                 distance += abs(Double(lhs[index] - rhsValue))
             }
             best = min(best, distance)
         }
-        return min(best, 1)
+        return min(best, configuration.emptyHistogramDistance)
     }
 
-    private static func boundedLogDistance(_ lhs: Float, _ rhs: Float) -> Double {
-        let left = max(Double(lhs), 1e-4)
-        let right = max(Double(rhs), 1e-4)
-        return min(abs(log(left / right)), 1)
+    private static func boundedLogDistance(
+        _ lhs: Float,
+        _ rhs: Float,
+        configuration: V6DescriptorSemanticConfiguration
+    ) -> Double {
+        let left = max(Double(lhs), configuration.boundedLogFloor)
+        let right = max(Double(rhs), configuration.boundedLogFloor)
+        return min(abs(log(left / right)), configuration.emptyHistogramDistance)
     }
 
-    private static func gridCorrelationDistance(_ lhs: [Float], _ rhs: [Float]) -> Double {
-        guard lhs.count == rhs.count, lhs.count > 1 else { return 0.5 }
+    private static func gridCorrelationDistance(
+        _ lhs: [Float],
+        _ rhs: [Float],
+        configuration: V6DescriptorSemanticConfiguration
+    ) -> Double {
+        let algorithm = configuration.algorithmSemantics
+        guard lhs.count == rhs.count,
+              lhs.count >= algorithm.minimumCorrelationSampleCount else {
+            return configuration.degenerateCorrelationDistance
+        }
         let leftMean = lhs.reduce(0, +) / Float(lhs.count)
         let rightMean = rhs.reduce(0, +) / Float(rhs.count)
         var numerator = 0.0
@@ -1000,16 +1180,34 @@ public enum FrameDescriptorBuilder {
             rightVariance += right * right
         }
         let denominator = sqrt(leftVariance * rightVariance)
-        guard denominator > 1e-9 else { return 0.5 }
-        let correlation = max(-1, min(1, numerator / denominator))
-        return (1 - correlation) * 0.5
+        guard denominator > configuration.gridCorrelationEpsilon else {
+            return configuration.degenerateCorrelationDistance
+        }
+        let correlation = max(configuration.correlationLowerBound,
+            min(configuration.correlationUpperBound, numerator / denominator))
+        return (1 - correlation) * algorithm.correlationDistanceScale
     }
 
-    private static func makeHistogram(_ values: [Float]) -> [Float] {
-        guard !values.isEmpty else { return Array(repeating: 0, count: 16) }
-        var histogram = Array(repeating: Float(0), count: 16)
+    private static func makeHistogram(
+        _ values: [Float],
+        configuration: V6DescriptorSemanticConfiguration
+    ) -> [Float] {
+        guard !values.isEmpty else {
+            return Array(
+                repeating: Float(configuration.algorithmSemantics.emptyHistogramBinValue),
+                count: configuration.histogramBinCount
+            )
+        }
+        var histogram = Array(repeating: Float(0), count: configuration.histogramBinCount)
         for value in values {
-            let index = min(15, max(0, Int(value * 16)))
+            let normalized = min(
+                max(Double(value), configuration.algorithmSemantics.histogramValueMinimum),
+                configuration.algorithmSemantics.histogramValueMaximum
+            )
+            let index = min(
+                configuration.histogramBinCount - 1,
+                max(0, Int(normalized * Double(configuration.histogramBinCount)))
+            )
             histogram[index] += 1
         }
         let count = Float(values.count)

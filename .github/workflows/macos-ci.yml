@@ -31,14 +31,35 @@ jobs:
           bash -n Tests/RealMediaRegression/verify_regression_fixtures.sh
           bash -n Tests/verify_script_cache_test.sh
           bash Tests/verify_script_cache_test.sh
+          swift build -c debug --disable-index-store
           python3 Tests/verify_no_frozen_access.py \
             --scope config/pre-frozen-seal-scope.json
           python3 Tests/verify_no_frozen_access_test.py
+          python3 Tests/test_inventory_development_corpus.py
+          python3 Tests/test_live31_source_provenance.py
+          python3 Tests/verify_live31_regeneration.py
+          python3 Tests/verify_preregistration_v2.py
+          python3 Tests/verify_preregistration_v3.py
+          python3 Tests/verify_preregistration_v4.py
+          python3 Tests/verify_preregistration_v5.py
+          python3 Tests/verify_preregistration_v6.py
+          python3 Tests/independent_v4_semantic_reaudit.py
+          python3 Tests/test_live31_qualification_guards.py
+          python3 Tests/verify_live31_partial_media_qualification.py
           python3 -m json.tool Tests/RealMediaRegression/manifest.json >/dev/null
           python3 -m json.tool Tests/RealMediaRegression/gates.json >/dev/null
           python3 -m json.tool data_video/real_media/external-manifest.json >/dev/null
           python3 -m json.tool config/pre-frozen-seal-scope.json >/dev/null
+          python3 -m json.tool results/development-corpus-inventory-scope.json >/dev/null
+          python3 -m json.tool results/development-corpus-inventory.json >/dev/null
+          python3 -m json.tool results/live31-source-provenance-recovery.json >/dev/null
+          python3 -m json.tool config/live31-source-authority-index.json >/dev/null
           python3 -m json.tool results/frozen-protocol-incident.json >/dev/null
+          python3 -m json.tool config/v4-semantic-source-inventory.json >/dev/null
+          python3 -m json.tool results/calibration-rebase-preregistration-v4.json >/dev/null
+          python3 -m json.tool results/calibration-rebase-preregistration-v5.json >/dev/null
+          python3 -m json.tool results/calibration-rebase-preregistration-v6.json >/dev/null
+          python3 -m json.tool results/live31-partial-media-qualification-v1.json >/dev/null
       - name: Check self-contained media tools
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
@@ -121,3 +142,8 @@ jobs:
 
       - name: Remaining Metal reference tests
         run: swift test -c debug --disable-index-store --filter HDRMetalReferenceTests --skip HDRMetalReferenceTests/testBGRAFallbackUsesZeroCopyTexturePathAndMatchesReference
+
+      - name: Historical V3 invalidation guard
+        run: python3 Tests/verify_preregistration_v3.py
+      - name: V4 bounded independent static guard
+        run: python3 Tests/independent_v4_semantic_reaudit.py

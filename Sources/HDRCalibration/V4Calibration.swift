@@ -17,7 +17,7 @@ public enum CalibrationV4Verdict: String, Codable, Sendable {
     case incompleteEvaluation = "INCOMPLETE_EVALUATION"
 }
 
-public struct V4RuntimeThresholds: Codable, Sendable {
+public struct V4RuntimeThresholds: Codable, Hashable, Sendable {
     public var width: Int = 1_920
     public var height: Int = 1_080
     public var warmupFrames: Int = 30
@@ -26,19 +26,30 @@ public struct V4RuntimeThresholds: Codable, Sendable {
     public var gpuP95RelativeTolerance: Double = 0.10
     public var cpuP95RelativeTolerance: Double = 0.15
     public var absoluteToleranceMilliseconds: Double = 0.10
+    public var p50Fraction: Double = 0.50
+    public var p95Fraction: Double = 0.95
+    public var p99Fraction: Double = 0.99
+    /// The comparison operator is part of the runtime gate semantics.  It
+    /// must travel with the sealed threshold object; a hard-coded `>` in the
+    /// benchmark would otherwise be able to disagree with the preregistration.
+    public var regressionComparison: V4ComparisonOperator = .lessThanOrEqual
 
     public var isValid: Bool {
         width > 0 && height > 0 && warmupFrames >= 0 && measuredFrames > 0 &&
             gpuP50RelativeTolerance.isFinite && gpuP50RelativeTolerance >= 0 &&
             gpuP95RelativeTolerance.isFinite && gpuP95RelativeTolerance >= 0 &&
             cpuP95RelativeTolerance.isFinite && cpuP95RelativeTolerance >= 0 &&
-            absoluteToleranceMilliseconds.isFinite && absoluteToleranceMilliseconds >= 0
+            absoluteToleranceMilliseconds.isFinite && absoluteToleranceMilliseconds >= 0 &&
+            p50Fraction.isFinite && p50Fraction >= 0 && p50Fraction <= 1 &&
+            p95Fraction.isFinite && p95Fraction >= 0 && p95Fraction <= 1 &&
+            p99Fraction.isFinite && p99Fraction >= 0 && p99Fraction <= 1 &&
+            p50Fraction <= p95Fraction && p95Fraction <= p99Fraction
     }
 
     public init() {}
 }
 
-public struct V4SafetyThresholds: Codable, Sendable {
+public struct V4SafetyThresholds: Codable, Hashable, Sendable {
     public var shadowErrorTolerance: Double = 0.01
     public var shadowLiftTolerance: Double = 0.005
     public var temporalFlickerRelativeTolerance: Double = 0.05
@@ -50,11 +61,111 @@ public struct V4SafetyThresholds: Codable, Sendable {
     public var frozenMinimumImprovement: Double = 0.05
     public var frozenPerVideoRegressionTolerance: Double = 0.02
     public var zeroTolerance: Double = 0.000001
+    /// Exact zero-valued count gates are semantic too.  Keeping the value in
+    /// the sealed threshold object prevents a gate helper from smuggling a
+    /// literal `0` past the V4 identity.
+    public var zeroCount: Int = 0
+    public var overallImprovementMinimum: Double = 0
+    public var sensitivityShadowMonotonicTolerance: Double = 0.01
+    public var sensitivityShadowDeltaMinimum: Double = 0.002
+    public var sensitivityTemporalDeltaMinimum: Double = 0.00001
+    public var validationHighlightAbsoluteTolerance: Double = 0.005
+    public var validationMidtoneAbsoluteTolerance: Double = 0.005
+    public var validationHueAbsoluteTolerance: Double = 0.002
+    public var groupedObjectiveRelativeTolerance: Double = 0.05
+    public var groupedTemporalFlickerRelativeTolerance: Double = 0.05
     public var runtime: V4RuntimeThresholds? = V4RuntimeThresholds()
 
     public var runtimeThresholds: V4RuntimeThresholds { runtime ?? V4RuntimeThresholds() }
 
+    public var isValid: Bool {
+        let values = [
+            shadowErrorTolerance, shadowLiftTolerance,
+            temporalFlickerRelativeTolerance, temporalFlickerAbsoluteTolerance,
+            highlightRelativeTolerance, midtoneRelativeTolerance,
+            hueRelativeTolerance, catastrophicSceneRegression,
+            frozenMinimumImprovement, frozenPerVideoRegressionTolerance,
+            zeroTolerance, overallImprovementMinimum, sensitivityShadowMonotonicTolerance,
+            sensitivityShadowDeltaMinimum, sensitivityTemporalDeltaMinimum,
+            validationHighlightAbsoluteTolerance, validationMidtoneAbsoluteTolerance,
+            validationHueAbsoluteTolerance, groupedObjectiveRelativeTolerance,
+            groupedTemporalFlickerRelativeTolerance
+        ]
+        return values.allSatisfy { $0.isFinite && $0 >= 0 } &&
+            zeroCount == 0 && runtimeThresholds.isValid
+    }
+
     public init() {}
+}
+
+/// Resolves the executable threshold source named by a sealed comparison.
+/// Keeping this mapping next to the runtime threshold object prevents the
+/// runner from silently substituting a numeric expression for a different
+/// gate while retaining the same comparison definition.
+extension V4GateDefinition {
+    public func thresholdValue(
+        for comparison: V4ComparisonDefinition,
+        baseline: V2MetricBreakdown? = nil,
+        safety: V4SafetyThresholds
+    ) -> Double {
+        switch comparison.threshold {
+        case .zeroTolerance, .candidateClippingRatio, .candidateBlackCrushRatio,
+             .baselineClippingRatio, .baselineBlackCrushRatio:
+            return safety.zeroTolerance
+        case .zeroInvalidSampleCount, .zeroCount:
+            return Double(safety.zeroCount)
+        case .candidateShadowError, .baselineShadowError, .groupedShadowError, .perVideoShadowError:
+            return (baseline?.shadowError ?? .nan) + safety.shadowErrorTolerance
+        case .candidateShadowLiftRatio, .baselineShadowLiftRatio:
+            return (baseline?.shadowLiftRatio ?? .nan) + safety.shadowLiftTolerance
+        case .candidateTemporalFlicker, .baselineTemporalFlicker, .groupedTemporalFlicker:
+            guard let baseline else { return .nan }
+            return baseline.temporalFlicker * (1 + safety.temporalFlickerRelativeTolerance) +
+                safety.temporalFlickerAbsoluteTolerance
+        case .baselineObjective:
+            return baseline?.objective ?? .nan
+        case .baselineHighlightError:
+            guard let baseline else { return .nan }
+            return baseline.highlightError * (1 + safety.highlightRelativeTolerance) +
+                safety.validationHighlightAbsoluteTolerance
+        case .baselineMidtoneError:
+            guard let baseline else { return .nan }
+            return baseline.midtoneError * (1 + safety.midtoneRelativeTolerance) +
+                safety.validationMidtoneAbsoluteTolerance
+        case .baselineHueP95Error:
+            guard let baseline else { return .nan }
+            return baseline.hueP95Error * (1 + safety.hueRelativeTolerance) +
+                safety.validationHueAbsoluteTolerance
+        case .catastrophicObjective:
+            return (baseline?.objective ?? .nan) * (1 + safety.catastrophicSceneRegression)
+        case .catastrophicShadowError:
+            return (baseline?.shadowError ?? .nan) * (1 + safety.catastrophicSceneRegression) +
+                safety.shadowErrorTolerance
+        case .perVideoObjective:
+            return (baseline?.objective ?? .nan) * (1 + safety.frozenPerVideoRegressionTolerance)
+        case .groupedObjective:
+            return (baseline?.objective ?? .nan) * (1 + safety.groupedObjectiveRelativeTolerance)
+        case .overallImprovement:
+            return safety.overallImprovementMinimum
+        case .frozenMinimumImprovement:
+            return safety.frozenMinimumImprovement
+        case .sensitivityShadowDeltaMinimum:
+            return safety.sensitivityShadowDeltaMinimum
+        case .sensitivityShadowMonotonicTolerance:
+            return safety.sensitivityShadowMonotonicTolerance
+        case .sensitivityTemporalDeltaMinimum:
+            return safety.sensitivityTemporalDeltaMinimum
+        }
+    }
+
+    public func accepts(
+        _ comparison: V4ComparisonDefinition,
+        value: Double,
+        baseline: V2MetricBreakdown? = nil,
+        safety: V4SafetyThresholds
+    ) -> Bool {
+        comparison.accepts(value, threshold: thresholdValue(for: comparison, baseline: baseline, safety: safety))
+    }
 }
 
 public enum V4GateStatus: String, Codable, Sendable {
@@ -224,20 +335,44 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
 }
 
 public enum V4PromotionGateMachine {
-    public static func verdict(_ gates: V4PromotionGateResult) -> CalibrationV4Verdict {
+    public static func verdict(
+        _ gates: V4PromotionGateResult,
+        precedence: [V4PromotionGate] = [
+            .hardSafety, .completeness, .datasetIntegrity, .identifiability,
+            .relativeShadow, .overall, .shadow, .temporal, .transfer,
+            .family, .frozen, .runtime
+        ]
+    ) -> CalibrationV4Verdict {
         // Hard-safety and frozen-holdout failures are more informative than a
         // runtime failure and must never be masked by an unmeasured runtime.
-        if gates.hardSafety == .fail { return .keepV2 }
-        if gates.completeness == .fail || gates.datasetIntegrity == .fail { return .validationFail }
-        if gates.identifiability == .fail { return .identifiabilityFail }
-        if gates.relativeShadow == .fail { return .relativeShadowInsufficient }
-        if gates.overall == .fail { return .validationFail }
-        if gates.shadow == .fail { return .shadowGeneralizationFail }
-        if gates.temporal == .fail { return .validationFail }
-        if gates.transfer == .fail { return .transferGeneralizationFail }
-        if gates.family == .fail { return .validationFail }
-        if gates.frozen == .fail { return .virginFrozenFail }
-        if gates.runtime == .fail { return .runtimeRegression }
+        for name in precedence {
+            let status: V4GateStatus
+            switch name {
+            case .hardSafety: status = gates.hardSafety
+            case .completeness: status = gates.completeness
+            case .datasetIntegrity: status = gates.datasetIntegrity
+            case .identifiability: status = gates.identifiability
+            case .relativeShadow: status = gates.relativeShadow
+            case .overall: status = gates.overall
+            case .shadow: status = gates.shadow
+            case .temporal: status = gates.temporal
+            case .transfer: status = gates.transfer
+            case .family: status = gates.family
+            case .frozen: status = gates.frozen
+            case .runtime: status = gates.runtime
+            }
+            guard status == .fail else { continue }
+            switch name {
+            case .hardSafety: return .keepV2
+            case .identifiability: return .identifiabilityFail
+            case .relativeShadow: return .relativeShadowInsufficient
+            case .shadow: return .shadowGeneralizationFail
+            case .transfer: return .transferGeneralizationFail
+            case .frozen: return .virginFrozenFail
+            case .runtime: return .runtimeRegression
+            default: return .validationFail
+            }
+        }
 
         let statuses = [
             gates.completeness, gates.datasetIntegrity, gates.identifiability,
@@ -334,13 +469,22 @@ public enum V4RuntimeGate {
             baselineValue * (1 + relative) + thresholds.absoluteToleranceMilliseconds
         }
         var reasons: [String] = []
-        if candidate.gpuP50Milliseconds > allowed(baseline.gpuP50Milliseconds, thresholds.gpuP50RelativeTolerance) {
+        if !thresholds.regressionComparison.accepts(
+            candidate.gpuP50Milliseconds,
+            threshold: allowed(baseline.gpuP50Milliseconds, thresholds.gpuP50RelativeTolerance)
+        ) {
             reasons.append(String(format: "GPU p50 regression: V2 %.3f ms, V4 %.3f ms", baseline.gpuP50Milliseconds, candidate.gpuP50Milliseconds))
         }
-        if candidate.gpuP95Milliseconds > allowed(baseline.gpuP95Milliseconds, thresholds.gpuP95RelativeTolerance) {
+        if !thresholds.regressionComparison.accepts(
+            candidate.gpuP95Milliseconds,
+            threshold: allowed(baseline.gpuP95Milliseconds, thresholds.gpuP95RelativeTolerance)
+        ) {
             reasons.append(String(format: "GPU p95 regression: V2 %.3f ms, V4 %.3f ms", baseline.gpuP95Milliseconds, candidate.gpuP95Milliseconds))
         }
-        if candidate.cpuSubmissionP95Milliseconds > allowed(baseline.cpuSubmissionP95Milliseconds, thresholds.cpuP95RelativeTolerance) {
+        if !thresholds.regressionComparison.accepts(
+            candidate.cpuSubmissionP95Milliseconds,
+            threshold: allowed(baseline.cpuSubmissionP95Milliseconds, thresholds.cpuP95RelativeTolerance)
+        ) {
             reasons.append(String(format: "CPU submission p95 regression: V2 %.3f ms, V4 %.3f ms", baseline.cpuSubmissionP95Milliseconds, candidate.cpuSubmissionP95Milliseconds))
         }
         if reasons.isEmpty {
@@ -352,15 +496,27 @@ public enum V4RuntimeGate {
 }
 
 public struct V4ParameterBounds: Codable, Sendable {
-    public var paperWhiteNits: ClosedRange<Float> = 190...245
-    public var peakNits: ClosedRange<Float> = 900...1_500
-    public var highlightStrength: ClosedRange<Float> = 0.42...0.86
-    public var contrastStrength: ClosedRange<Float> = 0.50...0.95
-    public var saturationCompensation: ClosedRange<Float> = 0.10...0.50
-    public var shadowProtection: ClosedRange<Float> = 0.05...1.0
-    public var temporalStability: ClosedRange<Float> = 0.20...0.98
+    public var paperWhiteNits: ClosedRange<Float>
+    public var peakNits: ClosedRange<Float>
+    public var highlightStrength: ClosedRange<Float>
+    public var contrastStrength: ClosedRange<Float>
+    public var saturationCompensation: ClosedRange<Float>
+    public var shadowProtection: ClosedRange<Float>
+    public var temporalStability: ClosedRange<Float>
 
-    public init() {}
+    public init() {
+        self.init(V2ParameterBounds.preregistered)
+    }
+
+    public init(_ bounds: V2ParameterBounds) {
+        self.paperWhiteNits = bounds.paperWhiteNits
+        self.peakNits = bounds.peakNits
+        self.highlightStrength = bounds.highlightStrength
+        self.contrastStrength = bounds.contrastStrength
+        self.saturationCompensation = bounds.saturationCompensation
+        self.shadowProtection = bounds.shadowProtection
+        self.temporalStability = bounds.temporalStability
+    }
 }
 
 public struct V4CalibrationConfiguration: Codable, Sendable {
@@ -370,6 +526,29 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     public var globalCandidates: Int = 128
     public var localCandidates: Int = 64
     public var validationTopCount: Int = 8
+    /// The preregistered path installs this exact algorithm object. Legacy
+    /// development callers receive the current implementation explicitly,
+    /// rather than an unsealed second set of sampling constants.
+    public var searchAlgorithmDefinition: SDRSearchAlgorithmDefinitionV3? = nil
+    public var searchAlgorithmDefinitionV4: SDRSearchAlgorithmDefinitionV4? = nil
+    public var gateDefinition: V4GateDefinition = .current
+    public var runnerSemanticConfiguration: V4RunnerSemanticConfiguration? = nil
+    public var preparationSemanticConfiguration: V6PreparationSemanticConfiguration? = nil
+    public var metricSemanticConfiguration: V2MetricSemanticConfiguration? = nil
+    public var preregistrationSearchDefinitionHashV4: String? = nil
+    /// V6 binds corpus cardinality/family/coverage semantics to the actual
+    /// runner configuration.  Legacy V4 callers leave this nil and retain
+    /// their historical manifest contract.
+    public var v6CorpusContract: V6CorpusContract? = nil
+    /// Exact structural corpus evidence already validated by the V6 entry
+    /// point.  Keeping the same typed object on the production configuration
+    /// prevents the legacy manifest adapter from reconstructing independent
+    /// cardinality/family semantics.
+    public var v6CorpusExecutionInput: V6CorpusExecutionInput? = nil
+    /// Captures the identity at the seal-to-runner boundary.  Recomputing an
+    /// identity after a caller mutates this value type is not a seal check;
+    /// the adapted configuration must equal this expected value.
+    public let expectedRunnerSemanticIdentity: String?
     public var maxFramesPerScene: Int = 8
     public var confidenceThreshold: Double = 0.60
     public var referenceTargetPeakNits: Float = 1_000
@@ -380,6 +559,12 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
         value.temporal = 0.10
         return value
     }()
+    /// Legacy runners may choose a policy for development diagnostics. The
+    /// preregistered runner derives this value from its sealed candidate
+    /// object and never uses the default implicitly.
+    public var sdrInterpretationPolicy: SDRInputInterpretationPolicy = .bt709SourceLinear
+    public var untaggedSDRFallback: SDRUntaggedFallbackPolicy = .assumeBT709SourceLinear
+    public var bt1886Parameters: BT1886TransferParameters = .idealReference
     /// Frozen before any Virgin Frozen access. This is part of the promotion
     /// protocol rather than an after-the-fact tuning knob.
     public var safety = V4SafetyThresholds()
@@ -398,16 +583,185 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
         .frozen: []
     ]
 
-    public init() {}
+    public init() {
+        self.expectedRunnerSemanticIdentity = nil
+    }
+
+    public init(
+        preregisteredRuntime runtime: PreregisteredCalibrationRuntimeConfiguration
+    ) throws {
+        _ = runtime
+        throw PreregisteredCalibrationExecutionError.historicalPreregistrationInvalidated
+    }
+
+    public init(
+        preregisteredRuntime runtime: V4PreregisteredCalibrationRuntimeConfiguration
+    ) throws {
+        try runtime.metric.validate()
+        try runtime.searchAlgorithmDefinition.validate()
+        guard runtime.preparation.validationFailure() == nil,
+              runtime.parameterBounds.isValid,
+              runtime.runnerDefinition.outputModeValue != nil,
+              runtime.runnerDefinition.inputFallbackPolicyValue != nil else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        self.version = runtime.runnerDefinition.configurationVersion
+        self.splitSeed = runtime.splitSeed
+        self.searchSeed = runtime.searchSeed
+        self.globalCandidates = runtime.globalCandidates
+        self.localCandidates = runtime.localCandidates
+        self.validationTopCount = runtime.shortlistSize
+        self.searchAlgorithmDefinition = nil
+        self.searchAlgorithmDefinitionV4 = runtime.searchAlgorithmDefinition
+        self.gateDefinition = runtime.gateDefinition
+        self.runnerSemanticConfiguration = runtime.runnerDefinition
+        self.preparationSemanticConfiguration = runtime.preparation
+        self.metricSemanticConfiguration = runtime.metric
+        self.preregistrationSearchDefinitionHashV4 = runtime.experimentSearchDefinitionHashV4
+        self.expectedRunnerSemanticIdentity = runtime.semanticIdentity
+        self.maxFramesPerScene = runtime.preparation.maxFramesPerScene
+        self.confidenceThreshold = runtime.preparation.acceptedConfidenceThreshold
+        self.referenceTargetPeakNits = runtime.preparation.referenceTargetPeakNits
+        self.bounds = V4ParameterBounds(runtime.parameterBounds)
+        self.weights = runtime.metric.objectiveWeights
+        self.sdrInterpretationPolicy = runtime.policy
+        self.untaggedSDRFallback = runtime.preparation.untaggedSDRFallback
+        self.bt1886Parameters = runtime.preparation.bt1886Parameters
+        self.safety = runtime.safetyThresholds
+        self.requiredTransfersBySplit = Dictionary(uniqueKeysWithValues: runtime.runnerDefinition.requiredCoverage.map {
+            ($0.split, Set($0.requiredTransfers))
+        })
+        self.requiredFamiliesBySplit = Dictionary(uniqueKeysWithValues: runtime.runnerDefinition.requiredCoverage.map {
+            ($0.split, Set($0.requiredFamilies))
+        })
+    }
+
+    /// Recomputes the complete adapted-runner identity.  This is throwing on
+    /// purpose: an invalid canonical representation is a binding failure,
+    /// never a string that can accidentally look sealed.
+    public func validatedRunnerSemanticIdentity() throws -> String {
+        try finalRunnerSemanticConfiguration().canonicalSHA256()
+    }
+
+    /// Exposes the exact typed payload handed to the V4 adapter. V5 uses this
+    /// payload as the production-derived base for its policy-specific final
+    /// runner identity; the invalidated V4 artifact remains non-executable.
+    public func finalRunnerSemanticConfiguration() throws -> V4FinalRunnerSemanticConfiguration {
+        guard let runnerSemanticConfiguration,
+              let preparationSemanticConfiguration,
+              let metricSemanticConfiguration,
+              let searchAlgorithmDefinitionV4,
+              let preregistrationSearchDefinitionHashV4 else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        let payload = V4FinalRunnerSemanticConfiguration(
+            experimentSearchDefinitionHashV4: preregistrationSearchDefinitionHashV4,
+            policy: sdrInterpretationPolicy,
+            preparation: preparationSemanticConfiguration,
+            metric: metricSemanticConfiguration,
+            colorScience: metricSemanticConfiguration.colorScience,
+            toneMapping: runnerSemanticConfiguration.toneMapping,
+            gateDefinition: gateDefinition,
+            searchAlgorithmDefinition: searchAlgorithmDefinitionV4,
+            runnerDefinition: runnerSemanticConfiguration,
+            searchSeed: searchSeed,
+            splitSeed: splitSeed,
+            globalCandidates: globalCandidates,
+            localCandidates: localCandidates,
+            totalCandidatesPerPolicy: searchAlgorithmDefinitionV4.totalCandidatesPerPolicy,
+            shortlistSize: validationTopCount,
+            parameterBounds: V2ParameterBounds(
+                paperWhiteNits: bounds.paperWhiteNits,
+                peakNits: bounds.peakNits,
+                highlightStrength: bounds.highlightStrength,
+                contrastStrength: bounds.contrastStrength,
+                saturationCompensation: bounds.saturationCompensation,
+                shadowProtection: bounds.shadowProtection,
+                temporalStability: bounds.temporalStability
+            ),
+            safetyThresholds: safety
+        )
+        _ = try payload.canonicalSHA256()
+        return payload
+    }
+
+    public func validatePreregisteredExecutionBinding() throws {
+        if let v6CorpusContract {
+            try v6CorpusContract.validate()
+        }
+        guard let runnerSemanticConfiguration,
+              let preparationSemanticConfiguration,
+              let metricSemanticConfiguration,
+              let searchAlgorithmDefinitionV4,
+              let preregistrationSearchDefinitionHashV4,
+              self.searchAlgorithmDefinitionV4 != nil,
+              validationTopCount == runnerSemanticConfiguration.requiredValidationPairCount,
+              globalCandidates == searchAlgorithmDefinitionV4.globalCandidateCount,
+              localCandidates == searchAlgorithmDefinitionV4.localCandidateCount,
+              globalCandidates + localCandidates == searchAlgorithmDefinitionV4.totalCandidatesPerPolicy,
+              runnerSemanticConfiguration.outputModeValue != nil,
+              runnerSemanticConfiguration.inputFallbackPolicyValue != nil,
+              preparationSemanticConfiguration.sdrInterpretationPolicy == sdrInterpretationPolicy else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        try searchAlgorithmDefinitionV4.validate()
+        _ = try gateDefinition.canonicalSHA256()
+        _ = try runnerSemanticConfiguration.canonicalSHA256()
+        try metricSemanticConfiguration.validate()
+        let expectedTemporalPolicy = V4TemporalWindowPolicy(
+            targetFrameCount: preparationSemanticConfiguration.temporalTargetFrameCount,
+            minimumRequiredFrameCount: preparationSemanticConfiguration.temporalMinimumFrameCount,
+            warmupFrameCount: preparationSemanticConfiguration.temporalWarmupFrameCount
+        )
+        guard preparationSemanticConfiguration.validationFailure() == nil,
+              metricSemanticConfiguration.colorScience == preparationSemanticConfiguration.colorScience,
+              metricSemanticConfiguration.referenceGridWidth == preparationSemanticConfiguration.referenceGridWidth,
+              metricSemanticConfiguration.referenceGridHeight == preparationSemanticConfiguration.referenceGridHeight,
+              weights == metricSemanticConfiguration.objectiveWeights,
+              maxFramesPerScene == preparationSemanticConfiguration.maxFramesPerScene,
+              confidenceThreshold == preparationSemanticConfiguration.acceptedConfidenceThreshold,
+              referenceTargetPeakNits == preparationSemanticConfiguration.referenceTargetPeakNits,
+              sdrInterpretationPolicy == preparationSemanticConfiguration.sdrInterpretationPolicy,
+              untaggedSDRFallback == preparationSemanticConfiguration.untaggedSDRFallback,
+              bt1886Parameters == preparationSemanticConfiguration.bt1886Parameters,
+              runnerSemanticConfiguration.temporalWindowPolicy == expectedTemporalPolicy,
+              runnerSemanticConfiguration.holdoutDefinition == V6VirginHoldoutPolicy.semanticDefinition else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        guard runnerSemanticConfiguration.requiredCoverage ==
+                requiredCoverageRequirements,
+              !preregistrationSearchDefinitionHashV4.isEmpty else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        let actualRunnerIdentity = try validatedRunnerSemanticIdentity()
+        guard expectedRunnerSemanticIdentity == actualRunnerIdentity else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+    }
+
+    private var requiredCoverageRequirements: [V4SplitCoverageRequirement] {
+        let splits: [DatasetSplit] = [.tune, .validation, .frozen]
+        return splits.compactMap { split in
+            guard requiredTransfersBySplit[split] != nil || requiredFamiliesBySplit[split] != nil else {
+                return nil
+            }
+            return V4SplitCoverageRequirement(
+                split: split,
+                requiredTransfers: Array(requiredTransfersBySplit[split] ?? []).sorted(by: V4CanonicalOrdering.stringLess),
+                requiredFamilies: Array(requiredFamiliesBySplit[split] ?? []).sorted(by: V4CanonicalOrdering.stringLess)
+            )
+        }
+    }
 
     /// V5 holdout policy is exposed as named values so callers cannot infer a
     /// requirement from an evaluation result or silently omit a subgroup.
     public var frozenCoveragePolicy: V4FrozenCoveragePolicy {
-        V4FrozenCoveragePolicy(
+        let runner = runnerSemanticConfiguration ?? .current
+        return V4FrozenCoveragePolicy(
             requiredTransfers: requiredTransfersBySplit[.frozen] ?? V4FrozenCoveragePolicy.v5.requiredTransfers,
             requiredFamilies: requiredFamiliesBySplit[.frozen] ?? [],
-            minimumVirginFrozenPairs: V4FrozenCoveragePolicy.v5.minimumVirginFrozenPairs,
-            minimumDistinctVirginFrozenFamilies: V4FrozenCoveragePolicy.v5.minimumDistinctVirginFrozenFamilies,
+            minimumVirginFrozenPairs: runner.minimumVirginFrozenPairs,
+            minimumDistinctVirginFrozenFamilies: runner.minimumDistinctVirginFrozenFamilies,
             rationale: V4FrozenCoveragePolicy.v5.rationale
         )
     }
@@ -416,7 +770,12 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     public var requiredFrozenFamilies: Set<String> { frozenCoveragePolicy.requiredFamilies }
     public var minimumVirginFrozenPairs: Int { frozenCoveragePolicy.minimumVirginFrozenPairs }
     public var minimumDistinctFrozenFamilies: Int { frozenCoveragePolicy.minimumDistinctVirginFrozenFamilies }
-    public var temporalWindowPolicy: V4TemporalWindowPolicy { .v5 }
+    public var temporalWindowPolicy: V4TemporalWindowPolicy {
+        runnerSemanticConfiguration?.temporalWindowPolicy ?? .v5
+    }
+    public var holdoutSemanticDefinition: V4HoldoutSemanticDefinition {
+        runnerSemanticConfiguration?.holdoutDefinition ?? V6VirginHoldoutPolicy.semanticDefinition
+    }
 }
 
 public enum V4CoveragePolicy {
@@ -548,7 +907,8 @@ public enum V4DatasetEvidenceValidator {
         auditURL: URL,
         lockURL: URL,
         requiredPairIDs: Set<String>? = nil,
-        mediaScope: V4EvidenceMediaScope = .all
+        mediaScope: V4EvidenceMediaScope = .all,
+        alignmentConfiguration: V6AlignmentSemanticConfiguration = .v6
     ) throws -> V4DatasetEvidence {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(V4Manifest.self, from: manifestData)
@@ -611,7 +971,10 @@ public enum V4DatasetEvidenceValidator {
                   record.hdrReferenceValid == true,
                   record.sdrDecode.passed,
                   record.hdrDecode.passed,
-                  V4AlignmentPolicy.supportsMainCalibration(record.alignment) else {
+                  V4AlignmentPolicy.supportsMainCalibration(
+                      record.alignment,
+                      configuration: alignmentConfiguration
+                  ) else {
                 throw CalibrationError.invalidManifest("pair \(pair.id) is not an eligible, fully audited main-calibration record")
             }
 
@@ -898,8 +1261,14 @@ public final class CalibrationV4Runner {
     public let preparedFrozenPlanURL: URL?
 
     private let device: MTLDevice
+    private let preparationConfigurationOverride: V6PreparationConfiguration?
+    private let metricConfiguration: V2MetricSemanticConfiguration
     private let frozenGuard = V4FrozenExperimentGuard()
     private var coverageReasons: [String] = []
+
+    private var effectiveSearchAlgorithmDefinition: SDRSearchAlgorithmDefinitionV4 {
+        configuration.searchAlgorithmDefinitionV4 ?? .current
+    }
 
     public init(
         manifestURL: URL,
@@ -907,14 +1276,41 @@ public final class CalibrationV4Runner {
         configuration: V4CalibrationConfiguration = V4CalibrationConfiguration(),
         preparedEvaluationPlanURL: URL? = nil,
         preparedFrozenPlanURL: URL? = nil,
+        preparationConfiguration: V6PreparationConfiguration? = nil,
+        metricConfiguration: V2MetricSemanticConfiguration? = nil,
         device: MTLDevice? = MTLCreateSystemDefaultDevice()
     ) throws {
         guard let device else { throw CalibrationError.decodeFailed("Metal device unavailable") }
+        let resolvedMetricConfiguration: V2MetricSemanticConfiguration
+        if let metricConfiguration {
+            resolvedMetricConfiguration = metricConfiguration
+        } else if let sealedMetric = configuration.metricSemanticConfiguration {
+            resolvedMetricConfiguration = sealedMetric
+        } else {
+            // Preserve the legacy V4 caller's explicit weight object while
+            // keeping the preregistered path on its sealed metric object.
+            resolvedMetricConfiguration = V2MetricSemanticConfiguration(objectiveWeights: configuration.weights)
+        }
+        if let sealedMetric = configuration.metricSemanticConfiguration,
+           resolvedMetricConfiguration != sealedMetric {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        if let sealedPreparation = configuration.preparationSemanticConfiguration,
+           let preparationConfiguration,
+           preparationConfiguration != sealedPreparation {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        if configuration.runnerSemanticConfiguration != nil {
+            try configuration.validatePreregisteredExecutionBinding()
+        }
+        try resolvedMetricConfiguration.validate()
         self.manifestURL = manifestURL
         self.outputDirectory = outputDirectory
         self.configuration = configuration
         self.preparedEvaluationPlanURL = preparedEvaluationPlanURL
         self.preparedFrozenPlanURL = preparedFrozenPlanURL
+        self.preparationConfigurationOverride = preparationConfiguration
+        self.metricConfiguration = resolvedMetricConfiguration
         self.device = device
     }
 
@@ -924,6 +1320,7 @@ public final class CalibrationV4Runner {
                 "v4-run requires an explicit preflight --prepared-plan artifact"
             )
         }
+        try configuration.validatePreregisteredExecutionBinding()
         let manifest = try V4Manifest.load(from: manifestURL)
         try validateV4Split(manifest)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
@@ -931,7 +1328,8 @@ public final class CalibrationV4Runner {
             manifestURL: manifestURL,
             auditURL: outputDirectory.appendingPathComponent("dataset-v4-final.json"),
             lockURL: manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json"),
-            mediaScope: .tuneValidationOnly
+            mediaScope: .tuneValidationOnly,
+            alignmentConfiguration: configuration.preparationSemanticConfiguration?.alignmentSemantics ?? .v6
         )
 
         let transferByPair = try await probeTransfers(manifest, includeVirginFrozen: false)
@@ -944,7 +1342,7 @@ public final class CalibrationV4Runner {
         let tuneV4 = tuneValidationV4.filter { $0.split == .tune }
         let validationV4 = tuneValidationV4.filter { $0.split == .validation }
         let virginIDs = Set(manifest.pairs
-            .filter { $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id) }
+            .filter { $0.virginFrozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id) }
             .map(\.id))
         let virginV4 = records.filter { $0.split == .frozen && virginIDs.contains($0.id) }
         let virginManifestRecords = manifest.pairs.filter {
@@ -954,8 +1352,9 @@ public final class CalibrationV4Runner {
         let repository = V2PreparedRepository(
             manifestURL: manifestURL,
             device: device,
-            configuration: preparationConfiguration(),
-            acceptedConfidenceThreshold: configuration.confidenceThreshold
+            preparationConfiguration: preparationConfigurationOverride ?? preparationConfiguration(),
+            searchSeed: configuration.searchSeed,
+            candidateCount: effectiveSearchAlgorithmDefinition.totalCandidatesPerPolicy
         )
         log(String(format: "materialize sealed Tune %d + Validation %d plan; Virgin Frozen remains sealed", tuneV4.count, validationV4.count))
         let auditForPlan = try JSONDecoder().decode(
@@ -963,7 +1362,7 @@ public final class CalibrationV4Runner {
             from: Data(contentsOf: outputDirectory.appendingPathComponent("dataset-v4-final.json"))
         )
         let consumedByteIDs = Set(auditForPlan.pairs.compactMap { pair -> String? in
-            V6VirginHoldoutPolicy.isExcluded(
+            configuration.holdoutSemanticDefinition.isExcluded(
                 pairID: pair.id,
                 sdrSHA256: pair.sdrDigest?.sha256,
                 hdrSHA256: pair.hdrDigest?.sha256
@@ -984,11 +1383,11 @@ public final class CalibrationV4Runner {
             using: artifact.plan,
             inputHashes: inputHashesForPlan
         )
+        let tuneValidationCausalProof = try repository.causalProof(for: artifact.plan)
         let tuneIDs = Set(tuneV4.map(\.id))
         let validationIDs = Set(validationV4.map(\.id))
         let tunePrepared = allPrepared.filter { tuneIDs.contains($0.record.id) }
         let validationPrepared = allPrepared.filter { validationIDs.contains($0.record.id) }
-        let tuneValidationPlan = artifact.plan
         log("installed immutable Tune/Validation PreparedEvaluationPlan \(artifact.planSHA256)")
 
         // A future V6 holdout is admitted with an objective-free preparation
@@ -1015,14 +1414,22 @@ public final class CalibrationV4Runner {
             )
             frozenArtifact = loaded
         }
-        let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
-        try engine.installPreparedEvaluationPlan(tuneValidationPlan)
+        let engine = try V2EvaluationEngine(
+            device: device,
+            metricConfiguration: self.metricConfiguration,
+            runnerSemanticConfiguration: configuration.runnerSemanticConfiguration
+        )
+        try engine.installPreparedEvaluationPlan(
+            artifact,
+            causalProof: tuneValidationCausalProof
+        )
 
-        let defaults = parameters(.hdr, revision: .legacyV2)
-        let v1 = parameters(.calibratedV1, revision: .legacyV2)
-        let v2 = parameters(.calibratedV2, revision: .legacyV2)
-        let v3Absolute = parameters(.calibratedV3Candidate, revision: .shadowProtectedV3)
-        let v4Center = parameters(.calibratedV2, revision: .sceneRelativeV4)
+        let baselines = configuration.runnerSemanticConfiguration?.baselineEvaluationDefinition ?? .current
+        let defaults = parameters(baselines.defaultPreset)
+        let v1 = parameters(baselines.calibratedV1Preset)
+        let v2 = parameters(baselines.calibratedV2Preset)
+        let v3Absolute = parameters(baselines.absoluteV3Preset)
+        let v4Center = parameters(baselines.relativeV4Preset)
 
         let defaultTune = try evaluate(engine, tunePrepared, defaults, "default-tune", .tune, manifest)
         let v1Tune = try evaluate(engine, tunePrepared, v1, "v1-tune", .tune, manifest)
@@ -1066,19 +1473,31 @@ public final class CalibrationV4Runner {
             return report
         }
 
-        log(String(format: "scene-relative sensitivity passed; global Halton search %d", configuration.globalCandidates))
+        log(String(format: "scene-relative sensitivity passed; global Halton search %d", effectiveSearchAlgorithmDefinition.globalCandidateCount))
         var global: [V4CandidateRecord] = []
-        for index in 0..<configuration.globalCandidates {
+        let algorithm = effectiveSearchAlgorithmDefinition
+        guard configuration.globalCandidates == algorithm.globalCandidateCount,
+              configuration.localCandidates == algorithm.localCandidateCount,
+              configuration.validationTopCount == (configuration.runnerSemanticConfiguration?.requiredValidationPairCount ?? -1),
+              algorithm.globalCandidateCount + algorithm.localCandidateCount == algorithm.totalCandidatesPerPolicy else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        for index in 0..<algorithm.globalCandidateCount {
             let candidate = globalParameters(index: index)
             let metrics = try evaluate(engine, tunePrepared, candidate, "v4-global-" + String(index), .tune, manifest)
             global.append(candidateRecord(
                 id: String(format: "global_%03d", index), stage: "global-halton",
                 parameters: candidate, tune: metrics, baseline: v2Tune
             ))
-            if (index + 1) % 16 == 0 { log(String(format: "global %d/%d", index + 1, configuration.globalCandidates)) }
+            if (index + 1) % 16 == 0 { log(String(format: "global %d/%d", index + 1, algorithm.globalCandidateCount)) }
         }
-        let globalTop = Array(global.filter(\.constraintsPassed).sorted { $0.tune.metrics.objective < $1.tune.metrics.objective }.prefix(8))
+        let globalTop = Array(global.filter(\.constraintsPassed)
+            .sorted(by: candidateOrdering)
+            .prefix(effectiveSearchAlgorithmDefinition.globalParentCount))
         guard !globalTop.isEmpty else {
+            if configuration.gateDefinition.failurePolicy.emptyShortlist == .abort {
+                throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+            }
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
                 shadowAudit: shadowAudit, sensitivity: sensitivity,
@@ -1089,23 +1508,31 @@ public final class CalibrationV4Runner {
             return report
         }
 
-        log(String(format: "local refinement %d", configuration.localCandidates))
+        log(String(format: "local refinement %d", algorithm.localCandidateCount))
         var local: [V4CandidateRecord] = []
-        for index in 0..<configuration.localCandidates {
-            let center = globalTop[index % globalTop.count].parameters
+        for index in 0..<algorithm.localCandidateCount {
+            let center: CalibrationParameters
+            switch algorithm.localRefinementParentSelection {
+            case .topGatePassingGlobalThenCyclic:
+                center = globalTop[index % globalTop.count].parameters
+            }
             let candidate = localParameters(center: center, index: index)
             let metrics = try evaluate(engine, tunePrepared, candidate, "v4-local-" + String(index), .tune, manifest)
             local.append(candidateRecord(
                 id: String(format: "local_%03d", index), stage: "local-halton",
                 parameters: candidate, tune: metrics, baseline: v2Tune
             ))
-            if (index + 1) % 16 == 0 { log(String(format: "local %d/%d", index + 1, configuration.localCandidates)) }
+            if (index + 1) % 16 == 0 { log(String(format: "local %d/%d", index + 1, algorithm.localCandidateCount)) }
         }
         try writeJSON(["global": global, "local": local], name: "data-video-v4-search.json")
 
-        let tuneTop = Array((global + local).filter(\.constraintsPassed)
-            .sorted { $0.tune.metrics.objective < $1.tune.metrics.objective }
+        let tuneCandidates = applyDuplicateHandling(global + local, algorithm: algorithm)
+        let tuneTop = Array(tuneCandidates.filter(\.constraintsPassed)
+            .sorted(by: candidateOrdering)
             .prefix(configuration.validationTopCount))
+        if tuneTop.isEmpty, configuration.gateDefinition.failurePolicy.emptyShortlist == .abort {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
         var validationCandidates: [V4CandidateRecord] = []
         for var candidate in tuneTop {
             let validation = try evaluate(engine, validationPrepared, candidate.parameters, candidate.id, .validation, manifest)
@@ -1119,9 +1546,10 @@ public final class CalibrationV4Runner {
         }
         try writeJSON(validationCandidates, name: "data-video-v4-validation.json")
 
-        guard let selected = validationCandidates.filter(\.constraintsPassed).min(by: {
-            ($0.validation?.metrics.objective ?? .infinity) < ($1.validation?.metrics.objective ?? .infinity)
-        }), let selectedValidation = selected.validation else {
+        guard let selected = validationCandidates.filter(\.constraintsPassed).min(by: validationCandidateOrdering), let selectedValidation = selected.validation else {
+            if validationCandidates.isEmpty, configuration.gateDefinition.failurePolicy.emptyShortlist == .abort {
+                throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+            }
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
                 shadowAudit: shadowAudit, sensitivity: sensitivity,
@@ -1212,7 +1640,12 @@ public final class CalibrationV4Runner {
         let preFrozenGates = V4PreFrozenGateResult(
             datasetIntegrity: .pass,
             identifiability: .pass,
-            validationOverall: selectedValidation.metrics.objective < v2Validation.metrics.objective ? .pass : .fail,
+            validationOverall: configuration.gateDefinition.accepts(
+                configuration.gateDefinition.validationObjective,
+                value: selectedValidation.metrics.objective,
+                baseline: v2Validation.metrics,
+                safety: configuration.safety
+            ) ? .pass : .fail,
             validationShadow: shadowSafe(v2Validation.metrics, selectedValidation.metrics) ? .pass : .fail,
             validationTemporal: temporalSafe(v2Validation.metrics, selectedValidation.metrics) ? .pass : .fail,
             transferCoverage: requiredCoverage.transferCoverage,
@@ -1248,8 +1681,9 @@ public final class CalibrationV4Runner {
         let frozenRepository = V2PreparedRepository(
             manifestURL: manifestURL,
             device: device,
-            configuration: preparationConfiguration(),
-            acceptedConfidenceThreshold: configuration.confidenceThreshold
+            preparationConfiguration: preparationConfigurationOverride ?? preparationConfiguration(),
+            searchSeed: configuration.searchSeed,
+            candidateCount: effectiveSearchAlgorithmDefinition.totalCandidatesPerPolicy
         )
         guard let frozenArtifact else {
             throw CalibrationError.incompleteEvaluation(
@@ -1276,10 +1710,15 @@ public final class CalibrationV4Runner {
             using: frozenArtifact.plan,
             inputHashes: inputHashesForPlan
         )
-        let frozenPlan = frozenArtifact.plan
-        let frozenEngine = V2EvaluationEngine(device: device, weights: configuration.weights)
+        let frozenCausalProof = try frozenRepository.causalProof(for: frozenArtifact.plan)
+        let frozenEngine = try V2EvaluationEngine(
+            device: device,
+            metricConfiguration: self.metricConfiguration,
+            runnerSemanticConfiguration: configuration.runnerSemanticConfiguration
+        )
         try frozenEngine.installPreparedEvaluationPlan(
-            frozenPlan, expectedSHA256: frozenArtifact.planSHA256
+            frozenArtifact,
+            causalProof: frozenCausalProof
         )
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
@@ -1355,14 +1794,33 @@ public final class CalibrationV4Runner {
     }
 
     private func validateV4Split(_ manifest: V4Manifest) throws {
+        let runner = configuration.runnerSemanticConfiguration ?? .current
         let tune = manifest.pairs.filter { $0.split == .tune }
         let validation = manifest.pairs.filter { $0.split == .validation }
         let virgin = manifest.pairs.filter {
-            $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+            $0.split == .frozen && $0.virginFrozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id)
         }
-        guard tune.count == 5, validation.count == 3, virgin.count >= configuration.minimumVirginFrozenPairs else {
+        if let corpusContract = configuration.v6CorpusContract {
+            let corpus = configuration.v6CorpusExecutionInput ?? V6CorpusExecutionInput(
+                tunePairs: tune.map {
+                    V6CorpusPairIdentity(sourceMasterId: $0.source, familyLabel: $0.contentFamily ?? "UNCLASSIFIED")
+                },
+                validationPairs: validation.map {
+                    V6CorpusPairIdentity(sourceMasterId: $0.source, familyLabel: $0.contentFamily ?? "UNCLASSIFIED")
+                }
+            )
+            try corpusContract.validate(corpus)
+        } else {
+            guard tune.count == runner.requiredTunePairCount,
+                  validation.count == runner.requiredValidationPairCount else {
+                throw CalibrationError.invalidManifest(
+                    String(format: "V4 expected Tune=%d and Validation=%d; got %d, %d", runner.requiredTunePairCount, runner.requiredValidationPairCount, tune.count, validation.count)
+                )
+            }
+        }
+        guard virgin.count >= configuration.minimumVirginFrozenPairs else {
             throw CalibrationError.invalidManifest(
-                String(format: "V6 expected Tune=5, Validation=3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
+                String(format: "V4 expected at least %d unconsumed Virgin Frozen records; got %d", configuration.minimumVirginFrozenPairs, virgin.count)
             )
         }
     }
@@ -1374,20 +1832,29 @@ public final class CalibrationV4Runner {
             tune: manifest.pairs.filter { $0.split == .tune }.map(\.id),
             validation: manifest.pairs.filter { $0.split == .validation }.map(\.id),
             frozen: manifest.pairs.filter {
-                $0.split == .frozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+                $0.split == .frozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id)
             }.map(\.id),
             frozenAccessPolicy: "V6 excludes every V5 attempt-1 pair/asset; a new plan-sealed Virgin Frozen set is required"
         )
     }
 
-    private func preparationConfiguration() -> V2SearchConfiguration {
-        var value = V2SearchConfiguration()
-        value.searchSeed = configuration.searchSeed
-        value.maxFramesPerScene = configuration.maxFramesPerScene
-        value.referenceTargetPeakNits = configuration.referenceTargetPeakNits
-        value.weights = configuration.weights
-        value.alignmentSearchThreshold = 0
-        return value
+    private func preparationConfiguration() -> V6PreparationConfiguration {
+        if let sealed = configuration.preparationSemanticConfiguration {
+            return sealed
+        }
+        return V6PreparationConfiguration(
+            maxFramesPerScene: configuration.maxFramesPerScene,
+            maxDecodedFrames: max(64, min(configuration.maxFramesPerScene, 32) * 16),
+            alignmentConfidenceThreshold: 0,
+            acceptedConfidenceThreshold: configuration.confidenceThreshold,
+            referenceTargetPeakNits: configuration.referenceTargetPeakNits,
+            matcherConfiguration: V6MatcherConfiguration(
+                acceptedConfidenceThreshold: configuration.confidenceThreshold
+            ),
+            sdrInterpretationPolicy: configuration.sdrInterpretationPolicy,
+            untaggedSDRFallback: configuration.untaggedSDRFallback,
+            bt1886Parameters: configuration.bt1886Parameters
+        )
     }
 
     private func makeLegacyRecords(_ manifest: V4Manifest) -> [PairRecord] {
@@ -1430,11 +1897,14 @@ public final class CalibrationV4Runner {
         return result
     }
 
-    private func parameters(_ source: HDRConfiguration, revision: HDRToneCurveRevision) -> CalibrationParameters {
-        var value = CalibrationParameters(configuration: source)
-        value.displayHeadroom = value.peakNits / value.paperWhiteNits
-        value.toneCurveRevision = revision.rawValue
-        return value
+    private func parameters(_ preset: V4CalibrationParameterPreset) -> CalibrationParameters {
+        preset.makeParameters(
+            policy: configuration.sdrInterpretationPolicy,
+            untaggedFallback: configuration.untaggedSDRFallback,
+            bt1886Parameters: configuration.bt1886Parameters,
+            colorScience: configuration.metricSemanticConfiguration?.colorScience ?? .calibrationV4,
+            toneMapping: configuration.runnerSemanticConfiguration?.toneMapping ?? .calibrationV4
+        )
     }
 
     private func evaluate(
@@ -1454,12 +1924,47 @@ public final class CalibrationV4Runner {
 
     private func familyBalanced(_ evaluation: V2DatasetEvaluation, manifest: V4Manifest) -> V2DatasetEvaluation {
         let families = Dictionary(grouping: evaluation.videos) { video in
-            manifest.pairs.first(where: { $0.id == video.pairID })?.contentFamily ?? "UNCLASSIFIED"
+            manifest.pairs.first(where: { $0.id == video.pairID })?.contentFamily ?? unclassifiedFamilyKey
         }
-        let familyMetrics = families.values.map { V2MetricsEvaluator.aggregate($0.map(\.metrics)) }
+        let familyMetrics = families.keys.sorted(by: stableFamilyOrdering).map { key in
+            V2MetricsEvaluator.aggregate(
+                (families[key] ?? []).sorted { canonicalStringLess($0.pairID, $1.pairID) }.map(\.metrics),
+                configuration: metricConfiguration
+            )
+        }
         var balanced = evaluation
-        balanced.metrics = V2MetricsEvaluator.aggregate(familyMetrics)
+        balanced.metrics = V2MetricsEvaluator.aggregate(
+            familyMetrics, configuration: metricConfiguration
+        )
         return balanced
+    }
+
+    private func canonicalStringLess(_ lhs: String, _ rhs: String) -> Bool {
+        Data(lhs.utf8).lexicographicallyPrecedes(Data(rhs.utf8))
+    }
+
+    private var unclassifiedFamilyKey: String {
+        configuration.runnerSemanticConfiguration?.unclassifiedFamilyKey ?? "UNCLASSIFIED"
+    }
+
+    private func stableFamilyOrdering(_ lhs: String, _ rhs: String) -> Bool {
+        switch configuration.runnerSemanticConfiguration?.stableFamilyOrderingRule ?? .canonicalUTF8AscendingBeforeFloatingPointReduction {
+        case .canonicalUTF8AscendingBeforeFloatingPointReduction:
+            return V4CanonicalOrdering.stringLess(lhs, rhs)
+        }
+    }
+
+    private func applyDuplicateHandling(
+        _ records: [V4CandidateRecord],
+        algorithm: SDRSearchAlgorithmDefinitionV4
+    ) -> [V4CandidateRecord] {
+        switch algorithm.duplicateHandling {
+        case .retainAndStableRank:
+            // Duplicates remain distinct candidates.  Their canonical
+            // parameter vector and final candidate ID are resolved by the
+            // sealed ordering definition below.
+            return records
+        }
     }
 
     private func sensitivitySweep(
@@ -1469,85 +1974,246 @@ public final class CalibrationV4Runner {
         manifest: V4Manifest
     ) throws -> [V4SensitivityRecord] {
         var result: [V4SensitivityRecord] = []
-        for value in [Float(0), 0.25, 0.5, 0.75, 1] {
-            var parameters = center
-            parameters.shadowProtection = value
-            let metrics = try evaluate(engine, tune, parameters, "v4-sensitivity-shadow-(value)", .tune, manifest).metrics
-            result.append(V4SensitivityRecord(
-                parameter: "shadowProtection", value: value,
-                objective: metrics.objective, shadowError: metrics.shadowError,
-                shadowLiftRatio: metrics.shadowLiftRatio, midtoneError: metrics.midtoneError,
-                highlightError: metrics.highlightError, temporalFlicker: metrics.temporalFlicker,
-                highlightPumping: metrics.highlightPumping, sceneCutRecovery: metrics.sceneCutRecovery
-            ))
-        }
-        for value in [Float(0), 0.25, 0.5, 0.75, 1] {
-            var parameters = center
-            parameters.temporalStability = value
-            let metrics = try evaluate(engine, tune, parameters, "v4-sensitivity-temporal-(value)", .tune, manifest).metrics
-            result.append(V4SensitivityRecord(
-                parameter: "temporalStability", value: value,
-                objective: metrics.objective, shadowError: metrics.shadowError,
-                shadowLiftRatio: metrics.shadowLiftRatio, midtoneError: metrics.midtoneError,
-                highlightError: metrics.highlightError, temporalFlicker: metrics.temporalFlicker,
-                highlightPumping: metrics.highlightPumping, sceneCutRecovery: metrics.sceneCutRecovery
-            ))
+        let algorithm = effectiveSearchAlgorithmDefinition
+        for axis in algorithm.sensitivityAxes {
+            let probeValues: [Float]
+            switch axis.probeOrdering {
+            case .ascendingProbeValue:
+                probeValues = algorithm.sensitivityProbeValues.sorted().map(Float.init)
+            }
+            for value in probeValues {
+                var parameters = center
+                switch axis.parameter {
+                case .shadowProtection:
+                    parameters.shadowProtection = value
+                case .temporalStability:
+                    parameters.temporalStability = value
+                case .paperWhiteNits, .peakNits, .highlightStrength, .contrastStrength, .saturationCompensation:
+                    throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+                }
+                let label = "v4-sensitivity-" + axis.parameter.rawValue + "-" + String(value)
+                let metrics = try evaluate(engine, tune, parameters, label, .tune, manifest).metrics
+                result.append(V4SensitivityRecord(
+                    parameter: axis.parameter.rawValue, value: value,
+                    objective: metrics.objective, shadowError: metrics.shadowError,
+                    shadowLiftRatio: metrics.shadowLiftRatio, midtoneError: metrics.midtoneError,
+                    highlightError: metrics.highlightError, temporalFlicker: metrics.temporalFlicker,
+                    highlightPumping: metrics.highlightPumping, sceneCutRecovery: metrics.sceneCutRecovery
+                ))
+            }
         }
         return result
     }
 
     private func validateSensitivity(_ values: [V4SensitivityRecord]) -> (passed: Bool, reason: String) {
-        let shadows = values.filter { $0.parameter == "shadowProtection" }.sorted { $0.value < $1.value }
-        let temporals = values.filter { $0.parameter == "temporalStability" }
-        let shadowDelta = (shadows.map(\.shadowLiftRatio).max() ?? 0) - (shadows.map(\.shadowLiftRatio).min() ?? 0)
-        let temporalDelta = (temporals.map { $0.temporalFlicker + $0.highlightPumping }.max() ?? 0) -
-            (temporals.map { $0.temporalFlicker + $0.highlightPumping }.min() ?? 0)
-        let monotonic = zip(shadows, shadows.dropFirst()).allSatisfy { $0.1.shadowLiftRatio <= $0.0.shadowLiftRatio + 0.01 }
-        guard shadowDelta > 0.002, monotonic else {
-            return (false, String(format: "scene-relative shadowProtection sensitivity is dead or non-monotonic (delta=%.6f)", shadowDelta))
-        }
-        guard temporalDelta > 0.00001 else {
-            return (false, String(format: "temporalStability remains unidentified after causal sequential evaluation (delta=%.6f)", temporalDelta))
+        for axis in effectiveSearchAlgorithmDefinition.sensitivityAxes {
+            let axisValues = values
+                .filter { $0.parameter == axis.parameter.rawValue }
+                .sorted { $0.value < $1.value }
+            guard !axisValues.isEmpty else {
+                return (false, "sensitivity axis has no observations: \(axis.parameter.rawValue)")
+            }
+            let measurements = axisValues.map { sensitivityMeasurement($0, measure: axis.measure) }
+            let delta = (measurements.max() ?? 0) - (measurements.min() ?? 0)
+            switch axis.measure {
+            case .shadowLiftRatio:
+                let monotonic: Bool
+                switch axis.monotonicRule {
+                case .consecutiveDeltaLessThanOrEqualTolerance:
+                    monotonic = zip(measurements, measurements.dropFirst()).allSatisfy {
+                        configuration.gateDefinition.accepts(
+                            configuration.gateDefinition.sensitivityShadowMonotonic,
+                            value: $0.1 - $0.0,
+                            safety: configuration.safety
+                        )
+                    }
+                case .notApplicable:
+                    monotonic = true
+                }
+                guard configuration.gateDefinition.accepts(
+                    configuration.gateDefinition.sensitivityShadowDelta,
+                    value: delta,
+                    safety: configuration.safety
+                ), monotonic else {
+                    return (false, String(format: "%@ sensitivity is dead or non-monotonic (delta=%.6f)", axis.parameter.rawValue, delta))
+                }
+            case .temporalFlickerPlusHighlightPumping:
+                guard configuration.gateDefinition.accepts(
+                    configuration.gateDefinition.sensitivityTemporalDelta,
+                    value: delta,
+                    safety: configuration.safety
+                ) else {
+                    return (false, String(format: "%@ sensitivity remains unidentified after causal sequential evaluation (delta=%.6f)", axis.parameter.rawValue, delta))
+                }
+            }
         }
         return (true, "scene-relative shadow and causal temporal controls are identifiable")
     }
 
-    private func globalParameters(index: Int) -> CalibrationParameters {
-        let bounds = configuration.bounds
-        let ranges = [bounds.paperWhiteNits, bounds.peakNits, bounds.highlightStrength,
-                      bounds.contrastStrength, bounds.saturationCompensation,
-                      bounds.shadowProtection, bounds.temporalStability]
-        let bases = [2, 3, 5, 7, 11, 13, 17]
-        let values = ranges.enumerated().map { dimension, range in
-            range.lowerBound + Float(halton(index + 1, base: bases[dimension])) * (range.upperBound - range.lowerBound)
+    private func sensitivityMeasurement(
+        _ record: V4SensitivityRecord,
+        measure: V4SensitivityMeasure
+    ) -> Double {
+        switch measure {
+        case .shadowLiftRatio:
+            return record.shadowLiftRatio
+        case .temporalFlickerPlusHighlightPumping:
+            return record.temporalFlicker + record.highlightPumping
         }
-        return makeParameters(values)
+    }
+
+    private func candidateOrdering(_ lhs: V4CandidateRecord, _ rhs: V4CandidateRecord) -> Bool {
+        ordered(lhs, rhs, keys: configuration.gateDefinition.ordering.tuneKeys)
+    }
+
+    private func validationCandidateOrdering(_ lhs: V4CandidateRecord, _ rhs: V4CandidateRecord) -> Bool {
+        ordered(lhs, rhs, keys: configuration.gateDefinition.ordering.validationKeys)
+    }
+
+    private func ordered(
+        _ lhs: V4CandidateRecord,
+        _ rhs: V4CandidateRecord,
+        keys: [V4RankingKeyDefinition]
+    ) -> Bool {
+        for key in keys {
+            let left = rankingValue(lhs, metric: key.metric)
+            let right = rankingValue(rhs, metric: key.metric)
+            if left != right {
+                return key.direction == .ascending ? left < right : left > right
+            }
+        }
+        switch configuration.gateDefinition.ordering.finalTieBreak {
+        case .canonicalParameterVectorThenCandidateIDAscending:
+            let dimensions = effectiveSearchAlgorithmDefinition.parameterRepresentation.dimensionOrder
+            let leftParameters = canonicalParameterVector(lhs.parameters, dimensions: dimensions)
+            let rightParameters = canonicalParameterVector(rhs.parameters, dimensions: dimensions)
+            if leftParameters != rightParameters {
+                return leftParameters.lexicographicallyPrecedes(rightParameters)
+            }
+            return lhs.id.utf8.lexicographicallyPrecedes(rhs.id.utf8)
+        }
+    }
+
+    private func rankingValue(_ record: V4CandidateRecord, metric: V4RankingMetric) -> Double {
+        let metrics = record.validation?.metrics ?? record.tune.metrics
+        let value: Double
+        switch metric {
+        case .objective: value = metrics.objective
+        case .temporalFlicker: value = metrics.temporalFlicker
+        case .clippingRatio: value = metrics.clippingRatio
+        case .nearBlackContrastLoss: value = metrics.nearBlackContrastLoss
+        }
+        guard value.isFinite else {
+            switch configuration.gateDefinition.failurePolicy.nonFiniteMetric {
+            case .reject: return .infinity
+            case .abort, .retrySameConfiguration: return .infinity
+            }
+        }
+        return value
+    }
+
+    private func canonicalParameterVector(
+        _ parameters: CalibrationParameters,
+        dimensions: [V4SearchParameterDimension]
+    ) -> [Double] {
+        dimensions.map { dimension in
+            switch dimension {
+            case .paperWhiteNits: return Double(parameters.paperWhiteNits)
+            case .peakNits: return Double(parameters.peakNits)
+            case .highlightStrength: return Double(parameters.highlightStrength)
+            case .contrastStrength: return Double(parameters.contrastStrength)
+            case .saturationCompensation: return Double(parameters.saturationCompensation)
+            case .shadowProtection: return Double(parameters.shadowProtection)
+            case .temporalStability: return Double(parameters.temporalStability)
+            }
+        }
+    }
+
+    private func samplingIndex(_ index: Int) -> Int {
+        effectiveSearchAlgorithmDefinition.samplingIndex(
+            candidateIndex: index,
+            seed: configuration.searchSeed
+        )
+    }
+
+    private func globalParameters(index: Int) -> CalibrationParameters {
+        let algorithm = effectiveSearchAlgorithmDefinition
+        let dimensions = algorithm.parameterRepresentation.dimensionOrder
+        let ranges = parameterRanges(for: dimensions)
+        let bases = algorithm.globalHaltonBases
+        let values = ranges.enumerated().map { dimension, range in
+            range.lowerBound + Float(halton(samplingIndex(index), base: bases[dimension])) * (range.upperBound - range.lowerBound)
+        }
+        return makeParameters(values, dimensions: dimensions)
     }
 
     private func localParameters(center: CalibrationParameters, index: Int) -> CalibrationParameters {
-        let bounds = configuration.bounds
-        let ranges = [bounds.paperWhiteNits, bounds.peakNits, bounds.highlightStrength,
-                      bounds.contrastStrength, bounds.saturationCompensation,
-                      bounds.shadowProtection, bounds.temporalStability]
-        let centers = [center.paperWhiteNits, center.peakNits, center.highlightStrength,
-                       center.contrastStrength, center.saturationCompensation,
-                       center.shadowProtection, center.temporalStability]
-        let bases = [19, 23, 29, 31, 37, 41, 43]
+        let algorithm = effectiveSearchAlgorithmDefinition
+        let dimensions = algorithm.parameterRepresentation.dimensionOrder
+        let ranges = parameterRanges(for: dimensions)
+        let centers = parameterValues(center, dimensions: dimensions)
+        let bases = algorithm.localHaltonBases
         let values = ranges.enumerated().map { dimension, range -> Float in
-            let radius = (range.upperBound - range.lowerBound) * 0.10
-            let offset = Float(halton(index + 1, base: bases[dimension]) - 0.5) * 2 * radius
+            let radius = (range.upperBound - range.lowerBound) * Float(algorithm.localNeighborhoodRadius)
+            let offset = Float(halton(samplingIndex(index), base: bases[dimension]) - 0.5) * 2 * radius
             return min(max(centers[dimension] + offset, range.lowerBound), range.upperBound)
         }
-        return makeParameters(values)
+        return makeParameters(values, dimensions: dimensions)
     }
 
-    private func makeParameters(_ values: [Float]) -> CalibrationParameters {
-        CalibrationParameters(
-            paperWhiteNits: values[0], peakNits: values[1],
-            highlightStrength: values[2], contrastStrength: values[3],
-            saturationCompensation: values[4], shadowProtection: values[5],
-            temporalStability: values[6], displayHeadroom: values[1] / values[0],
-            toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue
+    private func parameterRanges(
+        for dimensions: [V4SearchParameterDimension]
+    ) -> [ClosedRange<Float>] {
+        dimensions.map { dimension in
+            switch dimension {
+            case .paperWhiteNits: return configuration.bounds.paperWhiteNits
+            case .peakNits: return configuration.bounds.peakNits
+            case .highlightStrength: return configuration.bounds.highlightStrength
+            case .contrastStrength: return configuration.bounds.contrastStrength
+            case .saturationCompensation: return configuration.bounds.saturationCompensation
+            case .shadowProtection: return configuration.bounds.shadowProtection
+            case .temporalStability: return configuration.bounds.temporalStability
+            }
+        }
+    }
+
+    private func parameterValues(
+        _ parameters: CalibrationParameters,
+        dimensions: [V4SearchParameterDimension]
+    ) -> [Float] {
+        dimensions.map { dimension in
+            switch dimension {
+            case .paperWhiteNits: return parameters.paperWhiteNits
+            case .peakNits: return parameters.peakNits
+            case .highlightStrength: return parameters.highlightStrength
+            case .contrastStrength: return parameters.contrastStrength
+            case .saturationCompensation: return parameters.saturationCompensation
+            case .shadowProtection: return parameters.shadowProtection
+            case .temporalStability: return parameters.temporalStability
+            }
+        }
+    }
+
+    private func makeParameters(
+        _ values: [Float],
+        dimensions: [V4SearchParameterDimension]
+    ) -> CalibrationParameters {
+        let valuesByDimension = Dictionary(uniqueKeysWithValues: zip(dimensions, values))
+        return CalibrationParameters(
+            paperWhiteNits: valuesByDimension[.paperWhiteNits]!,
+            peakNits: valuesByDimension[.peakNits]!,
+            highlightStrength: valuesByDimension[.highlightStrength]!,
+            contrastStrength: valuesByDimension[.contrastStrength]!,
+            saturationCompensation: valuesByDimension[.saturationCompensation]!,
+            shadowProtection: valuesByDimension[.shadowProtection]!,
+            temporalStability: valuesByDimension[.temporalStability]!,
+            displayHeadroom: valuesByDimension[.peakNits]! / valuesByDimension[.paperWhiteNits]!,
+            toneCurveRevision: configuration.runnerSemanticConfiguration?.toneCurveRevision ?? HDRToneCurveRevision.sceneRelativeV4.rawValue,
+            sdrInterpretationPolicy: configuration.sdrInterpretationPolicy,
+            untaggedSDRFallback: configuration.untaggedSDRFallback,
+            bt1886Parameters: configuration.bt1886Parameters,
+            colorScience: configuration.metricSemanticConfiguration?.colorScience,
+            toneMapping: configuration.runnerSemanticConfiguration?.toneMapping
         )
     }
 
@@ -1557,15 +2223,67 @@ public final class CalibrationV4Runner {
     ) -> V4CandidateRecord {
         var reasons: [String] = []
         let metrics = tune.metrics
-        if !metrics.objective.isFinite || metrics.invalidSampleCount != 0 { reasons.append("invalid/non-finite") }
-        if metrics.clippingRatio > configuration.safety.zeroTolerance { reasons.append("clipping") }
-        if metrics.blackCrushRatio > configuration.safety.zeroTolerance { reasons.append("black crush") }
-        if metrics.shadowError > baseline.metrics.shadowError + configuration.safety.shadowErrorTolerance { reasons.append("shadow safety") }
-        if metrics.shadowLiftRatio > baseline.metrics.shadowLiftRatio + configuration.safety.shadowLiftTolerance { reasons.append("shadow lift safety") }
-        if metrics.temporalFlicker > baseline.metrics.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance {
-            reasons.append("temporal flicker")
+        let gates = configuration.gateDefinition
+        for step in gates.gateEvaluationOrder {
+            switch step {
+            case .finiteObjective:
+                if gates.candidateObjectiveMustBeFinite && !metrics.objective.isFinite {
+                    reasons.append("invalid/non-finite objective")
+                }
+            case .invalidSampleCount:
+                if !gates.accepts(
+                    gates.candidateInvalidSampleCount,
+                    value: Double(metrics.invalidSampleCount),
+                    safety: configuration.safety
+                ) {
+                    reasons.append("invalid sample count")
+                }
+            case .clipping:
+                if !gates.accepts(gates.candidateClippingRatio, value: metrics.clippingRatio, safety: configuration.safety) {
+                    reasons.append("clipping")
+                }
+            case .blackCrush:
+                if !gates.accepts(gates.candidateBlackCrushRatio, value: metrics.blackCrushRatio, safety: configuration.safety) {
+                    reasons.append("black crush")
+                }
+            case .shadowError:
+                if !gates.accepts(
+                    gates.candidateShadowError,
+                    value: metrics.shadowError,
+                    baseline: baseline.metrics,
+                    safety: configuration.safety
+                ) {
+                    reasons.append("shadow safety")
+                }
+            case .shadowLift:
+                if !gates.accepts(
+                    gates.candidateShadowLiftRatio,
+                    value: metrics.shadowLiftRatio,
+                    baseline: baseline.metrics,
+                    safety: configuration.safety
+                ) {
+                    reasons.append("shadow lift safety")
+                }
+            case .temporalFlicker:
+                if !gates.accepts(
+                    gates.candidateTemporalFlicker,
+                    value: metrics.temporalFlicker,
+                    baseline: baseline.metrics,
+                    safety: configuration.safety
+                ) {
+                    reasons.append("temporal flicker")
+                }
+            case .perVideoCatastrophic:
+                let count = perVideoCatastrophic(candidate: tune, baseline: baseline)
+                if !gates.accepts(
+                    gates.candidatePerVideoCatastrophicCount,
+                    value: Double(count),
+                    safety: configuration.safety
+                ) {
+                    reasons.append("catastrophic per-video regression")
+                }
+            }
         }
-        if perVideoCatastrophic(candidate: tune, baseline: baseline) > 0 { reasons.append("catastrophic per-video regression") }
         return V4CandidateRecord(
             id: id, stage: stage, parameters: parameters, tune: tune,
             validation: nil, constraintsPassed: reasons.isEmpty, rejectionReasons: reasons
@@ -1576,15 +2294,41 @@ public final class CalibrationV4Runner {
         var reasons: [String] = []
         let m = candidate.metrics
         let b = baseline.metrics
-        if m.objective >= b.objective { reasons.append("Validation objective is not better than V2") }
-        if m.shadowError > b.shadowError + configuration.safety.shadowErrorTolerance { reasons.append("shadow error regression") }
-        if m.shadowLiftRatio > b.shadowLiftRatio + configuration.safety.shadowLiftTolerance { reasons.append("shadow lift regression") }
-        if m.temporalFlicker > b.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance { reasons.append("temporal flicker regression") }
-        if m.highlightError > b.highlightError * (1 + configuration.safety.highlightRelativeTolerance) + 0.005 { reasons.append("highlight regression") }
-        if m.midtoneError > b.midtoneError * (1 + configuration.safety.midtoneRelativeTolerance) + 0.005 { reasons.append("midtone regression") }
-        if m.hueP95Error > b.hueP95Error * (1 + configuration.safety.hueRelativeTolerance) + 0.002 { reasons.append("hue regression") }
-        if m.clippingRatio > configuration.safety.zeroTolerance || m.blackCrushRatio > configuration.safety.zeroTolerance || m.invalidSampleCount != 0 { reasons.append("hard safety gate") }
-        if perVideoCatastrophic(candidate: candidate, baseline: baseline) > 0 { reasons.append("catastrophic per-video regression") }
+        let gates = configuration.gateDefinition
+        if !gates.accepts(gates.validationObjective, value: m.objective, baseline: b, safety: configuration.safety) {
+            reasons.append("Validation objective is not better than V2")
+        }
+        if !gates.accepts(gates.validationShadowError, value: m.shadowError, baseline: b, safety: configuration.safety) {
+            reasons.append("shadow error regression")
+        }
+        if !gates.accepts(gates.validationShadowLiftRatio, value: m.shadowLiftRatio, baseline: b, safety: configuration.safety) {
+            reasons.append("shadow lift regression")
+        }
+        if !gates.accepts(gates.validationTemporalFlicker, value: m.temporalFlicker, baseline: b, safety: configuration.safety) {
+            reasons.append("temporal flicker regression")
+        }
+        if !gates.accepts(gates.validationHighlightError, value: m.highlightError, baseline: b, safety: configuration.safety) {
+            reasons.append("highlight regression")
+        }
+        if !gates.accepts(gates.validationMidtoneError, value: m.midtoneError, baseline: b, safety: configuration.safety) {
+            reasons.append("midtone regression")
+        }
+        if !gates.accepts(gates.validationHueP95Error, value: m.hueP95Error, baseline: b, safety: configuration.safety) {
+            reasons.append("hue regression")
+        }
+        if !gates.accepts(gates.validationClippingRatio, value: m.clippingRatio, safety: configuration.safety) ||
+            !gates.accepts(gates.validationBlackCrushRatio, value: m.blackCrushRatio, safety: configuration.safety) ||
+            !gates.accepts(gates.validationInvalidSampleCount, value: Double(m.invalidSampleCount), safety: configuration.safety) {
+            reasons.append("hard safety gate")
+        }
+        let catastrophicCount = perVideoCatastrophic(candidate: candidate, baseline: baseline)
+        if !gates.accepts(
+            gates.validationPerVideoCatastrophicCount,
+            value: Double(catastrophicCount),
+            safety: configuration.safety
+        ) {
+            reasons.append("catastrophic per-video regression")
+        }
         return reasons
     }
 
@@ -1592,8 +2336,17 @@ public final class CalibrationV4Runner {
         var count = 0
         for video in candidate.videos {
             guard let reference = baseline.videos.first(where: { $0.pairID == video.pairID }) else { continue }
-            if video.metrics.objective > reference.metrics.objective * (1 + configuration.safety.catastrophicSceneRegression) ||
-                video.metrics.shadowError > reference.metrics.shadowError * (1 + configuration.safety.catastrophicSceneRegression) + configuration.safety.shadowErrorTolerance {
+            if !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.catastrophicObjective,
+                value: video.metrics.objective,
+                baseline: reference.metrics,
+                safety: configuration.safety
+            ) || !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.catastrophicShadowError,
+                value: video.metrics.shadowError,
+                baseline: reference.metrics,
+                safety: configuration.safety
+            ) {
                 count += 1
             }
         }
@@ -1613,7 +2366,7 @@ public final class CalibrationV4Runner {
         let expectedTune = Set(manifest.pairs.filter { $0.split == .tune }.map(\.id))
         let expectedValidation = Set(manifest.pairs.filter { $0.split == .validation }.map(\.id))
         let expectedFrozen = Set(manifest.pairs.filter {
-            $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
+            $0.split == .frozen && $0.virginFrozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id)
         }.map(\.id))
         let completeness = expectedTune == Set(tuneV2.videos.map(\.pairID)) &&
             expectedTune == Set(tuneV4.videos.map(\.pairID)) &&
@@ -1621,7 +2374,15 @@ public final class CalibrationV4Runner {
             expectedValidation == Set(validationV4.videos.map(\.pairID)) &&
             expectedFrozen == Set(frozenV2.videos.map(\.pairID)) &&
             expectedFrozen == Set(frozenV4.videos.map(\.pairID))
-        let overall = tuneImprovement > 0 && validationImprovement > 0
+        let overall = configuration.gateDefinition.accepts(
+            configuration.gateDefinition.overallImprovement,
+            value: tuneImprovement,
+            safety: configuration.safety
+        ) && configuration.gateDefinition.accepts(
+            configuration.gateDefinition.overallImprovement,
+            value: validationImprovement,
+            safety: configuration.safety
+        )
         let shadow = shadowSafe(tuneV2.metrics, tuneV4.metrics) &&
             shadowSafe(validationV2.metrics, validationV4.metrics) &&
             shadowSafe(frozenV2.metrics, frozenV4.metrics)
@@ -1636,11 +2397,29 @@ public final class CalibrationV4Runner {
             return (pair.id, family)
         })
         let family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
-        let hardSafety = frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance &&
-            frozenV4.metrics.blackCrushRatio <= configuration.safety.zeroTolerance &&
-            frozenV4.metrics.invalidSampleCount == 0
-        let frozenPerVideoRegression = perVideoRegressionCount(candidate: frozenV4, baseline: frozenV2) == 0
-        let frozen = completeness && frozenImprovement >= configuration.safety.frozenMinimumImprovement && frozenPerVideoRegression
+        let hardSafety = configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateClippingRatio,
+            value: frozenV4.metrics.clippingRatio,
+            safety: configuration.safety
+        ) && configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateBlackCrushRatio,
+            value: frozenV4.metrics.blackCrushRatio,
+            safety: configuration.safety
+        ) && configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateInvalidSampleCount,
+            value: Double(frozenV4.metrics.invalidSampleCount),
+            safety: configuration.safety
+        )
+        let frozenPerVideoRegression = configuration.gateDefinition.accepts(
+            configuration.gateDefinition.frozenPerVideoRegressionCount,
+            value: Double(perVideoRegressionCount(candidate: frozenV4, baseline: frozenV2)),
+            safety: configuration.safety
+        )
+        let frozen = completeness && configuration.gateDefinition.accepts(
+            configuration.gateDefinition.frozenImprovement,
+            value: frozenImprovement,
+            safety: configuration.safety
+        ) && frozenPerVideoRegression
         let gates = V4PromotionGateResult(
             completeness: completeness ? .pass : .fail,
             datasetIntegrity: .pass,
@@ -1662,25 +2441,47 @@ public final class CalibrationV4Runner {
             String(format: "Virgin Frozen shadow V2=%.6f V4=%.6f", frozenV2.metrics.shadowError, frozenV4.metrics.shadowError),
             "Promotion gates: completeness=\(gates.completeness.rawValue), transfer=\(gates.transfer.rawValue), family=\(gates.family.rawValue), runtime=\(gates.runtime.rawValue)"
         ] + runtime.reasons
-        let verdict = V4PromotionGateMachine.verdict(gates)
+        let verdict = V4PromotionGateMachine.verdict(
+            gates,
+            precedence: configuration.gateDefinition.promotionPrecedence
+        )
         reasons.append("Final verdict gate: \(verdict.rawValue)")
         return (verdict, reasons, gates)
     }
 
     private func shadowSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
-        candidate.shadowError <= baseline.shadowError + configuration.safety.shadowErrorTolerance &&
-            candidate.shadowLiftRatio <= baseline.shadowLiftRatio + configuration.safety.shadowLiftTolerance
+        configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateShadowError,
+            value: candidate.shadowError,
+            baseline: baseline,
+            safety: configuration.safety
+        ) && configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateShadowLiftRatio,
+            value: candidate.shadowLiftRatio,
+            baseline: baseline,
+            safety: configuration.safety
+        )
     }
 
     private func temporalSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
-        candidate.temporalFlicker <= baseline.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance
+        configuration.gateDefinition.accepts(
+            configuration.gateDefinition.candidateTemporalFlicker,
+            value: candidate.temporalFlicker,
+            baseline: baseline,
+            safety: configuration.safety
+        )
     }
 
     private func perVideoRegressionCount(candidate: V2DatasetEvaluation, baseline: V2DatasetEvaluation) -> Int {
         let baselineByID = Dictionary(uniqueKeysWithValues: baseline.videos.map { ($0.pairID, $0) })
-        return candidate.videos.reduce(into: 0) { count, video in
+        return candidate.videos.sorted { $0.pairID.utf8.lexicographicallyPrecedes($1.pairID.utf8) }.reduce(into: 0) { count, video in
             guard let reference = baselineByID[video.pairID] else { count += 1; return }
-            if video.metrics.objective > reference.metrics.objective * (1 + configuration.safety.frozenPerVideoRegressionTolerance) {
+            if !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.perVideoObjective,
+                value: video.metrics.objective,
+                baseline: reference.metrics,
+                safety: configuration.safety
+            ) {
                 count += 1
             }
         }
@@ -1694,13 +2495,36 @@ public final class CalibrationV4Runner {
         let candidateGroups = Dictionary(grouping: candidate.videos) { groupByID[$0.pairID] ?? "UNKNOWN" }
         let baselineGroups = Dictionary(grouping: baseline.videos) { groupByID[$0.pairID] ?? "UNKNOWN" }
         guard !candidateGroups.isEmpty, Set(candidateGroups.keys) == Set(baselineGroups.keys) else { return false }
-        for group in candidateGroups.keys {
+        for group in candidateGroups.keys.sorted(by: { $0.utf8.lexicographicallyPrecedes($1.utf8) }) {
             guard let candidateValues = candidateGroups[group], let baselineValues = baselineGroups[group] else { return false }
-            let candidateMetric = V2MetricsEvaluator.aggregate(candidateValues.map(\.metrics))
-            let baselineMetric = V2MetricsEvaluator.aggregate(baselineValues.map(\.metrics))
-            if candidateMetric.objective > baselineMetric.objective * 1.05 ||
-                candidateMetric.shadowError > baselineMetric.shadowError + configuration.safety.shadowErrorTolerance ||
-                candidateMetric.temporalFlicker > baselineMetric.temporalFlicker * 1.05 + configuration.safety.temporalFlickerAbsoluteTolerance {
+            let candidateMetric = V2MetricsEvaluator.aggregate(
+                candidateValues
+                    .sorted { $0.pairID.utf8.lexicographicallyPrecedes($1.pairID.utf8) }
+                    .map(\.metrics),
+                configuration: metricConfiguration
+            )
+            let baselineMetric = V2MetricsEvaluator.aggregate(
+                baselineValues
+                    .sorted { $0.pairID.utf8.lexicographicallyPrecedes($1.pairID.utf8) }
+                    .map(\.metrics),
+                configuration: metricConfiguration
+            )
+            if !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.groupedObjective,
+                value: candidateMetric.objective,
+                baseline: baselineMetric,
+                safety: configuration.safety
+            ) || !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.groupedShadowError,
+                value: candidateMetric.shadowError,
+                baseline: baselineMetric,
+                safety: configuration.safety
+            ) || !configuration.gateDefinition.accepts(
+                configuration.gateDefinition.groupedTemporalFlicker,
+                value: candidateMetric.temporalFlicker,
+                baseline: baselineMetric,
+                safety: configuration.safety
+            ) {
                 return false
             }
         }
@@ -1730,8 +2554,22 @@ public final class CalibrationV4Runner {
             throw CalibrationError.decodeFailed("runtime benchmark command queue unavailable")
         }
         let pixelBuffer = try makeRuntimePixelBuffer(width: thresholds.width, height: thresholds.height)
-        let baselineProcessor = try HDRProcessor(device: device, configuration: try baselineParameters.configuration())
-        let candidateProcessor = try HDRProcessor(device: device, configuration: try candidateParameters.configuration())
+        let outputMode = configuration.runnerSemanticConfiguration?.outputModeValue ?? .edr
+        let inputFallbackPolicy = configuration.runnerSemanticConfiguration?.inputFallbackPolicyValue ?? .bt709VideoRange
+        let baselineProcessor = try HDRProcessor(
+            device: device,
+            configuration: try baselineParameters.configuration(
+                outputMode: outputMode,
+                inputFallbackPolicy: inputFallbackPolicy
+            )
+        )
+        let candidateProcessor = try HDRProcessor(
+            device: device,
+            configuration: try candidateParameters.configuration(
+                outputMode: outputMode,
+                inputFallbackPolicy: inputFallbackPolicy
+            )
+        )
         try baselineProcessor.prepare(width: thresholds.width, height: thresholds.height)
         try candidateProcessor.prepare(width: thresholds.width, height: thresholds.height)
 
@@ -1785,20 +2623,20 @@ public final class CalibrationV4Runner {
         }
 
         let baseline = V4RuntimeMeasurement(
-            gpuP50Milliseconds: runtimePercentile(baselineGPU, 0.50),
-            gpuP95Milliseconds: runtimePercentile(baselineGPU, 0.95),
-            gpuP99Milliseconds: runtimePercentile(baselineGPU, 0.99),
-            cpuSubmissionP50Milliseconds: runtimePercentile(baselineCPU, 0.50),
-            cpuSubmissionP95Milliseconds: runtimePercentile(baselineCPU, 0.95),
-            cpuSubmissionP99Milliseconds: runtimePercentile(baselineCPU, 0.99)
+            gpuP50Milliseconds: runtimePercentile(baselineGPU, thresholds.p50Fraction),
+            gpuP95Milliseconds: runtimePercentile(baselineGPU, thresholds.p95Fraction),
+            gpuP99Milliseconds: runtimePercentile(baselineGPU, thresholds.p99Fraction),
+            cpuSubmissionP50Milliseconds: runtimePercentile(baselineCPU, thresholds.p50Fraction),
+            cpuSubmissionP95Milliseconds: runtimePercentile(baselineCPU, thresholds.p95Fraction),
+            cpuSubmissionP99Milliseconds: runtimePercentile(baselineCPU, thresholds.p99Fraction)
         )
         let candidate = V4RuntimeMeasurement(
-            gpuP50Milliseconds: runtimePercentile(candidateGPU, 0.50),
-            gpuP95Milliseconds: runtimePercentile(candidateGPU, 0.95),
-            gpuP99Milliseconds: runtimePercentile(candidateGPU, 0.99),
-            cpuSubmissionP50Milliseconds: runtimePercentile(candidateCPU, 0.50),
-            cpuSubmissionP95Milliseconds: runtimePercentile(candidateCPU, 0.95),
-            cpuSubmissionP99Milliseconds: runtimePercentile(candidateCPU, 0.99)
+            gpuP50Milliseconds: runtimePercentile(candidateGPU, thresholds.p50Fraction),
+            gpuP95Milliseconds: runtimePercentile(candidateGPU, thresholds.p95Fraction),
+            gpuP99Milliseconds: runtimePercentile(candidateGPU, thresholds.p99Fraction),
+            cpuSubmissionP50Milliseconds: runtimePercentile(candidateCPU, thresholds.p50Fraction),
+            cpuSubmissionP95Milliseconds: runtimePercentile(candidateCPU, thresholds.p95Fraction),
+            cpuSubmissionP99Milliseconds: runtimePercentile(candidateCPU, thresholds.p99Fraction)
         )
         let gate = V4RuntimeGate.status(baseline: baseline, candidate: candidate, thresholds: thresholds)
         return V4RuntimeBenchmarkResult(
@@ -1969,7 +2807,7 @@ public final class CalibrationV4Runner {
             let pairs = manifest.pairs.filter {
                 $0.split == split &&
                     (split == .frozen
-                        ? ($0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id))
+                        ? ($0.virginFrozen && !configuration.holdoutSemanticDefinition.isExcluded(pairID: $0.id))
                         : !$0.virginFrozen)
             }
             let observedTransfers: Set<String> = Set(pairs.compactMap {
@@ -2023,12 +2861,15 @@ public final class CalibrationV4Runner {
         evaluations: [String: V2DatasetEvaluation], records: [PairRecord], transferByPair: [String: String]
     ) -> [String: [String: V2MetricBreakdown]] {
         var result: [String: [String: V2MetricBreakdown]] = [:]
-        for (label, evaluation) in evaluations {
+        for label in evaluations.keys.sorted(by: canonicalStringLess) {
+            guard let evaluation = evaluations[label] else { continue }
             var grouped: [String: [V2MetricBreakdown]] = [:]
-            for video in evaluation.videos {
+            for video in evaluation.videos.sorted(by: { canonicalStringLess($0.pairID, $1.pairID) }) {
                 grouped[transferByPair[video.pairID] ?? "UNKNOWN", default: []].append(video.metrics)
             }
-            result[label] = grouped.mapValues { V2MetricsEvaluator.aggregate($0) }
+            result[label] = Dictionary(uniqueKeysWithValues: grouped.keys.sorted(by: canonicalStringLess).map { key in
+                (key, V2MetricsEvaluator.aggregate(grouped[key] ?? [], configuration: metricConfiguration))
+            })
         }
         _ = records
         return result
@@ -2041,13 +2882,18 @@ public final class CalibrationV4Runner {
             guard let family = pair.contentFamily, !family.isEmpty else { return nil }
             return (pair.id, family)
         })
-        return evaluations.mapValues { evaluation in
+        var result: [String: [String: V2MetricBreakdown]] = [:]
+        for label in evaluations.keys.sorted(by: canonicalStringLess) {
+            guard let evaluation = evaluations[label] else { continue }
             var grouped: [String: [V2MetricBreakdown]] = [:]
-            for video in evaluation.videos {
+            for video in evaluation.videos.sorted(by: { canonicalStringLess($0.pairID, $1.pairID) }) {
                 grouped[familyByID[video.pairID] ?? "UNKNOWN", default: []].append(video.metrics)
             }
-            return grouped.mapValues { V2MetricsEvaluator.aggregate($0) }
+            result[label] = Dictionary(uniqueKeysWithValues: grouped.keys.sorted(by: canonicalStringLess).map { key in
+                (key, V2MetricsEvaluator.aggregate(grouped[key] ?? [], configuration: metricConfiguration))
+            })
         }
+        return result
     }
 
     private func writeArtifacts(_ report: V4FinalReport) throws {
@@ -2171,7 +3017,9 @@ public final class CalibrationV4Runner {
     private func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
+        // Parameter/objective/evaluation identities must fail closed. A
+        // non-finite value must never become a hash of a substituted string.
+        encoder.nonConformingFloatEncodingStrategy = .throw
         return try encoder.encode(value)
     }
 
