@@ -631,6 +631,13 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     /// purpose: an invalid canonical representation is a binding failure,
     /// never a string that can accidentally look sealed.
     public func validatedRunnerSemanticIdentity() throws -> String {
+        try finalRunnerSemanticConfiguration().canonicalSHA256()
+    }
+
+    /// Exposes the exact typed payload handed to the V4 adapter. V5 uses this
+    /// payload as the production-derived base for its policy-specific final
+    /// runner identity; the invalidated V4 artifact remains non-executable.
+    public func finalRunnerSemanticConfiguration() throws -> V4FinalRunnerSemanticConfiguration {
         guard let runnerSemanticConfiguration,
               let preparationSemanticConfiguration,
               let metricSemanticConfiguration,
@@ -665,7 +672,8 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
             ),
             safetyThresholds: safety
         )
-        return try payload.canonicalSHA256()
+        _ = try payload.canonicalSHA256()
+        return payload
     }
 
     public func validatePreregisteredExecutionBinding() throws {

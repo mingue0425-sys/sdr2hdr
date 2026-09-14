@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Verify the media-free V4 artifact and its execution binding.
+"""Verify the media-free historical V4 artifact and its invalidation.
 
-This verifier regenerates the V4 object from the pinned Swift implementation,
-compares canonical JSON, and probes the verify-only execution entry point. It
-does not discover, hash, decode, qualify, or evaluate media.
+This verifier regenerates the historical V4 object from the pinned Swift
+implementation, compares canonical JSON, and proves that the executable V4
+entry point rejects it. It does not discover, hash, decode, qualify, or
+evaluate media.
 """
 
 from __future__ import annotations
@@ -69,10 +70,10 @@ def load_artifact(path: Path) -> dict[str, object]:
 def check_artifact(artifact: dict[str, object]) -> None:
     require(artifact.get("artifactVersion") == 4, "artifact version is not V4")
     require(
-        artifact.get("status") == "PREREGISTERED_V4_EXECUTION_BOUND_SEMANTIC_ONLY",
+        artifact.get("status") == "AUDIT_INVALIDATED",
         "artifact status drift",
     )
-    require(artifact.get("preregistrationInvalidated") is False, "V4 is invalidated")
+    require(artifact.get("preregistrationInvalidated") is True, "V4 invalidation flag is false")
     require(artifact.get("correctnessBaseline") == BASELINE, "correctness baseline drift")
     require(artifact.get("retiredV1SearchDefinitionHash") == V1, "V1 lineage drift")
     require(artifact.get("invalidatedV2SearchDefinitionHash") == V2, "V2 lineage drift")
@@ -143,19 +144,10 @@ def check_regeneration(committed: dict[str, object]) -> None:
 def check_verify_only() -> None:
     relative = str(ARTIFACT.relative_to(ROOT))
     result = run_cli(["run-preregistered", "--verify-only", "--preregistration", relative])
-    require(result.returncode == 0, f"verify-only execution failed: {result.stdout}{result.stderr}")
+    require(result.returncode != 0, "invalidated V4 verify-only execution was accepted")
     output = result.stdout + result.stderr
-    for marker in (
-        "preregistered execution binding: PASS",
-        "runtime derived from seal: YES",
-        "runtime semantic identity match: PASS",
-        "budget per policy: 192",
-        "shortlist: 3",
-        "objective evaluations: 0",
-        "media execution: NOT RUN",
-    ):
-        require(marker in output, f"verify-only output missing: {marker}")
-    print("V4 verify-only execution binding: PASS")
+    require("audit-invalidated" in output.lower(), "wrong V4 invalidation error")
+    print("V4 verify-only execution rejection: PASS")
 
 
 def check_overrides() -> None:
@@ -193,9 +185,8 @@ def main() -> int:
     check_artifact(committed)
     check_regeneration(committed)
     check_verify_only()
-    check_overrides()
     check_legacy_routes_are_not_preregistered()
-    print("V4 preregistration verification: PASS")
+    print("V4 historical invalidation verification: PASS")
     print("media qualification/hash/decode, Tune, Validation, Frozen evaluation: NOT RUN")
     print("objective evaluations: 0")
     return 0

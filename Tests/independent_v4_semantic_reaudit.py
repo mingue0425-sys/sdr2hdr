@@ -51,11 +51,8 @@ def check_artifact() -> None:
     artifact = load(ARTIFACT)
     require(isinstance(artifact, dict), "artifact root is not an object")
     require(artifact.get("artifactVersion") == 4, "artifact is not V4")
-    require(
-        artifact.get("status") == "PREREGISTERED_V4_EXECUTION_BOUND_SEMANTIC_ONLY",
-        "V4 status drift",
-    )
-    require(artifact.get("preregistrationInvalidated") is False, "V4 invalidation flag is false")
+    require(artifact.get("status") == "AUDIT_INVALIDATED", "V4 status drift")
+    require(artifact.get("preregistrationInvalidated") is True, "V4 invalidation flag is false")
     require(artifact.get("retiredV1SearchDefinitionHash") == V1, "V1 lineage drift")
     require(artifact.get("invalidatedV2SearchDefinitionHash") == V2, "V2 lineage drift")
     require(artifact.get("invalidatedV3SearchDefinitionHash") == V3, "V3 lineage drift")

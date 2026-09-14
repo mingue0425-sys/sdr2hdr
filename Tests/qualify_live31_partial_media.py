@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import concurrent.futures
+import hashlib
 import json
 import math
 import os
@@ -27,6 +29,7 @@ from typing import Any
 CODE_BASELINE = "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9"
 V4_HEAD = "b605d8cbab02d21e2de95cf7e025175af30a1877"
 SEARCH_DEFINITION_V4 = "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
+SEARCH_DEFINITION_V5 = "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e"
 QUALIFICATION_VERSION = "live31-partial-media-qualification-v1"
 QUALIFICATION_DISPOSITION = "REGENERATE_REQUIRED"
 V4_HASH_STATUS = "AUDIT_INVALIDATED"
@@ -56,6 +59,16 @@ STATUS_ORDER = [
     "QUALIFIED_WITH_DOCUMENTED_VARIANCE",
     "QUALIFIED",
 ]
+
+APPROVED_ROOT_ID = "LIVE31_DEVELOPMENT_ACQUISITION_REFERENCES"
+PROTECTED_PATH_TOKENS = {
+    "frozen",
+    "virgin",
+    "virgin_candidates",
+    "old_contaminated_frozen",
+    "holdout",
+    "holdouts",
+}
 
 
 def command_version(command: str) -> str:
@@ -123,20 +136,56 @@ def fraction_json(value: Fraction | None) -> str | None:
     return None if value is None else f"{value.numerator}/{value.denominator}"
 
 
-def safe_component_check(path: Path, trusted_anchor: Path) -> dict[str, Any]:
-    """lstat every component without resolving symlinks."""
+def _file_type(mode: int) -> str:
+    if stat.S_ISREG(mode):
+        return "regular"
+    if stat.S_ISDIR(mode):
+        return "directory"
+    if stat.S_ISFIFO(mode):
+        return "fifo"
+    if stat.S_ISSOCK(mode):
+        return "socket"
+    if stat.S_ISCHR(mode) or stat.S_ISBLK(mode):
+        return "device"
+    return "other"
 
-    if not path.is_absolute():
+
+def validate_manifest_relative_path(relative_path: str) -> dict[str, Any]:
+    """Validate untrusted manifest text before joining it to the approved root."""
+
+    if not isinstance(relative_path, str) or not relative_path:
+        return {"safe": False, "reason": "EMPTY_PATH"}
+    if "\x00" in relative_path:
+        return {"safe": False, "reason": "NUL_PATH"}
+    candidate = Path(relative_path)
+    if candidate.is_absolute() or relative_path.startswith(("/", "\\")):
+        return {"safe": False, "reason": "ABSOLUTE_PATH"}
+    components = relative_path.replace("\\", "/").split("/")
+    if any(component in ("", ".", "..") for component in components):
+        return {"safe": False, "reason": "LEXICAL_ESCAPE"}
+    if any(component.casefold() in PROTECTED_PATH_TOKENS for component in components):
+        return {"safe": False, "reason": "PROTECTED_TOKEN_COMPONENT"}
+    return {"safe": True, "reason": "SAFE_RELATIVE_PATH"}
+
+
+def safe_component_check(path: Path, approved_root: Path, trusted_anchor: Path) -> dict[str, Any]:
+    """lstat every anchor/root/asset component without resolving symlinks."""
+
+    if not path.is_absolute() or not approved_root.is_absolute() or not trusted_anchor.is_absolute():
         return {"exists": False, "safe": False, "reason": "NON_ABSOLUTE_PATH"}
-    if "\x00" in str(path):
+    if "\x00" in str(path) or "\x00" in str(approved_root):
         return {"exists": False, "safe": False, "reason": "NUL_PATH"}
     try:
-        path.relative_to(trusted_anchor)
+        approved_root.relative_to(trusted_anchor)
+        path.relative_to(approved_root)
     except ValueError:
-        return {"exists": False, "safe": False, "reason": "OUTSIDE_TRUSTED_ANCHOR"}
+        return {"exists": False, "safe": False, "reason": "OUTSIDE_APPROVED_ROOT"}
 
-    current = Path(path.anchor)
-    for component in path.parts[1:]:
+    current = Path(trusted_anchor.anchor)
+    components = list(trusted_anchor.relative_to(Path(trusted_anchor.anchor)).parts)
+    components.extend(approved_root.relative_to(trusted_anchor).parts)
+    components.extend(path.relative_to(approved_root).parts)
+    for component in components:
         if component in ("", ".", ".."):
             return {"exists": False, "safe": False, "reason": "LEXICAL_ESCAPE"}
         current /= component
@@ -144,8 +193,8 @@ def safe_component_check(path: Path, trusted_anchor: Path) -> dict[str, Any]:
             mode = os.lstat(current).st_mode
         except FileNotFoundError:
             return {"exists": False, "safe": True, "reason": "MISSING_COMPONENT"}
-        except OSError as exc:
-            return {"exists": False, "safe": False, "reason": f"LSTAT_ERROR:{exc}"}
+        except OSError:
+            return {"exists": False, "safe": False, "reason": "LSTAT_ERROR"}
         if stat.S_ISLNK(mode):
             return {"exists": True, "safe": False, "reason": "SYMLINK_COMPONENT"}
 
@@ -155,20 +204,46 @@ def safe_component_check(path: Path, trusted_anchor: Path) -> dict[str, Any]:
         "safe": True,
         "regularFile": stat.S_ISREG(mode),
         "symlink": stat.S_ISLNK(mode),
-        "fileType": (
-            "regular"
-            if stat.S_ISREG(mode)
-            else "directory"
-            if stat.S_ISDIR(mode)
-            else "fifo"
-            if stat.S_ISFIFO(mode)
-            else "socket"
-            if stat.S_ISSOCK(mode)
-            else "device"
-            if stat.S_ISCHR(mode) or stat.S_ISBLK(mode)
-            else "other"
-        ),
+        "fileType": _file_type(mode),
         "byteSize": os.lstat(path).st_size if stat.S_ISREG(mode) else None,
+    }
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def redact_metadata_paths(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "<redacted-path>" if key == "filename" else redact_metadata_paths(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_metadata_paths(item) for item in value]
+    return value
+
+
+def rejected_asset(role: str, relative_path: str, reason: str) -> dict[str, Any]:
+    return {
+        "role": role,
+        "relativePath": relative_path,
+        "approvedRootId": APPROVED_ROOT_ID,
+        "regularFile": False,
+        "symlink": False,
+        "filesystem": {"exists": False, "safe": False, "reason": reason},
+        "byteSize": None,
+        "tool": "ffprobe",
+        "metadataStatus": "NOT_RUN",
+        "rawMetadata": None,
+        "normalizedMetadata": None,
+        "ptsStructure": None,
+        "structuralDecode": None,
+        "issues": [reason],
     }
 
 
@@ -250,9 +325,9 @@ def inspect_pts(path: Path, ffprobe: str, time_base: str | None) -> tuple[dict[s
         "error",
         "-select_streams",
         "v:0",
-        "-show_packets",
+        "-show_frames",
         "-show_entries",
-        "packet=pts,dts,pts_time,dts_time,duration,duration_time",
+        "frame=best_effort_timestamp",
         "-of",
         "json",
         str(path),
@@ -263,21 +338,24 @@ def inspect_pts(path: Path, ffprobe: str, time_base: str | None) -> tuple[dict[s
         return {"status": "TIMEOUT"}, "PTS inspection timeout"
     if raw is None:
         return {"status": "FAILED"}, error
-    packets = raw.get("packets", [])
-    pts = [parse_int(packet.get("pts")) for packet in packets]
-    pts = [value for value in pts if value is not None]
-    dts = [parse_int(packet.get("dts")) for packet in packets]
-    dts = [value for value in dts if value is not None]
-    selected = pts or dts
+    frames = raw.get("frames", [])
+    selected = [
+        value
+        for value in (parse_int(frame.get("best_effort_timestamp")) for frame in frames)
+        if value is not None
+    ]
     if not selected:
         return {
             "status": "UNKNOWN",
-            "packetCount": len(packets),
+            "frameCount": len(frames),
             "ptsCount": 0,
-            "usedClock": "DTS" if dts else None,
+            "usedClock": None,
         }, None
 
-    presentation = sorted(selected)
+    # `-show_frames` emits the decoder's original frame/presentation sequence.
+    # Preserve it exactly. Sorting this sequence would turn a timestamp-order
+    # repair into a false claim that the two streams had identical timing.
+    presentation = list(selected)
     presentation_deltas = [b - a for a, b in zip(presentation, presentation[1:])]
     positive_deltas = [delta for delta in presentation_deltas if delta > 0]
     median_delta = statistics.median(positive_deltas) if positive_deltas else None
@@ -289,12 +367,23 @@ def inspect_pts(path: Path, ffprobe: str, time_base: str | None) -> tuple[dict[s
     )
     distinct_positive = sorted(set(positive_deltas))
     base = parse_fraction(time_base)
+    normalized_timeline = [fraction_json(Fraction(value) * base) for value in presentation] if base else None
     return {
         "status": "PASS",
-        "packetCount": len(packets),
-        "ptsCount": len(pts),
-        "usedClock": "PTS" if pts else "DTS",
-        "packetOrderMonotonic": all(a <= b for a, b in zip(selected, selected[1:])),
+        "frameCount": len(frames),
+        "ptsCount": len(selected),
+        "usedClock": "PTS",
+        "originalPresentationTimestamps": selected,
+        "presentationTimestamps": presentation,
+        "presentationSequenceSource": "EXACT_DECODED_FRAME_ORDER_WITH_ORIGINAL_SEQUENCE_RETAINED",
+        "normalizedPresentationTimeline": normalized_timeline,
+        "frameToFrameDeltasTicks": presentation_deltas,
+        "frameToFrameDeltasNormalized": (
+            [fraction_json(Fraction(delta) * base) for delta in presentation_deltas]
+            if base
+            else None
+        ),
+        "originalSequenceMonotonic": all(a <= b for a, b in zip(selected, selected[1:])),
         "presentationOrderMonotonic": all(a <= b for a, b in zip(presentation, presentation[1:])),
         "duplicateCount": len(selected) - len(set(selected)),
         "negativeTimestampCount": sum(1 for value in selected if value < 0),
@@ -306,8 +395,8 @@ def inspect_pts(path: Path, ffprobe: str, time_base: str | None) -> tuple[dict[s
         "largeDiscontinuityCount": large_discontinuities,
         "vfrLike": len(distinct_positive) > 1,
         "timeBase": time_base,
-        "firstTimestampSeconds": float(presentation[0] * base) if base else None,
-        "lastTimestampSeconds": float(presentation[-1] * base) if base else None,
+        "firstTimestampSeconds": float(Fraction(presentation[0]) * base) if base else None,
+        "lastTimestampSeconds": float(Fraction(presentation[-1]) * base) if base else None,
     }, None
 
 
@@ -354,7 +443,7 @@ def structural_decode(path: Path, duration: float | None, ffmpeg: str) -> dict[s
                     "positionSeconds": position,
                     "success": result.returncode == 0,
                     "exitCode": result.returncode,
-                    "stderr": (result.stderr or "")[:500],
+                    "stderrPresent": bool(result.stderr),
                 }
             )
         except subprocess.TimeoutExpired as exc:
@@ -363,7 +452,7 @@ def structural_decode(path: Path, duration: float | None, ffmpeg: str) -> dict[s
                     "positionSeconds": position,
                     "success": False,
                     "exitCode": None,
-                    "stderr": f"timeout: {exc}",
+                    "stderrPresent": True,
                 }
             )
     return {
@@ -383,12 +472,11 @@ def inspect_asset(
     ffprobe: str,
     ffmpeg: str,
 ) -> dict[str, Any]:
-    resolution = safe_component_check(path, trusted_anchor)
+    resolution = safe_component_check(path, approved_root, trusted_anchor)
     asset: dict[str, Any] = {
         "role": role,
         "relativePath": relative_path,
-        "approvedDevelopmentRoot": str(approved_root),
-        "absolutePath": str(path),
+        "approvedRootId": APPROVED_ROOT_ID,
         "regularFile": bool(resolution.get("regularFile", False)),
         "symlink": bool(resolution.get("symlink", False)),
         "filesystem": resolution,
@@ -431,7 +519,7 @@ def inspect_asset(
 
     normalized = normalize_asset_metadata(raw)
     asset["metadataStatus"] = "PASS"
-    asset["rawMetadata"] = raw
+    asset["rawMetadata"] = redact_metadata_paths(raw)
     asset["normalizedMetadata"] = normalized
     try:
         pts, pts_error = inspect_pts(path, ffprobe, normalized.get("timeBase"))
@@ -524,6 +612,64 @@ def fps_fraction(metadata: dict[str, Any]) -> Fraction | None:
     return parse_fraction(metadata.get("averageFPS")) or parse_fraction(metadata.get("nominalFPS"))
 
 
+def compare_temporal_sequences(sdr_pts: dict[str, Any], hdr_pts: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Compare presentation timelines using exact rational arithmetic."""
+
+    if sdr_pts.get("status") != "PASS" or hdr_pts.get("status") != "PASS":
+        return "NOT_PROVEN", {"reason": "INSUFFICIENT_TIMESTAMP_EVIDENCE"}
+    sdr_sequence = sdr_pts.get("presentationTimestamps")
+    hdr_sequence = hdr_pts.get("presentationTimestamps")
+    sdr_base = parse_fraction(sdr_pts.get("timeBase"))
+    hdr_base = parse_fraction(hdr_pts.get("timeBase"))
+    if not isinstance(sdr_sequence, list) or not isinstance(hdr_sequence, list) or not sdr_base or not hdr_base:
+        return "NOT_PROVEN", {"reason": "MISSING_RATIONAL_PRESENTATION_TIMELINE"}
+
+    def normalized(sequence: list[Any], base: Fraction) -> list[Fraction] | None:
+        try:
+            return [Fraction(int(value)) * base for value in sequence]
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    sdr_timeline = normalized(sdr_sequence, sdr_base)
+    hdr_timeline = normalized(hdr_sequence, hdr_base)
+    if sdr_timeline is None or hdr_timeline is None:
+        return "NOT_PROVEN", {"reason": "INVALID_RATIONAL_PRESENTATION_TIMELINE"}
+
+    sdr_deltas = [b - a for a, b in zip(sdr_timeline, sdr_timeline[1:])]
+    hdr_deltas = [b - a for a, b in zip(hdr_timeline, hdr_timeline[1:])]
+    same = (
+        len(sdr_timeline) == len(hdr_timeline)
+        and sdr_timeline == hdr_timeline
+        and sdr_timeline[:1] == hdr_timeline[:1]
+        and sdr_timeline[-1:] == hdr_timeline[-1:]
+        and sdr_deltas == hdr_deltas
+        and sdr_pts.get("presentationOrderMonotonic") is True
+        and hdr_pts.get("presentationOrderMonotonic") is True
+        and sdr_pts.get("duplicateCount", 0) == 0
+        and hdr_pts.get("duplicateCount", 0) == 0
+        and sdr_pts.get("negativeTimestampCount", 0) == 0
+        and hdr_pts.get("negativeTimestampCount", 0) == 0
+    )
+    evidence = {
+        "timestampCountSDR": len(sdr_timeline),
+        "timestampCountHDR": len(hdr_timeline),
+        "timeBaseSDR": fraction_json(sdr_base),
+        "timeBaseHDR": fraction_json(hdr_base),
+        "firstTimestampSDR": fraction_json(sdr_timeline[0]) if sdr_timeline else None,
+        "firstTimestampHDR": fraction_json(hdr_timeline[0]) if hdr_timeline else None,
+        "lastTimestampSDR": fraction_json(sdr_timeline[-1]) if sdr_timeline else None,
+        "lastTimestampHDR": fraction_json(hdr_timeline[-1]) if hdr_timeline else None,
+        "sameNormalizedPresentationTimeline": sdr_timeline == hdr_timeline,
+        "sameFrameToFrameCadence": sdr_deltas == hdr_deltas,
+        "originalSequenceMonotonic": (
+            sdr_pts.get("presentationOrderMonotonic") is True
+            and hdr_pts.get("presentationOrderMonotonic") is True
+        ),
+        "comparison": "EXACT_RATIONAL_PRESENTATION_TIMELINE",
+    }
+    return ("EXACT_TEMPORAL_MATCH" if same else "NOT_PROVEN"), evidence
+
+
 def pair_qualification(sdr: dict[str, Any], hdr: dict[str, Any]) -> tuple[str, list[dict[str, Any]], dict[str, Any]]:
     issues = qualify_asset(sdr, "SDR") + qualify_asset(hdr, "HDR10")
     sdr_meta = sdr.get("normalizedMetadata") or {}
@@ -533,7 +679,7 @@ def pair_qualification(sdr: dict[str, Any], hdr: dict[str, Any]) -> tuple[str, l
         "aspect": "UNKNOWN",
         "duration": "UNKNOWN",
         "fps": "UNKNOWN",
-        "pts": "UNKNOWN",
+        "pts": "NOT_PROVEN",
     }
 
     if sdr_meta.get("width") == hdr_meta.get("width") and sdr_meta.get("height") == hdr_meta.get("height"):
@@ -588,25 +734,12 @@ def pair_qualification(sdr: dict[str, Any], hdr: dict[str, Any]) -> tuple[str, l
 
     sdr_pts = sdr.get("ptsStructure") or {}
     hdr_pts = hdr.get("ptsStructure") or {}
-    if sdr_pts.get("status") == "PASS" and hdr_pts.get("status") == "PASS":
-        structurally_consistent = (
-            sdr_pts.get("presentationOrderMonotonic")
-            and hdr_pts.get("presentationOrderMonotonic")
-            and sdr_pts.get("duplicateCount", 0) == 0
-            and hdr_pts.get("duplicateCount", 0) == 0
-            and sdr_pts.get("negativeTimestampCount", 0) == 0
-            and hdr_pts.get("negativeTimestampCount", 0) == 0
-            and sdr_pts.get("vfrLike") == hdr_pts.get("vfrLike")
-        )
-        compatibility["pts"] = "NOT_PROVEN"
-        compatibility["ptsStructuralEvidence"] = (
-            "CONSISTENT_PRESENTATION_TIMESTAMP_STRUCTURE"
-            if structurally_consistent
-            else "STRUCTURAL_TIMESTAMP_VARIANCE"
-        )
-    else:
-        compatibility["pts"] = "NOT_PROVEN"
-        compatibility["ptsStructuralEvidence"] = "INSUFFICIENT_TIMESTAMP_EVIDENCE"
+    temporal_status, temporal_evidence = compare_temporal_sequences(sdr_pts, hdr_pts)
+    compatibility["pts"] = temporal_status
+    compatibility["exactTemporal"] = temporal_status == "EXACT_TEMPORAL_MATCH"
+    compatibility["temporalEvidence"] = temporal_evidence
+    if temporal_status != "EXACT_TEMPORAL_MATCH":
+        add_issue(issues, "NEEDS_ALIGNMENT_CHECK", "exact SDR/HDR presentation timeline was not proven")
 
     codes = {issue["code"] for issue in issues}
     if "CORRUPT_OR_UNREADABLE" in codes:
@@ -654,10 +787,11 @@ def build_document(artifact: dict[str, Any]) -> str:
         f"- Code/V4 head: `{artifact['v4SemanticHead']}`",
         f"- Correctness baseline: `{artifact['correctnessBaseline']}`",
         f"- SearchDefinitionHashV4: `{artifact['searchDefinitionHashV4']}`",
+        f"- SearchDefinitionHashV5 input: `{artifact['searchDefinitionHashV5']}`",
         f"- Qualification version: `{artifact['qualificationVersion']}`",
         f"- Downloaded pairs: {summary['downloadedPairCount']} / 20",
         f"- Acquisition-pending contents: {summary['acquisitionPendingCount']} / 11",
-        "- Approved root: `/Volumes/game/LIVE31-development-acquisition/references`",
+        f"- Approved root: `{artifact['approvedRootId']}` (portable root identifier; absolute path is not committed)",
         "",
         "## Result",
         "",
@@ -721,9 +855,10 @@ def build_document(artifact: dict[str, Any]) -> str:
             f"- ffmpeg: `{artifact['tools']['ffmpegVersion']}`",
             "- Metadata source: ffprobe stream/format JSON; raw output is retained in the JSON artifact.",
             "- Structural decode: fixed `0%, 25%, 50%, 75%, max(duration-0.5s)` positions; decoded pixels were not inspected.",
-            "- Exact temporal match is NOT PROVEN by metadata/PTS summaries alone; the 20 pair labels require regeneration.",
+            "- Exact temporal match is proven only by direct rational presentation-timeline comparison; monotonicity alone is insufficient and original decoded-frame timestamp order is retained.",
             "- Exact content hashing: NOT RUN in this phase; acquisition-manifest declared hashes were not recomputed.",
             "- V4 thresholds, matcher semantics, metric constants, gates, and ranking were not changed.",
+            "- Qualification input SHA-256 values cover only non-media inputs and are independently recorded in the JSON artifact.",
             "",
         ]
     )
@@ -735,15 +870,28 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--preregistration", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--doc", type=Path, required=True)
     parser.add_argument("--ffprobe", default="ffprobe")
     parser.add_argument("--ffmpeg", default="ffmpeg")
     args = parser.parse_args()
 
+    if not args.root.is_absolute():
+        raise RuntimeError("approved development root must be absolute")
+    if not args.manifest.is_file() or not args.provenance.is_file() or not args.preregistration.is_file():
+        raise RuntimeError("qualification inputs must be ordinary non-media files")
+    preregistration = json.loads(args.preregistration.read_text())
+    if (
+        preregistration.get("artifactVersion") != 5
+        or preregistration.get("status") != "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY"
+        or preregistration.get("preregistrationInvalidated") is not False
+        or preregistration.get("searchDefinitionHashV5") != SEARCH_DEFINITION_V5
+    ):
+        raise RuntimeError("qualification must bind the current V5 preregistration artifact")
     rows, mapping_by_local = read_inputs(args.manifest, args.provenance)
-    trusted_anchor = Path("/Volumes/game")
-    root_check = safe_component_check(args.root, trusted_anchor)
+    trusted_anchor = Path("/Volumes")
+    root_check = safe_component_check(args.root, args.root, trusted_anchor)
     if (
         not root_check.get("exists")
         or not root_check.get("safe")
@@ -785,17 +933,41 @@ def main() -> int:
             key = "UNKNOWN" if value is None else str(value)
             metadata_summary[role].setdefault(field, {})[key] = metadata_summary[role].setdefault(field, {}).get(key, 0) + 1
 
+    def inspect_downloaded_asset(row: dict[str, str], role: str) -> dict[str, Any]:
+        relative_path = row["SDR_reference_filename"] if role == "SDR" else row["HDR10_reference_filename"]
+        path_check = validate_manifest_relative_path(relative_path)
+        if not path_check["safe"]:
+            return rejected_asset(role, relative_path, path_check["reason"])
+        return inspect_asset(
+            args.root / relative_path,
+            relative_path,
+            role,
+            args.root,
+            trusted_anchor,
+            args.ffprobe,
+            args.ffmpeg,
+        )
+
+    # Metadata/timestamp/decode probes are independent structural operations.
+    # Bound concurrency so this remains a qualification probe, not an
+    # unbounded scan, while preserving deterministic manifest order below.
+    inspected_assets: dict[tuple[str, str], dict[str, Any]] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            (row["canonical_source"], role): executor.submit(inspect_downloaded_asset, row, role)
+            for row in downloaded
+            for role in ("SDR", "HDR10")
+        }
+        for key, future in futures.items():
+            inspected_assets[key] = future.result()
+
     for row in downloaded:
         local_name = row["canonical_source"]
         mapping = mapping_by_local.get(local_name)
         if mapping is None:
             raise RuntimeError(f"no proven LIVE mapping for {local_name}")
-        sdr_relative = row["SDR_reference_filename"]
-        hdr_relative = row["HDR10_reference_filename"]
-        sdr_path = args.root / sdr_relative
-        hdr_path = args.root / hdr_relative
-        sdr = inspect_asset(sdr_path, sdr_relative, "SDR", args.root, trusted_anchor, args.ffprobe, args.ffmpeg)
-        hdr = inspect_asset(hdr_path, hdr_relative, "HDR10", args.root, trusted_anchor, args.ffprobe, args.ffmpeg)
+        sdr = inspected_assets[(local_name, "SDR")]
+        hdr = inspected_assets[(local_name, "HDR10")]
         status, issues, compatibility = pair_qualification(sdr, hdr)
         sdr["qualificationIssues"] = qualify_asset(sdr, "SDR")
         hdr["qualificationIssues"] = qualify_asset(hdr, "HDR10")
@@ -820,7 +992,9 @@ def main() -> int:
                     "officialProvenanceURL": mapping["officialSourceEvidence"]["provenanceURL"],
                     "officialRepositoryCommit": mapping["officialSourceEvidence"]["repositoryCommit"],
                     "acquisitionManifestProvenance": row["provenance"],
-                    "acquisitionManifestDeclaredSHA256": "PRESENT_NOT_RECOMPUTED",
+                    "declaredSDRContentSHA256": row.get("SDR_sha256") or None,
+                    "declaredHDRContentSHA256": row.get("HDR10_sha256") or None,
+                    "declaredHashVerificationStatus": "NOT_RECOMPUTED",
                 },
                 "sdr": sdr,
                 "hdr10": hdr,
@@ -842,6 +1016,16 @@ def main() -> int:
             }
         )
 
+    exact_temporal_matches = sum(
+        1 for pair in pairs if pair["compatibility"].get("pts") == "EXACT_TEMPORAL_MATCH"
+    )
+    promotion_statuses = {"QUALIFIED", "QUALIFIED_WITH_DOCUMENTED_VARIANCE"}
+    eligible_pairs = [
+        pair for pair in pairs
+        if pair["status"] in promotion_statuses
+        and pair["compatibility"].get("pts") == "EXACT_TEMPORAL_MATCH"
+    ]
+    qualification_ready = len(eligible_pairs) == len(pairs) and exact_temporal_matches == len(pairs)
     artifact = {
         "artifactKind": "LIVE31_PARTIAL_MEDIA_QUALIFICATION",
         "artifactVersion": 1,
@@ -851,9 +1035,15 @@ def main() -> int:
         "v4SemanticHead": V4_HEAD,
         "searchDefinitionHashV4": SEARCH_DEFINITION_V4,
         "searchDefinitionHashV4Status": V4_HASH_STATUS,
-        "qualificationDisposition": QUALIFICATION_DISPOSITION,
-        "qualificationEvidenceStatus": "RETAINED_STRUCTURAL_METADATA_AND_DECODE_ONLY",
-        "exactTemporalStatus": "NOT_PROVEN",
+        "searchDefinitionHashV5": SEARCH_DEFINITION_V5,
+        "searchDefinitionHashV5Status": "CURRENT",
+        "qualificationDisposition": "READY_FOR_PARTIAL_CORPUS_SEAL" if qualification_ready else QUALIFICATION_DISPOSITION,
+        "qualificationEvidenceStatus": (
+            "REGENERATED_STRUCTURAL_METADATA_DECODE_AND_EXACT_RATIONAL_TEMPORAL"
+            if qualification_ready
+            else "RETAINED_STRUCTURAL_METADATA_AND_DECODE_ONLY"
+        ),
+        "exactTemporalStatus": "PROVEN" if qualification_ready else "NOT_PROVEN",
         "historicalPrereRegistrations": {
             "V1": "RETIRED_INVALIDATED",
             "V2": "AUDIT_INVALIDATED",
@@ -873,17 +1063,23 @@ def main() -> int:
             "protectedDataAccessed": False,
             "corpusPromotionAllowed": False,
         },
-        "approvedDevelopmentRoot": str(args.root),
-        "inputManifest": str(args.manifest),
-        "inputProvenanceArtifact": str(args.provenance),
+        "approvedRootId": APPROVED_ROOT_ID,
+        "inputProvenance": {
+            "acquisitionManifestSHA256": sha256_file(args.manifest),
+            "live31ProvenanceArtifactSHA256": sha256_file(args.provenance),
+            "preregistrationArtifactSHA256": sha256_file(args.preregistration),
+            "preregistrationArtifactPath": "results/calibration-rebase-preregistration-v5.json",
+            "preregistrationArtifactStatus": "CURRENT",
+        },
         "tools": {
-            "ffprobePath": args.ffprobe,
+            "ffprobePath": Path(args.ffprobe).name,
             "ffprobeVersion": command_version(args.ffprobe),
-            "ffmpegPath": args.ffmpeg,
+            "ffmpegPath": Path(args.ffmpeg).name,
             "ffmpegVersion": command_version(args.ffmpeg),
             "metadataCommandSemantics": "ffprobe -v error -show_streams -show_format -of json exact-path",
-            "ptsCommandSemantics": "ffprobe -v error -select_streams v:0 -show_packets exact-path; summary only",
+            "ptsCommandSemantics": "ffprobe -v error -select_streams v:0 -show_frames -show_entries frame=best_effort_timestamp exact-path; original presentation sequence retained",
             "decodeCommandSemantics": "ffmpeg -v error -nostdin -ss fixed-position -i exact-path -map 0:v:0 -frames:v 1 -f null -",
+            "structuralProbeConcurrency": 4,
         },
         "qualificationRules": {
             "referenceResolution": "3840x2160 from acquisition report official FR reference",
@@ -892,6 +1088,7 @@ def main() -> int:
             "durationToleranceSeconds": 0.25,
             "durationRelativeTolerance": 0.005,
             "decodeProbePositions": "0%, 25%, 50%, 75%, max(duration-0.5s)",
+            "temporalProof": "direct SDR/HDR normalized rational presentation timeline equality; no sorting surrogate",
             "noQualityDecision": True,
             "noV4SemanticMutation": True,
         },
@@ -908,8 +1105,11 @@ def main() -> int:
             ),
             "acquisitionPendingCount": len(pending_items),
             "statusCounts": status_counts,
-            "eligibleIndependentFamilies": 0,
-            "promotionBlockedReason": "REGENERATE_REQUIRED_AND_EXACT_TEMPORAL_NOT_PROVEN",
+            "eligibleIndependentFamilies": len(eligible_pairs),
+            "exactTemporalMatches": exact_temporal_matches,
+            "promotionBlockedReason": (
+                None if qualification_ready else "REGENERATE_REQUIRED_AND_EXACT_TEMPORAL_NOT_PROVEN"
+            ),
             "structuralDecodeFailureCount": decode_failures,
             "qualityBasedSelection": False,
         },

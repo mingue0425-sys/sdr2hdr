@@ -88,21 +88,23 @@ final class V4SemanticClosureTests: XCTestCase {
         )
     }
 
-    func testV4SealDerivesBothPoliciesWithExactBudgetAndShortlist() throws {
-        let experiment = try PreregisteredCalibrationExperimentV4.current()
+    func testV5SealDerivesBothPoliciesWithExactBudgetAndSeparateCorpusCardinality() throws {
+        let experiment = try PreregisteredCalibrationExperimentV5.current()
         try experiment.validate()
-        let runner = try PreregisteredCalibrationRunnerV4(experiment: experiment)
+        let runner = try PreregisteredCalibrationRunnerV5(experiment: experiment)
         let runtimes = try runner.verifyOnly()
 
         XCTAssertEqual(runtimes.map(\.policy), [.bt709SourceLinear, .bt1886ReferenceDisplay])
         XCTAssertEqual(runtimes.count, 2)
         XCTAssertTrue(runtimes.allSatisfy { runtime in
-            runtime.searchAlgorithmDefinition.globalCandidateCount == 128 &&
-                runtime.searchAlgorithmDefinition.localCandidateCount == 64 &&
-                runtime.totalCandidatesPerPolicy == 192 &&
-                runtime.searchSeed == 2_026_09_12 &&
-                runtime.shortlistSize == 3
+            runtime.baseV4Runtime.searchAlgorithmDefinition.globalCandidateCount == 128 &&
+                runtime.baseV4Runtime.searchAlgorithmDefinition.localCandidateCount == 64 &&
+                runtime.baseV4Runtime.totalCandidatesPerPolicy == 192 &&
+                runtime.baseV4Runtime.searchSeed == 2_026_09_12 &&
+                runtime.candidateShortlistSize == 3
         })
+        XCTAssertEqual(experiment.validationCorpusRequirement.minimumValidationPairCount, 6)
+        XCTAssertNotEqual(experiment.candidateShortlistSize, experiment.validationCorpusRequirement.minimumValidationPairCount)
         XCTAssertEqual(experiment.objectiveEvaluations, 0)
         XCTAssertEqual(experiment.corpusDefinitionHash, "NOT_YET_CREATED")
         XCTAssertEqual(experiment.experimentBindingHash, "NOT_YET_CREATED")
@@ -318,9 +320,9 @@ final class V4SemanticClosureTests: XCTestCase {
     }
 
     func testV4RuntimeBindingRejectsSemanticOverridesBeforeExecution() throws {
-        let experiment = try PreregisteredCalibrationExperimentV4.current()
-        let runtime = try XCTUnwrap(try PreregisteredCalibrationRunnerV4(experiment: experiment).verifyOnly().first)
-        let base = try V4CalibrationConfiguration(preregisteredRuntime: runtime)
+        let experiment = try PreregisteredCalibrationExperimentV5.current()
+        let runtime = try XCTUnwrap(try PreregisteredCalibrationRunnerV5(experiment: experiment).verifyOnly().first)
+        let base = try V4CalibrationConfiguration(preregisteredRuntime: runtime.baseV4Runtime)
         try base.validatePreregisteredExecutionBinding()
         var matcherObject = try object(base.preparationSemanticConfiguration!.matcherConfiguration)
         matcherObject = try replacing(matcherObject, path: ["offsetStepSeconds"], with: 1.0 / 24.0)
@@ -371,13 +373,60 @@ final class V4SemanticClosureTests: XCTestCase {
     }
 
     func testV4FinalRunnerIdentityIsTheAdapterBoundary() throws {
-        let experiment = try PreregisteredCalibrationExperimentV4.current()
-        let runtimes = try PreregisteredCalibrationRunnerV4(experiment: experiment).verifyOnly()
+        let experiment = try PreregisteredCalibrationExperimentV5.current()
+        let runtimes = try PreregisteredCalibrationRunnerV5(experiment: experiment).verifyOnly()
         for runtime in runtimes {
-            let configuration = try V4CalibrationConfiguration(preregisteredRuntime: runtime)
-            XCTAssertEqual(try configuration.validatedRunnerSemanticIdentity(), runtime.semanticIdentity)
+            let configuration = try V4CalibrationConfiguration(preregisteredRuntime: runtime.baseV4Runtime)
+            XCTAssertEqual(try configuration.validatedRunnerSemanticIdentity(), runtime.baseV4Runtime.semanticIdentity)
             try configuration.validatePreregisteredExecutionBinding()
         }
+    }
+
+    func testV4HistoricalArtifactIsInvalidatedAndExecutionRejected() throws {
+        let historical = try PreregisteredCalibrationExperimentV4.current()
+        XCTAssertEqual(historical.status, "AUDIT_INVALIDATED")
+        XCTAssertTrue(historical.preregistrationInvalidated)
+        XCTAssertThrowsError(try PreregisteredCalibrationRunnerV4(experiment: historical)) { error in
+            XCTAssertEqual(error as? PreregisteredCalibrationExecutionError, .historicalPreregistrationInvalidated)
+        }
+        XCTAssertThrowsError(
+            try V4PreregisteredCalibrationRuntimeConfiguration(
+                experiment: historical,
+                policy: .bt709SourceLinear
+            )
+        ) { error in
+            XCTAssertEqual(error as? PreregisteredCalibrationExecutionError, .historicalPreregistrationInvalidated)
+        }
+    }
+
+    func testV5PolicySpecificFinalRunnerMutationRejectsOldSeal() throws {
+        let experiment = try PreregisteredCalibrationExperimentV5.current()
+        let runtime = try XCTUnwrap(try PreregisteredCalibrationRunnerV5(experiment: experiment).verifyOnly().first)
+        var changed = try V4CalibrationConfiguration(preregisteredRuntime: runtime.baseV4Runtime)
+        var preparationObject = try object(changed.preparationSemanticConfiguration!)
+        preparationObject = try replacing(preparationObject, path: ["proxyWidth"], with: 321)
+        changed.preparationSemanticConfiguration = try decoded(
+            V6PreparationSemanticConfiguration.self,
+            from: preparationObject
+        )
+        let changedBase = try changed.finalRunnerSemanticConfiguration()
+        let changedFinal = try V5FinalRunnerSemanticConfiguration(
+            policy: runtime.policy,
+            productionAdapterConfiguration: changedBase,
+            validationCorpusRequirement: experiment.validationCorpusRequirement
+        )
+        XCTAssertNotEqual(try changedFinal.canonicalSHA256(), runtime.sealedFinalRunnerSemanticHash)
+    }
+
+    func testV5CorpusCardinalityMutationDoesNotChangeShortlist() throws {
+        let base = try PreregisteredCalibrationExperimentV5.current()
+        let changed = try PreregisteredCalibrationExperimentV5(
+            seal: base.seal,
+            validationCorpusRequirement: V5ValidationCorpusRequirement(minimumValidationPairCount: 7)
+        )
+        XCTAssertEqual(base.candidateShortlistSize, 3)
+        XCTAssertEqual(changed.candidateShortlistSize, 3)
+        XCTAssertNotEqual(base.searchDefinitionHashV5, changed.searchDefinitionHashV5)
     }
 
     func testV4CanonicalizationIsStableAndFailClosed() throws {

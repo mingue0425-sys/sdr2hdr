@@ -1,20 +1,38 @@
+# PR #13 — V5 execution-bound preregistration
+
+V4 is historical and audit-invalidated. This V5 object is the current
+semantic-only preregistration. No media corpus, objective evaluation,
+Tune, Validation, or Frozen evaluation is included.
+
+- status: `PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY`
+- V4 source identity: `bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc` (`AUDIT_INVALIDATED`)
+- candidate shortlist: `3`
+- minimum validation corpus pairs: `6`
+- corpus identity: `NOT_YET_CREATED`
+- experiment binding: `NOT_YET_CREATED`
+
+```json
 {
-  "artifactVersion" : 4,
-  "colorScienceDefinitionHash" : "ebb8093fd84a84962e1ef9d09c305eb23a4350363e637d84e617b08934daf463",
+  "artifactVersion" : 5,
+  "bt1886FinalRunnerSemanticHash" : "ef9c88acb91ac0d42ee27b806007591f93de5f3231a80de276248b45761471a2",
+  "bt709FinalRunnerSemanticHash" : "bd7e4dcc95ac5db393278c2ee7aadef134dc8b8304c509a5e7c841755dbfe6d0",
+  "candidateShortlistSize" : 3,
+  "colorScienceDefinitionHashV5" : "057db1bf0d85ab954fee1a65ecbd331c471304cbb7a2209178155e604d724895",
   "corpusDefinitionHash" : "NOT_YET_CREATED",
   "correctnessBaseline" : "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
   "experimentBindingHash" : "NOT_YET_CREATED",
-  "gateDefinitionHash" : "f60288089864f6859a0fb387de104a5765ca1f1a82cdcc2b7b6975dcf7ba5844",
+  "gateDefinitionHashV5" : "eff07a7558d8d35a1a16def158721c9303bb74632029b6e6d7d394eae36f62e9",
   "invalidatedV2SearchDefinitionHash" : "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41",
   "invalidatedV3SearchDefinitionHash" : "7a2fcf82bb40b45f774d942dac62a57d5c75b7cba16b5415a295ed8a68db8889",
+  "invalidatedV4SearchDefinitionHash" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
   "mediaQualification" : "NOT_RUN",
-  "metricDefinitionHashV4" : "a2b3743ed807d5e23a486a4f1e43c17cfcc188671e4dfe1b92cbe7df876e833f",
+  "metricDefinitionHashV5" : "e91298bf754ddbd2729e0e0179ae7b8a93fc53e078769246788d685f920a40ea",
   "objectiveEvaluations" : 0,
-  "policyDefinitionHashV4" : "91fd0ae9bd784249d74944650aedc25c57bfe5a71dae061df292c76509cdb66f",
-  "preparationDefinitionHashV4" : "b66b876f23d7caf9a87f3b6b541afafddbf781a24c0cb3f0b84529d0e799012d",
-  "preregistrationInvalidated" : true,
+  "policyDefinitionHashV5" : "b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4",
+  "preparationDefinitionHashV5" : "bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2",
+  "preregistrationInvalidated" : false,
   "retiredV1SearchDefinitionHash" : "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
-  "runnerDefinitionHash" : "282fb562e72ff103dd2ffe67b91c624f3324a2d17601ee982437e4ffc361141a",
+  "runnerDefinitionHashV5" : "72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494",
   "seal" : {
     "colorScienceDefinitionHash" : "ebb8093fd84a84962e1ef9d09c305eb23a4350363e637d84e617b08934daf463",
     "gateDefinition" : {
@@ -1890,9 +1908,724 @@
     },
     "searchDefinitionHashV4" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc"
   },
-  "searchAlgorithmDefinitionHashV4" : "bdd85748ded85135cd0b8ac8cd261a65cf12e73e13c5d9ad9a069a3d66309db1",
-  "searchDefinitionHashV4" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
-  "status" : "AUDIT_INVALIDATED",
+  "searchAlgorithmDefinitionHashV5" : "64c00c0155a3f43c1bde3b5ec0374b69655c367580e85dc6c610d3ba6863c064",
+  "searchDefinition" : {
+    "baseV4SearchDefinition" : {
+      "colorScienceDefinitionHash" : "ebb8093fd84a84962e1ef9d09c305eb23a4350363e637d84e617b08934daf463",
+      "gateDefinition" : {
+        "candidateBlackCrushRatio" : {
+          "metric" : "blackCrushRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "candidateBlackCrushRatio"
+        },
+        "candidateClippingRatio" : {
+          "metric" : "clippingRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "candidateClippingRatio"
+        },
+        "candidateInvalidSampleCount" : {
+          "metric" : "invalidSampleCount",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "equal",
+          "threshold" : "zeroInvalidSampleCount"
+        },
+        "candidateObjectiveMustBeFinite" : true,
+        "candidatePerVideoCatastrophicCount" : {
+          "metric" : "perVideoCatastrophicCount",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "equal",
+          "threshold" : "zeroCount"
+        },
+        "candidateShadowError" : {
+          "metric" : "shadowError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "candidateShadowError"
+        },
+        "candidateShadowLiftRatio" : {
+          "metric" : "shadowLiftRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "candidateShadowLiftRatio"
+        },
+        "candidateTemporalFlicker" : {
+          "metric" : "temporalFlicker",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "candidateTemporalFlicker"
+        },
+        "catastrophicObjective" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "catastrophicObjective"
+        },
+        "catastrophicShadowError" : {
+          "metric" : "shadowError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "catastrophicShadowError"
+        },
+        "failurePolicy" : {
+          "candidateEvaluationError" : "abort",
+          "emptyShortlist" : "abort",
+          "missingMetric" : "reject",
+          "nonFiniteMetric" : "reject",
+          "partialPolicyFailure" : "abort",
+          "preparationFailure" : "abort"
+        },
+        "frozenImprovement" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "greaterThanOrEqual",
+          "threshold" : "frozenMinimumImprovement"
+        },
+        "frozenPerVideoRegressionCount" : {
+          "metric" : "perVideoRegressionCount",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "equal",
+          "threshold" : "zeroCount"
+        },
+        "gateEvaluationOrder" : [
+          "finite-objective",
+          "invalid-sample-count",
+          "clipping",
+          "black-crush",
+          "shadow-error",
+          "shadow-lift",
+          "temporal-flicker",
+          "per-video-catastrophic"
+        ],
+        "groupedObjective" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "groupedObjective"
+        },
+        "groupedShadowError" : {
+          "metric" : "shadowError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "groupedShadowError"
+        },
+        "groupedTemporalFlicker" : {
+          "metric" : "temporalFlicker",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "groupedTemporalFlicker"
+        },
+        "ordering" : {
+          "finalTieBreak" : "canonicalParameterVectorThenCandidateIDAscending",
+          "tuneKeys" : [
+            {
+              "direction" : "ascending",
+              "metric" : "objective"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "temporalFlicker"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "clippingRatio"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "nearBlackContrastLoss"
+            }
+          ],
+          "validationKeys" : [
+            {
+              "direction" : "ascending",
+              "metric" : "objective"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "temporalFlicker"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "clippingRatio"
+            },
+            {
+              "direction" : "ascending",
+              "metric" : "nearBlackContrastLoss"
+            }
+          ]
+        },
+        "overallImprovement" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "greaterThan",
+          "threshold" : "overallImprovement"
+        },
+        "perVideoObjective" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "perVideoObjective"
+        },
+        "perVideoShadowError" : {
+          "metric" : "shadowError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "perVideoShadowError"
+        },
+        "promotionPrecedence" : [
+          "hardSafety",
+          "completeness",
+          "datasetIntegrity",
+          "identifiability",
+          "relativeShadow",
+          "overall",
+          "shadow",
+          "temporal",
+          "transfer",
+          "family",
+          "frozen",
+          "runtime"
+        ],
+        "semanticVersion" : "sdr-gate-definition-v4",
+        "sensitivityShadowDelta" : {
+          "metric" : "shadowDelta",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "greaterThan",
+          "threshold" : "sensitivityShadowDeltaMinimum"
+        },
+        "sensitivityShadowMonotonic" : {
+          "metric" : "shadowLiftDelta",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "sensitivityShadowMonotonicTolerance"
+        },
+        "sensitivityTemporalDelta" : {
+          "metric" : "temporalDelta",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "greaterThan",
+          "threshold" : "sensitivityTemporalDeltaMinimum"
+        },
+        "validationBlackCrushRatio" : {
+          "metric" : "blackCrushRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineBlackCrushRatio"
+        },
+        "validationClippingRatio" : {
+          "metric" : "clippingRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineClippingRatio"
+        },
+        "validationHighlightError" : {
+          "metric" : "highlightError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineHighlightError"
+        },
+        "validationHueP95Error" : {
+          "metric" : "hueP95Error",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineHueP95Error"
+        },
+        "validationInvalidSampleCount" : {
+          "metric" : "invalidSampleCount",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "equal",
+          "threshold" : "zeroInvalidSampleCount"
+        },
+        "validationMidtoneError" : {
+          "metric" : "midtoneError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineMidtoneError"
+        },
+        "validationObjective" : {
+          "metric" : "objective",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThan",
+          "threshold" : "baselineObjective"
+        },
+        "validationPerVideoCatastrophicCount" : {
+          "metric" : "perVideoCatastrophicCount",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "equal",
+          "threshold" : "zeroCount"
+        },
+        "validationShadowError" : {
+          "metric" : "shadowError",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineShadowError"
+        },
+        "validationShadowLiftRatio" : {
+          "metric" : "shadowLiftRatio",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineShadowLiftRatio"
+        },
+        "validationTemporalFlicker" : {
+          "metric" : "temporalFlicker",
+          "missingValueAction" : "reject",
+          "nonFiniteAction" : "reject",
+          "operation" : "lessThanOrEqual",
+          "threshold" : "baselineTemporalFlicker"
+        }
+      },
+      "gateDefinitionHash" : "f60288089864f6859a0fb387de104a5765ca1f1a82cdcc2b7b6975dcf7ba5844",
+      "metricDefinitionHashV4" : "a2b3743ed807d5e23a486a4f1e43c17cfcc188671e4dfe1b92cbe7df876e833f",
+      "parameterBounds" : {
+        "contrastStrength" : [
+          0.5,
+          0.95
+        ],
+        "highlightStrength" : [
+          0.42,
+          0.86
+        ],
+        "paperWhiteNits" : [
+          190,
+          245
+        ],
+        "peakNits" : [
+          900,
+          1500
+        ],
+        "saturationCompensation" : [
+          0.1,
+          0.5
+        ],
+        "shadowProtection" : [
+          0.05,
+          1
+        ],
+        "temporalStability" : [
+          0.2,
+          0.98
+        ]
+      },
+      "policyCandidates" : [
+        "bt709SourceLinear",
+        "bt1886ReferenceDisplay"
+      ],
+      "policyDefinitionHashV4" : "91fd0ae9bd784249d74944650aedc25c57bfe5a71dae061df292c76509cdb66f",
+      "preparationDefinitionHashV4" : "b66b876f23d7caf9a87f3b6b541afafddbf781a24c0cb3f0b84529d0e799012d",
+      "runnerDefinition" : {
+        "baselineEvaluationDefinition" : {
+          "absoluteV3Preset" : {
+            "contrastStrength" : 0.8612941,
+            "highlightStrength" : 0.55232275,
+            "identifier" : "v3Absolute",
+            "paperWhiteNits" : 235,
+            "peakNits" : 1203.3646,
+            "saturationCompensation" : 0.27276167,
+            "shadowProtection" : 0.46563143,
+            "temporalStability" : 0.65599275,
+            "toneCurveRevision" : 1
+          },
+          "calibratedV1Preset" : {
+            "contrastStrength" : 0.72261286,
+            "highlightStrength" : 0.7680667,
+            "identifier" : "calibratedV1",
+            "paperWhiteNits" : 203,
+            "peakNits" : 1000,
+            "saturationCompensation" : 0.26359826,
+            "shadowProtection" : 0.94007397,
+            "temporalStability" : 0.8719273,
+            "toneCurveRevision" : 0
+          },
+          "calibratedV2Preset" : {
+            "contrastStrength" : 0.81415236,
+            "highlightStrength" : 0.5913241,
+            "identifier" : "calibratedV2",
+            "paperWhiteNits" : 222.02173,
+            "peakNits" : 1080.554,
+            "saturationCompensation" : 0.22561,
+            "shadowProtection" : 0.86211497,
+            "temporalStability" : 0.85478514,
+            "toneCurveRevision" : 0
+          },
+          "defaultPreset" : {
+            "contrastStrength" : 0.5,
+            "highlightStrength" : 0.55,
+            "identifier" : "default",
+            "paperWhiteNits" : 203,
+            "peakNits" : 1000,
+            "saturationCompensation" : 0.55,
+            "shadowProtection" : 0.85,
+            "temporalStability" : 0.9,
+            "toneCurveRevision" : 0
+          },
+          "relativeV4Preset" : {
+            "contrastStrength" : 0.81415236,
+            "highlightStrength" : 0.5913241,
+            "identifier" : "v4RelativeCenter",
+            "paperWhiteNits" : 222.02173,
+            "peakNits" : 1080.554,
+            "saturationCompensation" : 0.22561,
+            "shadowProtection" : 0.86211497,
+            "temporalStability" : 0.85478514,
+            "toneCurveRevision" : 2
+          },
+          "semanticVersion" : "sdr-v4-baseline-evaluation-definition-v1"
+        },
+        "configurationVersion" : "calibration-v4-preregistered-v4",
+        "holdoutDefinition" : {
+          "attempt1State" : "INCOMPLETE",
+          "consumedAssetPairs" : {
+            "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg" : {
+              "hdrSHA256" : "08bd66aa6dff1581749e7a4187ed2057d9b4812a033777f5c589d8aaf48fea01",
+              "sdrSHA256" : "45e2d38d3122af86f5f4e1f852ab7af5be88400cc9f151e97cf18409ed35ee90"
+            },
+            "live_8_drawing_3840x2160_15000k" : {
+              "hdrSHA256" : "79dd519125a1de4326ce953adf023eee4def02b238bf59ea141cd0a28e1d4f5c",
+              "sdrSHA256" : "ed8d37964618df3989c157018c2ecd5ac81924632510e7074e743fcdc54719ee"
+            },
+            "solemates_unh0400_0010" : {
+              "hdrSHA256" : "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136",
+              "sdrSHA256" : "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c"
+            }
+          },
+          "consumedPairIDs" : [
+            "dvb_live_linear_caminandes_hevc_uhd_sdr_hlg",
+            "live_8_drawing_3840x2160_15000k",
+            "solemates_unh0400_0010"
+          ],
+          "objectiveMetricsObserved" : false,
+          "objectivePixelsRead" : false,
+          "procedurallyConsumed" : true,
+          "retryPermitted" : false,
+          "semanticVersion" : "v6-virgin-holdout-exclusion-v2"
+        },
+        "inputFallbackPolicy" : "bt709VideoRange",
+        "minimumDistinctVirginFrozenFamilies" : 2,
+        "minimumVirginFrozenPairs" : 3,
+        "outputMode" : "EDR",
+        "requiredCoverage" : [
+          {
+            "requiredFamilies" : [
+              "K-Choreo",
+              "LIVE"
+            ],
+            "requiredTransfers" : [
+              "HLG",
+              "PQ"
+            ],
+            "split" : "tune"
+          },
+          {
+            "requiredFamilies" : [
+              "K-Choreo",
+              "LIVE"
+            ],
+            "requiredTransfers" : [
+              "HLG",
+              "PQ"
+            ],
+            "split" : "validation"
+          },
+          {
+            "requiredFamilies" : [
+
+            ],
+            "requiredTransfers" : [
+              "HLG",
+              "PQ"
+            ],
+            "split" : "frozen"
+          }
+        ],
+        "requiredTunePairCount" : 5,
+        "requiredValidationPairCount" : 3,
+        "semanticVersion" : "sdr-runner-definition-v4",
+        "stableFamilyOrderingRule" : "family-key-ascending-UTF8-before-floating-point-reduction",
+        "temporalWindowPolicy" : {
+          "minimumRequiredFrameCount" : 8,
+          "targetFrameCount" : 16,
+          "warmupFrameCount" : 1,
+          "weightingPolicy" : "EQUAL_SCENE_WINDOW_WEIGHT;FRAMES_WITHIN_WINDOW_ONLY"
+        },
+        "toneCurveRevision" : 2,
+        "toneMapping" : {
+          "chromaReductionCoefficient" : 0.35,
+          "chromaReductionLuminanceStart" : 1,
+          "chromaReductionPeakRatioMinimum" : 1.001,
+          "chromaScaleMaximum" : 1,
+          "chromaScaleMinimum" : 0,
+          "defaultShadowAttenuationCoefficient" : 0.18,
+          "defaultShadowFadeLower" : 0.12,
+          "defaultShadowFadeUpper" : 0.48,
+          "defaultShadowPresenceLower" : 0.002,
+          "defaultShadowPresenceUpper" : 0.025,
+          "gamutDenominatorFloor" : 1e-06,
+          "gamutLuminanceFloor" : 0,
+          "inputLuminanceMaximum" : 1,
+          "inputLuminanceMinimum" : 0,
+          "legacyShadowGateLower" : 0.035,
+          "legacyShadowGateUpper" : 0.48,
+          "outputLuminanceMinimum" : 0,
+          "sceneStatistics" : {
+            "adaptationAverageCenter" : 0.5,
+            "adaptationBase" : 0.94,
+            "adaptationCoefficient" : 0.12,
+            "adaptationMaximum" : 1.06,
+            "adaptationMinimum" : 0.9,
+            "averageClampMaximum" : 1,
+            "averageClampMinimum" : 0.001,
+            "emptyAverage" : 0.5,
+            "histogramBinCount" : 64,
+            "histogramLogMaximumExponent" : 0,
+            "histogramLogMinimumExponent" : -16,
+            "histogramUpperExclusive" : 0.999999,
+            "inputMaximum" : 1,
+            "inputMinimum" : 0,
+            "linear16HistogramBinCount" : 16,
+            "lowMidExpansionCoefficient" : 0.08,
+            "maximumContinuousDeltaSeconds" : 0.5,
+            "minimumQuantileCount" : 1,
+            "neutralPercentiles" : [
+              0.002,
+              0.01,
+              0.025,
+              0.2,
+              0.5,
+              0.9,
+              1
+            ],
+            "proxyHeight" : 9,
+            "proxyWidth" : 16,
+            "quantileFractions" : [
+              0.01,
+              0.05,
+              0.1,
+              0.25,
+              0.5,
+              0.9,
+              0.99
+            ],
+            "quantizationMaximum" : 65535,
+            "quantizationRounding" : 0.5,
+            "referenceFrameDurationSeconds" : 0.016666666666666666,
+            "samplePositionRule" : "center-of-cell-floor-clamped",
+            "sceneCutLog2Threshold" : 1.25,
+            "sceneCutLuminanceFloor" : 0.001,
+            "shadowDenseBreakpoint" : 0.125,
+            "shadowDenseLowerBinCount" : 32,
+            "shadowDenseUpperSpan" : 0.875,
+            "shadowFloorFallback" : 0.01,
+            "shadowFloorMaximum" : 0.2,
+            "shadowFloorMinimum" : 0.001,
+            "shadowProtectionCoefficient" : 0.9,
+            "shadowTopFallback" : 0.1125,
+            "shadowTopInterpolation" : 0.5,
+            "shadowTopMaximum" : 0.6,
+            "shadowTopMinimumDelta" : 0.025,
+            "timeConstantFallbackSeconds" : 1000000,
+            "timeConstantMinimumSeconds" : 1e-06,
+            "timeConstantStabilityFloor" : 1e-06,
+            "version" : "hdr-scene-statistics-v4"
+          },
+          "shoulderContrastCoefficient" : 0.2,
+          "shoulderStartBase" : 0.68,
+          "smoothstepDenominatorFloor" : 1e-06,
+          "smoothstepLinearCoefficient" : 3,
+          "smoothstepQuadraticCoefficient" : 2,
+          "version" : "calibration-tone-mapping-v4"
+        },
+        "unclassifiedFamilyKey" : "UNCLASSIFIED"
+      },
+      "runnerDefinitionHash" : "282fb562e72ff103dd2ffe67b91c624f3324a2d17601ee982437e4ffc361141a",
+      "safetyThresholds" : {
+        "catastrophicSceneRegression" : 0.2,
+        "frozenMinimumImprovement" : 0.05,
+        "frozenPerVideoRegressionTolerance" : 0.02,
+        "groupedObjectiveRelativeTolerance" : 0.05,
+        "groupedTemporalFlickerRelativeTolerance" : 0.05,
+        "highlightRelativeTolerance" : 0.05,
+        "hueRelativeTolerance" : 0.05,
+        "midtoneRelativeTolerance" : 0.05,
+        "overallImprovementMinimum" : 0,
+        "runtime" : {
+          "absoluteToleranceMilliseconds" : 0.1,
+          "cpuP95RelativeTolerance" : 0.15,
+          "gpuP50RelativeTolerance" : 0.08,
+          "gpuP95RelativeTolerance" : 0.1,
+          "height" : 1080,
+          "measuredFrames" : 300,
+          "p50Fraction" : 0.5,
+          "p95Fraction" : 0.95,
+          "p99Fraction" : 0.99,
+          "regressionComparison" : "lessThanOrEqual",
+          "warmupFrames" : 30,
+          "width" : 1920
+        },
+        "sensitivityShadowDeltaMinimum" : 0.002,
+        "sensitivityShadowMonotonicTolerance" : 0.01,
+        "sensitivityTemporalDeltaMinimum" : 1e-05,
+        "shadowErrorTolerance" : 0.01,
+        "shadowLiftTolerance" : 0.005,
+        "temporalFlickerAbsoluteTolerance" : 0.002,
+        "temporalFlickerRelativeTolerance" : 0.05,
+        "validationHighlightAbsoluteTolerance" : 0.005,
+        "validationHueAbsoluteTolerance" : 0.002,
+        "validationMidtoneAbsoluteTolerance" : 0.005,
+        "zeroCount" : 0,
+        "zeroTolerance" : 1e-06
+      },
+      "searchAlgorithmDefinition" : {
+        "duplicateHandling" : "retainAndStableRank",
+        "globalCandidateCount" : 128,
+        "globalHaltonBases" : [
+          2,
+          3,
+          5,
+          7,
+          11,
+          13,
+          17
+        ],
+        "globalParentCount" : 8,
+        "globalSamplingDistribution" : "haltonAffineBounds",
+        "localCandidateCount" : 64,
+        "localHaltonBases" : [
+          19,
+          23,
+          29,
+          31,
+          37,
+          41,
+          43
+        ],
+        "localNeighborhoodRadius" : 0.1,
+        "localRefinementParentSelection" : "topGatePassingGlobalThenCyclic",
+        "localSamplingDistribution" : "haltonNeighborhoodAffineClamp",
+        "parameterRepresentation" : {
+          "dimensionOrder" : [
+            "paperWhiteNits",
+            "peakNits",
+            "highlightStrength",
+            "contrastStrength",
+            "saturationCompensation",
+            "shadowProtection",
+            "temporalStability"
+          ],
+          "finiteOnly" : true,
+          "globalSamplingRule" : "affineClosedRangeThenFloat32Cast",
+          "localSamplingRule" : "neighborhoodAffineClampThenFloat32Cast",
+          "numericType" : "float32Runtime"
+        },
+        "phaseOrdering" : [
+          "sensitivity",
+          "global",
+          "local"
+        ],
+        "seedDerivation" : "candidateIndexPlusOnePlusSeedModuloIndexModulus",
+        "seedIndexModulus" : 104729,
+        "semanticVersion" : "sdr-search-algorithm-definition-v4",
+        "sensitivityAxes" : [
+          {
+            "measure" : "shadowLiftRatio",
+            "monotonicRule" : "consecutiveDeltaLessThanOrEqualTolerance",
+            "parameter" : "shadowProtection",
+            "probeOrdering" : "ascendingProbeValue"
+          },
+          {
+            "measure" : "temporalFlickerPlusHighlightPumping",
+            "monotonicRule" : "notApplicable",
+            "parameter" : "temporalStability",
+            "probeOrdering" : "ascendingProbeValue"
+          }
+        ],
+        "sensitivityIncludedInCandidateBudget" : false,
+        "sensitivityProbeValues" : [
+          0,
+          0.25,
+          0.5,
+          0.75,
+          1
+        ],
+        "totalCandidatesPerPolicy" : 192
+      },
+      "searchAlgorithmDefinitionHashV4" : "bdd85748ded85135cd0b8ac8cd261a65cf12e73e13c5d9ad9a069a3d66309db1",
+      "searchBudgetPerPolicy" : 192,
+      "seed" : 20260912,
+      "semanticVersion" : "sdr-search-definition-v4",
+      "shortlistSize" : 3,
+      "splitSeed" : 92
+    },
+    "bt1886FinalRunnerSemanticHash" : "ef9c88acb91ac0d42ee27b806007591f93de5f3231a80de276248b45761471a2",
+    "bt709FinalRunnerSemanticHash" : "bd7e4dcc95ac5db393278c2ee7aadef134dc8b8304c509a5e7c841755dbfe6d0",
+    "candidatePolicies" : [
+      "bt709SourceLinear",
+      "bt1886ReferenceDisplay"
+    ],
+    "candidateShortlistSize" : 3,
+    "colorScienceDefinitionHashV5" : "057db1bf0d85ab954fee1a65ecbd331c471304cbb7a2209178155e604d724895",
+    "gateDefinitionHashV5" : "eff07a7558d8d35a1a16def158721c9303bb74632029b6e6d7d394eae36f62e9",
+    "invalidatedV4SearchDefinitionHash" : "bdbf705973fa43f92ab60435bfa04dc1656fdf52c4a8687070d1185b30c809fc",
+    "metricDefinitionHashV5" : "e91298bf754ddbd2729e0e0179ae7b8a93fc53e078769246788d685f920a40ea",
+    "policyDefinitionHashV5" : "b6e7317ea0f388b0da550e159f502550231d67183c1bbb3edfd6b5232f1985a4",
+    "preparationDefinitionHashV5" : "bd22964e304b9b586404458c866e5365644bddae3da61510a1ed18149a8c8eb2",
+    "runnerDefinitionHashV5" : "72146bab5ae31605ca2ddfdb00752195fdacbbd7a29dc395acf37a9b2d02d494",
+    "searchAlgorithmDefinitionHashV5" : "64c00c0155a3f43c1bde3b5ec0374b69655c367580e85dc6c610d3ba6863c064",
+    "searchBudgetPerPolicy" : 192,
+    "seed" : 20260912,
+    "semanticVersion" : "sdr-search-definition-v5",
+    "splitSeed" : 92,
+    "validationCorpusRequirement" : {
+      "coverageRule" : "minimum-cardinality-plus-preregistered-structural-coverage",
+      "familyDisjointRoles" : true,
+      "minimumValidationPairCount" : 6,
+      "requiredFamilyLabels" : [
+        "LIVE"
+      ],
+      "semanticVersion" : "sdr-validation-corpus-requirement-v5"
+    }
+  },
+  "searchDefinitionHashV5" : "6ae84a8a245858c2328bfe2c80811f12cdd1375e86109ec2f83d4bd3a6cdb43e",
+  "status" : "PREREGISTERED_V5_EXECUTION_BOUND_SEMANTIC_ONLY",
   "tune" : "NOT_RUN",
-  "validation" : "NOT_RUN"
+  "validation" : "NOT_RUN",
+  "validationCorpusRequirement" : {
+    "coverageRule" : "minimum-cardinality-plus-preregistered-structural-coverage",
+    "familyDisjointRoles" : true,
+    "minimumValidationPairCount" : 6,
+    "requiredFamilyLabels" : [
+      "LIVE"
+    ],
+    "semanticVersion" : "sdr-validation-corpus-requirement-v5"
+  }
 }
+```

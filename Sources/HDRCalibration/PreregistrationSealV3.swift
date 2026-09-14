@@ -717,7 +717,7 @@ public enum PreregisteredCalibrationExecutionError: Error, LocalizedError, Equat
         case .mediaExecutionDisabledForVerification:
             return "media execution is disabled for this verify-only task"
         case .historicalPreregistrationInvalidated:
-            return "historical V3 preregistration is audit-invalidated; use the V4 execution-bound runner"
+            return "historical preregistration is audit-invalidated and cannot execute; use the current versioned seal"
         }
     }
 }

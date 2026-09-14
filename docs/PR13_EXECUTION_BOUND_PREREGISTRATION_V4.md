@@ -3,7 +3,7 @@
 This document is generated from `PreregisteredCalibrationExperimentV4` and its typed semantic objects. It is a semantic-only rebase artifact; no corpus has been qualified and no objective evaluation has been performed.
 
 - artifact version: 4
-- status: `PREREGISTERED_V4_EXECUTION_BOUND_SEMANTIC_ONLY`
+- status: `AUDIT_INVALIDATED`
 - correctness baseline: `bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9`
 - V1 status: `RETIRED_INVALIDATED` (`7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608`)
 - V2 status: `AUDIT_INVALIDATED` (`3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41`)

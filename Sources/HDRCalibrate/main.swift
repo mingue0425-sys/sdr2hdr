@@ -214,8 +214,10 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
       HDRCalibrate preregister-v2 --output results/calibration-rebase-preregistration-v2.json (retired; rejects)
       HDRCalibrate preregister-v3 --output results/calibration-rebase-preregistration-v3.json (audit-invalidated; rejects)
-      HDRCalibrate preregister-v4 --output results/calibration-rebase-preregistration-v4.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V4.md]
+      HDRCalibrate preregister-v4 --output results/calibration-rebase-preregistration-v4.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V4.md] (historical; invalidated)
+      HDRCalibrate preregister-v5 --output results/calibration-rebase-preregistration-v5.json [--documentation docs/PR13_EXECUTION_BOUND_PREREGISTRATION_V5.md]
       HDRCalibrate run-preregistered --verify-only --preregistration results/calibration-rebase-preregistration-v4.json
+      HDRCalibrate run-preregistered-v5 --verify-only --preregistration results/calibration-rebase-preregistration-v5.json
       HDRCalibrate verify-prepared-plan --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --policy bt709SourceLinear
       HDRCalibrate verify-prepared-plan-structure --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -292,6 +294,39 @@ private func run(arguments: [String]) async throws {
         print("preregistration: \(cli.output.path)")
         return
     }
+    if cli.command == "preregister-v5" {
+        let artifact = try PreregisteredCalibrationExperimentV5.current()
+        try artifact.validateAgainstCurrentSemantics()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.nonConformingFloatEncodingStrategy = .throw
+        try FileManager.default.createDirectory(
+            at: cli.output.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(artifact).write(to: cli.output, options: .atomic)
+        if let documentation = cli.documentation {
+            try FileManager.default.createDirectory(
+                at: documentation.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try artifact.humanReadableDocumentation().write(to: documentation, atomically: true, encoding: .utf8)
+        }
+        print("ColorScienceDefinitionHashV5: \(artifact.colorScienceDefinitionHashV5)")
+        print("PolicyDefinitionHashV5: \(artifact.policyDefinitionHashV5)")
+        print("PreparationDefinitionHashV5: \(artifact.preparationDefinitionHashV5)")
+        print("MetricDefinitionHashV5: \(artifact.metricDefinitionHashV5)")
+        print("GateDefinitionHashV5: \(artifact.gateDefinitionHashV5)")
+        print("SearchAlgorithmDefinitionHashV5: \(artifact.searchAlgorithmDefinitionHashV5)")
+        print("RunnerDefinitionHashV5: \(artifact.runnerDefinitionHashV5)")
+        print("BT709FinalRunnerSemanticHash: \(artifact.bt709FinalRunnerSemanticHash)")
+        print("BT1886FinalRunnerSemanticHash: \(artifact.bt1886FinalRunnerSemanticHash)")
+        print("SearchDefinitionHashV5: \(artifact.searchDefinitionHashV5)")
+        print("CorpusDefinitionHash: NOT_YET_CREATED")
+        print("ExperimentBindingHash: NOT_YET_CREATED")
+        print("preregistration: \(cli.output.path)")
+        return
+    }
     if cli.command == "run-preregistered" {
         guard cli.verifyOnly else {
             throw PreregisteredCalibrationExecutionError.mediaExecutionDisabledForVerification
@@ -327,6 +362,42 @@ private func run(arguments: [String]) async throws {
         print("global/local candidates per policy: \(runtimes[0].globalCandidates)/\(runtimes[0].localCandidates)")
         print("budget per policy: \(runtimes[0].totalCandidatesPerPolicy)")
         print("shortlist: \(runtimes[0].shortlistSize)")
+        print("objective evaluations: 0")
+        print("media execution: NOT RUN")
+        return
+    }
+    if cli.command == "run-preregistered-v5" {
+        guard cli.verifyOnly else {
+            throw PreregisteredCalibrationExecutionError.mediaExecutionDisabledForVerification
+        }
+        guard !cli.seedWasProvided,
+              !cli.selectionCountWasProvided,
+              !cli.policyWasProvided,
+              cli.manifest == nil,
+              cli.candidate == nil,
+              cli.preparedPlan == nil,
+              cli.preparedFrozenPlan == nil,
+              cli.root == nil,
+              !cli.dryRun else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
+        let preregistrationURL = cli.preregistration ?? URL(
+            fileURLWithPath: "results/calibration-rebase-preregistration-v5.json",
+            relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        ).standardizedFileURL
+        let artifact = try JSONDecoder().decode(
+            PreregisteredCalibrationExperimentV5.self,
+            from: Data(contentsOf: preregistrationURL)
+        )
+        let runtimes = try PreregisteredCalibrationRunnerV5(experiment: artifact).verifyOnly()
+        print("V5 preregistered execution binding: PASS")
+        print("runtime derived from seal: YES")
+        print("policy-specific final runner identity match: PASS")
+        print("candidate policies: \(runtimes.map { $0.policy.rawValue }.joined(separator: ", "))")
+        print("global/local candidates per policy: \(runtimes[0].baseV4Runtime.globalCandidates)/\(runtimes[0].baseV4Runtime.localCandidates)")
+        print("budget per policy: \(runtimes[0].baseV4Runtime.totalCandidatesPerPolicy)")
+        print("candidate shortlist: \(artifact.candidateShortlistSize)")
+        print("validation corpus minimum pairs: \(artifact.validationCorpusRequirement.minimumValidationPairCount)")
         print("objective evaluations: 0")
         print("media execution: NOT RUN")
         return

@@ -1260,7 +1260,9 @@ public struct SDRCalibrationSemanticSealV4: Codable, Hashable, Sendable {
 
 public struct PreregisteredCalibrationExperimentV4: Codable, Hashable, Sendable {
     public static let artifactVersion = 4
-    public static let currentStatus = "PREREGISTERED_V4_EXECUTION_BOUND_SEMANTIC_ONLY"
+    /// V4 is retained only as a reproducible historical audit artifact.  It
+    /// is never an executable/current preregistration again.
+    public static let currentStatus = "AUDIT_INVALIDATED"
 
     public let artifactVersion: Int
     public let status: String
@@ -1294,7 +1296,7 @@ public struct PreregisteredCalibrationExperimentV4: Codable, Hashable, Sendable 
     ) {
         self.artifactVersion = Self.artifactVersion
         self.status = Self.currentStatus
-        self.preregistrationInvalidated = false
+        self.preregistrationInvalidated = true
         self.correctnessBaseline = correctnessBaseline
         self.seal = seal
         self.policyDefinitionHashV4 = seal.policyDefinitionHashV4
@@ -1323,7 +1325,7 @@ public struct PreregisteredCalibrationExperimentV4: Codable, Hashable, Sendable 
     public func validate() throws {
         guard artifactVersion == Self.artifactVersion,
               status == Self.currentStatus,
-              !preregistrationInvalidated,
+              preregistrationInvalidated,
               correctnessBaseline == "bcdb2d151d67bd8e828fb5f5893ff6e548dc32d9",
               retiredV1SearchDefinitionHash == "7cdb4cebb6298245e5967f4b81add827831bd0942dc7477498b09e497cf92608",
               invalidatedV2SearchDefinitionHash == "3ba6890fe50740809fd26269517852154b1f9998a5ed0636fee8a719fb024b41",
@@ -1525,17 +1527,28 @@ public struct V4PreregisteredCalibrationRuntimeConfiguration: Codable, Hashable,
         policy: SDRInputInterpretationPolicy
     ) throws {
         try experiment.validate()
-        guard experiment.seal.searchDefinition.policyCandidates.contains(policy) else {
+        throw PreregisteredCalibrationExecutionError.historicalPreregistrationInvalidated
+    }
+
+    /// V5 migration boundary. It reuses the typed V4 semantic seal and the
+    /// production adapter without making the invalidated V4 artifact
+    /// executable.
+    public init(
+        seal: SDRCalibrationSemanticSealV4,
+        experimentSearchDefinitionHashV4: String,
+        policy: SDRInputInterpretationPolicy
+    ) throws {
+        guard seal.searchDefinition.policyCandidates.contains(policy) else {
             throw PreregisteredCalibrationExecutionError.policyNotPreregistered
         }
-        let search = experiment.seal.searchDefinition
-        self.experimentSearchDefinitionHashV4 = experiment.searchDefinitionHashV4
+        let search = seal.searchDefinition
+        self.experimentSearchDefinitionHashV4 = experimentSearchDefinitionHashV4
         self.policy = policy
-        self.preparation = experiment.seal.preparationDefinition.configuration.forInterpretationPolicy(policy)
-        self.metric = experiment.seal.metricDefinition.configuration
-        self.colorScience = experiment.seal.metricDefinition.configuration.colorScience
-        self.toneMapping = experiment.seal.searchDefinition.runnerDefinition.toneMapping
-        self.gateDefinition = experiment.seal.gateDefinition
+        self.preparation = seal.preparationDefinition.configuration.forInterpretationPolicy(policy)
+        self.metric = seal.metricDefinition.configuration
+        self.colorScience = seal.metricDefinition.configuration.colorScience
+        self.toneMapping = seal.searchDefinition.runnerDefinition.toneMapping
+        self.gateDefinition = seal.gateDefinition
         self.searchAlgorithmDefinition = search.searchAlgorithmDefinition
         self.runnerDefinition = search.runnerDefinition
         self.searchSeed = search.seed
@@ -1547,7 +1560,7 @@ public struct V4PreregisteredCalibrationRuntimeConfiguration: Codable, Hashable,
         self.parameterBounds = search.parameterBounds
         self.safetyThresholds = search.safetyThresholds
         self.semanticIdentity = try Self.identity(
-            experimentSearchDefinitionHashV4: experiment.searchDefinitionHashV4,
+            experimentSearchDefinitionHashV4: experimentSearchDefinitionHashV4,
             policy: policy,
             preparation: preparation,
             metric: metric,
@@ -1613,7 +1626,7 @@ public final class PreregisteredCalibrationRunnerV4 {
 
     public init(experiment: PreregisteredCalibrationExperimentV4) throws {
         try experiment.validate()
-        self.experiment = experiment
+        throw PreregisteredCalibrationExecutionError.historicalPreregistrationInvalidated
     }
 
     public func verifyOnly() throws -> [V4PreregisteredCalibrationRuntimeConfiguration] {
