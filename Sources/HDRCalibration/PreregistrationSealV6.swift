@@ -372,10 +372,14 @@ public struct V6PreregisteredCalibrationRuntimeConfiguration: Sendable {
         guard experiment.searchDefinition.candidatePolicies.contains(policy) else {
             throw PreregisteredCalibrationExecutionError.policyNotPreregistered
         }
+        let currentSeal = try SDRCalibrationSemanticSealV4.current()
+        guard experiment.seal == currentSeal else {
+            throw PreregisteredCalibrationExecutionError.preregistrationMismatch
+        }
         v6RuntimeVerificationTrace("before V4 runtime adapter")
         let base = try V4PreregisteredCalibrationRuntimeConfiguration(
-            seal: experiment.seal,
-            experimentSearchDefinitionHashV4: experiment.seal.searchDefinitionHashV4,
+            seal: currentSeal,
+            experimentSearchDefinitionHashV4: currentSeal.searchDefinitionHashV4,
             policy: policy
         )
         v6RuntimeVerificationTrace("after V4 runtime adapter")
