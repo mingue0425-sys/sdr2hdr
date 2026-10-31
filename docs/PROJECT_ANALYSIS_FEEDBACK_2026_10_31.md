@@ -122,3 +122,35 @@ BT.1886(≈ gamma 2.4) 디스플레이 기준으로 마스터링된다. 신호 0
 전반적으로 신호 처리 코어와 검증 문화는 매우 좋은 수준이다. 다만 정밀한 측정 장치가
 **아직 고정되지 않은 기준 위에서** 돌고 있다. 기준(입력 규약)을 먼저 확정하고
 장치를 줄이는 쪽으로 방향을 잡으면 프로젝트가 production 단계로 훨씬 빨리 갈 것이다.
+
+## 6. 진행 현황 (후속 커밋)
+
+### P0 1단계: 입력 해석 정책 도입 (완료, 기본 동작 변경 없음)
+
+- `HDRSDRInputInterpretation`을 추가했다(`Sources/HDRCore/ColorManagement.swift`).
+  - `.sceneReferredInverseOETF`: 기존 동작이며 production 기본값이다.
+  - `.displayReferredBT1886(gamma:)`: `.bt1886`은 gamma 2.4다. BT.709 태그 입력에만 적용된다.
+- `HDRConfiguration.sdrInputInterpretation` 필드를 추가했다. 기본값은 기존 동작이고,
+  `validated()`가 gamma 범위 1...4와 유한성을 검사한다.
+- `HDRProcessor.makeShaderParameters`에서 정책을 적용한다. 셰이더 파일은 수정하지 않았다.
+  기존 `transferFunction == 2`(power-law) 경로를 재사용하므로 변환 커널과
+  temporal/scene estimator가 같은 선형화를 쓴다.
+- CPU 기준 구현 `HDRReference.process`에도 같은 정책을 적용해 GPU와 parity를 유지한다.
+- `OfflinePixelSampler.linearLumaGrid`에 `interpretation:` 인자를 추가했다. 기본값은 기존 동작이다.
+- `HDRPlayer --sdr-input scene-inverse-oetf|bt1886` 옵션으로 실제 디스플레이에서 A/B 비교를 할 수 있다.
+  SDR fallback 설정도 선택한 정책을 유지한다.
+- 테스트를 추가했다.
+  - `Tests/HDRCoreTests/SDRInputInterpretationTests.swift`: 기본값 불변, 매핑, 검증,
+    scalar 결과, Metal GPU 결과를 독립 수식과 대조한다.
+  - `Tests/HDRPlayerTests/SDRInputInterpretationOptionTests.swift`: CLI 파싱과
+    설정 전달, SDR fallback 유지를 확인한다.
+
+이 커밋은 Swift 툴체인이 없는 Linux 환경에서 작성했기 때문에 컴파일과 테스트는 macOS CI에서 확인해야 한다.
+
+### P0 2단계: 남은 작업
+
+1. `HDRCalibration`의 Tune/Validation evaluator가 정책을 받도록 연결한다
+   (`Evaluation.swift`의 `linearLumaGrid` 호출부, `HDRSceneStatistics`의 `inverseBT709` 고정 경로,
+   `Decode.swift:320`). 정책 식별자는 prepared plan의 preparation configuration에 포함해야 한다.
+2. `.bt1886` 기준 후보를 Tune에서 탐색하고 Validation에서 V4와 비교한다. Frozen은 사용하지 않는다.
+3. 결과에 따라 production 기본값을 바꿀지 결정한다. 바꾸면 preset 이름도 새로 붙인다.

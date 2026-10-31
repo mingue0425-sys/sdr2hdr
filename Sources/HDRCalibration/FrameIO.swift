@@ -721,7 +721,8 @@ public enum OfflinePixelSampler {
     public static func linearLumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        interpretation: HDRSDRInputInterpretation = .production
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -737,6 +738,7 @@ public enum OfflinePixelSampler {
                 ? .bt709FullRange : .bt709VideoRange
         )
         let matrix = metadata.yCbCrMatrix
+        let transferFunction = interpretation.effectiveTransfer(for: metadata.transferFunction)
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -745,7 +747,7 @@ public enum OfflinePixelSampler {
         var result = [Float](repeating: 0, count: width * height)
 
         func inverse(_ value: Float) -> Float {
-            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: metadata.transferFunction)
+            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: transferFunction)
         }
 
         func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {

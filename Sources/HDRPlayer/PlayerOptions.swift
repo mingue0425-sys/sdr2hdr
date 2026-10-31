@@ -50,6 +50,7 @@ public struct PlayerOptions: Equatable, Sendable {
     public var v62Candidate: HDRV62ToneCurveCandidate
     public var decodePrecision: HDRDecodePrecision
     public var chromaReconstructionMode: HDRChromaReconstructionMode
+    public var sdrInputInterpretation: HDRSDRInputInterpretation
 
     public init(
         inputURL: URL? = nil,
@@ -67,7 +68,8 @@ public struct PlayerOptions: Equatable, Sendable {
         v6Candidate: HDRV6ToneCurveCandidate = .bandLimited055,
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
         decodePrecision: HDRDecodePrecision = .automatic,
-        chromaReconstructionMode: HDRChromaReconstructionMode = .nearest
+        chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
+        sdrInputInterpretation: HDRSDRInputInterpretation = .production
     ) {
         self.inputURL = inputURL
         self.preset = preset
@@ -85,6 +87,7 @@ public struct PlayerOptions: Equatable, Sendable {
         self.v62Candidate = v62Candidate
         self.decodePrecision = decodePrecision
         self.chromaReconstructionMode = chromaReconstructionMode
+        self.sdrInputInterpretation = sdrInputInterpretation
     }
 
     public static var usage: String {
@@ -96,6 +99,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --debug --diagnostic-json
           HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
+          HDRPlayer <video-file> --sdr-input scene-inverse-oetf|bt1886
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
@@ -186,6 +190,17 @@ public struct PlayerOptions: Equatable, Sendable {
                     throw HDRPlayerCLIError.invalidOption("unsupported chroma reconstruction: \(value)")
                 }
                 index += 2
+            case "--sdr-input":
+                let value = try valueAfter(argument, arguments: arguments, index: index).lowercased()
+                switch value {
+                case "scene-inverse-oetf", "oetf":
+                    options.sdrInputInterpretation = .sceneReferredInverseOETF
+                case "bt1886", "bt.1886":
+                    options.sdrInputInterpretation = .bt1886
+                default:
+                    throw HDRPlayerCLIError.invalidOption("unsupported SDR input interpretation: \(value)")
+                }
+                index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 let seconds = try parsePositive(value)
@@ -228,6 +243,7 @@ public struct PlayerOptions: Equatable, Sendable {
         if let peakNits { configuration.peakNits = peakNits }
         configuration.inputFallbackPolicy = .bt709VideoRange
         configuration.chromaReconstructionMode = chromaReconstructionMode
+        configuration.sdrInputInterpretation = sdrInputInterpretation
         return try configuration.validated()
     }
 

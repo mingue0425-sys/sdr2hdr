@@ -9,6 +9,53 @@ public enum HDRTransferFunction: Equatable, Sendable {
     case linear
 }
 
+/// Versioned policy for linearizing BT.709-tagged SDR signal.
+///
+/// The CoreVideo BT.709 transfer tag names the camera OETF, but SDR video is
+/// normally graded on a BT.1886 display. The two interpretations differ by
+/// roughly 37% at signal 0.5 (0.2596 vs 0.1895 relative linear light) before
+/// any tone expansion, so this is a calibration-relevant input-domain choice,
+/// not a cosmetic one.
+///
+/// `sceneReferredInverseOETF` is the historical behavior and remains the
+/// production default; every existing preset and calibration score was
+/// produced under it. `displayReferredBT1886` applies the BT.1886 EOTF with
+/// zero black level (a pure power law) to BT.709-tagged input only. sRGB,
+/// explicit-gamma, and linear tags are honored unchanged under either policy.
+public enum HDRSDRInputInterpretation: Equatable, Sendable {
+    case sceneReferredInverseOETF
+    case displayReferredBT1886(gamma: Float)
+
+    public static let production: HDRSDRInputInterpretation = .sceneReferredInverseOETF
+    /// ITU-R BT.1886 reference EOTF exponent with an ideal (zero) black level.
+    public static let bt1886 = HDRSDRInputInterpretation.displayReferredBT1886(gamma: 2.4)
+    public static let bt1886GammaRange: ClosedRange<Float> = 1.0...4.0
+
+    /// Stable identifier for logs, CLI options, and evaluation provenance.
+    public var identifier: String {
+        switch self {
+        case .sceneReferredInverseOETF:
+            return "scene-inverse-oetf"
+        case .displayReferredBT1886(let gamma):
+            return gamma == 2.4 ? "bt1886" : "bt1886-gamma-\(gamma)"
+        }
+    }
+
+    /// The transfer function actually applied to a source whose metadata
+    /// resolved to `tagged`.
+    public func effectiveTransfer(for tagged: HDRTransferFunction) -> HDRTransferFunction {
+        switch self {
+        case .sceneReferredInverseOETF:
+            return tagged
+        case .displayReferredBT1886(let gamma):
+            if case .bt709 = tagged {
+                return .gamma(gamma)
+            }
+            return tagged
+        }
+    }
+}
+
 public enum HDRYCbCrMatrix: String, Sendable {
     case bt709
     case bt601

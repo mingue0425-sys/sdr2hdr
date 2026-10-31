@@ -75,10 +75,11 @@ public enum HDRReference {
             min(max(signalRGB.y, 0), 1),
             min(max(signalRGB.z, 0), 1)
         )
+        let effectiveTransfer = configuration.sdrInputInterpretation.effectiveTransfer(for: transferFunction)
         let linear = SIMD3<Float>(
-            HDRColorMath.inverseTransfer(signal.x, function: transferFunction),
-            HDRColorMath.inverseTransfer(signal.y, function: transferFunction),
-            HDRColorMath.inverseTransfer(signal.z, function: transferFunction)
+            HDRColorMath.inverseTransfer(signal.x, function: effectiveTransfer),
+            HDRColorMath.inverseTransfer(signal.y, function: effectiveTransfer),
+            HDRColorMath.inverseTransfer(signal.z, function: effectiveTransfer)
         )
         let luminance = max(simd_dot(linear, HDRColorMath.bt709Luminance), 0)
         let expandedLuminance = toneExpand(

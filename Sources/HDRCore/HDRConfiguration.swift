@@ -638,6 +638,11 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// How BT.709-tagged SDR signal is linearized before tone expansion.
+    /// Defaults to the historical scene-referred inverse OETF so existing
+    /// presets and calibration evidence keep their exact arithmetic.
+    public var sdrInputInterpretation: HDRSDRInputInterpretation
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -673,6 +678,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        sdrInputInterpretation: HDRSDRInputInterpretation = .production,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -700,6 +706,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.sceneHistogramStrategy = sceneHistogramStrategy
         self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.sdrInputInterpretation = sdrInputInterpretation
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController
@@ -867,6 +874,14 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard masteringHeadroom >= 1, masteringHeadroom <= 64 else {
             throw HDRConfigurationError.valueOutOfRange("masteringHeadroom (1...64)")
+        }
+        if case .displayReferredBT1886(let gamma) = sdrInputInterpretation {
+            guard gamma.isFinite else {
+                throw HDRConfigurationError.nonFinite("sdrInputInterpretation.gamma")
+            }
+            guard HDRSDRInputInterpretation.bt1886GammaRange.contains(gamma) else {
+                throw HDRConfigurationError.valueOutOfRange("sdrInputInterpretation.gamma (1...4)")
+            }
         }
         guard (0...1).contains(developmentLowMidFadePosition) else {
             throw HDRConfigurationError.valueOutOfRange("developmentLowMidFadePosition (0...1)")

@@ -75,6 +75,23 @@ not yet guarantee faithful reproduction of display-mastered SDR, including
 the neutral SDR fallback. Resolving this convention requires a separate,
 versioned calibration; inverse BT.709 and gamma 2.4 are not interchangeable.
 
+This convention is now an explicit, versioned configuration field,
+`HDRConfiguration.sdrInputInterpretation`. The default,
+`.sceneReferredInverseOETF`, is the historical behavior, and all existing
+presets and calibration scores were produced under it. `.bt1886` applies the
+zero-black BT.1886 EOTF (gamma 2.4) to BT.709-tagged input only. sRGB,
+explicit-gamma, and linear tags are unchanged. The policy is applied where
+shader parameters are packed, so the transform and the temporal/scene
+estimators always linearize identically. To compare the two on a real display:
+
+```bash
+./.build/release/HDRPlayer test.mp4 --sdr-input bt1886
+```
+
+No preset has been recalibrated under `.bt1886`. The calibration evaluators
+still use the default interpretation, except for
+`OfflinePixelSampler.linearLumaGrid(interpretation:)`, which accepts the policy.
+
 ## Commands
 
 ```bash

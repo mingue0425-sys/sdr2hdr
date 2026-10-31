@@ -1414,7 +1414,10 @@ public final class HDRProcessor {
         }
         let transferFunction: UInt32
         let gamma: Float
-        switch color.metadata.transferFunction {
+        // The input-interpretation policy is applied here, at the single point
+        // where shader parameters are packed, so the transform kernels and the
+        // temporal/scene estimators always linearize identically.
+        switch configuration.sdrInputInterpretation.effectiveTransfer(for: color.metadata.transferFunction) {
         case .bt709:
             transferFunction = 0
             gamma = 1
