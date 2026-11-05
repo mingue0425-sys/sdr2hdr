@@ -7,7 +7,9 @@ for reproduced defects, fixes, verification, and remaining color/holdout limits.
 The default preset name does not constitute a production-readiness claim.
 The [SDR input policy and proxy PTS report](docs/SDR_INPUT_POLICY_AND_PTS_FIDELITY_REPORT.md)
 records the versioned SDR transfer interpretation and source-PTS proxy changes.
-The [robustness study report](docs/ROBUSTNESS_STUDY_REPORT.md) measures V4 on
+The [open-content V4 calibration report](docs/OPEN_CONTENT_V4_CALIBRATION_REPORT.md)
+records the one-use Virgin Frozen result (VIRGIN_FROZEN_FAIL: +3.48% over V2,
+below the 5% gate). The [robustness study report](docs/ROBUSTNESS_STUDY_REPORT.md) measures V4 on
 noisy, compressed, upscaled and banded SDR and documents the opt-in
 noise-gated gain guidance (`--gain-guidance noise-gated`).
 
