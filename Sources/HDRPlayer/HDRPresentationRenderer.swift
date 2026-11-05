@@ -106,18 +106,19 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
     public init(device: MTLDevice, colorPixelFormat: MTLPixelFormat = .rgba16Float) throws {
         self.device = device
         let library: MTLLibrary
-        if let precompiledURL = Bundle.module.url(forResource: "Presentation", withExtension: "metallib"),
-           let precompiled = try? device.makeLibrary(URL: precompiledURL) {
-            library = precompiled
-        } else {
-            guard let shaderURL = Bundle.module.url(forResource: "Presentation", withExtension: "metal") else {
+        do {
+            library = try HDRMetalLibraryLoader.load(
+                device: device,
+                bundle: Bundle.module,
+                name: "Presentation",
+                requiredFunctions: ["presentationVertex", "presentationFragment"]
+            ).library
+        } catch let failure as HDRMetalLibraryLoader.Failure {
+            switch failure {
+            case .sourceMissing, .sourceReadFailed:
                 throw HDRPlayerError.presentationShaderMissing
-            }
-            let source = try String(contentsOf: shaderURL, encoding: .utf8)
-            do {
-                library = try device.makeLibrary(source: source, options: nil)
-            } catch {
-                throw HDRPlayerError.presentationShaderCompilationFailed(String(describing: error))
+            case .compilationFailed(let reason):
+                throw HDRPlayerError.presentationShaderCompilationFailed(reason)
             }
         }
         guard let vertex = library.makeFunction(name: "presentationVertex"),

@@ -54,7 +54,16 @@ internal struct HDRShaderParameters {
 }
 
 internal final class MetalContext {
+    static let requiredFunctions = [
+        "sdrNV12ToHDR", "sdrP010ToHDR", "sdrBGRA8ToHDR",
+        "sdrNV12ToHDRDebug", "sdrP010ToHDRDebug", "sdrBGRA8ToHDRDebug",
+        "estimateNV12TemporalLuminance", "estimateP010TemporalLuminance",
+        "estimateBGRATemporalLuminance"
+    ]
+
     let device: MTLDevice
+    /// Which bundled layout supplied the shader library.
+    let libraryOrigin: HDRMetalLibraryLoader.Origin
     let commandQueue: MTLCommandQueue
     let textureCache: TextureCache
     let nv12Pipeline: MTLComputePipelineState
@@ -76,23 +85,20 @@ internal final class MetalContext {
         self.textureCache = try TextureCache(device: device)
 
         let library: MTLLibrary
-        if let precompiledURL = Bundle.module.url(forResource: "SDRToHDR", withExtension: "metallib"),
-           let precompiled = try? device.makeLibrary(URL: precompiledURL) {
-            library = precompiled
-        } else {
-            guard let sourceURL = Bundle.module.url(forResource: "SDRToHDR", withExtension: "metal") else {
-                throw HDRProcessorError.shaderSourceMissing
-            }
-            let source: String
-            do {
-                source = try String(contentsOf: sourceURL, encoding: .utf8)
-            } catch {
-                throw HDRProcessorError.shaderSourceReadFailed(String(describing: error))
-            }
-            do {
-                library = try device.makeLibrary(source: source, options: nil)
-            } catch {
-                throw HDRProcessorError.shaderCompilationFailed(String(describing: error))
+        do {
+            let loaded = try HDRMetalLibraryLoader.load(
+                device: device,
+                bundle: Bundle.module,
+                name: "SDRToHDR",
+                requiredFunctions: Self.requiredFunctions
+            )
+            library = loaded.library
+            libraryOrigin = loaded.origin
+        } catch let failure as HDRMetalLibraryLoader.Failure {
+            switch failure {
+            case .sourceMissing: throw HDRProcessorError.shaderSourceMissing
+            case .sourceReadFailed(let reason): throw HDRProcessorError.shaderSourceReadFailed(reason)
+            case .compilationFailed(let reason): throw HDRProcessorError.shaderCompilationFailed(reason)
             }
         }
         guard let nv12Function = library.makeFunction(name: "sdrNV12ToHDR") else {
