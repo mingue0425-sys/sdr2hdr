@@ -5,6 +5,8 @@ Reusable macOS/Apple Silicon SDR-to-HDR tone-expansion core.
 Engineering status: **EXPERIMENTAL**. See the [September engineering audit](docs/ENGINEERING_AUDIT_2026_09_11.md)
 for reproduced defects, fixes, verification, and remaining color/holdout limits.
 The default preset name does not constitute a production-readiness claim.
+The [SDR input policy and proxy PTS report](docs/SDR_INPUT_POLICY_AND_PTS_FIDELITY_REPORT.md)
+records the versioned SDR transfer interpretation and source-PTS proxy changes.
 
 The core deliberately stops at a GPU HDR frame:
 
@@ -69,11 +71,30 @@ This mastering-domain limit is deliberately independent of the current
 physical display headroom. PQ output uses absolute luminance normalized to the
 ST.2084 10,000-nit reference.
 
-The current BT.709 input path applies the inverse **camera OETF**, not the
-BT.1886 display EOTF. Thus it is a scene-linear expansion convention and does
-not yet guarantee faithful reproduction of display-mastered SDR, including
-the neutral SDR fallback. Resolving this convention requires a separate,
-versioned calibration; inverse BT.709 and gamma 2.4 are not interchangeable.
+### SDR input interpretation policy
+
+BT.709-tagged SDR can be linearized two ways, and they are not
+interchangeable. `HDRConfiguration.sdrTransferInterpretation` makes the choice
+explicit and versioned:
+
+| Policy | Stable identifier | Decode |
+|---|---|---|
+| `.bt709InverseOETFSceneLinear` (default) | `bt709-inverse-oetf-scene-linear-v1` | inverse BT.709 camera OETF (scene-linear) |
+| `.bt1886DisplayReferred` | `bt1886-display-eotf-gamma2.4-lb0-v1` | BT.1886 reference EOTF, Lb = 0 (`V^2.4`) |
+
+The policy rewrites only the BT.709/BT.2020 SDR transfer tag. sRGB, explicit
+gamma, and linear tags are unambiguous and are decoded as tagged under either
+policy. The same choice reaches the Metal shader, `HDRReference`,
+`HDRFrame.metadata.sdrTransferInterpretation`, debug diagnostics, and
+`OfflinePixelSampler.linearLumaGrid(..., sdrTransferInterpretation:)`.
+
+Every preset, including the production default, keeps the historical
+inverse-OETF convention, so existing output does not change. The default
+inverse-OETF convention does not guarantee faithful reproduction of
+display-mastered SDR, including the neutral SDR fallback. BT.1886 is an
+explicit opt-in (`--sdr-transfer bt1886` in `HDRPlayer` and `HDRSample`). A
+preset may adopt it only after a calibration rebase that records the policy
+identifier.
 
 ## Commands
 
@@ -87,11 +108,18 @@ swift run -c release HDRBenchmark --width 1920 --height 1080 --frames 300 --warm
 swift run -c release HDRBenchmark --width 3840 --height 2160 --frames 300 --warmup 30
 swift run -c release HDRBenchmark --presentation-only --width 3840 --height 2160 --frames 300 --warmup 30
 swift run -c release HDRSample --input /path/to/video.mov --frames 3 --mode EDR
+swift run -c release HDRSample --input /path/to/video.mov --frames 3 --sdr-transfer bt1886
 swift run -c release HDRPlayer test.mp4 --debug --play-for 10
+swift run -c release HDRPlayer test.mp4 --sdr-transfer bt1886
 swift run -c release HDRPlayer --edr-test-pattern --play-for 5
 # after `swift build -c release`:
 ./.build/release/HDRPlayer test.mp4
 ```
+
+On Xcode installations without the separately downloaded Metal Toolchain, the
+default build system cannot precompile `.metal` resources. Add
+`--build-system native` to `swift build`/`swift test`. The bundled `.metal`
+sources are then compiled at runtime through the existing source fallback.
 
 `HDRSample` demonstrates `AVAssetReader -> CVPixelBuffer -> HDRProcessor` and
 waits only because it is a command-line validation tool. The realtime API does
@@ -249,6 +277,17 @@ and explicitly normalized raw proxy samples to video range. It advanced the prep
 `v6-prepared-evaluation-plan-v5-linear-source-luminance`. Previous prepared
 plans are rejected; old objective scores are historical evidence, not scores
 for this implementation. Regenerate Tune/Validation evidence before promotion.
+
+The FFmpeg proxy now keeps source timing (`ffmpeg-proxy-copyts-slot-select-source-pts-v1`).
+It decodes with `-copyts` and `-fps_mode passthrough`. Below the native rate it
+decimates with slot-based `select` and never duplicates frames, and it reads
+each frame's integer PTS from `showinfo`. Each frame maps to its
+presentation-order source ordinal through an ffprobe packet table. A
+synthesized, duplicated, or non-monotone frame fails closed.
+`FrameSequence.temporalProvenance` records source timestamps, ordinals, skipped
+frames, and VFR status. The preparation identifier advanced to
+`v6-prepared-evaluation-plan-v6-source-pts-proxy`. As a result, plans prepared
+with the old `fps`-resampled proxy are rejected.
 
 The V4/V6 evaluator now writes exclusive per-asset consumption receipts to
 `.hdr-frozen-consumption/` before opening objective media. Preserve this directory
