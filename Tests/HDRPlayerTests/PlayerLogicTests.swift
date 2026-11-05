@@ -691,4 +691,25 @@ final class PlayerLogicTests: XCTestCase {
             "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer"
         ]))
     }
+
+    func testGainGuidanceOptionIsOptInAndReachesConfiguration() throws {
+        let defaults = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
+        XCTAssertEqual(try defaults.baseConfiguration().gainGuidance, .off, "production output must stay unguided by default")
+        let guided = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "noise-gated"
+        ])
+        XCTAssertEqual(guided.gainGuidance, .noiseGatedCandidate)
+        XCTAssertEqual(try guided.baseConfiguration().gainGuidance, .noiseGatedCandidate)
+        let off = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "off"
+        ])
+        XCTAssertEqual(off.gainGuidance, .off)
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "strong"
+        ]))
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance"
+        ]))
+        XCTAssertTrue(PlayerOptions.usage.contains("--gain-guidance off|noise-gated"))
+    }
 }

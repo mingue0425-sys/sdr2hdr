@@ -1484,7 +1484,9 @@ public final class HDRProcessor {
             developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight,
             chromaReconstructionMode: chromaReconstructionDecision.effective.rawValue,
             chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
-            chromaSampleCenterY: color.chromaGeometry.sampleCenterY
+            chromaSampleCenterY: color.chromaGeometry.sampleCenterY,
+            gainGuidanceRadius: UInt32(configuration.gainGuidance.radius),
+            gainGuidanceTolerance: configuration.gainGuidance.tolerance
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

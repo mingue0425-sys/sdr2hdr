@@ -51,6 +51,8 @@ internal struct HDRShaderParameters {
     var chromaReconstructionMode: UInt32
     var chromaSampleCenterX: Float
     var chromaSampleCenterY: Float
+    var gainGuidanceRadius: UInt32
+    var gainGuidanceTolerance: Float
 }
 
 internal final class MetalContext {

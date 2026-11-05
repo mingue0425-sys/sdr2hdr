@@ -51,6 +51,7 @@ public struct PlayerOptions: Equatable, Sendable {
     public var decodePrecision: HDRDecodePrecision
     public var chromaReconstructionMode: HDRChromaReconstructionMode
     public var sdrTransferInterpretation: HDRSDRTransferInterpretation
+    public var gainGuidance: HDRGainGuidance
 
     public init(
         inputURL: URL? = nil,
@@ -69,7 +70,8 @@ public struct PlayerOptions: Equatable, Sendable {
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
         decodePrecision: HDRDecodePrecision = .automatic,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
-        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
+        gainGuidance: HDRGainGuidance = .off
     ) {
         self.inputURL = inputURL
         self.preset = preset
@@ -88,6 +90,7 @@ public struct PlayerOptions: Equatable, Sendable {
         self.decodePrecision = decodePrecision
         self.chromaReconstructionMode = chromaReconstructionMode
         self.sdrTransferInterpretation = sdrTransferInterpretation
+        self.gainGuidance = gainGuidance
     }
 
     public static var usage: String {
@@ -100,6 +103,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
           HDRPlayer <video-file> --sdr-transfer bt709-oetf|bt1886
+          HDRPlayer <video-file> --gain-guidance off|noise-gated
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
@@ -197,6 +201,13 @@ public struct PlayerOptions: Equatable, Sendable {
                 }
                 options.sdrTransferInterpretation = policy
                 index += 2
+            case "--gain-guidance":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                guard let guidance = HDRGainGuidance(cliName: value) else {
+                    throw HDRPlayerCLIError.invalidOption("unsupported gain guidance: \(value) (off|noise-gated)")
+                }
+                options.gainGuidance = guidance
+                index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 let seconds = try parsePositive(value)
@@ -240,6 +251,7 @@ public struct PlayerOptions: Equatable, Sendable {
         configuration.inputFallbackPolicy = .bt709VideoRange
         configuration.chromaReconstructionMode = chromaReconstructionMode
         configuration.sdrTransferInterpretation = sdrTransferInterpretation
+        configuration.gainGuidance = gainGuidance
         return try configuration.validated()
     }
 

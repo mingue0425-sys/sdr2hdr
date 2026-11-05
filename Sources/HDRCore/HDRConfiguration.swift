@@ -571,6 +571,45 @@ public enum HDRConfigurationError: Error, LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Range-gated local-mean guidance for the tone-expansion gain.
+///
+/// The expansion curve's log-slope exceeds 1 in highlights, so a per-pixel
+/// gain multiplies any small fluctuation (sensor grain, codec blocking,
+/// 8-bit quantization steps) by that slope. Guidance evaluates the gain at a
+/// bilateral mean of the luma signal within `radius` and applies it to the
+/// pixel, which keeps sub-`tolerance` fluctuations at their source contrast.
+/// Fluctuations larger than `tolerance` (signal units, 0...1) are treated as
+/// edges and keep the per-pixel gain.
+public struct HDRGainGuidance: Equatable, Sendable, Codable {
+    public static let maximumRadius = 4
+    public static let off = HDRGainGuidance(radius: 0, tolerance: 0)
+    /// Opt-in setting chosen by the Tune-only robustness study
+    /// (robustness-study-v2): it cuts the flat-highlight amplification of
+    /// injected grain, banding and codec noise from ~3-4x to ~1.1-1.3x of the
+    /// unexpanded baseline for ~6% of V4's highlight-error benefit. It is not
+    /// part of any calibrated preset until a V4 run adopts it.
+    public static let noiseGatedCandidate = HDRGainGuidance(radius: 2, tolerance: 0.12)
+
+    /// Command-line names: `off` and `noise-gated`.
+    public init?(cliName: String) {
+        switch cliName {
+        case "off": self = .off
+        case "noise-gated": self = .noiseGatedCandidate
+        default: return nil
+        }
+    }
+
+    public let radius: Int
+    public let tolerance: Float
+
+    public init(radius: Int, tolerance: Float) {
+        self.radius = min(max(radius, 0), Self.maximumRadius)
+        self.tolerance = radius > 0 ? max(tolerance, 1e-4) : 0
+    }
+
+    public var isEnabled: Bool { radius > 0 }
+}
+
 /// Parameters shared by all tone-mapping presets. Changing this value does
 /// not recreate Metal libraries or pipeline states.
 public struct HDRConfiguration: Sendable, Equatable {
@@ -644,6 +683,12 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// calibration before any preset may adopt it.
     public var sdrTransferInterpretation: HDRSDRTransferInterpretation
 
+    /// Noise-gated gain guidance. `.off` (every preset) keeps the per-pixel
+    /// gain and bit-identical output; enabling it evaluates the tone gain at
+    /// a range-gated local mean so grain, compression blocks and banding are
+    /// not stretched by the expansion curve's slope.
+    public var gainGuidance: HDRGainGuidance
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -680,6 +725,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
+        gainGuidance: HDRGainGuidance = .off,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -708,6 +754,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
         self.sdrTransferInterpretation = sdrTransferInterpretation
+        self.gainGuidance = gainGuidance
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController

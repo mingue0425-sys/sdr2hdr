@@ -51,6 +51,10 @@ struct SDRToHDRParameters {
     uint chromaReconstructionMode;
     float chromaSampleCenterX;
     float chromaSampleCenterY;
+    // Noise-gated gain guidance. Radius 0 disables it and leaves every
+    // revision's arithmetic bit-identical to the unguided path.
+    uint gainGuidanceRadius;
+    float gainGuidanceTolerance;
 };
 
 struct HDRDebugStats {
@@ -642,12 +646,75 @@ inline void accumulateDebug(
     }
 }
 
-inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p) {
+inline float p010LumaSignal(float stored, constant SDRToHDRParameters& p);
+
+// Luma signal of one texel for the three input layouts (0 NV12, 1 P010,
+// 2 BGRA). Only the luma plane is read so guidance costs no chroma traffic.
+inline float guidanceLumaSignal(texture2d<float, access::read> texture, uint2 position, uint layout,
+                                constant SDRToHDRParameters& p) {
+    if (layout == 0u) {
+        return (texture.read(position).r - p.yOffset) * p.yScale;
+    }
+    if (layout == 1u) {
+        return p010LumaSignal(texture.read(position).r, p);
+    }
+    return dot(texture.read(position).rgb, kBT709Luma);
+}
+
+// Ratio between the linear light of the noise-gated local mean luma and the
+// pixel's own luma. The gate is a range-weighted (bilateral) mean in the
+// signal domain: neighbours within the tolerance are averaged, neighbours
+// across a real edge get ~zero weight, so the ratio is ~1 at edges and the
+// gain follows the local base level inside flat regions.
+inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid, uint layout,
+                               constant SDRToHDRParameters& p) {
+    if (p.gainGuidanceRadius == 0u) {
+        return 1.0f;
+    }
+    int radius = int(min(p.gainGuidanceRadius, 4u));
+    int2 last = int2(texture.get_width() - 1, texture.get_height() - 1);
+    float center = guidanceLumaSignal(texture, gid, layout, p);
+    float tolerance = max(p.gainGuidanceTolerance, 1e-4f);
+    float inverseTwoSigmaSquared = 1.0f / (2.0f * tolerance * tolerance);
+    float weightSum = 0.0f;
+    float valueSum = 0.0f;
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            int2 position = clamp(int2(gid) + int2(dx, dy), int2(0), last);
+            float value = guidanceLumaSignal(texture, uint2(position), layout, p);
+            float difference = value - center;
+            float weight = exp(-difference * difference * inverseTwoSigmaSquared);
+            weightSum += weight;
+            valueSum += weight * value;
+        }
+    }
+    float centerLinear = inverseTransfer(center, p);
+    if (centerLinear <= 1e-6f) {
+        return 1.0f;
+    }
+    float guidedLinear = inverseTransfer(valueSum / weightSum, p);
+    return clamp(guidedLinear / centerLinear, 0.25f, 4.0f);
+}
+
+inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, float guidanceRatio = 1.0f) {
     float3 linear = linearizeSignal(signal, p);
     float luminance = max(dot(linear, kBT709Luma), 0.0f);
-    float expandedLuminance = toneExpand(luminance, p);
-    // Preserve near-black light; only exact black requires a divide guard.
-    float gain = luminance > 0.0f ? expandedLuminance / luminance : 0.0f;
+    float gain;
+    float expandedLuminance;
+    if (guidanceRatio == 1.0f) {
+        expandedLuminance = toneExpand(luminance, p);
+        // Preserve near-black light; only exact black requires a divide guard.
+        gain = luminance > 0.0f ? expandedLuminance / luminance : 0.0f;
+    } else {
+        // The gain is evaluated at the noise-gated local luminance and applied
+        // to the pixel itself: sub-tolerance fluctuations (grain, compression
+        // blocks, quantization steps) keep their source log-contrast instead
+        // of being stretched by the curve's local slope, while edges above
+        // the tolerance fall outside the gate and keep their per-pixel gain.
+        float guidedLuminance = luminance * guidanceRatio;
+        gain = guidedLuminance > 0.0f ? toneExpand(guidedLuminance, p) / guidedLuminance : 0.0f;
+        expandedLuminance = luminance * gain;
+    }
     float3 expanded = linear * gain;
     // Use the fixed output-domain peak as the upper edge. Using the sample
     // itself as edge1 made every value >= 1.001 land at t=1, collapsing the
@@ -753,7 +820,8 @@ kernel void sdrNV12ToHDR(
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float2 uv = reconstructedChroma(uvTexture, gid, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+    float guidance = gainGuidanceRatio(yTexture, gid, 0u, p);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
 }
 
 kernel void sdrP010ToHDR(
@@ -769,7 +837,8 @@ kernel void sdrP010ToHDR(
     float y = p010LumaSignal(yTexture.read(gid).r, p);
     float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+    float guidance = gainGuidanceRatio(yTexture, gid, 1u, p);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
 }
 
 kernel void sdrBGRA8ToHDR(
@@ -782,7 +851,8 @@ kernel void sdrBGRA8ToHDR(
         return;
     }
     float4 input = inputTexture.read(gid);
-    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p), 1.0f)), gid);
+    float guidance = gainGuidanceRatio(inputTexture, gid, 2u, p);
+    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p, guidance), 1.0f)), gid);
 }
 
 kernel void sdrNV12ToHDRDebug(
@@ -800,7 +870,7 @@ kernel void sdrNV12ToHDRDebug(
     }
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float3 signalRGB = ycbcrToRGB(y, reconstructedChroma(uvTexture, gid, p), p);
-    float3 output = transformSignalRGB(signalRGB, p);
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 0u, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());
@@ -821,7 +891,7 @@ kernel void sdrP010ToHDRDebug(
     }
     float y = p010LumaSignal(yTexture.read(gid).r, p);
     float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p), p);
-    float3 output = transformSignalRGB(signalRGB, p);
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 1u, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());
@@ -840,7 +910,7 @@ kernel void sdrBGRA8ToHDRDebug(
         return;
     }
     float3 signalRGB = inputTexture.read(gid).rgb;
-    float3 output = transformSignalRGB(signalRGB, p);
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(inputTexture, gid, 2u, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());
