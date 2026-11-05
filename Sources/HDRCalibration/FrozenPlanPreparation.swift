@@ -38,12 +38,41 @@ public enum V6FrozenPlanPreparation {
         return records
     }
 
+    /// The bytes about to be decoded must be the bytes the lock-bound audit
+    /// recorded. Evaluation re-checks this before reading pixels, but only
+    /// after the one-use consumption ledger is claimed, so a mismatch caught
+    /// there would spend the holdout for nothing.
+    static func verifyInputHashes(
+        _ records: [(id: String, sdr: URL, hdr: URL)],
+        expected: [String: V6InputHashes],
+        sha256: (URL) throws -> String = V4DatasetIntegrity.sha256(url:)
+    ) throws {
+        for record in records {
+            guard let hashes = expected[record.id] else {
+                throw CalibrationError.invalidManifest("audit has no input identity for Virgin Frozen pair \(record.id)")
+            }
+            guard try sha256(record.sdr).lowercased() == hashes.sdrSHA256,
+                  try sha256(record.hdr).lowercased() == hashes.hdrSHA256 else {
+                throw CalibrationError.invalidManifest(
+                    "Virgin Frozen media bytes for \(record.id) differ from the audited digests; refusing to prepare"
+                )
+            }
+        }
+    }
+
     public static func run(
         manifestURL: URL,
         auditURL: URL,
         tuneValidationPlanURL: URL,
         outputURL: URL
     ) async throws -> Result {
+        // An admitted plan is referenced by hash from the consumption ledger
+        // and the freeze artifacts; it is never replaced in place.
+        guard !FileManager.default.fileExists(atPath: outputURL.path) else {
+            throw CalibrationError.incompleteEvaluation(
+                "\(outputURL.lastPathComponent) already exists; an admitted Frozen plan is never overwritten"
+            )
+        }
         let lockURL = manifestURL.deletingLastPathComponent().appendingPathComponent("dataset-v4-lock.json")
         _ = try V4DatasetEvidenceValidator.validate(
             manifestURL: manifestURL, auditURL: auditURL, lockURL: lockURL, mediaScope: .tuneValidationOnly
@@ -76,6 +105,10 @@ public enum V6FrozenPlanPreparation {
             acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
         )
         let inputHashes = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit)
+        try verifyInputHashes(
+            pairRecords.map { (id: $0.id, sdr: URL(fileURLWithPath: $0.sdr), hdr: URL(fileURLWithPath: $0.hdr)) },
+            expected: inputHashes
+        )
         let prepared = try await repository.prepare(records: pairRecords)
         let plan = try repository.sealPreparedEvaluationPlan(
             records: pairRecords, inputHashes: inputHashes, scope: scope
