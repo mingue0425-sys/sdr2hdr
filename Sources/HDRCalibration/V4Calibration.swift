@@ -51,8 +51,25 @@ public struct V4SafetyThresholds: Codable, Sendable {
     public var frozenPerVideoRegressionTolerance: Double = 0.02
     public var zeroTolerance: Double = 0.000001
     public var runtime: V4RuntimeThresholds? = V4RuntimeThresholds()
+    /// nil = historical absolute gate (blackCrushRatio <= zeroTolerance).
+    /// `blackCrushIntroducedOverV2`: crush beyond the V2 baseline's on the same
+    /// pixels must stay <= zeroTolerance. Crush already present in the SDR
+    /// grade (code black where the HDR master has detail) is produced by every
+    /// mapping and is not attributable to a candidate.
+    public var blackCrushPolicy: String? = V4SafetyThresholds.blackCrushIntroducedOverV2
+
+    public static let blackCrushIntroducedOverV2 = "black-crush-introduced-over-v2-v1"
 
     public var runtimeThresholds: V4RuntimeThresholds { runtime ?? V4RuntimeThresholds() }
+
+    /// Unknown policies fail closed.
+    public func blackCrushFails(candidate: Double, baseline: Double) -> Bool {
+        switch blackCrushPolicy {
+        case nil: return candidate > zeroTolerance
+        case Self.blackCrushIntroducedOverV2?: return candidate > baseline + zeroTolerance
+        default: return true
+        }
+    }
 
     public init() {}
 }
@@ -1687,7 +1704,7 @@ public final class CalibrationV4Runner {
         let metrics = tune.metrics
         if !metrics.objective.isFinite || metrics.invalidSampleCount != 0 { reasons.append("invalid/non-finite") }
         if metrics.clippingRatio > configuration.safety.zeroTolerance { reasons.append("clipping") }
-        if metrics.blackCrushRatio > configuration.safety.zeroTolerance { reasons.append("black crush") }
+        if configuration.safety.blackCrushFails(candidate: metrics.blackCrushRatio, baseline: baseline.metrics.blackCrushRatio) { reasons.append("black crush") }
         if metrics.shadowError > baseline.metrics.shadowError + configuration.safety.shadowErrorTolerance { reasons.append("shadow safety") }
         if metrics.shadowLiftRatio > baseline.metrics.shadowLiftRatio + configuration.safety.shadowLiftTolerance { reasons.append("shadow lift safety") }
         if metrics.temporalFlicker > baseline.metrics.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance {
@@ -1711,7 +1728,9 @@ public final class CalibrationV4Runner {
         if m.highlightError > b.highlightError * (1 + configuration.safety.highlightRelativeTolerance) + 0.005 { reasons.append("highlight regression") }
         if m.midtoneError > b.midtoneError * (1 + configuration.safety.midtoneRelativeTolerance) + 0.005 { reasons.append("midtone regression") }
         if m.hueP95Error > b.hueP95Error * (1 + configuration.safety.hueRelativeTolerance) + 0.002 { reasons.append("hue regression") }
-        if m.clippingRatio > configuration.safety.zeroTolerance || m.blackCrushRatio > configuration.safety.zeroTolerance || m.invalidSampleCount != 0 { reasons.append("hard safety gate") }
+        if m.clippingRatio > configuration.safety.zeroTolerance ||
+            configuration.safety.blackCrushFails(candidate: m.blackCrushRatio, baseline: b.blackCrushRatio) ||
+            m.invalidSampleCount != 0 { reasons.append("hard safety gate") }
         if perVideoCatastrophic(candidate: candidate, baseline: baseline) > 0 { reasons.append("catastrophic per-video regression") }
         return reasons
     }
@@ -1765,7 +1784,7 @@ public final class CalibrationV4Runner {
         })
         let family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
         let hardSafety = frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance &&
-            frozenV4.metrics.blackCrushRatio <= configuration.safety.zeroTolerance &&
+            !configuration.safety.blackCrushFails(candidate: frozenV4.metrics.blackCrushRatio, baseline: frozenV2.metrics.blackCrushRatio) &&
             frozenV4.metrics.invalidSampleCount == 0
         let frozenPerVideoRegression = perVideoRegressionCount(candidate: frozenV4, baseline: frozenV2) == 0
         let frozen = completeness && frozenImprovement >= configuration.safety.frozenMinimumImprovement && frozenPerVideoRegression
