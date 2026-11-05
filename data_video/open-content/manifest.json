@@ -191,9 +191,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "asc_stem3_warped",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers. CONSUMED 2026-11-06: opened once by the open-content V4 Virgin Frozen evaluation (VIRGIN_FROZEN_FAIL, commit 725b0bc); byte identities are in .hdr-frozen-consumption/."
     },
     {
       "id": "aswf_stem3_warped_t197",
@@ -215,9 +215,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "asc_stem3_warped",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers. CONSUMED 2026-11-06: opened once by the open-content V4 Virgin Frozen evaluation (VIRGIN_FROZEN_FAIL, commit 725b0bc); byte identities are in .hdr-frozen-consumption/."
     },
     {
       "id": "netflix_sparks_f04133",
@@ -238,9 +238,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "netflix_sparks",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate. 96-frame window from source frame 4133 of the 13777-frame SDR (BT.709 ProRes 422 HQ, 59.94 fps) and HDR10 TIFF sequence (13777 frames); position fixed a priori. HDR assembled from source TIFFs into ProRes 4444 XQ (lossy RGB to Y'CbCr conversion, recorded in provenance). No hash-bound virginEvidence workflow was run. Attribution: 'Sparks' by Netflix, CC BY 4.0."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate. 96-frame window from source frame 4133 of the 13777-frame SDR (BT.709 ProRes 422 HQ, 59.94 fps) and HDR10 TIFF sequence (13777 frames); position fixed a priori. HDR assembled from source TIFFs into ProRes 4444 XQ (lossy RGB to Y'CbCr conversion, recorded in provenance). No hash-bound virginEvidence workflow was run. Attribution: 'Sparks' by Netflix, CC BY 4.0. CONSUMED 2026-11-06: opened once by the open-content V4 Virgin Frozen evaluation (VIRGIN_FROZEN_FAIL, commit 725b0bc); byte identities are in .hdr-frozen-consumption/."
     },
     {
       "id": "netflix_sparks_f08266",
@@ -261,9 +261,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "netflix_sparks",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate. 96-frame window from source frame 8266 of the 13777-frame SDR (BT.709 ProRes 422 HQ, 59.94 fps) and HDR10 TIFF sequence (13777 frames); position fixed a priori. HDR assembled from source TIFFs into ProRes 4444 XQ (lossy RGB to Y'CbCr conversion, recorded in provenance). No hash-bound virginEvidence workflow was run. Attribution: 'Sparks' by Netflix, CC BY 4.0."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate. 96-frame window from source frame 8266 of the 13777-frame SDR (BT.709 ProRes 422 HQ, 59.94 fps) and HDR10 TIFF sequence (13777 frames); position fixed a priori. HDR assembled from source TIFFs into ProRes 4444 XQ (lossy RGB to Y'CbCr conversion, recorded in provenance). No hash-bound virginEvidence workflow was run. Attribution: 'Sparks' by Netflix, CC BY 4.0. CONSUMED 2026-11-06: opened once by the open-content V4 Virgin Frozen evaluation (VIRGIN_FROZEN_FAIL, commit 725b0bc); byte identities are in .hdr-frozen-consumption/."
     }
   ],
   "coverageProtocol": "open-content-coverage-v1"
