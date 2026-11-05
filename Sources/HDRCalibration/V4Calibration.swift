@@ -398,6 +398,12 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
         .frozen: []
     ]
 
+    /// Run-level SDR input convention applied to every searched candidate.
+    /// The baseline preset keeps its own (historical) convention, and source
+    /// luminance strata stay on the historical decode so objectives remain
+    /// comparable between runs that differ only in this policy.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
+
     /// The preregistered coverage protocol these requirements came from.
     public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
 
@@ -1614,7 +1620,10 @@ public final class CalibrationV4Runner {
             highlightStrength: values[2], contrastStrength: values[3],
             saturationCompensation: values[4], shadowProtection: values[5],
             temporalStability: values[6], displayHeadroom: values[1] / values[0],
-            toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue
+            toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue,
+            sdrTransferInterpretation: configuration.sdrTransferInterpretation == .default
+                ? nil
+                : configuration.sdrTransferInterpretation.rawValue
         )
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import HDRCalibration
+import HDRCore
 
 /// Coverage requirements are preregistered per dataset through the manifest.
 /// A manifest without `coverageProtocol` keeps the historical V5 policy; an
@@ -52,5 +53,42 @@ final class CoverageProtocolTests: XCTestCase {
 
     private func decode(_ json: String) throws -> V4Manifest {
         try JSONDecoder().decode(V4Manifest.self, from: Data(json.utf8))
+    }
+}
+
+final class CalibrationParametersSDRPolicyTests: XCTestCase {
+    private func base() -> CalibrationParameters {
+        CalibrationParameters(
+            paperWhiteNits: 203, peakNits: 1_000, highlightStrength: 0.5, contrastStrength: 0.5,
+            saturationCompensation: 0.5, shadowProtection: 0.5, temporalStability: 0.9,
+            displayHeadroom: 1_000 / 203, toneCurveRevision: 2
+        )
+    }
+
+    func testDefaultParametersKeepHistoricalDecodeAndEncodeWithoutField() throws {
+        let parameters = base()
+        XCTAssertNil(parameters.sdrTransferInterpretation)
+        XCTAssertEqual(try parameters.configuration().sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+        let json = String(decoding: try JSONEncoder().encode(parameters), as: UTF8.self)
+        XCTAssertFalse(json.contains("sdrTransferInterpretation"))
+    }
+
+    func testBT1886RoundTripsThroughParametersAndConfiguration() throws {
+        var parameters = base()
+        parameters.sdrTransferInterpretation = HDRSDRTransferInterpretation.bt1886DisplayReferred.rawValue
+        let configuration = try parameters.configuration()
+        XCTAssertEqual(configuration.sdrTransferInterpretation, .bt1886DisplayReferred)
+        XCTAssertEqual(CalibrationParameters(configuration: configuration).sdrTransferInterpretation,
+                       "bt1886-display-eotf-gamma2.4-lb0-v1")
+        let decoded = try JSONDecoder().decode(
+            CalibrationParameters.self, from: try JSONEncoder().encode(parameters)
+        )
+        XCTAssertEqual(decoded, parameters)
+    }
+
+    func testUnknownInterpretationFailsClosed() {
+        var parameters = base()
+        parameters.sdrTransferInterpretation = "gamma2.2"
+        XCTAssertThrowsError(try parameters.configuration())
     }
 }

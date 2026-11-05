@@ -623,6 +623,10 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
     /// candidate-specific parameter.
     public var v6LowMidFadePosition: Float?
     public var v6LowMidStrength: Float?
+    /// Stable `HDRSDRTransferInterpretation` identifier. `nil` is the
+    /// historical inverse-OETF convention, so existing artifacts decode and
+    /// re-encode unchanged.
+    public var sdrTransferInterpretation: String?
 
     public init(
         paperWhiteNits: Float,
@@ -635,7 +639,8 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         displayHeadroom: Float,
         toneCurveRevision: UInt32? = nil,
         v6LowMidFadePosition: Float? = nil,
-        v6LowMidStrength: Float? = nil
+        v6LowMidStrength: Float? = nil,
+        sdrTransferInterpretation: String? = nil
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -648,6 +653,7 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         self.toneCurveRevision = toneCurveRevision
         self.v6LowMidFadePosition = v6LowMidFadePosition
         self.v6LowMidStrength = v6LowMidStrength
+        self.sdrTransferInterpretation = sdrTransferInterpretation
     }
 
     public init(configuration: HDRConfiguration) {
@@ -667,6 +673,9 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
             v6LowMidFadePosition = nil
             v6LowMidStrength = nil
         }
+        sdrTransferInterpretation = configuration.sdrTransferInterpretation == .default
+            ? nil
+            : configuration.sdrTransferInterpretation.rawValue
     }
 
     public func configuration() throws -> HDRConfiguration {
@@ -687,6 +696,12 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         if value.toneCurveRevision == .sceneRelativeV6Candidate {
             value.developmentLowMidFadePosition = v6LowMidFadePosition ?? 0.55
             value.developmentLowMidStrength = v6LowMidStrength ?? HDRV6ToneCurveMath.defaultLowMidStrength
+        }
+        if let sdrTransferInterpretation {
+            guard let policy = HDRSDRTransferInterpretation(rawValue: sdrTransferInterpretation) else {
+                throw CalibrationError.invalidManifest("unknown sdrTransferInterpretation: \(sdrTransferInterpretation)")
+            }
+            value.sdrTransferInterpretation = policy
         }
         return try value.validated()
     }

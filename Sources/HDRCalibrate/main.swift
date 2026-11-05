@@ -14,6 +14,7 @@ private struct CLI {
     let root: URL?
     let dryRun: Bool
     let selectionCount: Int
+    let sdrTransferInterpretation: HDRSDRTransferInterpretation
 
     init(arguments: [String]) throws {
         guard arguments.count > 1 else { throw CLIError.usage }
@@ -28,6 +29,7 @@ private struct CLI {
         var root: URL?
         var dryRun = false
         var selectionCount = 6
+        var sdrTransferInterpretation = HDRSDRTransferInterpretation.default
         var index = 2
         while index < arguments.count {
             switch arguments[index] {
@@ -84,6 +86,11 @@ private struct CLI {
             case "--dry-run":
                 dryRun = true
                 index += 1
+            case "--sdr-transfer":
+                guard index + 1 < arguments.count,
+                      let value = HDRSDRTransferInterpretation(cliName: arguments[index + 1]) else { throw CLIError.usage }
+                sdrTransferInterpretation = value
+                index += 2
             case "--help", "-h":
                 throw CLIError.usage
             default:
@@ -99,6 +106,7 @@ private struct CLI {
         self.root = root
         self.dryRun = dryRun
         self.selectionCount = selectionCount
+        self.sdrTransferInterpretation = sdrTransferInterpretation
     }
 
     func requiredManifest() throws -> URL {
@@ -148,7 +156,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v2-audit        --manifest data_video/manifest-v2.json --output results/data-video-v2-dataset-audit.json
       HDRCalibrate v2-run          --manifest data_video/manifest-v2.json --seed 20260823 --output results/data-video-v2-final.json
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
-      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 --output results/data-video-v4-final.json
+      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 [--sdr-transfer bt709-oetf|bt1886] --output results/data-video-v4-final.json
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
       HDRCalibrate v6-curve-audit --output /tmp/v6-tone-curve-audit.json
@@ -320,6 +328,7 @@ private func run(arguments: [String]) async throws {
         let manifestURL = try cli.requiredManifest()
         var configuration = try V4CalibrationConfiguration(manifest: try V4Manifest.load(from: manifestURL))
         configuration.searchSeed = cli.seed
+        configuration.sdrTransferInterpretation = cli.sdrTransferInterpretation
         let runner = try CalibrationV4Runner(
             manifestURL: manifestURL,
             outputDirectory: cli.output.deletingLastPathComponent(),
