@@ -163,6 +163,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-evaluate --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6-development-evaluation.json
       HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
+      HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json --output results/robustness-study.json
       HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -258,6 +259,14 @@ private func run(arguments: [String]) async throws {
         try encoder.encode(audit).write(to: cli.output, options: .atomic)
         print("V6 curve audit: candidates=\(audit.candidates.count), dense samples=\(audit.denseSampleCount)")
         print("V6 curve audit: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "robustness-study" {
+        let report = try await RobustnessStudy.run(manifestURL: try cli.requiredManifest(), outputURL: cli.output)
+        print("robustness study: Tune pairs=\(report.pairs.count), variants=\(report.variants.count), configurations=\(report.configurations.joined(separator: ","))")
+        print("Validation/Frozen accessed: \(report.validationOrFrozenAccessed ? "YES" : "NO")")
+        print("robustness report: \(cli.output.path)")
         return
     }
 

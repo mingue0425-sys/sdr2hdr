@@ -7,6 +7,9 @@ for reproduced defects, fixes, verification, and remaining color/holdout limits.
 The default preset name does not constitute a production-readiness claim.
 The [SDR input policy and proxy PTS report](docs/SDR_INPUT_POLICY_AND_PTS_FIDELITY_REPORT.md)
 records the versioned SDR transfer interpretation and source-PTS proxy changes.
+The [robustness study report](docs/ROBUSTNESS_STUDY_REPORT.md) measures V4 on
+noisy, compressed, upscaled and banded SDR and documents the opt-in
+noise-gated gain guidance (`--gain-guidance noise-gated`).
 
 The core deliberately stops at a GPU HDR frame:
 
@@ -111,6 +114,7 @@ swift run -c release HDRSample --input /path/to/video.mov --frames 3 --mode EDR
 swift run -c release HDRSample --input /path/to/video.mov --frames 3 --sdr-transfer bt1886
 swift run -c release HDRPlayer test.mp4 --debug --play-for 10
 swift run -c release HDRPlayer test.mp4 --sdr-transfer bt1886
+swift run -c release HDRPlayer test.mp4 --gain-guidance noise-gated
 swift run -c release HDRPlayer --edr-test-pattern --play-for 5
 # after `swift build -c release`:
 ./.build/release/HDRPlayer test.mp4
