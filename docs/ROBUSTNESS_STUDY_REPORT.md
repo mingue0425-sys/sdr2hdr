@@ -10,7 +10,7 @@ HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json \
   --output results/robustness-v1/robustness-study.json
 ```
 
-Report: `results/robustness-v1/robustness-study.json` (schema `robustness-study-v2`).
+Report: `results/robustness-v1/robustness-study.json` (schema `robustness-study-v3`; the v2 run is kept as `robustness-study-v2.json`).
 
 ## Design
 
@@ -74,6 +74,52 @@ Values below are means over 5 pairs, in units of 10⁻³ PQ.
 - Adopting it in a calibrated preset requires a V4 run that searches it and
   passes Validation, followed by the one-use Frozen evaluation.
 - Recommended for grainy, heavily compressed or banded sources.
+
+## Noise-adaptive tolerance (robustness-study-v3)
+
+A fixed tolerance has to choose between two goals:
+- preserving texture expansion on clean input
+- suppressing artifacts on degraded input
+
+The v3 study measures each clip's luma noise sigma with Immerkær's fast estimator (median over frames) and sets the tolerance to clamp(k·σ, min, 0.15).
+
+The estimated σ in signal units was:
+- clean 0.008
+- noise 6: 0.013
+- noise 14: 0.028
+- every compressed or upscaled variant: 0.002–0.004
+
+| input | V4 highlight benefit | fixed t0.12 | adaptive k3 (min 0.02) | adaptive k4 (min 0.05) |
+|---|---:|---:|---:|---:|
+| clean | 95.3 | 89.5 | **94.3** | 93.0 |
+
+| amplification | V4 | fixed t0.12 | adaptive k3 | adaptive k4 |
+|---|---:|---:|---:|---:|
+| noise 6 | 4.14 | **1.08** | 1.48 | 1.33 |
+| noise 14 | 4.03 | **1.20** | 1.36 | 1.21 |
+| CRF 32 | 3.73 | **1.31** | 4.17 | 2.63 |
+| CRF 42 | 3.20 | **2.15** | 3.28 | 2.82 |
+| low-res upscale | 3.39 | **2.88** | 4.32 | 3.49 |
+| 6-bit banding | 4.17 | **0.89** | 1.86 | 1.27 |
+
+- **Clean and noisy input:** adaptive k3 keeps almost all of the clean benefit (−1% against −6% for the fixed tolerance) and still cuts noise amplification to 1.2–1.5×.
+- **Compressed, upscaled and banded input:** blocking, ringing and banding are structured, not random. The noise estimator reports little noise, the tolerance falls to the floor, and the artifacts are not suppressed.
+- **The opt-in default stays the fixed `noise-gated` setting** (radius 2, tolerance 0.12), because it is the only setting that is robust across every degradation.
+- **Next step:** an artifact-aware floor, using 8×8 block-boundary energy and luma histogram gaps, with tolerance = max(noise term, artifact term).
+
+## Cost
+
+Measured at 4K on an Apple M2 (GPU p50, `HDRBenchmark --gain-guidance`):
+
+| | before | after |
+|---|---:|---:|
+| guidance off | 1.78–1.82 ms (inline guidance code) | 1.68–1.73 ms (dedicated kernels, same as before guidance existed) |
+| `noise-gated` | 6.2 ms | 4.9 ms |
+
+How the cost came down:
+- Guidance now runs in separate `sdr*ToHDRGuided` pipelines, so the realtime kernels carry no guidance code.
+- At radius 1–2 the window uses 9 gathers instead of 25 reads.
+- A test-only reference path checks the gather window against per-texel reads: at most 1 half-float ULP of difference, on at most 0.5% of values. A wrong-texel mutation fails that test.
 
 ## Measurement bug found and fixed
 

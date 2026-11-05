@@ -1,0 +1,4673 @@
+{
+  "configurations" : [
+    "no-expansion",
+    "calibrated-v4",
+    "v4-guided-r2-t0.05",
+    "v4-guided-r2-t0.08",
+    "v4-guided-r2-t0.12",
+    "v4-guided-r3-t0.08"
+  ],
+  "derived" : [
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0029802127477935453,
+      "benefitHighlight" : 0.10669336298033338,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0032539344976170864,
+      "benefitHighlight" : 0.10059840870230195,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0034167450765751894,
+      "benefitHighlight" : 0.0958631316366832,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003547678691384254,
+      "benefitHighlight" : 0.0917004833064616,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003512361384023374,
+      "benefitHighlight" : 0.09364752381385855,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0.009687079092657433,
+      "artifactAmplification" : 4.222623204875827,
+      "benefitAll" : -0.003187794960332682,
+      "benefitHighlight" : 0.10313575335627755,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.004436702206595687,
+      "artifactAmplification" : 1.9339701381085077,
+      "benefitAll" : -0.0034174176648721077,
+      "benefitHighlight" : 0.09760657519206854,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.003274437423267107,
+      "artifactAmplification" : 1.4273358681340598,
+      "benefitAll" : -0.0035598852707134365,
+      "benefitHighlight" : 0.09339582479000996,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002650179656292605,
+      "artifactAmplification" : 1.1552202688458773,
+      "benefitAll" : -0.0036744766327792694,
+      "benefitHighlight" : 0.0897384271999373,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.003464323888420868,
+      "artifactAmplification" : 1.51010787674271,
+      "benefitAll" : -0.0036525770716327594,
+      "benefitHighlight" : 0.09122780809620211,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.02326727062285286,
+      "artifactAmplification" : 4.1920502901414025,
+      "benefitAll" : -0.0034940604627696076,
+      "benefitHighlight" : 0.09737695344653483,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.012751771254262835,
+      "artifactAmplification" : 2.297479031930172,
+      "benefitAll" : -0.0036451505357004282,
+      "benefitHighlight" : 0.09458506323335736,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.009201266034723354,
+      "artifactAmplification" : 1.6577866212053727,
+      "benefitAll" : -0.003775079984972063,
+      "benefitHighlight" : 0.09078429665764287,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.0073910843989319,
+      "artifactAmplification" : 1.3316472740283563,
+      "benefitAll" : -0.0038810172130307324,
+      "benefitHighlight" : 0.08721037676513432,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.009646388175260362,
+      "artifactAmplification" : 1.7379840121513388,
+      "benefitAll" : -0.003865247724695514,
+      "benefitHighlight" : 0.0887063450870337,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.005742318734584585,
+      "artifactAmplification" : 3.955050636539062,
+      "benefitAll" : -0.0035316819967577406,
+      "benefitHighlight" : 0.09445288429683367,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0037077328821492218,
+      "artifactAmplification" : 2.5537194944163866,
+      "benefitAll" : -0.003675999394329929,
+      "benefitHighlight" : 0.09200280216565283,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0024739844048334452,
+      "artifactAmplification" : 1.7039690841598825,
+      "benefitAll" : -0.0037612004552896178,
+      "benefitHighlight" : 0.08991425149299123,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0014640546712447811,
+      "artifactAmplification" : 1.008374948705029,
+      "benefitAll" : -0.00383863188515772,
+      "benefitHighlight" : 0.08784025721223701,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0026035990460790653,
+      "artifactAmplification" : 1.793241814054831,
+      "benefitAll" : -0.003844550954538589,
+      "benefitHighlight" : 0.08819393113120974,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003944009964246181,
+      "benefitHighlight" : 0.081256424632766,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.004005874461225384,
+      "benefitHighlight" : 0.08027606758093278,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.004037579708433117,
+      "benefitHighlight" : 0.07950672302547718,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0040645847040226835,
+      "benefitHighlight" : 0.07881734503786192,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.004090006196205601,
+      "benefitHighlight" : 0.07857138395447742,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003589093110795638,
+      "benefitHighlight" : 0.08872643801755413,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0037020447890397795,
+      "benefitHighlight" : 0.08645824360667428,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003752763848209828,
+      "benefitHighlight" : 0.08525779644263246,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.0037865762504195183,
+      "benefitHighlight" : 0.08440876660522602,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : -0.003827790065698833,
+      "benefitHighlight" : 0.08367425591650776,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.003854982632274766,
+      "artifactAmplification" : 4.317673221768919,
+      "benefitAll" : -0.002873629759187493,
+      "benefitHighlight" : 0.10063142181588357,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0013695533570984757,
+      "artifactAmplification" : 1.5339326839556933,
+      "benefitAll" : -0.0031226389321522274,
+      "benefitHighlight" : 0.09442736462324604,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0005772029119298925,
+      "artifactAmplification" : 0.6464811372953313,
+      "benefitAll" : -0.0032638117250863713,
+      "benefitHighlight" : 0.09022760999487155,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : -0.00337745615145707,
+      "benefitHighlight" : 0.08663358816026513,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0006362426245608824,
+      "artifactAmplification" : 0.7126070347542613,
+      "benefitAll" : -0.003353538778035639,
+      "benefitHighlight" : 0.08799916127820609,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0023618654540746562,
+      "artifactAmplification" : 2.7786603730753785,
+      "benefitAll" : -0.0037746278721831478,
+      "benefitHighlight" : 0.08885325874979531,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0015332160361525738,
+      "artifactAmplification" : 1.8037804125002457,
+      "benefitAll" : -0.003873433595272438,
+      "benefitHighlight" : 0.08721259112416907,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0009454784774357697,
+      "artifactAmplification" : 1.1123256721986732,
+      "benefitAll" : -0.003932074871741936,
+      "benefitHighlight" : 0.08576850269454049,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : -0.0039845719339624,
+      "benefitHighlight" : 0.08437122477359063,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0015571032630162399,
+      "artifactAmplification" : 1.8318829831162908,
+      "benefitAll" : -0.004000371480274989,
+      "benefitHighlight" : 0.08439404855932774,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.017597901192467395,
+      "benefitHighlight" : 0.09949310897125038,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.017539432331123934,
+      "benefitHighlight" : 0.09984316289868646,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.01750800763972587,
+      "benefitHighlight" : 0.09982136535355379,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.01745205535700113,
+      "benefitHighlight" : 0.09972324659545839,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.017480299087888528,
+      "benefitHighlight" : 0.09982887471219831,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0.008780082742117865,
+      "artifactAmplification" : 3.717881548801968,
+      "benefitAll" : 0.017082694259873063,
+      "benefitHighlight" : 0.09885975121374456,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0028089198387175906,
+      "artifactAmplification" : 1.1894228730141663,
+      "benefitAll" : 0.01726228557464217,
+      "benefitHighlight" : 0.10066763031009976,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002581181102414719,
+      "artifactAmplification" : 1.092988059070296,
+      "benefitAll" : 0.01723634273468843,
+      "benefitHighlight" : 0.10063038188569991,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0024963370274570973,
+      "artifactAmplification" : 1.0570612654312164,
+      "benefitAll" : 0.01718527835129406,
+      "benefitHighlight" : 0.1005280607630369,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002567858333669707,
+      "artifactAmplification" : 1.087346600151187,
+      "benefitAll" : 0.017204120034291046,
+      "benefitHighlight" : 0.1005709203026208,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.021772997879935238,
+      "artifactAmplification" : 3.7618213844090347,
+      "benefitAll" : 0.015449709123707259,
+      "benefitHighlight" : 0.09176550048739794,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.009971436639809173,
+      "artifactAmplification" : 1.7228111531431192,
+      "benefitAll" : 0.0165953510594262,
+      "benefitHighlight" : 0.09913205602662538,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.007592985560314005,
+      "artifactAmplification" : 1.3118751772175896,
+      "benefitAll" : 0.0167616575890861,
+      "benefitHighlight" : 0.100259250814696,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.006581897672367723,
+      "artifactAmplification" : 1.1371848539388456,
+      "benefitAll" : 0.016794400248999197,
+      "benefitHighlight" : 0.10061695087746832,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.00753219706744624,
+      "artifactAmplification" : 1.3013724686031414,
+      "benefitAll" : 0.016751703242519816,
+      "benefitHighlight" : 0.10036554080693343,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.0002269647623852905,
+      "benefitAll" : 0.01715647906042351,
+      "benefitHighlight" : 0.09931522532338748,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0005318191668918029,
+      "benefitAll" : 0.017192906063161893,
+      "benefitHighlight" : 0.0995040474096262,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0003345883128166749,
+      "benefitAll" : 0.017181102156712397,
+      "benefitHighlight" : 0.09947095358334504,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.00016058865904844733,
+      "benefitAll" : 0.01714938743231536,
+      "benefitHighlight" : 0.09941197943281077,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.00047743715345898244,
+      "benefitAll" : 0.01717661243965267,
+      "benefitHighlight" : 0.09945822486793715,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0011171347463403854,
+      "artifactAmplification" : 3.7966580205814293,
+      "benefitAll" : 0.016151023593505093,
+      "benefitHighlight" : 0.09695487028538846,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0010800945673287048,
+      "artifactAmplification" : 3.67077446607813,
+      "benefitAll" : 0.016206036914984234,
+      "benefitHighlight" : 0.09717162407968714,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0008706333355662871,
+      "artifactAmplification" : 2.9589062978228573,
+      "benefitAll" : 0.01620025775237298,
+      "benefitHighlight" : 0.0971362493146573,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0006967921358053306,
+      "artifactAmplification" : 2.3680952183697523,
+      "benefitAll" : 0.016183425840808993,
+      "benefitHighlight" : 0.09707436759498192,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0009127535454902702,
+      "artifactAmplification" : 3.102054681095629,
+      "benefitAll" : 0.01622640361418346,
+      "benefitHighlight" : 0.09722653494521567,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.01736481291031689,
+      "benefitHighlight" : 0.09895084885300086,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0008950508968399823,
+      "benefitAll" : 0.017340843111359028,
+      "benefitHighlight" : 0.0990583474137725,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0007437174899721987,
+      "benefitAll" : 0.017308071006585053,
+      "benefitHighlight" : 0.09895866461886782,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0006656887055752732,
+      "benefitAll" : 0.017268085122624538,
+      "benefitHighlight" : 0.0988136337186921,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0007356174792826763,
+      "benefitAll" : 0.017290668470867424,
+      "benefitHighlight" : 0.09897972729914307,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0038500710566443403,
+      "artifactAmplification" : 3.936278858562625,
+      "benefitAll" : 0.01752038820262246,
+      "benefitHighlight" : 0.10540819515083809,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0013258153242316666,
+      "artifactAmplification" : 1.3555019516133462,
+      "benefitAll" : 0.017481744820828753,
+      "benefitHighlight" : 0.10572144296770548,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.001283495197105985,
+      "artifactAmplification" : 1.3122342250582693,
+      "benefitAll" : 0.01742733069651218,
+      "benefitHighlight" : 0.10548978992157432,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0012699540204402179,
+      "artifactAmplification" : 1.298389844877926,
+      "benefitAll" : 0.017364033971153346,
+      "benefitHighlight" : 0.10528916438228053,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.000998547191403602,
+      "artifactAmplification" : 1.0209058848448627,
+      "benefitAll" : 0.017375090368666475,
+      "benefitHighlight" : 0.10516229747161611,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0020340910690754524,
+      "artifactAmplification" : 3.873602201833807,
+      "benefitAll" : 0.01687310063727382,
+      "benefitHighlight" : 0.09963405339022847,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0013950817674013285,
+      "artifactAmplification" : 2.65671084648154,
+      "benefitAll" : 0.016935904387476518,
+      "benefitHighlight" : 0.09997821885022887,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0010975333340630172,
+      "artifactAmplification" : 2.090077285155614,
+      "benefitAll" : 0.016925449068650872,
+      "benefitHighlight" : 0.09993599315258095,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0009040387395326246,
+      "artifactAmplification" : 1.7215976733963703,
+      "benefitAll" : 0.016897522941518098,
+      "benefitHighlight" : 0.09986253340689956,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0010896772761845876,
+      "artifactAmplification" : 2.0751166752014836,
+      "benefitAll" : 0.016938948665590217,
+      "benefitHighlight" : 0.0999996552097713,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007741438489700256,
+      "benefitHighlight" : 0.07512427958024229,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007542431274107503,
+      "benefitHighlight" : 0.07399013114186326,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007414185063162035,
+      "benefitHighlight" : 0.07322074110373225,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.00728638932002524,
+      "benefitHighlight" : 0.07234812364856741,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007331565623552493,
+      "benefitHighlight" : 0.07270049847480278,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0.011588443009498836,
+      "artifactAmplification" : 4.663844018333552,
+      "benefitAll" : 0.007631757881182415,
+      "benefitHighlight" : 0.07346462756391306,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0030687546193212283,
+      "artifactAmplification" : 1.2350401916222329,
+      "benefitAll" : 0.007385045612488282,
+      "benefitHighlight" : 0.07235483280067131,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0027018975388464813,
+      "artifactAmplification" : 1.0873961812100477,
+      "benefitAll" : 0.007268273940623321,
+      "benefitHighlight" : 0.07163576989803266,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002563468325196634,
+      "artifactAmplification" : 1.0316844467247281,
+      "benefitAll" : 0.007154557778297731,
+      "benefitHighlight" : 0.07085256490973146,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0026385366176292584,
+      "artifactAmplification" : 1.0618961676902998,
+      "benefitAll" : 0.007186035679533159,
+      "benefitHighlight" : 0.07113478828251234,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.02728133463748468,
+      "artifactAmplification" : 4.331573543774572,
+      "benefitAll" : 0.0077509796311513585,
+      "benefitHighlight" : 0.07123263570322114,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.01239039434557567,
+      "artifactAmplification" : 1.9672756137995873,
+      "benefitAll" : 0.007327437376434737,
+      "benefitHighlight" : 0.07054004986195192,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.008960423289847282,
+      "artifactAmplification" : 1.42268451962006,
+      "benefitAll" : 0.007190016948602072,
+      "benefitHighlight" : 0.06979640810617438,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.007458405849560554,
+      "artifactAmplification" : 1.1842028216720946,
+      "benefitAll" : 0.007079821684962594,
+      "benefitHighlight" : 0.06903916835811708,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.008806432923845517,
+      "artifactAmplification" : 1.3982348141993832,
+      "benefitAll" : 0.007099814880708787,
+      "benefitHighlight" : 0.06930922164085371,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007933508829874085,
+      "benefitHighlight" : 0.0725297099086756,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007777448119377667,
+      "benefitHighlight" : 0.07188650754327912,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007698195718230973,
+      "benefitHighlight" : 0.07143975043967554,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007621762944441578,
+      "benefitHighlight" : 0.07094744446181839,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.00014695820763238154,
+      "benefitAll" : 0.007614409607430775,
+      "benefitHighlight" : 0.07102337646357727,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007527421432656979,
+      "benefitHighlight" : 0.06862668829314701,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007441772286508427,
+      "benefitHighlight" : 0.06829738096336764,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007414481587929692,
+      "benefitHighlight" : 0.0681411410440334,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007391434540103076,
+      "benefitHighlight" : 0.06798437128564215,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007353978719431269,
+      "benefitHighlight" : 0.06789102824609416,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007502056518195313,
+      "benefitHighlight" : 0.07112385656566014,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.0073691794259427915,
+      "benefitHighlight" : 0.0705269249388481,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007324648217906876,
+      "benefitHighlight" : 0.0702856032343751,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007295864007222909,
+      "benefitHighlight" : 0.07011046942436577,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.00723894532743749,
+      "benefitHighlight" : 0.0698727625829425,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0035556133166104913,
+      "artifactAmplification" : 4.641389806441449,
+      "benefitAll" : 0.0073823186190278625,
+      "benefitHighlight" : 0.06890599568123795,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0009155917421225073,
+      "artifactAmplification" : 1.1951856966270071,
+      "benefitAll" : 0.007190137779271404,
+      "benefitHighlight" : 0.0678315752876584,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0008606994367407487,
+      "artifactAmplification" : 1.1235309456841123,
+      "benefitAll" : 0.007072619404218598,
+      "benefitHighlight" : 0.06711731472151855,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0008436632366166399,
+      "artifactAmplification" : 1.1012924066317518,
+      "benefitAll" : 0.006957751964669245,
+      "benefitHighlight" : 0.06633589385815022,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0007146493042784204,
+      "artifactAmplification" : 0.9328815314541413,
+      "benefitAll" : 0.006993904158529546,
+      "benefitHighlight" : 0.06662082667989974,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007691895327912986,
+      "benefitHighlight" : 0.07007573175543019,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007569006845803451,
+      "benefitHighlight" : 0.06959525879582937,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007512088000202248,
+      "benefitHighlight" : 0.069284176370911,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007457253600894942,
+      "benefitHighlight" : 0.06893763914798198,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.007436578905553874,
+      "benefitHighlight" : 0.06894508680760233,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.036974403384877494,
+      "benefitHighlight" : 0.0790716380801,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03629841616615695,
+      "benefitHighlight" : 0.07609609977400134,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03618097643060021,
+      "benefitHighlight" : 0.07518284537341392,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03615603707691965,
+      "benefitHighlight" : 0.07476052176788345,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03598118760390208,
+      "benefitHighlight" : 0.07432164608708516,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0.010916172836575415,
+      "artifactAmplification" : 4.307652290189346,
+      "benefitAll" : 0.036819157594726995,
+      "benefitHighlight" : 0.0778249306439269,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.003318055668178931,
+      "artifactAmplification" : 1.3093444297727588,
+      "benefitAll" : 0.03601272623254578,
+      "benefitHighlight" : 0.07511540234431385,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002888231016138177,
+      "artifactAmplification" : 1.1397304840738145,
+      "benefitAll" : 0.035897822155063375,
+      "benefitHighlight" : 0.07429498656269903,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0027218980044282164,
+      "artifactAmplification" : 1.0740934893547676,
+      "benefitAll" : 0.035869136694691786,
+      "benefitHighlight" : 0.07391394639408128,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002886633765995932,
+      "artifactAmplification" : 1.1391001900746032,
+      "benefitAll" : 0.03570758552671724,
+      "benefitHighlight" : 0.07348439594512071,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.02504411205336129,
+      "artifactAmplification" : 4.078762382771438,
+      "benefitAll" : 0.03721176127622186,
+      "benefitHighlight" : 0.07570469171530096,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.011622024550889527,
+      "artifactAmplification" : 1.892799251529146,
+      "benefitAll" : 0.03570439031650048,
+      "benefitHighlight" : 0.07378078523676836,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.008547938436633706,
+      "artifactAmplification" : 1.3921439766481263,
+      "benefitAll" : 0.03545187603312673,
+      "benefitHighlight" : 0.07286373486821435,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.007194030293544323,
+      "artifactAmplification" : 1.1716422638305726,
+      "benefitAll" : 0.03537634989021321,
+      "benefitHighlight" : 0.07239039828729507,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.00850338255005038,
+      "artifactAmplification" : 1.3848874656670267,
+      "benefitAll" : 0.03525404754229759,
+      "benefitHighlight" : 0.07212618556472429,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.0009577259791621814,
+      "artifactAmplification" : 3.570994265858474,
+      "benefitAll" : 0.03642626025303891,
+      "benefitHighlight" : 0.0748420140627381,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.00045115793725182866,
+      "artifactAmplification" : 1.6821955778334343,
+      "benefitAll" : 0.03614524872441188,
+      "benefitHighlight" : 0.07388267608536628,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03610058403248877,
+      "benefitHighlight" : 0.07366351687582162,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03608344563733716,
+      "benefitHighlight" : 0.07355909889688478,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.00042465733583290787,
+      "artifactAmplification" : 1.5833849600077046,
+      "benefitAll" : 0.03595721340982684,
+      "benefitHighlight" : 0.07310730935180092,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.0352634376582978,
+      "benefitHighlight" : 0.06939447235807053,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03515736287585848,
+      "benefitHighlight" : 0.06914793089686777,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.035150655698363675,
+      "benefitHighlight" : 0.06912643332769598,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03514789437312718,
+      "benefitHighlight" : 0.06911730152635523,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03507427762354626,
+      "benefitHighlight" : 0.06891328478747391,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03625446842069768,
+      "benefitHighlight" : 0.07487870144445775,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03607351289220455,
+      "benefitHighlight" : 0.07405110978390468,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03605747912546793,
+      "benefitHighlight" : 0.07396200519021709,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.036051025256833624,
+      "benefitHighlight" : 0.07392496997688888,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.03593663314675147,
+      "benefitHighlight" : 0.07337322402644793,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0038828195866383456,
+      "artifactAmplification" : 4.290773784244597,
+      "benefitAll" : 0.0347660718554592,
+      "benefitHighlight" : 0.07347795083271903,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0011755538405404647,
+      "artifactAmplification" : 1.2990651479962494,
+      "benefitAll" : 0.03409495499255251,
+      "benefitHighlight" : 0.07064030007153696,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.001071335501853089,
+      "artifactAmplification" : 1.1838969550119156,
+      "benefitAll" : 0.03397537181143473,
+      "benefitHighlight" : 0.06982448384184677,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0010285929126453465,
+      "artifactAmplification" : 1.1366635522871449,
+      "benefitAll" : 0.033944687004125174,
+      "benefitHighlight" : 0.06945760964828564,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0010062208665923148,
+      "artifactAmplification" : 1.1119409540406036,
+      "benefitAll" : 0.033783349175295505,
+      "benefitHighlight" : 0.06900973387489354,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03560984436541158,
+      "benefitHighlight" : 0.071799244738287,
+      "configuration" : "calibrated-v4",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03542098983749675,
+      "benefitHighlight" : 0.07126510223459534,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03539878656725742,
+      "benefitHighlight" : 0.0711794468966222,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "artifactAmplification" : 0,
+      "benefitAll" : 0.03538966150556733,
+      "benefitHighlight" : 0.07114031549860007,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 6.998681711985013e-05,
+      "artifactAmplification" : 2.8170024388651456,
+      "benefitAll" : 0.0352824912295191,
+      "benefitHighlight" : 0.07078914929164089,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.024436809319548176,
+      "benefitHighlight" : 0.11591691724045143,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.024276526370328372,
+      "benefitHighlight" : 0.11446675350900234,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.024103541450129322,
+      "benefitHighlight" : 0.11234772050965344,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.02385539648936868,
+      "benefitHighlight" : 0.10892615638924191,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0,
+      "benefitAll" : 0.023973477493282297,
+      "benefitHighlight" : 0.11090339137852584,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "addedArtifactPQ" : 0.008048922559861246,
+      "artifactAmplification" : 3.7120932745994155,
+      "benefitAll" : 0.024193907249849274,
+      "benefitHighlight" : 0.11307184888761238,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.0028229116492225967,
+      "artifactAmplification" : 1.3019023689113727,
+      "benefitAll" : 0.024046215503961237,
+      "benefitHighlight" : 0.11247034374471983,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002492021243438879,
+      "artifactAmplification" : 1.149298583646431,
+      "benefitAll" : 0.023876656569806816,
+      "benefitHighlight" : 0.11032519726208907,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002353686413109159,
+      "artifactAmplification" : 1.0854997597056206,
+      "benefitAll" : 0.02363268666853325,
+      "benefitHighlight" : 0.10688942557234363,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.002540606346837407,
+      "artifactAmplification" : 1.1717056119449492,
+      "benefitAll" : 0.023745703255882128,
+      "benefitHighlight" : 0.10883371183754631,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "addedArtifactPQ" : 0.020434405154552263,
+      "artifactAmplification" : 3.72283643217006,
+      "benefitAll" : 0.023734811380654523,
+      "benefitHighlight" : 0.10676497652129421,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.009882620107948058,
+      "artifactAmplification" : 1.8004624017631004,
+      "benefitAll" : 0.02371279704937313,
+      "benefitHighlight" : 0.10894397971270155,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.007578871896789273,
+      "artifactAmplification" : 1.3807546732443716,
+      "benefitAll" : 0.023563633994395795,
+      "benefitHighlight" : 0.1074682852630011,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.006506712990964713,
+      "artifactAmplification" : 1.185423700529951,
+      "benefitAll" : 0.023333508665917956,
+      "benefitHighlight" : 0.10440300839801267,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.0077288417388822325,
+      "artifactAmplification" : 1.4080768873067704,
+      "benefitAll" : 0.02343231458049147,
+      "benefitHighlight" : 0.10601845774005808,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "addedArtifactPQ" : 0.004420613525144836,
+      "artifactAmplification" : 3.337657033581104,
+      "benefitAll" : 0.023554278886112653,
+      "benefitHighlight" : 0.10725643583332276,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.003316073766254969,
+      "artifactAmplification" : 2.503706073118449,
+      "benefitAll" : 0.023441697537996055,
+      "benefitHighlight" : 0.10659378484268336,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.002720930955529587,
+      "artifactAmplification" : 2.054360619845033,
+      "benefitAll" : 0.02331266611841263,
+      "benefitHighlight" : 0.10486521156286918,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.002354020214860448,
+      "artifactAmplification" : 1.7773352234096635,
+      "benefitAll" : 0.0231151381386889,
+      "benefitHighlight" : 0.10201375662710009,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.0028576206217128795,
+      "artifactAmplification" : 2.1575642188838273,
+      "benefitAll" : 0.023181899447073384,
+      "benefitHighlight" : 0.10337716114209554,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "addedArtifactPQ" : 0.005665905945398308,
+      "artifactAmplification" : 3.1092661787396962,
+      "benefitAll" : 0.021901903065147166,
+      "benefitHighlight" : 0.0923252656732722,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0048979413867224165,
+      "artifactAmplification" : 2.6878320335610213,
+      "benefitAll" : 0.021807487491179618,
+      "benefitHighlight" : 0.09136240571933002,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.0043250478370809985,
+      "artifactAmplification" : 2.3734465575075587,
+      "benefitAll" : 0.021729978758811816,
+      "benefitHighlight" : 0.09026008093621088,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.003846477183373984,
+      "artifactAmplification" : 2.110822440191054,
+      "benefitAll" : 0.021622277374962716,
+      "benefitHighlight" : 0.08859862885920548,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.004288318583936631,
+      "artifactAmplification" : 2.3532907297065515,
+      "benefitAll" : 0.021630845067070602,
+      "benefitHighlight" : 0.08909835579792713,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "addedArtifactPQ" : 0.004018814226495872,
+      "artifactAmplification" : 3.388966103021569,
+      "benefitAll" : 0.02215584731898855,
+      "benefitHighlight" : 0.09278751111928354,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.003244139630445175,
+      "artifactAmplification" : 2.7357022796830965,
+      "benefitAll" : 0.021973157716925956,
+      "benefitHighlight" : 0.09061158501545577,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0028455825406318675,
+      "artifactAmplification" : 2.399608996596972,
+      "benefitAll" : 0.02183326075939495,
+      "benefitHighlight" : 0.08860168605718063,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.002749543390614814,
+      "artifactAmplification" : 2.318621569553202,
+      "benefitAll" : 0.02169608283630573,
+      "benefitHighlight" : 0.08664742930318217,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.0026873694143204267,
+      "artifactAmplification" : 2.266191801398563,
+      "benefitAll" : 0.0216940341029479,
+      "benefitHighlight" : 0.08670503959653096,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "addedArtifactPQ" : 0.002375675552475869,
+      "artifactAmplification" : 3.6030166607492857,
+      "benefitAll" : 0.023748887632174635,
+      "benefitHighlight" : 0.11156487874542016,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0005522842244524319,
+      "artifactAmplification" : 0.837609858003252,
+      "benefitAll" : 0.02359511149134777,
+      "benefitHighlight" : 0.11013657198915672,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.00037915180446593445,
+      "artifactAmplification" : 0.5750323384942916,
+      "benefitAll" : 0.023426088145110137,
+      "benefitHighlight" : 0.10789597433631408,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.0005974457334776811,
+      "artifactAmplification" : 0.9061030784991956,
+      "benefitAll" : 0.02317964966266086,
+      "benefitHighlight" : 0.10429970346800321,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.00042214410246770294,
+      "artifactAmplification" : 0.64023567226722,
+      "benefitAll" : 0.02329834108671005,
+      "benefitHighlight" : 0.1063700155714995,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "addedArtifactPQ" : 0.005190551356942467,
+      "artifactAmplification" : 3.250889704451275,
+      "benefitAll" : 0.022681118023637814,
+      "benefitHighlight" : 0.09935757311301238,
+      "configuration" : "calibrated-v4",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.004089095263915148,
+      "artifactAmplification" : 2.561037697122928,
+      "benefitAll" : 0.022557308732625625,
+      "benefitHighlight" : 0.09841156059721752,
+      "configuration" : "v4-guided-r2-t0.05",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0034370669478397922,
+      "artifactAmplification" : 2.152666409763451,
+      "benefitAll" : 0.022444697991561346,
+      "benefitHighlight" : 0.09685100611739106,
+      "configuration" : "v4-guided-r2-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.003020914602542031,
+      "artifactAmplification" : 1.8920263964434287,
+      "benefitAll" : 0.02228414258542738,
+      "benefitHighlight" : 0.09438601765091964,
+      "configuration" : "v4-guided-r2-t0.12",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "addedArtifactPQ" : 0.0034984723322181777,
+      "artifactAmplification" : 2.191125162629188,
+      "benefitAll" : 0.022315666775610796,
+      "benefitHighlight" : 0.09537804582468937,
+      "configuration" : "v4-guided-r3-t0.08",
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    }
+  ],
+  "frameCount" : 24,
+  "manifestPath" : "\/Volumes\/game\/sdr2hdr\/data_video\/open-content\/manifest.json",
+  "pairs" : [
+    "netflix_sollevante_t030",
+    "netflix_sollevante_t090",
+    "netflix_sollevante_t150",
+    "netflix_sollevante_t175",
+    "video3_newjeans_how_sweet"
+  ],
+  "rows" : [
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.07846737184434414,
+        "errorHighlight" : 0.13109646616690124,
+        "flatHighPass" : 0.0025074218243412937,
+        "flatHighlightHighPass" : 0.001416302636368679,
+        "temporalErrorStd" : 0.0002840286334230033
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08144758459213769,
+        "errorHighlight" : 0.024403103186567857,
+        "flatHighPass" : 0.003115225602937536,
+        "flatHighlightHighPass" : 0.006491311640423503,
+        "temporalErrorStd" : 0.0009364755216577464
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08172130634196123,
+        "errorHighlight" : 0.030498057464599285,
+        "flatHighPass" : 0.002757501354209411,
+        "flatHighlightHighPass" : 0.004726213533666638,
+        "temporalErrorStd" : 0.0009646024362649076
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08188411692091933,
+        "errorHighlight" : 0.035233334530218034,
+        "flatHighPass" : 0.0026857382480271093,
+        "flatHighlightHighPass" : 0.004027227750840459,
+        "temporalErrorStd" : 0.0009718887140464864
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.0820150505357284,
+        "errorHighlight" : 0.03939598286043963,
+        "flatHighPass" : 0.002650767624624129,
+        "flatHighlightHighPass" : 0.003758095495324805,
+        "temporalErrorStd" : 0.0009749491252974518
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08197973322836752,
+        "errorHighlight" : 0.037448942353042684,
+        "flatHighPass" : 0.0026574495615482078,
+        "flatHighlightHighPass" : 0.0036592105666644545,
+        "temporalErrorStd" : 0.0009819715316103394
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.07886684954156577,
+        "errorHighlight" : 0.13211638854875718,
+        "flatHighPass" : 0.009337339890120262,
+        "flatHighlightHighPass" : 0.002696064471372394,
+        "temporalErrorStd" : 0.0002789971487518398
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08205464450189845,
+        "errorHighlight" : 0.02898063519247963,
+        "flatHighPass" : 0.010504182238661982,
+        "flatHighlightHighPass" : 0.011660901687283811,
+        "temporalErrorStd" : 0.0009414754313366822
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08228426720643787,
+        "errorHighlight" : 0.03450981335668864,
+        "flatHighPass" : 0.009567735576190908,
+        "flatHighlightHighPass" : 0.0064823931411034244,
+        "temporalErrorStd" : 0.0009675003644723665
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0824267348122792,
+        "errorHighlight" : 0.03872056375874722,
+        "flatHighPass" : 0.009493155885760931,
+        "flatHighlightHighPass" : 0.005190424240467405,
+        "temporalErrorStd" : 0.0009741828505600664
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08254132617434504,
+        "errorHighlight" : 0.042377961348819874,
+        "flatHighPass" : 0.009460340566447002,
+        "flatHighlightHighPass" : 0.0045985578133375445,
+        "temporalErrorStd" : 0.0009769509191320876
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08251942661319853,
+        "errorHighlight" : 0.04088858045255507,
+        "flatHighPass" : 0.009494061777541495,
+        "flatHighlightHighPass" : 0.005038984220561946,
+        "temporalErrorStd" : 0.0009838629508523017
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.07911471127229984,
+        "errorHighlight" : 0.1331445522620127,
+        "flatHighPass" : 0.023900095360982695,
+        "flatHighlightHighPass" : 0.005728184512649577,
+        "temporalErrorStd" : 0.0002686868216948642
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08260877173506945,
+        "errorHighlight" : 0.03576759881547786,
+        "flatHighPass" : 0.02631682492133233,
+        "flatHighlightHighPass" : 0.024155806942641543,
+        "temporalErrorStd" : 0.0009376716172935183
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08275986180800027,
+        "errorHighlight" : 0.038559489028655324,
+        "flatHighPass" : 0.024651448214941817,
+        "flatHighlightHighPass" : 0.013599439859305147,
+        "temporalErrorStd" : 0.000972943681807975
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0828897912572719,
+        "errorHighlight" : 0.04236025560436981,
+        "flatHighPass" : 0.024305470500293986,
+        "flatHighlightHighPass" : 0.01004399621659094,
+        "temporalErrorStd" : 0.0009810543726257938
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08299572848533057,
+        "errorHighlight" : 0.04593417549687836,
+        "flatHighPass" : 0.02415670761173491,
+        "flatHighlightHighPass" : 0.008291647022402432,
+        "temporalErrorStd" : 0.000983851607820643
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08297995899699535,
+        "errorHighlight" : 0.044438207174978976,
+        "flatHighPass" : 0.024323634187382658,
+        "flatHighlightHighPass" : 0.010317103605130258,
+        "temporalErrorStd" : 0.0009900315863021244
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.08059774568511291,
+        "errorHighlight" : 0.13495112887468552,
+        "flatHighPass" : 0.0032393897996020656,
+        "flatHighlightHighPass" : 0.002028278237580259,
+        "temporalErrorStd" : 0.0005765877208847225
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08412942768187065,
+        "errorHighlight" : 0.04049824457785185,
+        "flatHighPass" : 0.0038781217672464916,
+        "flatHighlightHighPass" : 0.008666680521552573,
+        "temporalErrorStd" : 0.0012597908564697695
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08427374507944284,
+        "errorHighlight" : 0.04294832670903269,
+        "flatHighPass" : 0.0035362193978389174,
+        "flatHighlightHighPass" : 0.006007027342303701,
+        "temporalErrorStd" : 0.0012773593816383549
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08435894614040253,
+        "errorHighlight" : 0.04503687738169428,
+        "flatHighPass" : 0.0034457873327056513,
+        "flatHighlightHighPass" : 0.004726432290057544,
+        "temporalErrorStd" : 0.0012814783217703842
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08443637757027063,
+        "errorHighlight" : 0.047110871662448504,
+        "flatHighPass" : 0.0033938933194542554,
+        "flatHighlightHighPass" : 0.004033204412421252,
+        "temporalErrorStd" : 0.001283193012028243
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0844422966396515,
+        "errorHighlight" : 0.04675719774347579,
+        "flatHighPass" : 0.0034268340537348813,
+        "flatHighlightHighPass" : 0.004490940877358843,
+        "temporalErrorStd" : 0.0012902717551372255
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.08246064669436604,
+        "errorHighlight" : 0.1403319245021004,
+        "flatHighPass" : 0.002173344302662239,
+        "flatHighlightHighPass" : 0.0012705373405458046,
+        "temporalErrorStd" : 0.0006484855384704714
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08640465665861222,
+        "errorHighlight" : 0.05907549986933441,
+        "flatHighPass" : 0.0025810133498062075,
+        "flatHighlightHighPass" : 0.005225366914119862,
+        "temporalErrorStd" : 0.0012812912562548185
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08646652115559142,
+        "errorHighlight" : 0.06005585692116763,
+        "flatHighPass" : 0.0023730497720854437,
+        "flatHighlightHighPass" : 0.003787565497659139,
+        "temporalErrorStd" : 0.001286892596408505
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08649822640279915,
+        "errorHighlight" : 0.06082520147662323,
+        "flatHighPass" : 0.002327142078505104,
+        "flatHighlightHighPass" : 0.003346559077269633,
+        "temporalErrorStd" : 0.0012870458209337488
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08652523139838872,
+        "errorHighlight" : 0.06151457946423849,
+        "flatHighPass" : 0.002296639962799541,
+        "flatHighlightHighPass" : 0.0030629114519036666,
+        "temporalErrorStd" : 0.0012864569936591205
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08655065289057164,
+        "errorHighlight" : 0.06176054054762299,
+        "flatHighPass" : 0.002318768661677682,
+        "flatHighlightHighPass" : 0.0032316956094411422,
+        "temporalErrorStd" : 0.0012911696387093014
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.0806425492770679,
+        "errorHighlight" : 0.13734169106811042,
+        "flatHighPass" : 0.0018814672979474121,
+        "flatHighlightHighPass" : 0.0010781105153122264,
+        "temporalErrorStd" : 0.000281559704335757
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.08423164238786354,
+        "errorHighlight" : 0.04861525305055629,
+        "flatHighPass" : 0.002208940309425496,
+        "flatHighlightHighPass" : 0.004509648632561006,
+        "temporalErrorStd" : 0.0009779796461172865
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08434459406610768,
+        "errorHighlight" : 0.050883447461436145,
+        "flatHighPass" : 0.0020336365326903733,
+        "flatHighlightHighPass" : 0.0034532836246192493,
+        "temporalErrorStd" : 0.0009883517613303726
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08439531312527773,
+        "errorHighlight" : 0.05208389462547796,
+        "flatHighPass" : 0.0020094427351878713,
+        "flatHighlightHighPass" : 0.00306438944052982,
+        "temporalErrorStd" : 0.0009887577674525224
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08442912552748742,
+        "errorHighlight" : 0.052932924462884404,
+        "flatHighPass" : 0.0019978025645588184,
+        "flatHighlightHighPass" : 0.002849958067999135,
+        "temporalErrorStd" : 0.000988339065738716
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08447033934276674,
+        "errorHighlight" : 0.053667435151602653,
+        "flatHighPass" : 0.001988660899909531,
+        "flatHighlightHighPass" : 0.0028760983186914978,
+        "temporalErrorStd" : 0.000995565845059946
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.07501401429143155,
+        "errorHighlight" : 0.13313216913733408,
+        "flatHighPass" : 0.004028161830060931,
+        "flatHighlightHighPass" : 0.0016742379801279578,
+        "temporalErrorStd" : 0.0002624055392680205
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07788764405061904,
+        "errorHighlight" : 0.032500747321450515,
+        "flatHighPass" : 0.004651903459045364,
+        "flatHighlightHighPass" : 0.007549703166895885,
+        "temporalErrorStd" : 0.0008963398638089415
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07813665322358378,
+        "errorHighlight" : 0.038704804514088045,
+        "flatHighPass" : 0.004218826524396558,
+        "flatHighlightHighPass" : 0.004920647392747563,
+        "temporalErrorStd" : 0.0009232995691987177
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07827782601651792,
+        "errorHighlight" : 0.04290455914246254,
+        "flatHighPass" : 0.004165935086459386,
+        "flatHighlightHighPass" : 0.0040683813192324845,
+        "temporalErrorStd" : 0.0009311608832636466
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07839147044288862,
+        "errorHighlight" : 0.04649858097706895,
+        "flatHighPass" : 0.004140806690311135,
+        "flatHighlightHighPass" : 0.0037262309914791315,
+        "temporalErrorStd" : 0.0009348263157208467
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07836755306946719,
+        "errorHighlight" : 0.045133007859128,
+        "flatHighPass" : 0.004146916946681446,
+        "flatHighlightHighPass" : 0.0037141118249854727,
+        "temporalErrorStd" : 0.0009410112427199764
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.08161424284566575,
+        "errorHighlight" : 0.13709839091105105,
+        "flatHighPass" : 0.002683538575924181,
+        "flatHighlightHighPass" : 0.0016517916602292115,
+        "temporalErrorStd" : 0.0005905357537842662
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.0853888707178489,
+        "errorHighlight" : 0.04824513216125574,
+        "flatHighPass" : 0.003189374125207849,
+        "flatHighlightHighPass" : 0.006907643247609777,
+        "temporalErrorStd" : 0.0012842555275939483
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.08548767644093819,
+        "errorHighlight" : 0.04988579978688198,
+        "flatHighPass" : 0.0029262545830469806,
+        "flatHighlightHighPass" : 0.004968686524558487,
+        "temporalErrorStd" : 0.0012945016828856395
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08554631771740769,
+        "errorHighlight" : 0.051329888216510564,
+        "flatHighPass" : 0.0028589337836048096,
+        "flatHighlightHighPass" : 0.0041367249012272695,
+        "temporalErrorStd" : 0.0012965640062393693
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.08559881477962815,
+        "errorHighlight" : 0.05272716613746042,
+        "flatHighPass" : 0.0028184263503191237,
+        "flatHighlightHighPass" : 0.0036091311281665605,
+        "temporalErrorStd" : 0.0012965346603799896
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.08561461432594074,
+        "errorHighlight" : 0.05270434235172332,
+        "flatHighPass" : 0.0028472485457443574,
+        "flatHighlightHighPass" : 0.003976731389330265,
+        "temporalErrorStd" : 0.0013027551039441348
+      },
+      "pairID" : "netflix_sollevante_t030",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06628421909399781,
+        "errorHighlight" : 0.11016080625642072,
+        "flatHighPass" : 0.0009491538097859767,
+        "flatHighlightHighPass" : 0.000471761607461119,
+        "temporalErrorStd" : 0.010989403937237829
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04868631790153042,
+        "errorHighlight" : 0.010667697285170332,
+        "flatHighPass" : 0.0017375794231222223,
+        "flatHighlightHighPass" : 0.0017459764090643826,
+        "temporalErrorStd" : 0.005653288044267409
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04874478676287388,
+        "errorHighlight" : 0.010317643357734262,
+        "flatHighPass" : 0.0011122276746066034,
+        "flatHighlightHighPass" : 0.0006917038803292702,
+        "temporalErrorStd" : 0.005612608048813299
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.048776211454271946,
+        "errorHighlight" : 0.010339440902866922,
+        "flatHighPass" : 0.0011060752017790028,
+        "flatHighlightHighPass" : 0.0007324604256482636,
+        "temporalErrorStd" : 0.005595418708908704
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.048832163736996684,
+        "errorHighlight" : 0.010437559660962326,
+        "flatHighPass" : 0.0011109231970001798,
+        "flatHighlightHighPass" : 0.0007887170982303921,
+        "temporalErrorStd" : 0.0055812716133312465
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04880392000610929,
+        "errorHighlight" : 0.010331931544222404,
+        "flatHighPass" : 0.0010370906216697132,
+        "flatHighlightHighPass" : 0.0005749760291725362,
+        "temporalErrorStd" : 0.0055784646945050195
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06655512269642916,
+        "errorHighlight" : 0.1104894403157288,
+        "flatHighPass" : 0.004380255510844552,
+        "flatHighlightHighPass" : 0.002408241955684242,
+        "temporalErrorStd" : 0.011019860125592978
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.049472428436556096,
+        "errorHighlight" : 0.011629689101984237,
+        "flatHighPass" : 0.008211948952594356,
+        "flatHighlightHighPass" : 0.008951999027002031,
+        "temporalErrorStd" : 0.005869142586807351
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04929283712178699,
+        "errorHighlight" : 0.009821810005629034,
+        "flatHighPass" : 0.004682128015754235,
+        "flatHighlightHighPass" : 0.00289283337204268,
+        "temporalErrorStd" : 0.005826144897307826
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04931877996174073,
+        "errorHighlight" : 0.00985905843002889,
+        "flatHighPass" : 0.00456036354166256,
+        "flatHighlightHighPass" : 0.0026830941389753174,
+        "temporalErrorStd" : 0.005810933120612822
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.0493698443451351,
+        "errorHighlight" : 0.009961379552691899,
+        "flatHighPass" : 0.004517833594561444,
+        "flatHighlightHighPass" : 0.0026179712022278445,
+        "temporalErrorStd" : 0.0057981716403656324
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04935100266213811,
+        "errorHighlight" : 0.009918520013108004,
+        "flatHighPass" : 0.0045501081297378695,
+        "flatHighlightHighPass" : 0.002631443302813112,
+        "temporalErrorStd" : 0.005795724068997612
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06702225155819642,
+        "errorHighlight" : 0.11122159295674833,
+        "flatHighPass" : 0.01064655969998939,
+        "flatHighlightHighPass" : 0.005807081657648857,
+        "temporalErrorStd" : 0.011099281784468592
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.051572542434489166,
+        "errorHighlight" : 0.019456092469350383,
+        "flatHighPass" : 0.01967068479759595,
+        "flatHighlightHighPass" : 0.02184289061229474,
+        "temporalErrorStd" : 0.006198691144468094
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.05042690049877022,
+        "errorHighlight" : 0.012089536930122954,
+        "flatHighPass" : 0.01274742481666203,
+        "flatHighlightHighPass" : 0.009995399087569811,
+        "temporalErrorStd" : 0.006112191913535046
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.050260593969110326,
+        "errorHighlight" : 0.010962342142052323,
+        "flatHighPass" : 0.011589542702499683,
+        "flatHighlightHighPass" : 0.007628232298132892,
+        "temporalErrorStd" : 0.006090322894805234
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.05022785130919723,
+        "errorHighlight" : 0.010604642079280007,
+        "flatHighPass" : 0.011140122001253932,
+        "flatHighlightHighPass" : 0.006628985716575397,
+        "temporalErrorStd" : 0.006075217213737255
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05027054831567661,
+        "errorHighlight" : 0.010856052149814902,
+        "flatHighPass" : 0.011579462162644142,
+        "flatHighlightHighPass" : 0.007554110807829651,
+        "temporalErrorStd" : 0.006074996504745318
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06727058787457393,
+        "errorHighlight" : 0.11079977941286168,
+        "flatHighPass" : 0.0014703466339160197,
+        "flatHighlightHighPass" : 0.0004673426237993492,
+        "temporalErrorStd" : 0.010974273290937286
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.050114108814150425,
+        "errorHighlight" : 0.011484554089474202,
+        "flatHighPass" : 0.002275725558341271,
+        "flatHighlightHighPass" : 0.0017606665284414218,
+        "temporalErrorStd" : 0.0055215948305108965
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.05007768181141204,
+        "errorHighlight" : 0.011295732003235477,
+        "flatHighPass" : 0.0017105313635231963,
+        "flatHighlightHighPass" : 0.0008725169822622712,
+        "temporalErrorStd" : 0.005498647474025594
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05008948571786154,
+        "errorHighlight" : 0.01132882582951664,
+        "flatHighPass" : 0.0016431503813017533,
+        "flatHighlightHighPass" : 0.000805262450518056,
+        "temporalErrorStd" : 0.005489818914106802
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.050121200442258575,
+        "errorHighlight" : 0.011387799980050906,
+        "flatHighPass" : 0.0016136334495236435,
+        "flatHighlightHighPass" : 0.0008048996076877839,
+        "temporalErrorStd" : 0.005481821098760025
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.050093975434921265,
+        "errorHighlight" : 0.011341554544924531,
+        "flatHighPass" : 0.0016195108729395423,
+        "flatHighlightHighPass" : 0.0007473577922428006,
+        "temporalErrorStd" : 0.005477391361289381
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06938702937334197,
+        "errorHighlight" : 0.11220749802223795,
+        "flatHighPass" : 0.0015913268487494803,
+        "flatHighlightHighPass" : 0.0005560010214740376,
+        "temporalErrorStd" : 0.01095107202919548
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.05323600577983688,
+        "errorHighlight" : 0.015252627736849492,
+        "flatHighPass" : 0.002408203465566491,
+        "flatHighlightHighPass" : 0.0020727816244096612,
+        "temporalErrorStd" : 0.0052004972814373536
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.05318099245835774,
+        "errorHighlight" : 0.015035873942550805,
+        "flatHighPass" : 0.0019098205898366585,
+        "flatHighlightHighPass" : 0.0012825983519541694,
+        "temporalErrorStd" : 0.005187760897585471
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05318677162096899,
+        "errorHighlight" : 0.015071248707580653,
+        "flatHighPass" : 0.0018264789450238587,
+        "flatHighlightHighPass" : 0.0011377612579711591,
+        "temporalErrorStd" : 0.005183677123251167
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.05320360353253298,
+        "errorHighlight" : 0.015133130427256027,
+        "flatHighPass" : 0.001773429675012096,
+        "flatHighlightHighPass" : 0.0010524228910286607,
+        "temporalErrorStd" : 0.005180306519454834
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05316062575915851,
+        "errorHighlight" : 0.014980963077022276,
+        "flatHighPass" : 0.0018063277617760122,
+        "flatHighlightHighPass" : 0.0010787569090986513,
+        "temporalErrorStd" : 0.005176867022712914
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06781061365812575,
+        "errorHighlight" : 0.110790118551562,
+        "flatHighPass" : 0.0009930827476960682,
+        "flatHighlightHighPass" : 0.00042978084995351604,
+        "temporalErrorStd" : 0.01099476325964581
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.05044580074780886,
+        "errorHighlight" : 0.011839269698561134,
+        "flatHighPass" : 0.0016670705836048275,
+        "flatHighlightHighPass" : 0.0016914872927294557,
+        "temporalErrorStd" : 0.0054952456736859735
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.050469770546766726,
+        "errorHighlight" : 0.011731771137789507,
+        "flatHighPass" : 0.001249659896264175,
+        "flatHighlightHighPass" : 0.0011311809607647337,
+        "temporalErrorStd" : 0.005471812011200234
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0505025426515407,
+        "errorHighlight" : 0.011831453932694184,
+        "flatHighPass" : 0.0012091596623523937,
+        "flatHighlightHighPass" : 0.0010438457644840941,
+        "temporalErrorStd" : 0.005466423181873423
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.050542528535501216,
+        "errorHighlight" : 0.011976484832869892,
+        "flatHighPass" : 0.0011956829195491992,
+        "flatHighlightHighPass" : 0.0010320930741805473,
+        "temporalErrorStd" : 0.005464351497483756
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05051994518725833,
+        "errorHighlight" : 0.011810391252418923,
+        "flatHighPass" : 0.0011662671271882178,
+        "flatHighlightHighPass" : 0.0009336650951755752,
+        "temporalErrorStd" : 0.005452455632228287
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06507123958482132,
+        "errorHighlight" : 0.11188159822384967,
+        "flatHighPass" : 0.0018395408829272961,
+        "flatHighlightHighPass" : 0.0010859267870400747,
+        "temporalErrorStd" : 0.010872751058002124
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04755085138219886,
+        "errorHighlight" : 0.006473403073011584,
+        "flatHighPass" : 0.0034768851899096473,
+        "flatHighlightHighPass" : 0.00422746741705005,
+        "temporalErrorStd" : 0.005804378520936858
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04758949476399257,
+        "errorHighlight" : 0.006160155256144195,
+        "flatHighPass" : 0.0020230201821509635,
+        "flatHighlightHighPass" : 0.0014954064771927694,
+        "temporalErrorStd" : 0.005772608071898926
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04764390888830914,
+        "errorHighlight" : 0.006391808302275363,
+        "flatHighPass" : 0.001997285585305595,
+        "flatHighlightHighPass" : 0.0014777882785213063,
+        "temporalErrorStd" : 0.005757626544669001
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04770720561366797,
+        "errorHighlight" : 0.0065924338415691425,
+        "flatHighPass" : 0.001992008386131901,
+        "flatHighlightHighPass" : 0.0014949441043307417,
+        "temporalErrorStd" : 0.0057449049567829796
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.047696149216154844,
+        "errorHighlight" : 0.006719300752233567,
+        "flatHighPass" : 0.0019123360777423255,
+        "flatHighlightHighPass" : 0.0011522560165098028,
+        "temporalErrorStd" : 0.005744525626976089
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06815082444489415,
+        "errorHighlight" : 0.11168347584945304,
+        "flatHighPass" : 0.00171994879510321,
+        "flatHighlightHighPass" : 0.0007059079144599472,
+        "temporalErrorStd" : 0.011081389139107426
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.05127772380762033,
+        "errorHighlight" : 0.01204942245922457,
+        "flatHighPass" : 0.002723549919530625,
+        "flatHighlightHighPass" : 0.0026806641151591285,
+        "temporalErrorStd" : 0.005510740139822534
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.05121492005741763,
+        "errorHighlight" : 0.01170525699922417,
+        "flatHighPass" : 0.002076734405536943,
+        "flatHighlightHighPass" : 0.0015571471978583732,
+        "temporalErrorStd" : 0.0054871497419843466
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.051225375376243276,
+        "errorHighlight" : 0.011747482696872088,
+        "flatHighPass" : 0.001965585926946551,
+        "flatHighlightHighPass" : 0.0013194990316481169,
+        "temporalErrorStd" : 0.005479704960747025
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.05125330150337605,
+        "errorHighlight" : 0.01182094244255348,
+        "flatHighPass" : 0.0019047485266621615,
+        "flatHighlightHighPass" : 0.0011997335969358809,
+        "temporalErrorStd" : 0.005473960911213278
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05121187577930393,
+        "errorHighlight" : 0.011683820639681741,
+        "flatHighPass" : 0.0019325313592881374,
+        "flatHighlightHighPass" : 0.001232068991719246,
+        "temporalErrorStd" : 0.0054685705830918715
+      },
+      "pairID" : "netflix_sollevante_t090",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.05190189729048966,
+        "errorHighlight" : 0.12726726594591165,
+        "flatHighPass" : 0.0032079117822473753,
+        "flatHighlightHighPass" : 0.0006726276927930643,
+        "temporalErrorStd" : 0.0008816805075177942
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04416045880078941,
+        "errorHighlight" : 0.05214298636566935,
+        "flatHighPass" : 0.003870096548043776,
+        "flatHighlightHighPass" : 0.0030060086437451077,
+        "temporalErrorStd" : 0.0007413127985782236
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04435946601638216,
+        "errorHighlight" : 0.05327713480404839,
+        "flatHighPass" : 0.0033957981680471693,
+        "flatHighlightHighPass" : 0.0014268829257389909,
+        "temporalErrorStd" : 0.0007449591538139835
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04448771222732763,
+        "errorHighlight" : 0.05404652484217939,
+        "flatHighPass" : 0.003353088467210065,
+        "flatHighlightHighPass" : 0.0012918351679507133,
+        "temporalErrorStd" : 0.0007482727386885754
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04461550797046442,
+        "errorHighlight" : 0.05491914229734423,
+        "flatHighPass" : 0.003324682336307155,
+        "flatHighlightHighPass" : 0.0012199618956253687,
+        "temporalErrorStd" : 0.0007511298437622962
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04457033166693717,
+        "errorHighlight" : 0.05456676747110887,
+        "flatHighPass" : 0.003326396035750248,
+        "flatHighlightHighPass" : 0.0011431298579754642,
+        "temporalErrorStd" : 0.0007486394174405633
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.052712477457252035,
+        "errorHighlight" : 0.12780924599540636,
+        "flatHighPass" : 0.005874731679375986,
+        "flatHighlightHighPass" : 0.0025741725496430104,
+        "temporalErrorStd" : 0.0008939711078413348
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04508071957606962,
+        "errorHighlight" : 0.0543446184314933,
+        "flatHighPass" : 0.009494790605665012,
+        "flatHighlightHighPass" : 0.011971971406191745,
+        "temporalErrorStd" : 0.0008190165103251049
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04532743184476375,
+        "errorHighlight" : 0.05545441319473505,
+        "flatHighPass" : 0.006113363959445022,
+        "flatHighlightHighPass" : 0.003384265030604258,
+        "temporalErrorStd" : 0.0008191646172966508
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.045444203516628714,
+        "errorHighlight" : 0.056173476097373685,
+        "flatHighPass" : 0.006001270073035676,
+        "flatHighlightHighPass" : 0.0029948436372503524,
+        "temporalErrorStd" : 0.0008208180108921067
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.045557919678954305,
+        "errorHighlight" : 0.056956681085674886,
+        "flatHighPass" : 0.0059531629944583955,
+        "flatHighlightHighPass" : 0.0028389570058499087,
+        "temporalErrorStd" : 0.0008223843763801961
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.045526441777718876,
+        "errorHighlight" : 0.05667445771289402,
+        "flatHighPass" : 0.005984521841438331,
+        "flatHighlightHighPass" : 0.002875521057958966,
+        "temporalErrorStd" : 0.0008200971588962182
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.05401874255544555,
+        "errorHighlight" : 0.12847310121741817,
+        "flatHighPass" : 0.012053313139167021,
+        "flatHighlightHighPass" : 0.006334065489708564,
+        "temporalErrorStd" : 0.0008978990515722933
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.046267762924294194,
+        "errorHighlight" : 0.05724046551419703,
+        "flatHighPass" : 0.020964639995882498,
+        "flatHighlightHighPass" : 0.027446444352022936,
+        "temporalErrorStd" : 0.0007866863930140894
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.046691305179010816,
+        "errorHighlight" : 0.05793305135546625,
+        "flatHighPass" : 0.013981600222623281,
+        "flatHighlightHighPass" : 0.01247228394972785,
+        "temporalErrorStd" : 0.0007907306837809183
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04682872560684348,
+        "errorHighlight" : 0.058676693111243794,
+        "flatHighPass" : 0.012808415700399823,
+        "flatHighlightHighPass" : 0.009053067084385923,
+        "temporalErrorStd" : 0.000793149920750773
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04693892087048296,
+        "errorHighlight" : 0.059433932859301104,
+        "flatHighPass" : 0.012363930757579637,
+        "flatHighlightHighPass" : 0.007557521077941956,
+        "temporalErrorStd" : 0.0007951542147253497
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.046918927674736766,
+        "errorHighlight" : 0.05916387957656446,
+        "flatHighPass" : 0.012780478942215465,
+        "flatHighlightHighPass" : 0.008880315687766134,
+        "temporalErrorStd" : 0.0007933853573980922
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.05639626224242319,
+        "errorHighlight" : 0.12849264165792434,
+        "flatHighPass" : 0.0033172861041741823,
+        "flatHighlightHighPass" : 0.0005932940573431281,
+        "temporalErrorStd" : 0.0009095431338216512
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.0484627534125491,
+        "errorHighlight" : 0.05596293174924874,
+        "flatHighPass" : 0.003928453397737906,
+        "flatHighlightHighPass" : 0.002521887783386871,
+        "temporalErrorStd" : 0.0007997949218315664
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04861881412304552,
+        "errorHighlight" : 0.056606134114645226,
+        "flatHighPass" : 0.003537453257240173,
+        "flatHighlightHighPass" : 0.0014267298758118216,
+        "temporalErrorStd" : 0.0008016464199652131
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.048698066524192216,
+        "errorHighlight" : 0.057052891218248795,
+        "flatHighPass" : 0.0034730914206296654,
+        "flatHighlightHighPass" : 0.001231162880975561,
+        "temporalErrorStd" : 0.0008045839005801677
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04877449929798161,
+        "errorHighlight" : 0.05754519719610596,
+        "flatHighPass" : 0.0034338761187199807,
+        "flatHighlightHighPass" : 0.0011051851223610042,
+        "temporalErrorStd" : 0.0008067309269840375
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04878185263499241,
+        "errorHighlight" : 0.05746926519434707,
+        "flatHighPass" : 0.00345793673845987,
+        "flatHighlightHighPass" : 0.0011525374557842046,
+        "temporalErrorStd" : 0.0008063791528348034
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.061139272300404876,
+        "errorHighlight" : 0.13084585983250885,
+        "flatHighPass" : 0.00221530525932248,
+        "flatHighlightHighPass" : 0.0004787300311049712,
+        "temporalErrorStd" : 0.0008627883762328732
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.0536118508677479,
+        "errorHighlight" : 0.06221917153936184,
+        "flatHighPass" : 0.002750601822762166,
+        "flatHighlightHighPass" : 0.002033930226206295,
+        "temporalErrorStd" : 0.0006888828216417214
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.05369750001389645,
+        "errorHighlight" : 0.06254847886914121,
+        "flatHighPass" : 0.0023841584540531366,
+        "flatHighlightHighPass" : 0.0009913743216262072,
+        "temporalErrorStd" : 0.0006927699863535672
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.053724790712475184,
+        "errorHighlight" : 0.06270471878847544,
+        "flatHighPass" : 0.002344352142588947,
+        "flatHighlightHighPass" : 0.0009072847069435017,
+        "temporalErrorStd" : 0.0006946936890459268
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.0537478377603018,
+        "errorHighlight" : 0.0628614885468667,
+        "flatHighPass" : 0.0023198644072546467,
+        "flatHighlightHighPass" : 0.0008577002043767797,
+        "temporalErrorStd" : 0.0006960572717784639
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05378529358097361,
+        "errorHighlight" : 0.06295483158641468,
+        "flatHighPass" : 0.0023293710056829725,
+        "flatHighlightHighPass" : 0.0008484808756716391,
+        "temporalErrorStd" : 0.0006978640460522836
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.05707317261609632,
+        "errorHighlight" : 0.12970408140166476,
+        "flatHighPass" : 0.0020964469006158498,
+        "flatHighlightHighPass" : 0.0004540357255975967,
+        "temporalErrorStd" : 0.0009110031110924049
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.049571116097901005,
+        "errorHighlight" : 0.058580224836004606,
+        "flatHighPass" : 0.0025313439947522377,
+        "flatHighlightHighPass" : 0.0020553250464769605,
+        "temporalErrorStd" : 0.0007547875170328201
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04970399319015353,
+        "errorHighlight" : 0.059177156462816655,
+        "flatHighPass" : 0.0022118180252810094,
+        "flatHighlightHighPass" : 0.0009602820155949907,
+        "temporalErrorStd" : 0.0007560945049020646
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04974852439818944,
+        "errorHighlight" : 0.05941847816728965,
+        "flatHighPass" : 0.002195978980299757,
+        "flatHighlightHighPass" : 0.0009069649399831757,
+        "temporalErrorStd" : 0.0007585215954513924
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04977730860887341,
+        "errorHighlight" : 0.05959361197729898,
+        "flatHighPass" : 0.002189958426473373,
+        "flatHighlightHighPass" : 0.0008912058497262994,
+        "temporalErrorStd" : 0.0007602359601947339
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04983422728865883,
+        "errorHighlight" : 0.059831318818722244,
+        "flatHighPass" : 0.002170384454437579,
+        "flatHighlightHighPass" : 0.000784841226002993,
+        "temporalErrorStd" : 0.0007591902906641025
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.05147663934989261,
+        "errorHighlight" : 0.12905615373691373,
+        "flatHighPass" : 0.0033571991295842873,
+        "flatHighlightHighPass" : 0.0010194537358074011,
+        "temporalErrorStd" : 0.0008710716563994787
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04409432073086475,
+        "errorHighlight" : 0.06015015805567578,
+        "flatHighPass" : 0.004525989181829004,
+        "flatHighlightHighPass" : 0.0046560148220906854,
+        "temporalErrorStd" : 0.0007958783547639605
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04428650157062121,
+        "errorHighlight" : 0.061224578449255336,
+        "flatHighPass" : 0.0035406950449042613,
+        "flatHighlightHighPass" : 0.0016953769852184471,
+        "temporalErrorStd" : 0.0007978183982315342
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.044404019945674014,
+        "errorHighlight" : 0.06193883901539518,
+        "flatHighPass" : 0.003494233297197442,
+        "flatHighlightHighPass" : 0.001552302039411174,
+        "temporalErrorStd" : 0.0007993169364391773
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04451888738522337,
+        "errorHighlight" : 0.0627202598787635,
+        "flatHighPass" : 0.003466879721425933,
+        "flatHighlightHighPass" : 0.001483264873040654,
+        "temporalErrorStd" : 0.0008006320494282382
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04448273519136307,
+        "errorHighlight" : 0.062435327057013996,
+        "flatHighPass" : 0.0034587808175899075,
+        "flatHighlightHighPass" : 0.0013481355645114609,
+        "temporalErrorStd" : 0.000799475890892387
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.058213983502743157,
+        "errorHighlight" : 0.12951279569566912,
+        "flatHighPass" : 0.003035412480900898,
+        "flatHighlightHighPass" : 0.0005583387824234274,
+        "temporalErrorStd" : 0.000816299844632403
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.05052208817483017,
+        "errorHighlight" : 0.05943706394023892,
+        "flatHighPass" : 0.003618197716547679,
+        "flatHighlightHighPass" : 0.002365711509064886,
+        "temporalErrorStd" : 0.0007085944906106972
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.050644976656939705,
+        "errorHighlight" : 0.059917536899839745,
+        "flatHighPass" : 0.0032449720926304446,
+        "flatHighlightHighPass" : 0.0012792204266777714,
+        "temporalErrorStd" : 0.0007119486647666147
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05070189550254091,
+        "errorHighlight" : 0.06022861932475813,
+        "flatHighPass" : 0.0031866918357098747,
+        "flatHighlightHighPass" : 0.0011347996184749454,
+        "temporalErrorStd" : 0.0007128874790233963
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.050756729901848215,
+        "errorHighlight" : 0.060575156547687144,
+        "flatHighPass" : 0.0031508230760694178,
+        "flatHighlightHighPass" : 0.0010383298236018711,
+        "temporalErrorStd" : 0.0007134821515297063
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.05077740459718928,
+        "errorHighlight" : 0.060567708888066785,
+        "flatHighPass" : 0.003171308317191856,
+        "flatHighlightHighPass" : 0.001066038224797293,
+        "temporalErrorStd" : 0.0007142719986831182
+      },
+      "pairID" : "netflix_sollevante_t150",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10693508832956906,
+        "errorHighlight" : 0.13626908979005142,
+        "flatHighPass" : 0.0007164708922830792,
+        "flatHighlightHighPass" : 0.0005357716739581212,
+        "temporalErrorStd" : 0.002548415223967972
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.06996068494469157,
+        "errorHighlight" : 0.05719745170995143,
+        "flatHighPass" : 0.0014833648028071721,
+        "flatHighlightHighPass" : 0.0023836082477191518,
+        "temporalErrorStd" : 0.006116194772998094
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07063667216341211,
+        "errorHighlight" : 0.060172990016050094,
+        "flatHighPass" : 0.0008683188697116984,
+        "flatHighlightHighPass" : 0.001057213472017866,
+        "temporalErrorStd" : 0.006433630033564307
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07075411189896885,
+        "errorHighlight" : 0.0610862444166375,
+        "flatHighPass" : 0.0008523823619047864,
+        "flatHighlightHighPass" : 0.0010042945512743913,
+        "temporalErrorStd" : 0.006511151563073004
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07077905125264941,
+        "errorHighlight" : 0.06150856802216798,
+        "flatHighPass" : 0.0008624972952050426,
+        "flatHighlightHighPass" : 0.001021777605590621,
+        "temporalErrorStd" : 0.006532175737123667
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07095390072566699,
+        "errorHighlight" : 0.06194744370296626,
+        "flatHighPass" : 0.0007781852621781862,
+        "flatHighlightHighPass" : 0.0007790146463854096,
+        "temporalErrorStd" : 0.006588425841573566
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10714287077909007,
+        "errorHighlight" : 0.1366862195932233,
+        "flatHighPass" : 0.00299179272486997,
+        "flatHighlightHighPass" : 0.0025901528826843268,
+        "temporalErrorStd" : 0.0025464676623113314
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07032371318436308,
+        "errorHighlight" : 0.0588612889492964,
+        "flatHighPass" : 0.00677214384060779,
+        "flatHighlightHighPass" : 0.011173379868087441,
+        "temporalErrorStd" : 0.0060160621466613055
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07113014454654429,
+        "errorHighlight" : 0.061570817248909455,
+        "flatHighPass" : 0.0032868141870471355,
+        "flatHighlightHighPass" : 0.0034824120581215547,
+        "temporalErrorStd" : 0.006322809110542919
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0712450486240267,
+        "errorHighlight" : 0.06239123303052426,
+        "flatHighPass" : 0.0031491628339321643,
+        "flatHighlightHighPass" : 0.003057856430295902,
+        "temporalErrorStd" : 0.006392238800938511
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07127373408439829,
+        "errorHighlight" : 0.06277227319914203,
+        "flatHighPass" : 0.003101495819210416,
+        "flatHighlightHighPass" : 0.0029073627606125813,
+        "temporalErrorStd" : 0.006412362254663055
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07143528525237283,
+        "errorHighlight" : 0.06320182364810259,
+        "flatHighPass" : 0.0031348675761906216,
+        "flatHighlightHighPass" : 0.00298990272722556,
+        "temporalErrorStd" : 0.006463594151404881
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.1075611553061011,
+        "errorHighlight" : 0.13735891403414394,
+        "flatHighPass" : 0.007104161033783617,
+        "flatHighlightHighPass" : 0.0061634559987459,
+        "temporalErrorStd" : 0.002591681301835925
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07034939402987923,
+        "errorHighlight" : 0.061654222318842974,
+        "flatHighPass" : 0.01607176156095238,
+        "flatHighlightHighPass" : 0.02515728794643634,
+        "temporalErrorStd" : 0.005524885377070637
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07185676498960061,
+        "errorHighlight" : 0.06357812879737558,
+        "flatHighPass" : 0.009141556105205286,
+        "flatHighlightHighPass" : 0.011670010924883274,
+        "temporalErrorStd" : 0.005899915569654159
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07210927927297436,
+        "errorHighlight" : 0.06449517916592959,
+        "flatHighPass" : 0.00795126540639464,
+        "flatHighlightHighPass" : 0.008606733356053232,
+        "temporalErrorStd" : 0.006004172521487171
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07218480541588788,
+        "errorHighlight" : 0.06496851574684886,
+        "flatHighPass" : 0.00748306937321,
+        "flatHighlightHighPass" : 0.007266230201398791,
+        "temporalErrorStd" : 0.006042746707625939
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0723071077638035,
+        "errorHighlight" : 0.06523272846941965,
+        "flatHighPass" : 0.007940813678060966,
+        "flatHighlightHighPass" : 0.008538991662473053,
+        "temporalErrorStd" : 0.006070865802217956
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10682857483985676,
+        "errorHighlight" : 0.13782333769110616,
+        "flatHighPass" : 0.0007255133320130479,
+        "flatHighlightHighPass" : 0.0005991496650289518,
+        "temporalErrorStd" : 0.002540565414792509
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07040231458681785,
+        "errorHighlight" : 0.06298132362836806,
+        "flatHighPass" : 0.0015965461842055266,
+        "flatHighlightHighPass" : 0.002568818274957753,
+        "temporalErrorStd" : 0.0064418566903451735
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07068332611544488,
+        "errorHighlight" : 0.06394066160573988,
+        "flatHighPass" : 0.000931719629898966,
+        "flatHighlightHighPass" : 0.001149453700573188,
+        "temporalErrorStd" : 0.00657763521939886
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.070727990807368,
+        "errorHighlight" : 0.06415982081528454,
+        "flatHighPass" : 0.0008726983702301037,
+        "flatHighlightHighPass" : 0.000999063029260599,
+        "temporalErrorStd" : 0.006601252930731134
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.0707451292025196,
+        "errorHighlight" : 0.06426423879422138,
+        "flatHighPass" : 0.0008501657834914735,
+        "flatHighlightHighPass" : 0.0009399003209478824,
+        "temporalErrorStd" : 0.006609916495274066
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07087136143002992,
+        "errorHighlight" : 0.06471602833930525,
+        "flatHighPass" : 0.0008312799774134149,
+        "flatHighlightHighPass" : 0.0008872416086724562,
+        "temporalErrorStd" : 0.006658703738154501
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10702852483297202,
+        "errorHighlight" : 0.1399364908167712,
+        "flatHighPass" : 0.0004963890774694605,
+        "flatHighlightHighPass" : 0.00045554339904587874,
+        "temporalErrorStd" : 0.0024679230692669146
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07176508717467422,
+        "errorHighlight" : 0.07054201845870067,
+        "flatHighPass" : 0.0012090271024079212,
+        "flatHighlightHighPass" : 0.0019555313972365136,
+        "temporalErrorStd" : 0.007049194763425675
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07187116195711354,
+        "errorHighlight" : 0.07078855991990343,
+        "flatHighPass" : 0.000617550837875601,
+        "flatHighlightHighPass" : 0.0007689837871996295,
+        "temporalErrorStd" : 0.007080624327690733
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07187786913460835,
+        "errorHighlight" : 0.07081005748907522,
+        "flatHighPass" : 0.0006003527847491451,
+        "flatHighlightHighPass" : 0.0007341555009982813,
+        "temporalErrorStd" : 0.007082240071305373
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07188063045984484,
+        "errorHighlight" : 0.07081918929041597,
+        "flatHighPass" : 0.0005944041259639914,
+        "flatHighlightHighPass" : 0.0007224985933866935,
+        "temporalErrorStd" : 0.007082730231862205
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07195424720942577,
+        "errorHighlight" : 0.07102320602929729,
+        "flatHighPass" : 0.0005688771075053657,
+        "flatHighlightHighPass" : 0.0006587840148175858,
+        "temporalErrorStd" : 0.007101150637529452
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10689936239691787,
+        "errorHighlight" : 0.13777469522750171,
+        "flatHighPass" : 0.0004992536706215322,
+        "flatHighlightHighPass" : 0.00042345661641724625,
+        "temporalErrorStd" : 0.002544610978912359
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07064489397622019,
+        "errorHighlight" : 0.06289599378304396,
+        "flatHighPass" : 0.0011205459520399095,
+        "flatHighlightHighPass" : 0.001851003217331572,
+        "temporalErrorStd" : 0.006499602962656476
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07082584950471332,
+        "errorHighlight" : 0.06372358544359703,
+        "flatHighPass" : 0.0006491560812591967,
+        "flatHighlightHighPass" : 0.0007940329312682131,
+        "temporalErrorStd" : 0.0065707713929906335
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07084188327144994,
+        "errorHighlight" : 0.06381269003728463,
+        "flatHighPass" : 0.0006389540228885217,
+        "flatHighlightHighPass" : 0.0007721692707590874,
+        "temporalErrorStd" : 0.006577775434293011
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07084833714008425,
+        "errorHighlight" : 0.06384972525061283,
+        "flatHighPass" : 0.000635558450606198,
+        "flatHighlightHighPass" : 0.0007653667077034251,
+        "temporalErrorStd" : 0.006580508421582349
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0709627292501664,
+        "errorHighlight" : 0.06440147120105379,
+        "flatHighPass" : 0.0005882680819164699,
+        "flatHighlightHighPass" : 0.0006469492538145572,
+        "temporalErrorStd" : 0.006619730153938397
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10877046068789918,
+        "errorHighlight" : 0.13801912053047538,
+        "flatHighPass" : 0.001236725177028772,
+        "flatHighlightHighPass" : 0.0010516352963972993,
+        "temporalErrorStd" : 0.002534460909456293
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07400438883243998,
+        "errorHighlight" : 0.06454116969775635,
+        "flatHighPass" : 0.0026040160485790607,
+        "flatHighlightHighPass" : 0.00455608123511611,
+        "temporalErrorStd" : 0.005456403501075994
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07467550569534667,
+        "errorHighlight" : 0.06737882045893842,
+        "flatHighPass" : 0.001385569354470347,
+        "flatHighlightHighPass" : 0.0015810209225135218,
+        "temporalErrorStd" : 0.0057475870504556555
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07479508887646445,
+        "errorHighlight" : 0.06819463668862862,
+        "flatHighPass" : 0.0013542727665741521,
+        "flatHighlightHighPass" : 0.0014684574570787677,
+        "temporalErrorStd" : 0.0058223588491326545
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07482577368377401,
+        "errorHighlight" : 0.06856151088218974,
+        "flatHighPass" : 0.0013505464775700783,
+        "flatHighlightHighPass" : 0.0014498389066481627,
+        "temporalErrorStd" : 0.005844625043304017
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07498711151260368,
+        "errorHighlight" : 0.06900938665558184,
+        "flatHighPass" : 0.0012960512954032486,
+        "flatHighlightHighPass" : 0.0012725345777811986,
+        "temporalErrorStd" : 0.00589040499720194
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.10720508366697319,
+        "errorHighlight" : 0.13892440026641675,
+        "flatHighPass" : 0.0006415147237318066,
+        "flatHighlightHighPass" : 0.0005363473988646112,
+        "temporalErrorStd" : 0.0024978117305359824
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.07159523930156161,
+        "errorHighlight" : 0.06712515552812975,
+        "flatHighPass" : 0.0014277067834550003,
+        "flatHighlightHighPass" : 0.0022984594062137355,
+        "temporalErrorStd" : 0.006536309458467392
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.07178409382947644,
+        "errorHighlight" : 0.06765929803182141,
+        "flatHighPass" : 0.0008056607215806812,
+        "flatHighlightHighPass" : 0.0009678929300117612,
+        "temporalErrorStd" : 0.00661511226009738
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.07180629709971577,
+        "errorHighlight" : 0.06774495336979455,
+        "flatHighPass" : 0.0007694015912918401,
+        "flatHighlightHighPass" : 0.0008846325613152834,
+        "temporalErrorStd" : 0.006624673535986329
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.07181542216140586,
+        "errorHighlight" : 0.06778408476781668,
+        "flatHighPass" : 0.0007559360538203591,
+        "flatHighlightHighPass" : 0.0008541887058412865,
+        "temporalErrorStd" : 0.006628340350870563
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0719225924374541,
+        "errorHighlight" : 0.06813525097477587,
+        "flatHighPass" : 0.0007302765114374901,
+        "flatHighlightHighPass" : 0.0007821521423952964,
+        "temporalErrorStd" : 0.006665231364467557
+      },
+      "pairID" : "netflix_sollevante_t175",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06523771102964968,
+        "errorHighlight" : 0.1347166316880183,
+        "flatHighPass" : 0.0008893644269896062,
+        "flatHighlightHighPass" : 0.000625163432819362,
+        "temporalErrorStd" : 0.00027556278618225
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.0408009017101015,
+        "errorHighlight" : 0.018799714447566878,
+        "flatHighPass" : 0.0013409387320054314,
+        "flatHighlightHighPass" : 0.002306375207165833,
+        "temporalErrorStd" : 0.0005204902472160223
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.040961184659321304,
+        "errorHighlight" : 0.020249878179015968,
+        "flatHighPass" : 0.0011172199407324798,
+        "flatHighlightHighPass" : 0.001787088009819351,
+        "temporalErrorStd" : 0.0005171971002762625
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.041134169579520354,
+        "errorHighlight" : 0.022368911178364873,
+        "flatHighPass" : 0.0010835969528648186,
+        "flatHighlightHighPass" : 0.0017682855551064622,
+        "temporalErrorStd" : 0.0005197410747831729
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.041382314540281,
+        "errorHighlight" : 0.025790475298776396,
+        "flatHighPass" : 0.0010494222147837988,
+        "flatHighlightHighPass" : 0.0016039478091263932,
+        "temporalErrorStd" : 0.0005261299334779725
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04126423353636738,
+        "errorHighlight" : 0.023813240309492476,
+        "flatHighPass" : 0.0010668690976608814,
+        "flatHighlightHighPass" : 0.0017419368414304348,
+        "temporalErrorStd" : 0.0005204531228566811
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "clean"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06558686226226587,
+        "errorHighlight" : 0.13550379501527393,
+        "flatHighPass" : 0.0035395774517979904,
+        "flatHighlightHighPass" : 0.0022566221123189174,
+        "temporalErrorStd" : 0.00027850092399265105
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.0413929550124166,
+        "errorHighlight" : 0.02243194612766155,
+        "flatHighPass" : 0.0049549259109859,
+        "flatHighlightHighPass" : 0.00837284425812833,
+        "temporalErrorStd" : 0.0005220847758978462
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.041540646758304635,
+        "errorHighlight" : 0.023033451270554107,
+        "flatHighPass" : 0.0037026466424083014,
+        "flatHighlightHighPass" : 0.003341034829832926,
+        "temporalErrorStd" : 0.0005177711026785638
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.041710205692459056,
+        "errorHighlight" : 0.02517859775318486,
+        "flatHighPass" : 0.0036466689376155105,
+        "flatHighlightHighPass" : 0.003055651106089965,
+        "temporalErrorStd" : 0.0005205467585601732
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04195417559373262,
+        "errorHighlight" : 0.028614369442930297,
+        "flatHighPass" : 0.0036169723824527986,
+        "flatHighlightHighPass" : 0.0028482430208210843,
+        "temporalErrorStd" : 0.0005269355572399404
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.041841159006383744,
+        "errorHighlight" : 0.02667008317772763,
+        "flatHighPass" : 0.0036509388278408925,
+        "flatHighlightHighPass" : 0.0030804260369505956,
+        "temporalErrorStd" : 0.0005212638291836052
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-light"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06638173139799204,
+        "errorHighlight" : 0.13642540535318698,
+        "flatHighPass" : 0.008826698944967558,
+        "flatHighlightHighPass" : 0.005524421304037256,
+        "temporalErrorStd" : 0.0002787676524756003
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04264692001733752,
+        "errorHighlight" : 0.029660428831892773,
+        "flatHighPass" : 0.012267132946202781,
+        "flatHighlightHighPass" : 0.0205641503742951,
+        "temporalErrorStd" : 0.0005460993039271793
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04266893434861891,
+        "errorHighlight" : 0.027481425640485432,
+        "flatHighPass" : 0.009588945483598822,
+        "flatHighlightHighPass" : 0.010042901162157248,
+        "temporalErrorStd" : 0.0005324976342713262
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.042818097403596246,
+        "errorHighlight" : 0.028957120090185872,
+        "flatHighPass" : 0.00918272273724986,
+        "flatHighlightHighPass" : 0.007782424624263341,
+        "temporalErrorStd" : 0.0005348670479119634
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.043048222732074086,
+        "errorHighlight" : 0.03202239695517431,
+        "flatHighPass" : 0.009018301201865996,
+        "flatHighlightHighPass" : 0.006701489574802777,
+        "temporalErrorStd" : 0.0005410339480901576
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04294941681750057,
+        "errorHighlight" : 0.03040694761312889,
+        "flatHighPass" : 0.00920177712645425,
+        "flatHighlightHighPass" : 0.007922710305458654,
+        "temporalErrorStd" : 0.000535475436812325
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-heavy"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06641754294159853,
+        "errorHighlight" : 0.13748728061681756,
+        "flatHighPass" : 0.0018179134991823304,
+        "flatHighlightHighPass" : 0.00146459540925662,
+        "temporalErrorStd" : 0.0002935598628405461
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04286326405548588,
+        "errorHighlight" : 0.030230844783494804,
+        "flatHighPass" : 0.0025920222066909797,
+        "flatHighlightHighPass" : 0.0049860997317465175,
+        "temporalErrorStd" : 0.0005446005058962306
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.042975845403602476,
+        "errorHighlight" : 0.030893495774134187,
+        "flatHighPass" : 0.002223867348234321,
+        "flatHighlightHighPass" : 0.003766965460166114,
+        "temporalErrorStd" : 0.0005467702015558351
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0431048768231859,
+        "errorHighlight" : 0.032622069053948384,
+        "flatHighPass" : 0.0021175055889844016,
+        "flatHighlightHighPass" : 0.0032450422291793557,
+        "temporalErrorStd" : 0.0005488349684950119
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04330240480290963,
+        "errorHighlight" : 0.03547352398971747,
+        "flatHighPass" : 0.002039834267998049,
+        "flatHighlightHighPass" : 0.0028485188688813327,
+        "temporalErrorStd" : 0.0005524899945227975
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04323564349452515,
+        "errorHighlight" : 0.03411011947472202,
+        "flatHighPass" : 0.0021174578100969853,
+        "flatHighlightHighPass" : 0.003346690839795535,
+        "temporalErrorStd" : 0.0005496304731829416
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf32"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06850329362129434,
+        "errorHighlight" : 0.14389036729263496,
+        "flatHighPass" : 0.0019708798067044776,
+        "flatHighlightHighPass" : 0.0019265196313833393,
+        "temporalErrorStd" : 0.0003568723124126263
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.046601390556147176,
+        "errorHighlight" : 0.05156510161936275,
+        "flatHighPass" : 0.002796301210051657,
+        "flatHighlightHighPass" : 0.00611734066227549,
+        "temporalErrorStd" : 0.0005851532736491294
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.046695806130114724,
+        "errorHighlight" : 0.05252796157330495,
+        "flatHighPass" : 0.002511863803239455,
+        "flatHighlightHighPass" : 0.005213781102291158,
+        "temporalErrorStd" : 0.0005882735133882783
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.046773314862482526,
+        "errorHighlight" : 0.05363028635642408,
+        "flatHighPass" : 0.0023903614877239833,
+        "flatHighlightHighPass" : 0.00467256595431645,
+        "temporalErrorStd" : 0.0005900921169944858
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.046881016246331626,
+        "errorHighlight" : 0.05529173843342948,
+        "flatHighPass" : 0.002284747791833204,
+        "flatHighlightHighPass" : 0.004167497486096184,
+        "temporalErrorStd" : 0.000591962783780408
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04687244855422374,
+        "errorHighlight" : 0.054792011494707825,
+        "flatHighPass" : 0.002377598523023182,
+        "flatHighlightHighPass" : 0.004628608887869973,
+        "temporalErrorStd" : 0.0005902429720285381
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "x264-crf42"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06778981664280409,
+        "errorHighlight" : 0.1449073023489272,
+        "flatHighPass" : 0.0011221545781995661,
+        "flatHighlightHighPass" : 0.0013405505137848333,
+        "temporalErrorStd" : 0.00028507545918093707
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04563396932381554,
+        "errorHighlight" : 0.05211979122964367,
+        "flatHighPass" : 0.0017010738364783423,
+        "flatHighlightHighPass" : 0.004633598427066685,
+        "temporalErrorStd" : 0.0005594886541152404
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.045816658925878134,
+        "errorHighlight" : 0.05429571733347144,
+        "flatHighPass" : 0.0014610264015191673,
+        "flatHighlightHighPass" : 0.0037037987926809746,
+        "temporalErrorStd" : 0.0005591459343813077
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04595655588340914,
+        "errorHighlight" : 0.056305616291746574,
+        "flatHighPass" : 0.0013960522955333465,
+        "flatHighlightHighPass" : 0.0033502498115733225,
+        "temporalErrorStd" : 0.000558758590310596
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04609373380649836,
+        "errorHighlight" : 0.058259873045745036,
+        "flatHighPass" : 0.0013628030838823647,
+        "flatHighlightHighPass" : 0.003183180395653844,
+        "temporalErrorStd" : 0.0005580409000491842
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04609578253985619,
+        "errorHighlight" : 0.05820226275239625,
+        "flatHighPass" : 0.001375490614653314,
+        "flatHighlightHighPass" : 0.0032025456013236647,
+        "temporalErrorStd" : 0.0005576271998436503
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "lowres-upscale"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06720899311825454,
+        "errorHighlight" : 0.13649780211542611,
+        "flatHighPass" : 0.0014299190299775276,
+        "flatHighlightHighPass" : 0.0009086151250984427,
+        "temporalErrorStd" : 0.0002687827573991298
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.043460105486079904,
+        "errorHighlight" : 0.02493292337000595,
+        "flatHighPass" : 0.00200366952409574,
+        "flatHighlightHighPass" : 0.0033110724738158125,
+        "temporalErrorStd" : 0.00048786011229857523
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04361388162690677,
+        "errorHighlight" : 0.02636123012626939,
+        "flatHighPass" : 0.0015891481431756424,
+        "flatHighlightHighPass" : 0.0018704816009303897,
+        "temporalErrorStd" : 0.0004844173576931918
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.0437829049731444,
+        "errorHighlight" : 0.02860182777911204,
+        "flatHighPass" : 0.0015574001204557615,
+        "flatHighlightHighPass" : 0.0018084772310504613,
+        "temporalErrorStd" : 0.0004866037772672969
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04402934345559368,
+        "errorHighlight" : 0.032198098647422894,
+        "flatHighPass" : 0.0015335599863687496,
+        "flatHighlightHighPass" : 0.0017116045042158661,
+        "temporalErrorStd" : 0.0004924627275542619
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04391065203154449,
+        "errorHighlight" : 0.030127786543926612,
+        "flatHighPass" : 0.0015475922426654856,
+        "flatHighlightHighPass" : 0.001792358670238996,
+        "temporalErrorStd" : 0.0004869183154931286
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "banding-6bit"
+    },
+    {
+      "configuration" : "no-expansion",
+      "metrics" : {
+        "errorAll" : 0.06743698699724317,
+        "errorHighlight" : 0.14060669059658143,
+        "flatHighPass" : 0.002019288568716352,
+        "flatHighlightHighPass" : 0.0017146832145407969,
+        "temporalErrorStd" : 0.00030725821592652333
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "calibrated-v4",
+      "metrics" : {
+        "errorAll" : 0.04475586897360535,
+        "errorHighlight" : 0.04124911748356904,
+        "flatHighPass" : 0.002867503421101076,
+        "flatHighlightHighPass" : 0.005679893483621548,
+        "temporalErrorStd" : 0.0005390999669886243
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.05",
+      "metrics" : {
+        "errorAll" : 0.04487967826461754,
+        "errorHighlight" : 0.04219512999936391,
+        "flatHighPass" : 0.002491034457051463,
+        "flatHighlightHighPass" : 0.004462553487882625,
+        "temporalErrorStd" : 0.0005397458957075585
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04499228900568182,
+        "errorHighlight" : 0.043755684479190364,
+        "flatHighPass" : 0.0023629334481164357,
+        "flatHighlightHighPass" : 0.003865263640210188,
+        "temporalErrorStd" : 0.0005404148136647603
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r2-t0.12",
+      "metrics" : {
+        "errorAll" : 0.04515284441181579,
+        "errorHighlight" : 0.04622067294566179,
+        "flatHighPass" : 0.0022710033726846845,
+        "flatHighlightHighPass" : 0.0034203177645144365,
+        "temporalErrorStd" : 0.0005420157672020646
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    },
+    {
+      "configuration" : "v4-guided-r3-t0.08",
+      "metrics" : {
+        "errorAll" : 0.04512132022163237,
+        "errorHighlight" : 0.04522864477189206,
+        "flatHighPass" : 0.002359793246621942,
+        "flatHighlightHighPass" : 0.003908152072121649,
+        "temporalErrorStd" : 0.0005412439989983267
+      },
+      "pairID" : "video3_newjeans_how_sweet",
+      "variant" : "noise-plus-crf35"
+    }
+  ],
+  "schemaVersion" : "robustness-study-v2",
+  "validationOrFrozenAccessed" : false,
+  "variants" : [
+    {
+      "description" : "working-resolution clean SDR",
+      "id" : "clean"
+    },
+    {
+      "description" : "temporal Gaussian-like noise, strength 6",
+      "filter" : "noise=alls=6:allf=t",
+      "id" : "noise-light"
+    },
+    {
+      "description" : "temporal Gaussian-like noise, strength 14",
+      "filter" : "noise=alls=14:allf=t",
+      "id" : "noise-heavy"
+    },
+    {
+      "description" : "H.264 CRF 32 round trip",
+      "id" : "x264-crf32",
+      "x264CRF" : 32
+    },
+    {
+      "description" : "H.264 CRF 42 round trip (heavy blocking)",
+      "id" : "x264-crf42",
+      "x264CRF" : 42
+    },
+    {
+      "description" : "320-wide bilinear downscale, bicubic upscale",
+      "filter" : "scale=320:-2:flags=bilinear,scale=WORK_W:WORK_H:flags=bicubic",
+      "id" : "lowres-upscale"
+    },
+    {
+      "description" : "luma quantized to 6 bits",
+      "filter" : "lutyuv=y='bitand(val,252)'",
+      "id" : "banding-6bit"
+    },
+    {
+      "description" : "noise strength 10, then H.264 CRF 35",
+      "filter" : "noise=alls=10:allf=t",
+      "id" : "noise-plus-crf35",
+      "x264CRF" : 35
+    }
+  ],
+  "workingWidth" : 960
+}
