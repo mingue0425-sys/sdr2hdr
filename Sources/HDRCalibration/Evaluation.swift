@@ -759,7 +759,7 @@ public final class PairEvaluator {
                 framesPerSecond: preparation.temporalFramesPerSecond,
                 proxyWidth: preparation.proxyWidth
             )
-            let count = min(sdr.samples.count, hdr.samples.count)
+            let count = V6TemporalPairing.pairedPrefixCount(sdr: sdr, hdr: hdr)
             let temporalPolicy = V4TemporalWindowPolicy(
                 targetFrameCount: preparation.temporalTargetFrameCount,
                 minimumRequiredFrameCount: preparation.temporalMinimumFrameCount,
@@ -853,7 +853,7 @@ public final class PairEvaluator {
                 frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
                 framesPerSecond: 30
             )
-            let count = min(sdr.samples.count, hdr.samples.count)
+            let count = V6TemporalPairing.pairedPrefixCount(sdr: sdr, hdr: hdr)
             let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
             guard decision.accepted else { continue }
             var frames: [PreparedTemporalFrame] = []

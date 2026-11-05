@@ -116,10 +116,13 @@ swift run -c release HDRPlayer --edr-test-pattern --play-for 5
 ./.build/release/HDRPlayer test.mp4
 ```
 
-On Xcode installations without the separately downloaded Metal Toolchain, the
-default build system cannot precompile `.metal` resources. Add
-`--build-system native` to `swift build`/`swift test`. The bundled `.metal`
-sources are then compiled at runtime through the existing source fallback.
+Shader libraries load from whichever layout the build produced, via
+`HDRMetalLibraryLoader`. With the Metal Toolchain installed
+(`xcodebuild -downloadComponent metaltoolchain`), the default build system
+precompiles each target's shaders into `default.metallib`. Without the
+toolchain, `swift build`/`swift test` need `--build-system native`; the
+bundled `.metal` sources are then compiled at runtime. A precompiled library
+is used only if it exposes every required kernel.
 
 `HDRSample` demonstrates `AVAssetReader -> CVPixelBuffer -> HDRProcessor` and
 waits only because it is a command-line validation tool. The realtime API does

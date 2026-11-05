@@ -92,15 +92,46 @@ integration cases:
   `[6, 8, 10, 12]`, one frame is skipped between samples, and timestamps are
   `ordinal / 24`.
 
+## 3. Precompiled shader loading (found after installing the Metal Toolchain)
+
+With the Metal Toolchain installed, SwiftPM's default build system compiles
+processed `.metal` resources into a single `default.metallib` and bundles no
+sources. The loaders only looked for `SDRToHDR.metallib`/`Presentation.metallib`
+and then the `.metal` source, so every `HDRProcessor` and presentation
+renderer failed with `shaderSourceMissing`. The runtime-source fallback had
+been masking this on hosts without the toolchain.
+
+`HDRMetalLibraryLoader` now tries `<name>.metallib`, then
+`default.metallib`, then runtime source. A precompiled library is accepted
+only if it exposes every required function. `MetalLibraryLoaderTests` builds
+each bundle layout with the offline toolchain and checks the production
+bundle. When a precompiled library is bundled, the loader must not fall back
+to runtime compilation.
+
+## 4. PTS-checked SDR/HDR window pairing
+
+Temporal windows pair SDR and HDR frames by sequence position. With real
+source PTS available, both window sites (preparation and plan
+materialization) now apply `pts-paired-prefix-half-frame-v1`. Position `i`
+stays paired only while both frames have the same elapsed time from their
+window start, within half the longer median frame interval. The first
+mismatch ends the window. That can drop it below the minimum frame count, in
+which case it is rejected. For matching cadence the result is unchanged.
+For a 24 vs 30 fps mismatch, only the first three positions pair. A
+one-sided VFR gap truncates the window at the gap. The rule is part of
+`temporalSelectionPolicy`, so it is recorded in every prepared plan
+(`TemporalPairingTests`).
+
 ## Verification
 
-Run on Apple Silicon with Swift 6.4.2. The Metal Toolchain component is not
-installed here, so all commands used `--build-system native` (runtime shader
-compilation).
+Run on Apple Silicon with Swift 6.4.2. Sections 1–2 were first verified with
+`--build-system native` before the Metal Toolchain was installed. After the
+install, the default build system (precompiled `default.metallib`) was run:
 
 | Check | Result |
 |---|---|
-| `swift test` (unit + GPU) | 366 tests, 0 failures, 17 fixture-gated skips |
+| `swift test`, default build system, with media fixtures | 379 tests, 0 failures, 8 environment-gated skips |
+| `swift test`, `--build-system native` (before the toolchain install) | 366 tests, 0 failures, 17 fixture-gated skips |
 | Real-media integration (self-contained 8-bit, P010, automatic decode) | 7 tests, 0 failures |
 | Manifest-driven regression matrix | 12 fixtures, 0 failures, 0 skipped |
 | Real-media multi-flight | pass |
@@ -113,9 +144,6 @@ compilation).
   rebase must pick an SDR interpretation identifier, pass it to
   `linearLumaGrid` for source metrics, and regenerate Tune/Validation plans
   under the new preparation identifier.
-* **SDR/HDR temporal pairing.** Window frames are still paired by sequence
-  position. Real PTS and provenance now make a PTS-based pairing check
-  possible, but it is not yet enforced.
 * The other residual items from the Astra review are unchanged: build
   provenance, sparse temporal statistics and scheduling, superwhite/negative
   values, and physical display measurement.
