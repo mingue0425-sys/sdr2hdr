@@ -390,6 +390,17 @@ public struct V4CorrectnessReviewReport: Codable, Sendable {
 /// Correctness-only harness. It may decode and align Tune/Validation media,
 /// but it never calls the objective evaluator and never opens Virgin Frozen.
 public enum V4CorrectnessReview {
+    /// The preparation settings every sealed V6 plan is built with. The
+    /// Virgin Frozen plan must reuse them exactly: its `preparation` is
+    /// required to equal the Tune/Validation plan's.
+    static func preparationSearchConfiguration() -> V2SearchConfiguration {
+        var configuration = V2SearchConfiguration()
+        configuration.maxFramesPerScene = 8
+        configuration.alignmentSearchThreshold = 0
+        configuration.referenceTargetPeakNits = 1_000
+        return configuration
+    }
+
     public static func run(
         manifestURL: URL,
         outputDirectory: URL,
@@ -416,14 +427,10 @@ public enum V4CorrectnessReview {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw CalibrationError.decodeFailed("Metal device unavailable for V6 preparation plan")
         }
-        var preparationConfiguration = V2SearchConfiguration()
-        preparationConfiguration.maxFramesPerScene = 8
-        preparationConfiguration.alignmentSearchThreshold = 0
-        preparationConfiguration.referenceTargetPeakNits = 1_000
         let repository = V2PreparedRepository(
             manifestURL: manifestURL,
             device: device,
-            configuration: preparationConfiguration,
+            configuration: preparationSearchConfiguration(),
             acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
         )
         let structuralRecords = V6PreparedEvaluationPlanOrdering.canonical(

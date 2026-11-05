@@ -169,6 +169,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-evaluate --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6-development-evaluation.json
       HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
+      HDRCalibrate prepare-frozen-plan --manifest data_video/open-content/manifest.json --prepared-plan results/open-content-v1/v6-prepared-evaluation-plan.json --output results/open-content-v1/v6-frozen-prepared-evaluation-plan.json
       HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json --output results/robustness-study.json
       HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -265,6 +266,23 @@ private func run(arguments: [String]) async throws {
         try encoder.encode(audit).write(to: cli.output, options: .atomic)
         print("V6 curve audit: candidates=\(audit.candidates.count), dense samples=\(audit.denseSampleCount)")
         print("V6 curve audit: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "prepare-frozen-plan" {
+        // Decodes and aligns Virgin Frozen media to seal its preparation plan;
+        // no objective is evaluated and the holdout stays unexposed.
+        let outputDirectory = cli.output.deletingLastPathComponent()
+        let result = try await V6FrozenPlanPreparation.run(
+            manifestURL: try cli.requiredManifest(),
+            auditURL: outputDirectory.appendingPathComponent("dataset-v4-final.json"),
+            tuneValidationPlanURL: try cli.requiredPreparedPlan(),
+            outputURL: cli.output
+        )
+        print("Virgin Frozen plan: pairs=\(result.pairIDs.joined(separator: ",")) acceptedFrames=\(result.acceptedFrameCount)")
+        print("plan sha256: \(result.planSHA256)")
+        print("Frozen objective evaluated: NO")
+        print("plan: \(result.planURL.path)")
         return
     }
 

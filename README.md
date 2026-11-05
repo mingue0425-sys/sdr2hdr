@@ -263,6 +263,13 @@ accepted only when it was explicitly admitted before objective decoding and
 its canonical plan hash, sidecar, pair order, media identities, and preparation
 configuration all match.
 
+`prepare-frozen-plan` builds that plan: it decodes and aligns only the Virgin
+Frozen pairs with the Tune/Validation preparation settings and seals the
+decisions, without evaluating any objective. Run-level policies (for example
+`--sdr-transfer`) are compared with `v4-run --stop-before-frozen`, which stops
+after Validation selection and the pre-Frozen gates, so the one-use holdout
+is opened once, for the chosen policy only.
+
 ```bash
 ./RUN_MACOS_VERIFY.sh fast
 ./RUN_MACOS_VERIFY.sh full
