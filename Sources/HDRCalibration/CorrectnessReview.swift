@@ -410,6 +410,8 @@ public enum V4CorrectnessReview {
             from: Data(contentsOf: auditURL)
         )
         let manifest = try V4Manifest.load(from: manifestURL)
+        // Fail before any preparation if the preregistered protocol is unknown.
+        _ = try V4CalibrationConfiguration(manifest: manifest)
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw CalibrationError.decodeFailed("Metal device unavailable for V6 preparation plan")
@@ -1190,12 +1192,19 @@ public enum V4CorrectnessReview {
         )
     }
 
+    /// Coverage requirements preregistered by the manifest. `run` has already
+    /// rejected unknown protocols; any residual failure falls back to the
+    /// stricter historical requirements rather than a weaker set.
+    private static func coverageConfiguration(for manifest: V4Manifest) -> V4CalibrationConfiguration {
+        (try? V4CalibrationConfiguration(manifest: manifest)) ?? V4CalibrationConfiguration()
+    }
+
     private static func transferCoverageSemanticsCheck(
         manifest: V4Manifest,
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         var failures: [String] = []
         var rejectedEvidenceCount = 0
@@ -1246,7 +1255,7 @@ public enum V4CorrectnessReview {
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         let requested = manifest.pairs.filter {
             $0.split == .frozen && $0.virginFrozen && !provenance.consumedSet.contains($0.id)
@@ -1277,7 +1286,7 @@ public enum V4CorrectnessReview {
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         var failures: [String] = []
         var rejectedEvidenceCount = 0
@@ -1972,7 +1981,7 @@ public enum V4CorrectnessReview {
             ),
             to: outputDirectory.appendingPathComponent("freeze-hash-validation.json")
         )
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleAuditByID = eligibleCoverageAuditRecords(audit)
         let transferByID = Dictionary(uniqueKeysWithValues: eligibleAuditByID.values.compactMap { pair -> (String, String)? in
             let transfer = ReferenceTransfer.parse(pair.hdrTransferFamily)

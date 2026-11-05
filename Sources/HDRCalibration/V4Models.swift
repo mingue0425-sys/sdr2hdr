@@ -156,17 +156,29 @@ public struct V4Manifest: Codable, Sendable {
     public var version: Int
     public var pairs: [V4PairRecord]
     public var roots: [String: String]
+    /// Preregistered coverage protocol identifier. `nil` keeps the historical
+    /// `pre-v6-frozen-coverage-v1` requirements. The manifest is byte-bound
+    /// by the dataset lock, so the protocol is fixed with the data before any
+    /// objective evaluation.
+    public var coverageProtocol: String?
 
-    public init(version: Int = 4, pairs: [V4PairRecord], roots: [String: String] = [:]) {
+    public init(
+        version: Int = 4,
+        pairs: [V4PairRecord],
+        roots: [String: String] = [:],
+        coverageProtocol: String? = nil
+    ) {
         self.version = version
         self.pairs = pairs
         self.roots = roots
+        self.coverageProtocol = coverageProtocol
     }
 
     private enum CodingKeys: String, CodingKey {
         case version
         case pairs
         case roots
+        case coverageProtocol
     }
 
     public init(from decoder: Decoder) throws {
@@ -174,6 +186,7 @@ public struct V4Manifest: Codable, Sendable {
         version = try container.decode(Int.self, forKey: .version)
         pairs = try container.decode([V4PairRecord].self, forKey: .pairs)
         roots = try container.decodeIfPresent([String: String].self, forKey: .roots) ?? [:]
+        coverageProtocol = try container.decodeIfPresent(String.self, forKey: .coverageProtocol)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -183,6 +196,7 @@ public struct V4Manifest: Codable, Sendable {
         if !roots.isEmpty {
             try container.encode(roots, forKey: .roots)
         }
+        try container.encodeIfPresent(coverageProtocol, forKey: .coverageProtocol)
     }
 
     public static func load(from url: URL) throws -> V4Manifest {

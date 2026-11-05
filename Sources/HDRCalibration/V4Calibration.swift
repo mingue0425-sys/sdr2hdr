@@ -398,17 +398,39 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
         .frozen: []
     ]
 
+    /// The preregistered coverage protocol these requirements came from.
+    public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
+
     public init() {}
+
+    /// Resolves the coverage requirements preregistered by a manifest. An
+    /// unknown protocol identifier fails; it never falls back to a weaker set.
+    public init(manifest: V4Manifest) throws {
+        self.init()
+        let selected: V4CoverageProtocol
+        if let identifier = manifest.coverageProtocol {
+            guard let known = V4CoverageProtocol(rawValue: identifier) else {
+                throw CalibrationError.invalidManifest("unknown coverageProtocol: \(identifier)")
+            }
+            selected = known
+        } else {
+            selected = .preV6FrozenCoverageV1
+        }
+        coverageProtocol = selected
+        requiredTransfersBySplit = selected.requiredTransfersBySplit
+        requiredFamiliesBySplit = selected.requiredFamiliesBySplit
+    }
 
     /// V5 holdout policy is exposed as named values so callers cannot infer a
     /// requirement from an evaluation result or silently omit a subgroup.
     public var frozenCoveragePolicy: V4FrozenCoveragePolicy {
         V4FrozenCoveragePolicy(
+            version: coverageProtocol.rawValue,
             requiredTransfers: requiredTransfersBySplit[.frozen] ?? V4FrozenCoveragePolicy.v5.requiredTransfers,
             requiredFamilies: requiredFamiliesBySplit[.frozen] ?? [],
             minimumVirginFrozenPairs: V4FrozenCoveragePolicy.v5.minimumVirginFrozenPairs,
             minimumDistinctVirginFrozenFamilies: V4FrozenCoveragePolicy.v5.minimumDistinctVirginFrozenFamilies,
-            rationale: V4FrozenCoveragePolicy.v5.rationale
+            rationale: coverageProtocol.rationale
         )
     }
 
@@ -417,6 +439,51 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     public var minimumVirginFrozenPairs: Int { frozenCoveragePolicy.minimumVirginFrozenPairs }
     public var minimumDistinctFrozenFamilies: Int { frozenCoveragePolicy.minimumDistinctVirginFrozenFamilies }
     public var temporalWindowPolicy: V4TemporalWindowPolicy { .v5 }
+}
+
+/// Named, versioned coverage protocols. Each is preregistered through a
+/// manifest's `coverageProtocol` before objective evaluation of that dataset.
+public enum V4CoverageProtocol: String, Codable, Sendable, CaseIterable {
+    /// Historical requirements for `manifest-v4.json`.
+    case preV6FrozenCoverageV1 = "pre-v6-frozen-coverage-v1"
+    /// `data_video/open-content`: the same transfer and breadth requirements
+    /// for Tune/Validation and holdout size, with two recorded relaxations.
+    case openContentCoverageV1 = "open-content-coverage-v1"
+
+    public var requiredTransfersBySplit: [DatasetSplit: Set<String>] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return [.tune: ["HLG", "PQ"], .validation: ["HLG", "PQ"], .frozen: ["HLG", "PQ"]]
+        case .openContentCoverageV1:
+            return [.tune: ["HLG", "PQ"], .validation: ["HLG", "PQ"], .frozen: ["PQ"]]
+        }
+    }
+
+    public var requiredFamiliesBySplit: [DatasetSplit: Set<String>] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return [.tune: ["K-Choreo", "LIVE"], .validation: ["K-Choreo", "LIVE"], .frozen: []]
+        case .openContentCoverageV1:
+            return [
+                .tune: ["Netflix Sol Levante", "K-Choreo"],
+                .validation: ["ASC StEM2", "K-Choreo"],
+                .frozen: []
+            ]
+        }
+    }
+
+    public var rationale: [String] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return V4FrozenCoveragePolicy.v5.rationale
+        case .openContentCoverageV1:
+            return [
+                "Tune and Validation must each contain HLG and PQ references and two distinct named families; the LIVE family name is replaced because LIVE media is not available for this dataset.",
+                "RELAXATION: Virgin Frozen requires PQ only. No authorized, unexposed HLG pair was available, so HLG generalisation is not measured by this holdout and is evidenced only by Validation.",
+                "Holdout breadth is unchanged: at least three virgin pairs and two distinct virgin families."
+            ]
+        }
+    }
 }
 
 public enum V4CoveragePolicy {

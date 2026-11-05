@@ -318,7 +318,7 @@ private func run(arguments: [String]) async throws {
 
     if cli.command == "v4-run" {
         let manifestURL = try cli.requiredManifest()
-        var configuration = V4CalibrationConfiguration()
+        var configuration = try V4CalibrationConfiguration(manifest: try V4Manifest.load(from: manifestURL))
         configuration.searchSeed = cli.seed
         let runner = try CalibrationV4Runner(
             manifestURL: manifestURL,
