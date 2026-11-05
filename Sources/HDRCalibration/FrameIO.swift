@@ -46,6 +46,8 @@ public struct FrameSequence {
     public let nominalFrameRate: Double
     public let durationSeconds: Double
     public let samples: [FrameSample]
+    /// Source-timeline provenance of `samples`, when the reader recorded it.
+    public let temporalProvenance: FrameTemporalProvenance?
 
     public init(
         url: URL,
@@ -54,7 +56,8 @@ public struct FrameSequence {
         height: Int,
         nominalFrameRate: Double,
         durationSeconds: Double,
-        samples: [FrameSample]
+        samples: [FrameSample],
+        temporalProvenance: FrameTemporalProvenance? = nil
     ) {
         self.url = url
         self.pixelFormat = pixelFormat
@@ -63,10 +66,13 @@ public struct FrameSequence {
         self.nominalFrameRate = nominalFrameRate
         self.durationSeconds = durationSeconds
         self.samples = samples
+        self.temporalProvenance = temporalProvenance
     }
 }
 
 public enum FrameReader {
+    /// Historical uniform-grid mapping used before the source-PTS proxy. It is
+    /// retained for diagnostics of old evidence only; readers no longer use it.
     static func sourceFrameIndex(
         startSeconds: Double,
         outputIndex: Int,
@@ -286,6 +292,12 @@ public enum FrameReader {
         }
         let actualWidth = samples.first.map { CVPixelBufferGetWidth($0.pixelBuffer) } ?? metadata.sourceWidth
         let actualHeight = samples.first.map { CVPixelBufferGetHeight($0.pixelBuffer) } ?? metadata.sourceHeight
+        let provenance = try FrameTemporalProvenance.make(
+            policy: FrameTemporalProvenance.avAssetReaderPolicy,
+            timestamps: samples.map(\.timestamp.seconds),
+            indices: samples.map(\.index),
+            isVariableFrameRate: nil
+        )
         return FrameSequence(
             url: url,
             pixelFormat: pixelFormat,
@@ -293,7 +305,8 @@ public enum FrameReader {
             height: actualHeight,
             nominalFrameRate: metadata.nominalFrameRate,
             durationSeconds: metadata.durationSeconds,
-            samples: samples
+            samples: samples,
+            temporalProvenance: provenance
         )
     }
 
@@ -479,9 +492,13 @@ private enum FFmpegFrameReader {
         startSeconds: Double? = nil,
         samplingFPS: Double? = nil
     ) async throws -> FrameSequence {
-        guard let executable = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw CalibrationError.decodeFailed("AVAssetReader failed and ffmpeg fallback is unavailable")
+        guard let directory = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].first(where: {
+            FileManager.default.isExecutableFile(atPath: $0 + "/ffmpeg") &&
+                FileManager.default.isExecutableFile(atPath: $0 + "/ffprobe")
+        }) else {
+            throw CalibrationError.decodeFailed("AVAssetReader failed and the ffmpeg/ffprobe fallback is unavailable")
         }
+        let executable = directory + "/ffmpeg"
         let isP010 = pixelFormat == CalibrationPixelFormat.hdrP010
         let color = try await FFmpegProxyColorMetadata.resolve(url: url, formatDescription: formatDescription, pixelFormat: pixelFormat)
         let proxyHeight = max(2, Int((Double(proxyWidth) * Double(sourceHeight) / Double(max(sourceWidth, 1))).rounded() / 2) * 2)
@@ -501,26 +518,42 @@ private enum FFmpegFrameReader {
                 "ffmpeg proxy rate or dimensions exceed safe bounds"
             )
         }
-        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)"
+        // The source packet table supplies true presentation-order ordinals
+        // and VFR evidence without decoding.
+        let table = try FFmpegPacketTableProbe.probe(
+            ffprobe: directory + "/ffprobe",
+            url: url
+        )
+        // Source timestamps are preserved (-copyts, passthrough): frames are
+        // decimated by slot selection, never duplicated or re-timed.
+        var filters: [String] = []
+        if let selection = FFmpegProxySelection.filter(requestedFPS: outputFPS, nominalFrameRate: nominalFrameRate) {
+            filters.append(selection)
+        }
+        filters.append("showinfo")
+        filters.append("scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         // This is an offline proxy reader, but it must still be bounded and
-        // non-interactive.  In particular, never leave ffmpeg's stderr pipe
-        // undrained: a noisy VideoToolbox fallback can fill that pipe while
-        // the caller is blocked waiting for rawvideo on stdout.
-        var arguments = ["-hide_banner", "-nostdin", "-loglevel", "error", "-hwaccel", "videotoolbox"]
+        // non-interactive. stderr carries showinfo and is drained
+        // concurrently so a full pipe can never block rawvideo on stdout.
+        var arguments = ["-hide_banner", "-nostdin", "-nostats", "-loglevel", "info", "-hwaccel", "videotoolbox"]
         if let startSeconds {
             arguments += ["-ss", String(format: "%.6f", startSeconds)]
         }
         arguments += [
+            "-copyts",
             "-i", url.path,
-            "-an", "-vf", filter, "-pix_fmt", outputPixelFormat, "-frames:v", String(maxFrames),
+            "-an", "-vf", filters.joined(separator: ","), "-fps_mode", "passthrough",
+            "-pix_fmt", outputPixelFormat, "-frames:v", String(maxFrames),
             "-f", "rawvideo", "pipe:1"
         ]
         process.arguments = arguments
         let stdout = Pipe()
+        let stderr = Pipe()
         process.standardOutput = stdout
-        process.standardError = FileHandle(forWritingAtPath: "/dev/null")
+        process.standardError = stderr
+        let stderrCollector = PipeCollector(stderr.fileHandleForReading)
         try process.run()
         defer {
             if process.isRunning { process.terminate() }
@@ -530,9 +563,7 @@ private enum FFmpegFrameReader {
         let frameBytes = isP010
             ? proxyWidth * proxyHeight * 2 + proxyWidth * max(1, proxyHeight / 2) * 2
             : proxyWidth * proxyHeight + proxyWidth * max(1, proxyHeight / 2)
-        let outputFPSForTimestamp = max(outputFPS, 0.001)
-        var samples: [FrameSample] = []
-        var index = 0
+        var decoded: [(pixelBuffer: CVPixelBuffer, grid: [Float])] = []
         while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
             guard data.count == frameBytes else {
                 process.terminate()
@@ -545,36 +576,38 @@ private enum FFmpegFrameReader {
                 pixelFormat: pixelFormat,
                 color: color
             )
-            let seconds = (startSeconds ?? 0) + Double(index) / outputFPSForTimestamp
-            let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
             let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
-            let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
-            guard let sourceFrameIndex = FrameReader.sourceFrameIndex(
-                startSeconds: startSeconds ?? 0,
-                outputIndex: index,
-                outputFramesPerSecond: outputFPSForTimestamp,
-                sourceFramesPerSecond: max(
-                    nominalFrameRate,
-                    outputFPSForTimestamp
-                )
-            ) else {
-                throw CalibrationError.decodeFailed(
-                    "ffmpeg source position exceeds the supported timeline"
-                )
-            }
-            samples.append(FrameSample(
-                index: sourceFrameIndex,
-                sequencePosition: index,
-                timestamp: timestamp,
-                pixelBuffer: pixelBuffer,
-                descriptor: descriptor,
-                lumaGrid: grid
-            ))
-            index += 1
+            decoded.append((pixelBuffer, grid))
         }
         process.waitUntilExit()
-        guard process.terminationStatus == 0, !samples.isEmpty else {
+        let log = String(decoding: stderrCollector.finish(), as: UTF8.self)
+        guard process.terminationStatus == 0, !decoded.isEmpty else {
             throw CalibrationError.decodeFailed("ffmpeg could not decode \(url.lastPathComponent)")
+        }
+        // showinfo may log one frame beyond the -frames:v limit; pairing is by
+        // output order and only the delivered prefix is used.
+        let shown = try FFmpegShowinfoParser.parse(log)
+        guard shown.count >= decoded.count else {
+            throw CalibrationError.decodeFailed(
+                "ffmpeg reported \(shown.count) source timestamps for \(decoded.count) frames of \(url.lastPathComponent)"
+            )
+        }
+        let provenance = try table.provenance(
+            forFrameSeconds: shown.prefix(decoded.count).map(\.seconds),
+            policy: FrameTemporalProvenance.ffmpegSourcePTSPolicy
+        )
+        var samples: [FrameSample] = []
+        samples.reserveCapacity(decoded.count)
+        for (position, frame) in decoded.enumerated() {
+            let timestamp = CMTime(seconds: provenance.sourceTimestampsSeconds[position], preferredTimescale: 90_000)
+            samples.append(FrameSample(
+                index: provenance.sourceFrameIndices[position],
+                sequencePosition: position,
+                timestamp: timestamp,
+                pixelBuffer: frame.pixelBuffer,
+                descriptor: FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: frame.grid),
+                lumaGrid: frame.grid
+            ))
         }
         return FrameSequence(
             url: url,
@@ -583,7 +616,8 @@ private enum FFmpegFrameReader {
             height: proxyHeight,
             nominalFrameRate: nominalFrameRate,
             durationSeconds: durationSeconds,
-            samples: samples
+            samples: samples,
+            temporalProvenance: provenance
         )
     }
 

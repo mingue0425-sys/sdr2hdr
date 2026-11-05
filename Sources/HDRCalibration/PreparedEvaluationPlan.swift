@@ -33,7 +33,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v5-linear-source-luminance",
+        version: String = "v6-prepared-evaluation-plan-v6-source-pts-proxy",
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -47,7 +47,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         allowHLGModel: Bool = true,
         sdrPixelFormat: UInt32 = CalibrationPixelFormat.sdrNV12,
         hdrPixelFormat: UInt32 = CalibrationPixelFormat.hdrP010,
-        frameDecoderPolicy: String = "FrameReader.auto(avfoundation;ffmpeg-fallback)",
+        frameDecoderPolicy: String = "FrameReader.auto(avfoundation-pts;ffmpeg-fallback-copyts-slot-select-source-pts-v1)",
         referenceDecoderPolicy: String = "HDRReferenceDecoder.linear-reference-v1",
         pathResolutionPolicy: String = "manifest-resolved-once;repository-relative-plan-paths",
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
