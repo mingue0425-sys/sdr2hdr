@@ -608,6 +608,19 @@ public struct HDRGainGuidance: Equatable, Sendable, Codable {
     }
 
     public var isEnabled: Bool { radius > 0 }
+
+    private enum CodingKeys: String, CodingKey { case radius, tolerance }
+
+    /// Decoding goes through the clamping initializer, so a stored radius
+    /// outside 0...maximumRadius or a non-positive tolerance cannot reach
+    /// the shader parameters.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            radius: try container.decode(Int.self, forKey: .radius),
+            tolerance: try container.decode(Float.self, forKey: .tolerance)
+        )
+    }
 }
 
 /// Parameters shared by all tone-mapping presets. Changing this value does

@@ -55,6 +55,8 @@ struct SDRToHDRParameters {
     // revision's arithmetic bit-identical to the unguided path.
     uint gainGuidanceRadius;
     float gainGuidanceTolerance;
+    // 1 forces the per-texel reference window (tests); 0 uses gather.
+    uint gainGuidanceReferencePath;
 };
 
 struct HDRDebugStats {
@@ -650,7 +652,8 @@ inline float p010LumaSignal(float stored, constant SDRToHDRParameters& p);
 
 // Luma signal of one texel for the three input layouts (0 NV12, 1 P010,
 // 2 BGRA). Only the luma plane is read so guidance costs no chroma traffic.
-inline float guidanceLumaSignal(texture2d<float, access::read> texture, uint2 position, uint layout,
+template <typename Texture>
+inline float guidanceLumaSignal(Texture texture, uint2 position, uint layout,
                                 constant SDRToHDRParameters& p) {
     if (layout == 0u) {
         return (texture.read(position).r - p.yOffset) * p.yScale;
@@ -661,39 +664,122 @@ inline float guidanceLumaSignal(texture2d<float, access::read> texture, uint2 po
     return dot(texture.read(position).rgb, kBT709Luma);
 }
 
+inline float guidanceStoredToSignal(float stored, uint layout, constant SDRToHDRParameters& p) {
+    return layout == 0u ? (stored - p.yOffset) * p.yScale : p010LumaSignal(stored, p);
+}
+
+// Range-weighted (bilateral) accumulator in the signal domain.
+struct GuidanceAccumulator {
+    float center;
+    float inverseTwoSigmaSquared;
+    float weightSum;
+    float valueSum;
+
+    inline void add(float value) {
+        float difference = value - center;
+        float weight = exp(-difference * difference * inverseTwoSigmaSquared);
+        weightSum += weight;
+        valueSum += weight * value;
+    }
+};
+
+inline GuidanceAccumulator makeGuidanceAccumulator(float center, constant SDRToHDRParameters& p) {
+    float tolerance = max(p.gainGuidanceTolerance, 1e-4f);
+    return GuidanceAccumulator{center, 1.0f / (2.0f * tolerance * tolerance), 0.0f, 0.0f};
+}
+
+inline float guidanceRatioFromAccumulator(GuidanceAccumulator a, constant SDRToHDRParameters& p) {
+    float centerLinear = inverseTransfer(a.center, p);
+    if (centerLinear <= 1e-6f) {
+        return 1.0f;
+    }
+    float guidedLinear = inverseTransfer(a.valueSum / a.weightSum, p);
+    return clamp(guidedLinear / centerLinear, 0.25f, 4.0f);
+}
+
 // Ratio between the linear light of the noise-gated local mean luma and the
-// pixel's own luma. The gate is a range-weighted (bilateral) mean in the
-// signal domain: neighbours within the tolerance are averaged, neighbours
+// pixel's own luma: neighbours within the tolerance are averaged, neighbours
 // across a real edge get ~zero weight, so the ratio is ~1 at edges and the
 // gain follows the local base level inside flat regions.
-inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid, uint layout,
+//
+// The (2r+1)^2 window is visited as (r+1)^2 2x2 blocks whose last column/row
+// contributes only its left/top texels, in the fixed order w, z, x, y
+// (MSL gather order: x=(i0,j1) y=(i1,j1) z=(i1,j0) w=(i0,j0)). The gather
+// path and the per-texel reference path use the same order, so their float
+// sums and the output are bit-identical.
+
+// Reference path: one edge-clamped read per window texel. Used for BGRA,
+// radius 3-4, and when gainGuidanceReferencePath is set (tests).
+template <typename Texture>
+inline float gainGuidanceRatioReference(Texture texture, uint2 gid, uint layout, int radius,
+                                        constant SDRToHDRParameters& p) {
+    int2 last = int2(texture.get_width() - 1, texture.get_height() - 1);
+    GuidanceAccumulator a = makeGuidanceAccumulator(guidanceLumaSignal(texture, gid, layout, p), p);
+    for (int by = 0; by <= radius; ++by) {
+        for (int bx = 0; bx <= radius; ++bx) {
+            int2 origin = int2(gid) + int2(2 * bx - radius, 2 * by - radius);
+            a.add(guidanceLumaSignal(texture, uint2(clamp(origin, int2(0), last)), layout, p));
+            if (bx < radius) {
+                a.add(guidanceLumaSignal(texture, uint2(clamp(origin + int2(1, 0), int2(0), last)), layout, p));
+            }
+            if (by < radius) {
+                a.add(guidanceLumaSignal(texture, uint2(clamp(origin + int2(0, 1), int2(0), last)), layout, p));
+                if (bx < radius) {
+                    a.add(guidanceLumaSignal(texture, uint2(clamp(origin + int2(1, 1), int2(0), last)), layout, p));
+                }
+            }
+        }
+    }
+    return guidanceRatioFromAccumulator(a, p);
+}
+
+// Gather path for single-channel luma (NV12/P010): (r+1)^2 gathers replace
+// (2r+1)^2 reads (9 instead of 25 at radius 2). clamp_to_edge matches the
+// reference's per-coordinate clamp, and gather returns unfiltered texels.
+template <int Radius>
+inline float gainGuidanceRatioGather(texture2d<float, access::sample> texture, uint2 gid, uint layout,
+                                     constant SDRToHDRParameters& p) {
+    constexpr sampler gatherSampler(coord::normalized, address::clamp_to_edge, filter::nearest);
+    float2 inverseSize = 1.0f / float2(texture.get_width(), texture.get_height());
+    GuidanceAccumulator a = makeGuidanceAccumulator(guidanceLumaSignal(texture, gid, layout, p), p);
+    for (int by = 0; by <= Radius; ++by) {
+        for (int bx = 0; bx <= Radius; ++bx) {
+            int2 origin = int2(gid) + int2(2 * bx - Radius, 2 * by - Radius);
+            float4 g = texture.gather(gatherSampler, (float2(origin) + 1.0f) * inverseSize);
+            a.add(guidanceStoredToSignal(g.w, layout, p));
+            if (bx < Radius) {
+                a.add(guidanceStoredToSignal(g.z, layout, p));
+            }
+            if (by < Radius) {
+                a.add(guidanceStoredToSignal(g.x, layout, p));
+                if (bx < Radius) {
+                    a.add(guidanceStoredToSignal(g.y, layout, p));
+                }
+            }
+        }
+    }
+    return guidanceRatioFromAccumulator(a, p);
+}
+
+inline float gainGuidanceRatio(texture2d<float, access::sample> texture, uint2 gid, uint layout,
                                constant SDRToHDRParameters& p) {
     if (p.gainGuidanceRadius == 0u) {
         return 1.0f;
     }
     int radius = int(min(p.gainGuidanceRadius, 4u));
-    int2 last = int2(texture.get_width() - 1, texture.get_height() - 1);
-    float center = guidanceLumaSignal(texture, gid, layout, p);
-    float tolerance = max(p.gainGuidanceTolerance, 1e-4f);
-    float inverseTwoSigmaSquared = 1.0f / (2.0f * tolerance * tolerance);
-    float weightSum = 0.0f;
-    float valueSum = 0.0f;
-    for (int dy = -radius; dy <= radius; ++dy) {
-        for (int dx = -radius; dx <= radius; ++dx) {
-            int2 position = clamp(int2(gid) + int2(dx, dy), int2(0), last);
-            float value = guidanceLumaSignal(texture, uint2(position), layout, p);
-            float difference = value - center;
-            float weight = exp(-difference * difference * inverseTwoSigmaSquared);
-            weightSum += weight;
-            valueSum += weight * value;
-        }
+    if (p.gainGuidanceReferencePath == 0u) {
+        if (radius == 2) { return gainGuidanceRatioGather<2>(texture, gid, layout, p); }
+        if (radius == 1) { return gainGuidanceRatioGather<1>(texture, gid, layout, p); }
     }
-    float centerLinear = inverseTransfer(center, p);
-    if (centerLinear <= 1e-6f) {
+    return gainGuidanceRatioReference(texture, gid, layout, radius, p);
+}
+
+inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid, uint layout,
+                               constant SDRToHDRParameters& p) {
+    if (p.gainGuidanceRadius == 0u) {
         return 1.0f;
     }
-    float guidedLinear = inverseTransfer(valueSum / weightSum, p);
-    return clamp(guidedLinear / centerLinear, 0.25f, 4.0f);
+    return gainGuidanceRatioReference(texture, gid, layout, int(min(p.gainGuidanceRadius, 4u)), p);
 }
 
 inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, float guidanceRatio = 1.0f) {
@@ -807,6 +893,8 @@ inline float2 reconstructedChroma(
     return mix(lowerRow, upperRow, fraction.y);
 }
 
+// Realtime kernels: no gain-guidance code at all, so the unguided path keeps
+// its pre-guidance register footprint and speed. Guided variants follow.
 kernel void sdrNV12ToHDR(
     texture2d<float, access::read> yTexture [[texture(0)]],
     texture2d<float, access::read> uvTexture [[texture(1)]],
@@ -820,8 +908,7 @@ kernel void sdrNV12ToHDR(
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float2 uv = reconstructedChroma(uvTexture, gid, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
-    float guidance = gainGuidanceRatio(yTexture, gid, 0u, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
 }
 
 kernel void sdrP010ToHDR(
@@ -837,11 +924,58 @@ kernel void sdrP010ToHDR(
     float y = p010LumaSignal(yTexture.read(gid).r, p);
     float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+}
+
+kernel void sdrBGRA8ToHDR(
+    texture2d<float, access::read> inputTexture [[texture(0)]],
+    texture2d<half, access::write> outputTexture [[texture(1)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    float4 input = inputTexture.read(gid);
+    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p), 1.0f)), gid);
+}
+
+// Gain-guided variants, selected only when HDRGainGuidance is enabled.
+kernel void sdrNV12ToHDRGuided(
+    texture2d<float, access::sample> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
+    texture2d<half, access::write> outputTexture [[texture(2)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
+    float2 uv = reconstructedChroma(uvTexture, gid, p);
+    float3 signalRGB = ycbcrToRGB(y, uv, p);
+    float guidance = gainGuidanceRatio(yTexture, gid, 0u, p);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
+}
+
+kernel void sdrP010ToHDRGuided(
+    texture2d<float, access::sample> yTexture [[texture(0)]],
+    texture2d<float, access::read> uvTexture [[texture(1)]],
+    texture2d<half, access::write> outputTexture [[texture(2)]],
+    constant SDRToHDRParameters& p [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    float y = p010LumaSignal(yTexture.read(gid).r, p);
+    float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
+    float3 signalRGB = ycbcrToRGB(y, uv, p);
     float guidance = gainGuidanceRatio(yTexture, gid, 1u, p);
     outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
 }
 
-kernel void sdrBGRA8ToHDR(
+kernel void sdrBGRA8ToHDRGuided(
     texture2d<float, access::read> inputTexture [[texture(0)]],
     texture2d<half, access::write> outputTexture [[texture(1)]],
     constant SDRToHDRParameters& p [[buffer(0)]],
@@ -856,7 +990,7 @@ kernel void sdrBGRA8ToHDR(
 }
 
 kernel void sdrNV12ToHDRDebug(
-    texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::sample> yTexture [[texture(0)]],
     texture2d<float, access::read> uvTexture [[texture(1)]],
     texture2d<half, access::write> outputTexture [[texture(2)]],
     constant SDRToHDRParameters& p [[buffer(0)]],
@@ -877,7 +1011,7 @@ kernel void sdrNV12ToHDRDebug(
 }
 
 kernel void sdrP010ToHDRDebug(
-    texture2d<float, access::read> yTexture [[texture(0)]],
+    texture2d<float, access::sample> yTexture [[texture(0)]],
     texture2d<float, access::read> uvTexture [[texture(1)]],
     texture2d<half, access::write> outputTexture [[texture(2)]],
     constant SDRToHDRParameters& p [[buffer(0)]],

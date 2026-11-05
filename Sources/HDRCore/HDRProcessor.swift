@@ -681,6 +681,9 @@ public final class HDRProcessor {
     private let adaptiveState = HDRAdaptiveStateStore()
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
+    /// Test hook: force the per-texel reference window instead of the
+    /// gather path. Both must produce bit-identical output.
+    internal var gainGuidanceReferencePathEnabled = false
     private var debugPresetLabel = "configuration"
     private var configurationGenerationStorage: UInt64 = 0
     private var automaticTemporalEnabled = true
@@ -1151,6 +1154,15 @@ public final class HDRProcessor {
             case .bgra8:
                 pipeline = context.bgraDebugPipeline
             }
+        } else if configuration.gainGuidance.isEnabled {
+            switch inputTextures.pixelFormat {
+            case .nv12VideoRange, .nv12FullRange:
+                pipeline = context.nv12GuidedPipeline
+            case .p010VideoRange, .p010FullRange:
+                pipeline = context.p010GuidedPipeline
+            case .bgra8:
+                pipeline = context.bgraGuidedPipeline
+            }
         } else {
             switch inputTextures.pixelFormat {
             case .nv12VideoRange, .nv12FullRange:
@@ -1485,8 +1497,9 @@ public final class HDRProcessor {
             chromaReconstructionMode: chromaReconstructionDecision.effective.rawValue,
             chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
             chromaSampleCenterY: color.chromaGeometry.sampleCenterY,
-            gainGuidanceRadius: UInt32(configuration.gainGuidance.radius),
-            gainGuidanceTolerance: configuration.gainGuidance.tolerance
+            gainGuidanceRadius: UInt32(clamping: configuration.gainGuidance.radius),
+            gainGuidanceTolerance: configuration.gainGuidance.tolerance,
+            gainGuidanceReferencePath: gainGuidanceReferencePathEnabled ? 1 : 0
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

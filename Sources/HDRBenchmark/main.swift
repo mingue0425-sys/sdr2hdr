@@ -14,6 +14,7 @@ private struct BenchmarkOptions {
     var precision: HDRDecodePrecision = .eightBit
     var chromaReconstructionMode: HDRChromaReconstructionMode = .nearest
     var presentationOnly = false
+    var gainGuidance: HDRGainGuidance = .off
 
     init(arguments: [String]) {
         var index = 1
@@ -32,6 +33,7 @@ private struct BenchmarkOptions {
                 case "--warmup": warmup = Int(arguments[index + 1]) ?? warmup
                 case "--mode": mode = HDROutputMode(rawValue: arguments[index + 1].uppercased()) ?? mode
                 case "--preset": preset = arguments[index + 1].lowercased()
+                case "--gain-guidance": gainGuidance = HDRGainGuidance(cliName: arguments[index + 1]) ?? gainGuidance
                 case "--precision":
                     switch arguments[index + 1].lowercased() {
                     case "automatic": precision = .automatic
@@ -294,6 +296,7 @@ private func run(options: BenchmarkOptions) throws {
     var configuration = resolvedConfiguration
     configuration.outputMode = options.mode
     configuration.chromaReconstructionMode = options.chromaReconstructionMode
+    configuration.gainGuidance = options.gainGuidance
     let processor = try HDRProcessor(device: device, configuration: configuration)
     try processor.prepare(width: options.width, height: options.height)
     guard let queue = device.makeCommandQueue() else {
@@ -337,7 +340,7 @@ private func run(options: BenchmarkOptions) throws {
     let reconstructionLabel = options.chromaReconstructionMode == .nearest
         ? "nearest"
         : "siting-aware-bilinear"
-    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), precision: \(precisionLabel), chroma: \(reconstructionLabel), preset: \(options.preset), warmup: \(options.warmup), measured: \(options.frames)")
+    print("size: \(options.width)x\(options.height), mode: \(options.mode.rawValue), precision: \(precisionLabel), chroma: \(reconstructionLabel), preset: \(options.preset), gain guidance: \(options.gainGuidance.isEnabled ? "r\(options.gainGuidance.radius) t\(options.gainGuidance.tolerance)" : "off"), warmup: \(options.warmup), measured: \(options.frames)")
     print(String(format: "GPU p50: %.3f ms", gpuP50))
     print(String(format: "GPU p95: %.3f ms", gpuP95))
     print(String(format: "GPU p99: %.3f ms", gpuP99))
