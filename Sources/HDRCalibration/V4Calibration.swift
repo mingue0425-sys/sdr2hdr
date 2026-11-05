@@ -1059,7 +1059,15 @@ public final class CalibrationV4Runner {
             mediaScope: .tuneValidationOnly
         )
 
-        let transferByPair = try await probeTransfers(manifest, includeVirginFrozen: false)
+        let auditedHDRTransfer = try JSONDecoder().decode(
+            V4DatasetAuditReport.self,
+            from: Data(contentsOf: outputDirectory.appendingPathComponent("dataset-v4-final.json"))
+        ).pairs.reduce(into: [String: String]()) { result, pair in
+            if let family = pair.hdrTransferFamily { result[pair.id] = family }
+        }
+        let transferByPair = try await probeTransfers(
+            manifest, includeVirginFrozen: false, auditedHDRTransfer: auditedHDRTransfer
+        )
         let records = makeLegacyRecords(manifest)
         let tuneValidationV4 = V6PreparedEvaluationPlanOrdering.canonical(
             records.filter { $0.split == .tune || $0.split == .validation },
@@ -1552,17 +1560,28 @@ public final class CalibrationV4Runner {
         relation.legacyRelation()
     }
 
+    /// Pre-open HDR transfer of a Virgin Frozen pair: the lock-bound dataset
+    /// audit's container probe (the evidence correctness-review uses), else
+    /// the manifest's documented fallback.
+    static func frozenTransfer(audited: String?, declared: String?) -> String {
+        let fromAudit = ReferenceTransfer.parse(audited)
+        if fromAudit != .unknown { return fromAudit.canonicalName }
+        return ReferenceTransfer.parse(declared).canonicalName
+    }
+
     private func probeTransfers(
         _ manifest: V4Manifest,
-        includeVirginFrozen: Bool
+        includeVirginFrozen: Bool,
+        auditedHDRTransfer: [String: String] = [:]
     ) async throws -> [String: String] {
         var result: [String: String] = [:]
         for pair in manifest.pairs {
             if pair.split == .frozen && pair.virginFrozen && !includeVirginFrozen {
-                // Preflight uses only manifest-declared source evidence for
-                // Frozen coverage. No Frozen URL is resolved or opened until
-                // the explicit guard has opened the holdout.
-                result[pair.id] = ReferenceTransfer.parse(pair.referenceTransfer).canonicalName
+                // No Frozen URL is resolved or opened until the explicit guard
+                // has opened the holdout; coverage uses recorded evidence only.
+                result[pair.id] = Self.frozenTransfer(
+                    audited: auditedHDRTransfer[pair.id], declared: pair.referenceTransfer
+                )
                 continue
             }
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
