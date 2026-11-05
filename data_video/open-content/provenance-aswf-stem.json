@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "collection": "aswf-dpel-asc-stem",
+  "license": "ASWF Digital Assets License v1.1",
+  "copyright": [
+    "StEM2 -- Copyright 2022 -- American Society of Cinematographers -- All rights reserved.",
+    "StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers. All rights reserved."
+  ],
+  "modifications": "Excerpts are stream copies; SDR ProRes frame headers retagged BT.709 via prores_metadata (no pixel change).",
+  "discovery": "Claude in Chrome on dpel.aswf.io",
+  "rejectedWindows": [
+    {
+      "pair": "stem3 warped",
+      "excerptStartSeconds": 257,
+      "reason": "near-empty bitstream (0.01/0.02 GB for 120 frames); rejected on size only, never decoded"
+    }
+  ],
+  "files": [
+    {
+      "pairID": "aswf_stem2_t300",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem2/stem2_sdr_t300_120f.mov",
+      "sha256": "fe5661c30c689852750591dc3ac5fd430cf59bd750323318f88b264753d98838",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/asc-stem2/ASC_StEM2_178_UHD_24_100nits_Rec709_Stereo_ProRes422HQ.mov",
+      "excerptStartSeconds": 300,
+      "frameCount": 120,
+      "retaggedBT709": true,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem2_t300",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem2/stem2_hdr_t300_120f.mov",
+      "sha256": "e177061702b99ecf3648e73107e40888bd52696a38fed6ea7deb9a11fbfea033",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/asc-stem2/ASC_StEM2_178_UHD_ST2084_1000nits_Rec2020_Stereo_ProRes4444XQ.mov",
+      "excerptStartSeconds": 300,
+      "frameCount": 120,
+      "retaggedBT709": false,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem2_t450",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem2/stem2_sdr_t450_120f.mov",
+      "sha256": "838daf07f7774bf794fcdf841447a833242819c3632036da33bddd38f976ca47",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/asc-stem2/ASC_StEM2_178_UHD_24_100nits_Rec709_Stereo_ProRes422HQ.mov",
+      "excerptStartSeconds": 450,
+      "frameCount": 120,
+      "retaggedBT709": true,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem2_t450",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem2/stem2_hdr_t450_120f.mov",
+      "sha256": "239f0220d8f889a502ea5ff161245c29522c894fe6fce2298be5b824067e1150",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/asc-stem2/ASC_StEM2_178_UHD_ST2084_1000nits_Rec2020_Stereo_ProRes4444XQ.mov",
+      "excerptStartSeconds": 450,
+      "frameCount": 120,
+      "retaggedBT709": false,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem3_warped_t118",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_sdr_t118_120f.mov",
+      "sha256": "72cde109ea826df23b0d6c2565f1ceb005c2deb0a051280f43c67656a0f057f1",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_1920x1080_Rec709_BT1886_5.1ch.mov",
+      "excerptStartSeconds": 118,
+      "frameCount": 120,
+      "retaggedBT709": true,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem3_warped_t118",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_hdr_t118_120f.mov",
+      "sha256": "626d3b4a50cb880ec122bb8c8adcb3e28a4ed6716f2f1c7b66c1d4084bddabc9",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_3840x2160_Rec2100_ST2084_500nits_5.1ch.mov",
+      "excerptStartSeconds": 118,
+      "frameCount": 120,
+      "retaggedBT709": false,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem3_warped_t197",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_sdr_t197_120f.mov",
+      "sha256": "a8d9b3ba30311f661af68a52c4bd70ec34260d27b5ef0a2baa7a7de24309216c",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_1920x1080_Rec709_BT1886_5.1ch.mov",
+      "excerptStartSeconds": 197,
+      "frameCount": 120,
+      "retaggedBT709": true,
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "aswf_stem3_warped_t197",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_hdr_t197_120f.mov",
+      "sha256": "1f8c9279d3bd986e65af13111b1ee877ddb910f7662bf0994e9a37570317b0fd",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_3840x2160_Rec2100_ST2084_500nits_5.1ch.mov",
+      "excerptStartSeconds": 197,
+      "frameCount": 120,
+      "retaggedBT709": false,
+      "accessDate": "2026-11-05"
+    }
+  ]
+}

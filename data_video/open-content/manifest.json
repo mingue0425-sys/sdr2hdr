@@ -1,0 +1,223 @@
+{
+  "version": 4,
+  "roots": {
+    "netflix": "../../sdr2hdr-real-media/netflix-opencontent",
+    "aswf": "../../sdr2hdr-real-media/aswf-dpel",
+    "local": ".."
+  },
+  "pairs": [
+    {
+      "id": "netflix_sollevante_t030",
+      "sdr": "netflix:sollevante/sollevante_sdr_t030_240f.mov",
+      "hdr": "netflix:sollevante/sollevante_hdr10_t030_240f.mov",
+      "source": "Netflix Open Content: Sol Levante",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "animation",
+        "high-contrast",
+        "low-key"
+      ],
+      "contentFamily": "Netflix Sol Levante",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "netflix_sollevante",
+      "notes": "Stream-copied (no re-encode) 240-frame excerpt starting at 30s of the official SDR (BT.709, ProRes HQ 4:2:2 10-bit) and HDR10 (BT.2020 ST.2084 1000-nit, ProRes XQ 4:4:4 12-bit) deliverables. Both full masters have 6314 frames at 24 fps; per-index downscaled rank correlation >= 0.99 at sampled frames. All windows share one group so no Sol Levante content crosses splits. Attribution: 'Sol Levante' by Netflix, CC BY 4.0."
+    },
+    {
+      "id": "netflix_sollevante_t090",
+      "sdr": "netflix:sollevante/sollevante_sdr_t090_240f.mov",
+      "hdr": "netflix:sollevante/sollevante_hdr10_t090_240f.mov",
+      "source": "Netflix Open Content: Sol Levante",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "animation",
+        "high-key",
+        "saturated"
+      ],
+      "contentFamily": "Netflix Sol Levante",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "netflix_sollevante",
+      "notes": "Stream-copied (no re-encode) 240-frame excerpt starting at 90s of the official SDR (BT.709, ProRes HQ 4:2:2 10-bit) and HDR10 (BT.2020 ST.2084 1000-nit, ProRes XQ 4:4:4 12-bit) deliverables. Both full masters have 6314 frames at 24 fps; per-index downscaled rank correlation >= 0.99 at sampled frames. All windows share one group so no Sol Levante content crosses splits. Attribution: 'Sol Levante' by Netflix, CC BY 4.0."
+    },
+    {
+      "id": "netflix_sollevante_t150",
+      "sdr": "netflix:sollevante/sollevante_sdr_t150_240f.mov",
+      "hdr": "netflix:sollevante/sollevante_hdr10_t150_240f.mov",
+      "source": "Netflix Open Content: Sol Levante",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "animation",
+        "highlight-rich",
+        "saturated"
+      ],
+      "contentFamily": "Netflix Sol Levante",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "netflix_sollevante",
+      "notes": "Stream-copied (no re-encode) 240-frame excerpt starting at 150s of the official SDR (BT.709, ProRes HQ 4:2:2 10-bit) and HDR10 (BT.2020 ST.2084 1000-nit, ProRes XQ 4:4:4 12-bit) deliverables. Both full masters have 6314 frames at 24 fps; per-index downscaled rank correlation >= 0.99 at sampled frames. All windows share one group so no Sol Levante content crosses splits. Attribution: 'Sol Levante' by Netflix, CC BY 4.0."
+    },
+    {
+      "id": "netflix_sollevante_t175",
+      "sdr": "netflix:sollevante/sollevante_sdr_t175_240f.mov",
+      "hdr": "netflix:sollevante/sollevante_hdr10_t175_240f.mov",
+      "source": "Netflix Open Content: Sol Levante",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "animation",
+        "high-key",
+        "highlight-rich"
+      ],
+      "contentFamily": "Netflix Sol Levante",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "netflix_sollevante",
+      "notes": "Stream-copied (no re-encode) 240-frame excerpt starting at 175s of the official SDR (BT.709, ProRes HQ 4:2:2 10-bit) and HDR10 (BT.2020 ST.2084 1000-nit, ProRes XQ 4:4:4 12-bit) deliverables. Both full masters have 6314 frames at 24 fps; per-index downscaled rank correlation >= 0.99 at sampled frames. All windows share one group so no Sol Levante content crosses splits. Attribution: 'Sol Levante' by Netflix, CC BY 4.0."
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-source",
+      "group": "kchoreo_video3",
+      "hdr": "local:video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "id": "video3_newjeans_how_sweet",
+      "license": "user-provided-local",
+      "notes": "Legacy pair retained from manifest-v2; calibrated before V4 and not a virgin holdout. Reused from manifest-v4 with the same split and group. HDR is BT.2020 HLG (arib-std-b67) VP9 Profile 2; SDR is the platform BT.709 VP9 rendition of the same upload, so the relation is recorded as same-source rather than same-master. Spot checks at four timestamps show same-index rank correlation >= 0.994, above the +/-1 frame shift.",
+      "sdr": "local:video3/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "source": "user-provided-local",
+      "split": "tune",
+      "virginFrozen": false
+    },
+    {
+      "contentCategory": [
+        "dance",
+        "high-key",
+        "skin",
+        "saturated",
+        "high-contrast"
+      ],
+      "contentFamily": "K-Choreo",
+      "expectedRelation": "same-source",
+      "group": "kchoreo_video4",
+      "hdr": "local:video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "id": "video4_aespa_lemonade",
+      "license": "user-provided-local",
+      "notes": "Legacy validation pair retained from manifest-v2; prior validation makes it non-virgin. Reused from manifest-v4 with the same split and group. HDR is BT.2020 HLG (arib-std-b67) VP9 Profile 2; SDR is the platform BT.709 VP9 rendition of the same upload, so the relation is recorded as same-source rather than same-master. Spot checks at four timestamps show same-index rank correlation >= 0.994, above the +/-1 frame shift.",
+      "sdr": "local:video4/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "source": "user-provided-local",
+      "split": "validation",
+      "virginFrozen": false
+    },
+    {
+      "id": "aswf_stem2_t300",
+      "sdr": "aswf:stem2/stem2_sdr_t300_120f.mov",
+      "hdr": "aswf:stem2/stem2_hdr_t300_120f.mov",
+      "source": "ASC StEM2 via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem2/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://aswf.io/licenses/aswf_digital_assets_license_v1.1.txt",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "low-key",
+        "highlight-rich",
+        "skin"
+      ],
+      "contentFamily": "ASC StEM2",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "asc_stem2",
+      "notes": "Stream-copied 120-frame excerpt at 300s of the UHD Rec709 100-nit ProRes 422 HQ and UHD ST2084 1000-nit Rec2020 ProRes 4444 XQ deliverables. Same-index rank correlation >= 0.83 at sampled frames vs <= 0.95 at +/-1 frame. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. StEM2 Copyright 2022 American Society of Cinematographers."
+    },
+    {
+      "id": "aswf_stem2_t450",
+      "sdr": "aswf:stem2/stem2_sdr_t450_120f.mov",
+      "hdr": "aswf:stem2/stem2_hdr_t450_120f.mov",
+      "source": "ASC StEM2 via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem2/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://aswf.io/licenses/aswf_digital_assets_license_v1.1.txt",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "high-key",
+        "skin"
+      ],
+      "contentFamily": "ASC StEM2",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "asc_stem2",
+      "notes": "Stream-copied 120-frame excerpt at 450s of the UHD Rec709 100-nit ProRes 422 HQ and UHD ST2084 1000-nit Rec2020 ProRes 4444 XQ deliverables. Same-index rank correlation >= 0.83 at sampled frames vs <= 0.95 at +/-1 frame. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. StEM2 Copyright 2022 American Society of Cinematographers."
+    },
+    {
+      "id": "aswf_stem3_warped_t118",
+      "sdr": "aswf:stem3-warped/warped_sdr_t118_120f.mov",
+      "hdr": "aswf:stem3-warped/warped_hdr_t118_120f.mov",
+      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "virtual-production",
+        "night-neon"
+      ],
+      "contentFamily": "ASC StEM3 Warped Cybercity",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "asc_stem3_warped",
+      "objectiveEvaluated": false,
+      "consumed": false,
+      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+    },
+    {
+      "id": "aswf_stem3_warped_t197",
+      "sdr": "aswf:stem3-warped/warped_sdr_t197_120f.mov",
+      "hdr": "aswf:stem3-warped/warped_hdr_t197_120f.mov",
+      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "virtual-production",
+        "night-neon"
+      ],
+      "contentFamily": "ASC StEM3 Warped Cybercity",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "asc_stem3_warped",
+      "objectiveEvaluated": false,
+      "consumed": false,
+      "notes": "Virgin Frozen candidate. Window start fixed a priori at a duration fraction (30%/50%); content was not viewed, sampled, or correlated. A 65% window was discarded on bitstream size alone (near-empty frames) before any decode. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+    }
+  ]
+}
