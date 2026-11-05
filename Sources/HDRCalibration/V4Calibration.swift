@@ -970,12 +970,27 @@ private struct V4FrozenComparison: Codable, Sendable {
     var v4Evaluation: V2DatasetEvaluation
 }
 
+/// How a v4-run may touch the Virgin Frozen holdout.
+public enum V4FrozenAccessPlan: String, Codable, Sendable, Equatable {
+    /// The manifest has no virgin holdout to open.
+    case noVirginHoldout = "NO_VIRGIN_HOLDOUT"
+    /// Search and Validation selection only; Frozen stays sealed.
+    case stopBeforeFrozen = "STOP_BEFORE_FROZEN"
+    /// Open the admitted Frozen plan exactly once after the pre-Frozen gates.
+    case openOnce = "OPEN_ONCE"
+}
+
 public final class CalibrationV4Runner {
     public let manifestURL: URL
     public let outputDirectory: URL
     public let configuration: V4CalibrationConfiguration
     public let preparedEvaluationPlanURL: URL?
     public let preparedFrozenPlanURL: URL?
+    /// Stop after Validation selection and the pre-Frozen gates without
+    /// opening Virgin Frozen. Used to compare run-level policies (e.g. SDR
+    /// transfer interpretation) on Validation so the one-use holdout is
+    /// spent only once, on the chosen policy. Not part of the objective hash.
+    public let stopBeforeFrozen: Bool
 
     private let device: MTLDevice
     private let frozenGuard = V4FrozenExperimentGuard()
@@ -987,6 +1002,7 @@ public final class CalibrationV4Runner {
         configuration: V4CalibrationConfiguration = V4CalibrationConfiguration(),
         preparedEvaluationPlanURL: URL? = nil,
         preparedFrozenPlanURL: URL? = nil,
+        stopBeforeFrozen: Bool = false,
         device: MTLDevice? = MTLCreateSystemDefaultDevice()
     ) throws {
         guard let device else { throw CalibrationError.decodeFailed("Metal device unavailable") }
@@ -995,7 +1011,19 @@ public final class CalibrationV4Runner {
         self.configuration = configuration
         self.preparedEvaluationPlanURL = preparedEvaluationPlanURL
         self.preparedFrozenPlanURL = preparedFrozenPlanURL
+        self.stopBeforeFrozen = stopBeforeFrozen
         self.device = device
+    }
+
+    static func frozenAccessPlan(virginCount: Int, hasAdmittedPlan: Bool, stopBeforeFrozen: Bool) throws -> V4FrozenAccessPlan {
+        if stopBeforeFrozen { return .stopBeforeFrozen }
+        if virginCount == 0 { return .noVirginHoldout }
+        guard hasAdmittedPlan else {
+            throw CalibrationError.incompleteEvaluation(
+                "v4-run requires an explicit admitted --prepared-frozen-plan artifact"
+            )
+        }
+        return .openOnce
     }
 
     public func run() async throws -> V4FinalReport {
@@ -1074,15 +1102,14 @@ public final class CalibrationV4Runner {
         // A future V6 holdout is admitted with an objective-free preparation
         // artifact.  Preflight validates only this serialized contract; media
         // remains sealed until the Frozen guard opens.
+        let accessPlan = try Self.frozenAccessPlan(
+            virginCount: virginV4.count,
+            hasAdmittedPlan: preparedFrozenPlanURL != nil,
+            stopBeforeFrozen: stopBeforeFrozen
+        )
+        log("Virgin Frozen access plan: \(accessPlan.rawValue)")
         let frozenArtifact: V6PreparedEvaluationPlanArtifact?
-        if virginV4.isEmpty {
-            frozenArtifact = nil
-        } else {
-            guard let preparedFrozenPlanURL else {
-                throw CalibrationError.incompleteEvaluation(
-                    "v4-run requires an explicit admitted --prepared-frozen-plan artifact"
-                )
-            }
+        if !virginV4.isEmpty, let preparedFrozenPlanURL {
             let loaded = try V6PreparedEvaluationPlanLoader.loadSealed(
                 from: preparedFrozenPlanURL
             )
@@ -1094,6 +1121,9 @@ public final class CalibrationV4Runner {
                 preparation: artifact.plan.preparation
             )
             frozenArtifact = loaded
+        } else {
+            // Only reachable with no virgin holdout or with --stop-before-frozen.
+            frozenArtifact = nil
         }
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try engine.installPreparedEvaluationPlan(tuneValidationPlan)
@@ -1300,6 +1330,21 @@ public final class CalibrationV4Runner {
             familyCoverage: requiredCoverage.familyCoverage,
             runtime: runtimeBenchmark.status
         )
+        if preFrozenGates.canOpenVirginFrozen && accessPlan == .stopBeforeFrozen {
+            let report = makeFailureReport(
+                manifest: manifest, transferByPair: transferByPair, baseline: baseline,
+                shadowAudit: shadowAudit, sensitivity: sensitivity,
+                reason: "stopped before Virgin Frozen on request (--stop-before-frozen): " +
+                    "Tune search and Validation selection only; every pre-Frozen gate passed; Virgin Frozen stays sealed",
+                verdict: .incompleteEvaluation,
+                global: global, local: local, validation: validationCandidates,
+                selected: selected, selectedValidation: selectedValidation,
+                candidate: candidate, preFrozenGates: preFrozenGates,
+                frozenStatus: .notOpened
+            )
+            try writeArtifacts(report)
+            return report
+        }
         guard preFrozenGates.canOpenVirginFrozen else {
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,

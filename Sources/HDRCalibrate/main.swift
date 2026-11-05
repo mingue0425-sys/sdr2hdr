@@ -15,6 +15,7 @@ private struct CLI {
     let dryRun: Bool
     let selectionCount: Int
     let sdrTransferInterpretation: HDRSDRTransferInterpretation
+    let stopBeforeFrozen: Bool
 
     init(arguments: [String]) throws {
         guard arguments.count > 1 else { throw CLIError.usage }
@@ -30,6 +31,7 @@ private struct CLI {
         var dryRun = false
         var selectionCount = 6
         var sdrTransferInterpretation = HDRSDRTransferInterpretation.default
+        var stopBeforeFrozen = false
         var index = 2
         while index < arguments.count {
             switch arguments[index] {
@@ -86,6 +88,9 @@ private struct CLI {
             case "--dry-run":
                 dryRun = true
                 index += 1
+            case "--stop-before-frozen":
+                stopBeforeFrozen = true
+                index += 1
             case "--sdr-transfer":
                 guard index + 1 < arguments.count,
                       let value = HDRSDRTransferInterpretation(cliName: arguments[index + 1]) else { throw CLIError.usage }
@@ -107,6 +112,7 @@ private struct CLI {
         self.dryRun = dryRun
         self.selectionCount = selectionCount
         self.sdrTransferInterpretation = sdrTransferInterpretation
+        self.stopBeforeFrozen = stopBeforeFrozen
     }
 
     func requiredManifest() throws -> URL {
@@ -156,7 +162,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v2-audit        --manifest data_video/manifest-v2.json --output results/data-video-v2-dataset-audit.json
       HDRCalibrate v2-run          --manifest data_video/manifest-v2.json --seed 20260823 --output results/data-video-v2-final.json
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
-      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 [--sdr-transfer bt709-oetf|bt1886] --output results/data-video-v4-final.json
+      HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 [--sdr-transfer bt709-oetf|bt1886] [--stop-before-frozen] --output results/data-video-v4-final.json
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
       HDRCalibrate v6-curve-audit --output /tmp/v6-tone-curve-audit.json
@@ -343,7 +349,8 @@ private func run(arguments: [String]) async throws {
             outputDirectory: cli.output.deletingLastPathComponent(),
             configuration: configuration,
             preparedEvaluationPlanURL: try cli.requiredPreparedPlan(),
-            preparedFrozenPlanURL: cli.preparedFrozenPlan
+            preparedFrozenPlanURL: cli.preparedFrozenPlan,
+            stopBeforeFrozen: cli.stopBeforeFrozen
         )
         let report = try await runner.run()
         print("V4 verdict: \(report.verdict.rawValue)")
