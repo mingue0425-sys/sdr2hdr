@@ -1,0 +1,47 @@
+{
+  "files" : [
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t030_240f.mov",
+      "sha256" : "69fbcc9fbfb71542aa3df7ffbe5242b0bcb994d8126385cb404aec2deb5577cb",
+      "sizeBytes" : 1930181362
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t090_240f.mov",
+      "sha256" : "c637f26d29144798658f63a153b8b676c7efa26edba63833ce8dfcb711e33fc1",
+      "sizeBytes" : 1925138114
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t150_240f.mov",
+      "sha256" : "a8cecda5b6c7c88c2a8f217b08dcde4fdc0129ba3ab1231a5693797323bf9bfd",
+      "sizeBytes" : 1977653506
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t175_240f.mov",
+      "sha256" : "904c865310d95835a10eb350af510f9852b4bdd56d6262394cf4c5664f4dd2af",
+      "sizeBytes" : 1851658546
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t030_240f.mov",
+      "sha256" : "85f00937be4227345697fcea9ec0d677f12bbcc68485dee4cea56d459d77fcdf",
+      "sizeBytes" : 870787850
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t090_240f.mov",
+      "sha256" : "015b721c56f6a5e508ffc80dfd866170af1625ed073f65ba29c9182a63defef2",
+      "sizeBytes" : 858073050
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t150_240f.mov",
+      "sha256" : "78d4de3a1428558492fb5069cf5592686ea94b30bf13c95d14c3012f549d17ca",
+      "sizeBytes" : 903276538
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t175_240f.mov",
+      "sha256" : "f28bfba5eedea1ccce43d9836707747dde4015bf0d528c4e4c970e375b79ea97",
+      "sizeBytes" : 863091690
+    }
+  ],
+  "generatedAt" : "2026-11-05T13:46:42Z",
+  "manifestSHA256" : "debfc2d891958232a2cef7ae797d2d238fb72fdb3204a6feef365d7406af42c5",
+  "version" : 1
+}

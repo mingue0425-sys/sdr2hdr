@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "collection": "netflix-opencontent-sollevante",
+  "license": "CC BY 4.0",
+  "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+  "attribution": "'Sol Levante' by Netflix, licensed under CC BY 4.0. Excerpts are unmodified stream copies of the published deliverables.",
+  "discovery": "Claude in Chrome on opencontent.netflix.com; S3 index read via path-style HTTPS",
+  "rejectedWindows": [
+    {
+      "excerptStartSeconds": 215,
+      "reason": "all 240 frames near black (end credits)"
+    }
+  ],
+  "files": [
+    {
+      "pairID": "netflix_sollevante_t030",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_sdr_t030_240f.mov",
+      "sha256": "85f00937be4227345697fcea9ec0d677f12bbcc68485dee4cea56d459d77fcdf",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/sdr/SolLevante_SDR_UHD_24fps.mov",
+      "excerptStartSeconds": 30,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 30 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t030",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_hdr10_t030_240f.mov",
+      "sha256": "69fbcc9fbfb71542aa3df7ffbe5242b0bcb994d8126385cb404aec2deb5577cb",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/hdr10/SolLevante_HDR10_r2020_ST2084_UHD_24fps_1000nit.mov",
+      "excerptStartSeconds": 30,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 30 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t090",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_sdr_t090_240f.mov",
+      "sha256": "015b721c56f6a5e508ffc80dfd866170af1625ed073f65ba29c9182a63defef2",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/sdr/SolLevante_SDR_UHD_24fps.mov",
+      "excerptStartSeconds": 90,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 90 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t090",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_hdr10_t090_240f.mov",
+      "sha256": "c637f26d29144798658f63a153b8b676c7efa26edba63833ce8dfcb711e33fc1",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/hdr10/SolLevante_HDR10_r2020_ST2084_UHD_24fps_1000nit.mov",
+      "excerptStartSeconds": 90,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 90 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t150",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_sdr_t150_240f.mov",
+      "sha256": "78d4de3a1428558492fb5069cf5592686ea94b30bf13c95d14c3012f549d17ca",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/sdr/SolLevante_SDR_UHD_24fps.mov",
+      "excerptStartSeconds": 150,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 150 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t150",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_hdr10_t150_240f.mov",
+      "sha256": "a8cecda5b6c7c88c2a8f217b08dcde4fdc0129ba3ab1231a5693797323bf9bfd",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/hdr10/SolLevante_HDR10_r2020_ST2084_UHD_24fps_1000nit.mov",
+      "excerptStartSeconds": 150,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 150 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t175",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_sdr_t175_240f.mov",
+      "sha256": "f28bfba5eedea1ccce43d9836707747dde4015bf0d528c4e4c970e375b79ea97",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/sdr/SolLevante_SDR_UHD_24fps.mov",
+      "excerptStartSeconds": 175,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 175 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    },
+    {
+      "pairID": "netflix_sollevante_t175",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/sollevante/sollevante_hdr10_t175_240f.mov",
+      "sha256": "904c865310d95835a10eb350af510f9852b4bdd56d6262394cf4c5664f4dd2af",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/SolLevante/hdr10/SolLevante_HDR10_r2020_ST2084_UHD_24fps_1000nit.mov",
+      "excerptStartSeconds": 175,
+      "frameCount": 240,
+      "acquisition": "ffmpeg -ss 175 -i <sourceObject> -map 0:v:0 -c copy -frames:v 240",
+      "accessDate": "2026-11-05"
+    }
+  ]
+}
