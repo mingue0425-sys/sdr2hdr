@@ -3,10 +3,65 @@ import Foundation
 import simd
 
 public enum HDRTransferFunction: Equatable, Sendable {
+    /// Inverse BT.709 camera OETF (scene-linear convention).
     case bt709
     case sRGB
     case gamma(Float)
     case linear
+    /// BT.1886 display EOTF with a zero black level (pure 2.4 power law).
+    /// CoreVideo has no distinct tag for it; the metadata resolver never
+    /// produces this value. It is selected only by
+    /// `HDRSDRTransferInterpretation.bt1886DisplayReferred` for BT.709-tagged
+    /// input.
+    case bt1886
+
+    /// Applies an SDR interpretation policy to a resolved transfer tag. Only
+    /// the BT.709/BT.2020 SDR tag is ambiguous between scene-linear and
+    /// display-referred decoding; sRGB, explicit gamma and linear tags are
+    /// unambiguous and are never rewritten.
+    public func interpreted(by policy: HDRSDRTransferInterpretation) -> HDRTransferFunction {
+        switch (self, policy) {
+        case (.bt709, .bt1886DisplayReferred):
+            return .bt1886
+        default:
+            return self
+        }
+    }
+}
+
+/// Versioned policy for linearizing BT.709-tagged SDR input.
+///
+/// The raw values are stable identifiers intended for reports, manifests and
+/// calibration records. A new convention must add a new case with a new
+/// identifier; an existing identifier must never change meaning.
+public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendable {
+    /// Historical behavior: inverse BT.709 camera OETF. Every shipped and
+    /// calibrated preset was produced under this convention.
+    case bt709InverseOETFSceneLinear = "bt709-inverse-oetf-scene-linear-v1"
+
+    /// Display-referred decoding through the BT.1886 reference EOTF with
+    /// Lb = 0 (L = V^2.4, normalized to reference white). This reproduces the
+    /// SDR picture as seen on a reference display. No calibrated preset uses
+    /// it yet; selecting it requires a separate calibration rebase.
+    case bt1886DisplayReferred = "bt1886-display-eotf-gamma2.4-lb0-v1"
+
+    /// The default intentionally preserves historical output.
+    public static let `default`: HDRSDRTransferInterpretation = .bt709InverseOETFSceneLinear
+
+    /// Short command-line spelling.
+    public var cliName: String {
+        switch self {
+        case .bt709InverseOETFSceneLinear: return "bt709-oetf"
+        case .bt1886DisplayReferred: return "bt1886"
+        }
+    }
+
+    public init?(cliName: String) {
+        guard let match = Self.allCases.first(where: {
+            $0.cliName == cliName.lowercased() || $0.rawValue == cliName
+        }) else { return nil }
+        self = match
+    }
 }
 
 public enum HDRYCbCrMatrix: String, Sendable {
@@ -92,6 +147,11 @@ public enum HDRColorMath {
         return value < 0.018 ? value * 4.5 : 1.099 * pow(value, 0.45) - 0.099
     }
 
+    /// BT.1886 reference EOTF with Lb = 0, normalized so 1.0 is white.
+    public static func inverseBT1886(_ signal: Float) -> Float {
+        pow(max(signal, 0), 2.4)
+    }
+
     public static func inverseSRGB(_ signal: Float) -> Float {
         let value = max(signal, 0)
         return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
@@ -113,6 +173,8 @@ public enum HDRColorMath {
             return pow(max(signal, 0), gamma)
         case .linear:
             return max(signal, 0)
+        case .bt1886:
+            return inverseBT1886(signal)
         }
     }
 

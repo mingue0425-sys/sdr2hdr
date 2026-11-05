@@ -638,6 +638,12 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// Versioned convention for linearizing BT.709-tagged SDR input. All
+    /// presets keep the historical inverse-OETF convention; BT.1886 is an
+    /// explicit opt-in that changes output and therefore needs its own
+    /// calibration before any preset may adopt it.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -673,6 +679,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -700,6 +707,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.sceneHistogramStrategy = sceneHistogramStrategy
         self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.sdrTransferInterpretation = sdrTransferInterpretation
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController

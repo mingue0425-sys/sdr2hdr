@@ -718,10 +718,15 @@ public enum OfflinePixelSampler {
     /// HDR shader. `lumaGrid` is intentionally an encoded Y proxy for frame
     /// matching; diagnostic attribution must use this method instead so its
     /// bins and scalar tone-curve contributions are in the shader's domain.
+    ///
+    /// `sdrTransferInterpretation` must match the configuration whose output
+    /// is compared against these samples. The default is the historical
+    /// convention used by every recorded preparation plan.
     public static func linearLumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -737,6 +742,7 @@ public enum OfflinePixelSampler {
                 ? .bt709FullRange : .bt709VideoRange
         )
         let matrix = metadata.yCbCrMatrix
+        let decode = metadata.transferFunction.interpreted(by: sdrTransferInterpretation)
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -745,7 +751,7 @@ public enum OfflinePixelSampler {
         var result = [Float](repeating: 0, count: width * height)
 
         func inverse(_ value: Float) -> Float {
-            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: metadata.transferFunction)
+            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: decode)
         }
 
         func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {

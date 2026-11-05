@@ -105,6 +105,7 @@ inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
         case 0: return inverseBT709(value);
         case 1: return inverseSRGB(value);
         case 2: return pow(max(value, 0.0f), p.gamma);
+        case 4: return pow(max(value, 0.0f), 2.4f); // BT.1886 EOTF, Lb = 0
         default: return max(value, 0.0f);
     }
 }

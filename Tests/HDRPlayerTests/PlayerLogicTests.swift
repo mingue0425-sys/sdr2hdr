@@ -671,5 +671,24 @@ final class PlayerLogicTests: XCTestCase {
             arguments: ["HDRPlayer", "/tmp/video.mp4"]
         ).baseConfiguration()
         XCTAssertEqual(defaultConfiguration.chromaReconstructionMode, .nearest)
+        XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+    }
+
+    func testSDRTransferInterpretationOptionReachesConfiguration() throws {
+        let parsed = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "bt1886"
+        ])
+        XCTAssertEqual(parsed.sdrTransferInterpretation, .bt1886DisplayReferred)
+        XCTAssertEqual(try parsed.baseConfiguration().sdrTransferInterpretation, .bt1886DisplayReferred)
+        let explicitLegacy = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "bt709-oetf"
+        ])
+        XCTAssertEqual(explicitLegacy.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "gamma2.2"
+        ]))
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer"
+        ]))
     }
 }

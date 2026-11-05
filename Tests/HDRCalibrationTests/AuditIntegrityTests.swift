@@ -29,6 +29,28 @@ final class AuditIntegrityTests: XCTestCase {
         XCTAssertEqual(Double(try XCTUnwrap(luma.first)), expected, accuracy: 1e-6)
     }
 
+    func testSourceLinearLuminanceFollowsSDRTransferInterpretation() throws {
+        var created: CVPixelBuffer?
+        XCTAssertEqual(CVPixelBufferCreate(nil, 2, 2, kCVPixelFormatType_32BGRA, nil, &created), kCVReturnSuccess)
+        let buffer = try XCTUnwrap(created)
+        CVBufferSetAttachment(buffer, kCVImageBufferColorPrimariesKey,
+                              kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(buffer, kCVImageBufferTransferFunctionKey,
+                              kCVImageBufferTransferFunction_ITU_R_709_2, .shouldPropagate)
+        XCTAssertEqual(CVPixelBufferLockBaseAddress(buffer, []), kCVReturnSuccess)
+        let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer))
+        memset(base, 128, CVPixelBufferGetBytesPerRow(buffer) * 2)
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+        let signal = 128.0 / 255.0
+        let legacy = try OfflinePixelSampler.linearLumaGrid(pixelBuffer: buffer, width: 1, height: 1)
+        XCTAssertEqual(Double(try XCTUnwrap(legacy.first)), pow((signal + 0.099) / 1.099, 1 / 0.45), accuracy: 1e-5)
+        let display = try OfflinePixelSampler.linearLumaGrid(
+            pixelBuffer: buffer, width: 1, height: 1,
+            sdrTransferInterpretation: .bt1886DisplayReferred
+        )
+        XCTAssertEqual(Double(try XCTUnwrap(display.first)), pow(signal, 2.4), accuracy: 1e-5)
+    }
+
     func testConcurrentFrozenClaimsHaveExactlyOneWinner() throws {
         try withTemporaryRepository { root in
             let counter = ClaimCounter()

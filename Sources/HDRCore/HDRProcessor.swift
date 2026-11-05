@@ -1414,7 +1414,7 @@ public final class HDRProcessor {
         }
         let transferFunction: UInt32
         let gamma: Float
-        switch color.metadata.transferFunction {
+        switch color.metadata.transferFunction.interpreted(by: configuration.sdrTransferInterpretation) {
         case .bt709:
             transferFunction = 0
             gamma = 1
@@ -1427,6 +1427,9 @@ public final class HDRProcessor {
         case .linear:
             transferFunction = 3
             gamma = 1
+        case .bt1886:
+            transferFunction = 4
+            gamma = 2.4
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,
