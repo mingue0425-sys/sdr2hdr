@@ -478,6 +478,13 @@ public enum V4CoverageProtocol: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    /// Whether a missing replacement HLG Virgin holdout blocks readiness.
+    /// It follows the Frozen transfer requirement, so it cannot be relaxed
+    /// independently of the preregistered coverage.
+    public var requiresHLGVirginHoldout: Bool {
+        requiredTransfersBySplit[.frozen]?.contains("HLG") ?? true
+    }
+
     public var rationale: [String] {
         switch self {
         case .preV6FrozenCoverageV1:

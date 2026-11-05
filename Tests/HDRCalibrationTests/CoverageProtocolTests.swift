@@ -54,7 +54,39 @@ final class CoverageProtocolTests: XCTestCase {
     private func decode(_ json: String) throws -> V4Manifest {
         try JSONDecoder().decode(V4Manifest.self, from: Data(json.utf8))
     }
+
+    /// The HLG replacement-holdout search exists because the historical
+    /// protocol requires HLG in Virgin Frozen. A protocol that preregisters
+    /// Frozen as PQ-only still runs and reports the search, but a missing HLG
+    /// holdout no longer blocks it; the historical protocol stays strict.
+    func testHLGVirginHoldoutRequirementFollowsTheProtocol() {
+        XCTAssertTrue(V4CoverageProtocol.preV6FrozenCoverageV1.requiresHLGVirginHoldout)
+        XCTAssertFalse(V4CoverageProtocol.openContentCoverageV1.requiresHLGVirginHoldout)
+
+        let missing = V4NewHLGHoldoutAudit(
+            status: "NEW_HLG_VIRGIN_REQUIRED", found: false, searchedRoots: ["repo:data_video"],
+            consumedHLGPairIDs: ["a"], candidates: [], reason: "none passed"
+        )
+        let strict = missing.applying(.preV6FrozenCoverageV1)
+        XCTAssertTrue(strict.required)
+        XCTAssertEqual(strict.status, "NEW_HLG_VIRGIN_REQUIRED")
+
+        let relaxed = missing.applying(.openContentCoverageV1)
+        XCTAssertFalse(relaxed.required)
+        XCTAssertFalse(relaxed.found, "the search result itself is never rewritten")
+        XCTAssertEqual(relaxed.status, "NOT_FOUND_NOT_REQUIRED_BY_PROTOCOL")
+        XCTAssertTrue(relaxed.reason.contains("open-content-coverage-v1"))
+        XCTAssertEqual(relaxed.candidates, missing.candidates)
+        XCTAssertEqual(relaxed.consumedHLGPairIDs, missing.consumedHLGPairIDs)
+
+        let found = V4NewHLGHoldoutAudit(
+            status: "FOUND", found: true, searchedRoots: [], consumedHLGPairIDs: [], candidates: [], reason: "ok"
+        ).applying(.openContentCoverageV1)
+        XCTAssertEqual(found.status, "FOUND")
+        XCTAssertFalse(found.required)
+    }
 }
+
 
 final class CalibrationParametersSDRPolicyTests: XCTestCase {
     private func base() -> CalibrationParameters {

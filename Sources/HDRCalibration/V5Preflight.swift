@@ -1383,6 +1383,25 @@ public struct V4NewHLGHoldoutAudit: Codable, Sendable, Equatable {
         self.candidates = candidates
         self.reason = reason
     }
+
+    /// The same search result with its requirement set by the manifest's
+    /// coverage protocol. Search evidence (found, candidates, consumed IDs)
+    /// is never rewritten; only whether a miss blocks readiness changes.
+    public func applying(_ coverageProtocol: V4CoverageProtocol) -> V4NewHLGHoldoutAudit {
+        let isRequired = coverageProtocol.requiresHLGVirginHoldout
+        return V4NewHLGHoldoutAudit(
+            version: version,
+            required: isRequired,
+            status: found ? status : (isRequired ? "NEW_HLG_VIRGIN_REQUIRED" : "NOT_FOUND_NOT_REQUIRED_BY_PROTOCOL"),
+            found: found,
+            objectiveEvaluationCount: objectiveEvaluationCount,
+            searchedRoots: searchedRoots,
+            consumedHLGPairIDs: consumedHLGPairIDs,
+            candidates: candidates,
+            reason: isRequired ? reason
+                : reason + "; \(coverageProtocol.rawValue) preregisters Virgin Frozen as PQ-only, so HLG holdout generalisation is not measured"
+        )
+    }
 }
 
 /// A metadata/provenance-only local search.  It intentionally does not invoke

@@ -490,7 +490,7 @@ public enum V4CorrectnessReview {
         )
         let newHLGAudit = try await V4NewHLGHoldoutAuditor.audit(
             manifestURL: manifestURL, datasetAudit: audit, outputDirectory: outputDirectory
-        )
+        ).applying(coverageConfiguration(for: manifest).coverageProtocol)
         let frozenPlanCheck = validateFrozenPreparedPlan(
             manifest: manifest,
             audit: audit,
