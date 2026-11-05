@@ -99,7 +99,7 @@ final class RobustnessStudyTests: XCTestCase {
     /// AVAssetReader then emits a synthetic black frame at t=0, shifting
     /// every frame by one. Re-encoded variants start at 0 and do not get that
     /// frame, so they were silently compared one frame off the reference.
-    func testPreparedClipsStartAtZeroWithoutSyntheticLeadingFrame() throws {
+    func testPreparedClipsStartAtZeroWithoutSyntheticLeadingFrame() async throws {
         guard let ffmpeg = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"]
             .first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw XCTSkip("ffmpeg is required for the robustness clip preparation test")
@@ -137,9 +137,26 @@ final class RobustnessStudyTests: XCTestCase {
         for (label, url, format) in [("clean", prepared.cleanSDR, CalibrationPixelFormat.sdrNV12),
                                      ("reference", prepared.reference, CalibrationPixelFormat.hdrP010),
                                      ("identity variant", identity, CalibrationPixelFormat.sdrNV12)] {
-            let frames = try RobustnessStudy.readFrames(url, pixelFormat: format, limit: 100)
+            let frames = try await RobustnessStudy.readFrames(url, pixelFormat: format, limit: 100)
             XCTAssertEqual(frames.count, 6, "\(label): synthetic leading frame or dropped frame")
             XCTAssertEqual(frames.first?.seconds ?? -1, 0, accuracy: 1e-6, "\(label) must start at PTS 0")
         }
+    }
+
+    func testWindowStartStaysInsideShortClips() {
+        XCTAssertEqual(RobustnessStudy.windowStart(durationSeconds: 10), 0)
+        XCTAssertEqual(RobustnessStudy.windowStart(durationSeconds: 25), 0, "a 30 s seek would pass the end")
+        XCTAssertEqual(RobustnessStudy.windowStart(durationSeconds: 31), 0)
+        XCTAssertEqual(RobustnessStudy.windowStart(durationSeconds: 32), 30)
+        XCTAssertEqual(RobustnessStudy.windowStart(durationSeconds: 300), 30)
+    }
+
+    func testAdaptiveToleranceScalesWithNoiseAndIsClamped() {
+        let candidate = RobustnessStudy.AdaptiveGuidance(id: "a", radius: 2, k: 3, minimumTolerance: 0.02, maximumTolerance: 0.15)
+        XCTAssertEqual(candidate.tolerance(forSigma: 0), 0.02, "clean input keeps the floor")
+        XCTAssertEqual(candidate.tolerance(forSigma: 0.02), 0.06, accuracy: 1e-6)
+        XCTAssertEqual(candidate.tolerance(forSigma: 1), 0.15, "heavy noise is capped")
+        let ids = RobustnessStudy.defaultAdaptiveCandidates.map(\.id) + RobustnessStudy.defaultGuidanceCandidates.map(\.0)
+        XCTAssertEqual(Set(ids).count, ids.count, "configuration names must be unique in the report")
     }
 }

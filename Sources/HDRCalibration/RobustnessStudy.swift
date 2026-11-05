@@ -33,6 +33,35 @@ public enum RobustnessStudy {
         ("v4-guided-r3-t0.08", HDRGainGuidance(radius: 3, tolerance: 0.08))
     ]
 
+    /// Noise-adaptive guidance: tolerance = clamp(k * sigma, min, max), with
+    /// sigma the clip's Immerkaer luma noise estimate (signal units). Clean
+    /// sources get a small tolerance (texture keeps the curve's expansion),
+    /// noisy sources a large one (grain keeps its source contrast).
+    public struct AdaptiveGuidance: Codable, Sendable, Equatable {
+        public let id: String
+        public let radius: Int
+        public let k: Double
+        public let minimumTolerance: Double
+        public let maximumTolerance: Double
+
+        public func tolerance(forSigma sigma: Double) -> Float {
+            Float(min(max(k * sigma, minimumTolerance), maximumTolerance))
+        }
+    }
+
+    public static let defaultAdaptiveCandidates: [AdaptiveGuidance] = [
+        AdaptiveGuidance(id: "v4-adaptive-k3-min0.02", radius: 2, k: 3, minimumTolerance: 0.02, maximumTolerance: 0.15),
+        AdaptiveGuidance(id: "v4-adaptive-k4-min0.05", radius: 2, k: 4, minimumTolerance: 0.05, maximumTolerance: 0.15)
+    ]
+
+    public struct NoiseEstimate: Codable, Sendable {
+        public let pairID: String
+        public let variant: String
+        /// Median over frames of the Immerkaer luma sigma (signal units).
+        public let lumaSigma: Double
+        public let tolerances: [String: Float]
+    }
+
     public static let variants: [Variant] = [
         Variant(id: "clean", description: "working-resolution clean SDR", filter: nil, x264CRF: nil),
         Variant(id: "noise-light", description: "temporal Gaussian-like noise, strength 6", filter: "noise=alls=6:allf=t", x264CRF: nil),
@@ -88,6 +117,8 @@ public enum RobustnessStudy {
         public let configurations: [String]
         public let rows: [Row]
         public let derived: [Derived]
+        public let noiseEstimates: [NoiseEstimate]
+        public let adaptiveCandidates: [AdaptiveGuidance]
         public let validationOrFrozenAccessed: Bool
     }
 
@@ -97,7 +128,8 @@ public enum RobustnessStudy {
         workingWidth: Int = 960,
         frameCount: Int = 24,
         candidates: [(String, HDRConfiguration)] = [],
-        guidanceCandidates: [(String, HDRGainGuidance)] = RobustnessStudy.defaultGuidanceCandidates
+        guidanceCandidates: [(String, HDRGainGuidance)] = RobustnessStudy.defaultGuidanceCandidates,
+        adaptiveCandidates: [AdaptiveGuidance] = RobustnessStudy.defaultAdaptiveCandidates
     ) async throws -> Report {
         let manifest = try V4Manifest.load(from: manifestURL)
         let tunePairs = manifest.pairs.filter { $0.split == .tune }
@@ -129,16 +161,17 @@ public enum RobustnessStudy {
             [("no-expansion", noExpansion), ("calibrated-v4", v4)] + guided + candidates
 
         var rows: [Row] = []
+        var noiseEstimates: [NoiseEstimate] = []
         for pair in tunePairs {
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
-            let start = try await mediaDuration(urls.sdr) > 20 ? 30.0 : 0.0
+            let start = windowStart(durationSeconds: try await mediaDuration(urls.sdr))
             let pairDir = work.appendingPathComponent(pair.id)
             try FileManager.default.createDirectory(at: pairDir, withIntermediateDirectories: true)
             let prepared = try prepare(
                 sdr: urls.sdr, hdr: urls.hdr, start: start, frames: frameCount,
                 width: workingWidth, directory: pairDir
             )
-            let reference = try readFrames(prepared.reference, pixelFormat: CalibrationPixelFormat.hdrP010, limit: frameCount)
+            let reference = try await readFrames(prepared.reference, pixelFormat: CalibrationPixelFormat.hdrP010, limit: frameCount)
             let referenceTransfer = try transfer(of: reference[0].pixelBuffer)
             let referenceNits = try reference.map { frame in
                 try HDRReferenceDecoder.decode(
@@ -152,10 +185,23 @@ public enum RobustnessStudy {
             let height = CVPixelBufferGetHeight(reference[0].pixelBuffer)
             for variant in variants {
                 let sdrURL = try makeVariant(variant, clean: prepared.cleanSDR, directory: pairDir, width: width, height: height)
-                let sdr = try readFrames(sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12, limit: frameCount)
+                let sdr = try await readFrames(sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12, limit: frameCount)
                 let count = min(sdr.count, referenceNits.count)
-                FileHandle.standardError.write(Data("robustness: \(pair.id) \(variant.id) frames=\(count)\n".utf8))
-                for (name, configuration) in configurations {
+                let sigmas = sdr.prefix(count).compactMap { ImmerkaerNoiseEstimator.lumaSignalSigma($0.pixelBuffer) }.sorted()
+                let sigma = sigmas.isEmpty ? 0 : sigmas[sigmas.count / 2]
+                let adaptive = adaptiveCandidates.map { candidate -> (String, HDRConfiguration) in
+                    var configuration = v4
+                    configuration.gainGuidance = HDRGainGuidance(
+                        radius: candidate.radius, tolerance: candidate.tolerance(forSigma: sigma)
+                    )
+                    return (candidate.id, configuration)
+                }
+                noiseEstimates.append(NoiseEstimate(
+                    pairID: pair.id, variant: variant.id, lumaSigma: sigma,
+                    tolerances: Dictionary(uniqueKeysWithValues: adaptive.map { ($0.0, $0.1.gainGuidance.tolerance) })
+                ))
+                FileHandle.standardError.write(Data(String(format: "robustness: %@ %@ frames=%d sigma=%.4f\n", pair.id, variant.id, count, sigma).utf8))
+                for (name, configuration) in configurations + adaptive {
                     let output = try render(sdr.prefix(count).map { $0 }, configuration: configuration, device: device)
                     let metrics = measure(
                         output: output, reference: Array(referenceNits.prefix(count)),
@@ -166,15 +212,17 @@ public enum RobustnessStudy {
             }
         }
         let report = Report(
-            schemaVersion: "robustness-study-v2",
+            schemaVersion: "robustness-study-v3",
             manifestPath: manifestURL.path,
             workingWidth: workingWidth,
             frameCount: frameCount,
             pairs: tunePairs.map(\.id),
             variants: variants,
-            configurations: configurations.map(\.0),
+            configurations: configurations.map(\.0) + adaptiveCandidates.map(\.id),
             rows: rows,
             derived: derive(rows),
+            noiseEstimates: noiseEstimates,
+            adaptiveCandidates: adaptiveCandidates,
             validationOrFrozenAccessed: false
         )
         let encoder = JSONEncoder()
@@ -182,6 +230,12 @@ public enum RobustnessStudy {
         try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try encoder.encode(report).write(to: outputURL)
         return report
+    }
+
+    /// 30 s into long clips (past intros), else the beginning. The window
+    /// (24 frames, under 1.5 s at >= 16 fps) must end inside the clip.
+    static func windowStart(durationSeconds: Double) -> Double {
+        durationSeconds >= 32 ? 30 : 0
     }
 
     // MARK: - Derived quantities
@@ -327,17 +381,11 @@ public enum RobustnessStudy {
 
     // MARK: - Media
 
-    static func readFrames(_ url: URL, pixelFormat: OSType, limit: Int) throws -> [DecodedFrame] {
+    /// Async so that loading the track never blocks a cooperative-pool
+    /// thread on a semaphore (which can deadlock when the pool is saturated).
+    static func readFrames(_ url: URL, pixelFormat: OSType, limit: Int) async throws -> [DecodedFrame] {
         let asset = AVURLAsset(url: url)
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var track: AVAssetTrack?
-        nonisolated(unsafe) var loadError: Error?
-        Task {
-            do { track = try await asset.loadTracks(withMediaType: .video).first } catch { loadError = error }
-            semaphore.signal()
-        }
-        semaphore.wait()
-        if let loadError { throw loadError }
+        let track = try await asset.loadTracks(withMediaType: .video).first
         guard let track else { throw CalibrationError.decodeFailed("no video track: \(url.lastPathComponent)") }
         let reader = try AVAssetReader(asset: asset)
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
