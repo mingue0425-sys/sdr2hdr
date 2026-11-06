@@ -55,3 +55,68 @@ Four V4 runs on `data_video/open-content-v2/manifest.json` under the preregister
 - Verdicts, selections and LOFO folds match the separate runs.
 - All numbers agree to at most 6e-16 relative. That is the last bit of a double; Swift dictionary iteration order changes the summation order between processes.
 - The second variant took 5.4 min instead of 21 min.
+
+# Round 2: with 11 KBS broadcast-HLG pairs (2026-11-07)
+
+The same four variants ran again on the extended dataset:
+
+- Tune 13 and Validation 10 pairs, in six families. KBS Music Bank One-take is now its own family, and K-Choreo has 11 pairs.
+- Same seed, search and preregistered `family-maximin-lofo-v1` protocol, run as one `v4-run-batch` with `--stop-before-frozen`.
+- Correctness review: Tune 13/13 and Validation 10/10 structurally complete. The verdict is `EXECUTABLE_EVIDENCE_INCOMPLETE`, as expected while no Frozen plan is admitted.
+- The Virgin Frozen holdout was **not opened**.
+- Artifacts: `results/open-content-v2/round2/v4-*/`.
+
+| run | Tune/Validation-safe | selected | LOFO mean / worst held-out vs V2 | pre-Frozen verdict |
+|---|---:|---|---|---|
+| **shape-oetf** | 105 / 112 | **`global_047`** | **+8.4% / +3.2% (Sol Levante)** | **every pre-Frozen gate PASS**; stopped before Frozen |
+| abs-oetf | 86 / 87 | none | – | VALIDATION_FAIL |
+| shape-blend | 19 / 103 | none | −3.1% / −4.2% | VALIDATION_FAIL |
+| abs-blend | 6 | none | – | VALIDATION_FAIL |
+
+## shape-oetf folds (held-out family, improvement vs V2 / vs default)
+
+| held-out family | fold candidate | vs V2 | vs default |
+|---|---|---:|---:|
+| ASC StEM2 | global_047 | +15.0% | +15.5% |
+| ASC StEM3 Warped Cybercity | global_047 | +12.9% | +12.9% |
+| K-Choreo | global_047 | +6.0% | +3.9% |
+| KBS Music Bank One-take | global_047 | +8.4% | +5.0% |
+| Netflix Sol Levante | global_113 | +3.2% | +11.0% |
+| Netflix Sparks | global_019 | +4.9% | +4.9% |
+
+## Findings
+
+1. **The K-Choreo fold flipped from −4.8% to +6.0%.**
+   - In round 1, holding out K-Choreo left no broadcast-HLG family in training, so the other families selected stronger highlight expansion.
+   - The KBS Music Bank One-take sibling family now carries the broadcast roll-off into that fold.
+   - Caveat: all 13 KBS pairs share one broadcaster pipeline. This fold measures generalisation within KBS, not across broadcasters.
+2. **Sol Levante is now the binding fold, at +3.2%.**
+3. **Family maximin hides some per-pair regressions.** `global_047` vs V2 by pair:
+   - `video3_newjeans_how_sweet` 1.14 (vs default 1.41);
+   - `kbs_zWpnFNYlggE` 0.98 (vs default 1.10);
+   - every other pair ≤ 0.98.
+   - Under the shape-only objective each family is one gain-normalized unit. These pairs are within-family outliers, not a gate failure.
+4. **Absolute scoring still fails, and the blend still does not help.**
+   - Absolute: the best maximin candidate beats V2 on every family. It is still 8.1% worse than the default on StEM2.
+   - Blend: it keeps at most 19 safe candidates, and its LOFO is negative.
+5. **LOFO caveat (unchanged).** The candidate pool is fixed before folding, and local-refinement centres used all Tune families.
+
+## Consistency
+
+- **Absolute variants:** all 24 old-pair baseline objectives (V2 and default, Tune and Validation) equal round 1 exactly. This covers the parallel decode, mixed VideoToolbox/software VP9 decode, sequence release and hash streaming changes.
+- **Shape variants:** only video3/video4 move, because the K-Choreo family gain now includes the KBS pairs.
+
+## Runtime and memory (8 GB M2)
+
+| step | before | after |
+|---|---|---|
+| correctness-review | 84 min, peak footprint 22.2 GB (mostly swap) | 30 min, peak 1.22 GB |
+| 4-variant batch, 23 pairs | – | 31 min, peak 1.25 GB, one materialization reused 3× |
+
+## Next step
+
+The preregistered readiness gate passed for shape-oetf. The next steps would expose the Virgin Frozen holdout (Nocturne ×3, Sole Mates ×1), so they wait for explicit approval:
+
+1. build the Frozen prepared plan;
+2. run correctness-review with `--prepared-frozen-plan`;
+3. run the one-shot Frozen evaluation of `global_047`.
