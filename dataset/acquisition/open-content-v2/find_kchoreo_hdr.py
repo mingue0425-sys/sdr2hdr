@@ -149,6 +149,8 @@ def main():
             row['decision'] = 'skip: already in manifest'
         elif all(os.path.exists(f'{root}/data_video/kchoreo-v2/{vid}/{vid}.f{itag}.mp4') for itag in ('642', '628')):
             row['decision'] = 'skip: already downloaded, not yet in manifest'
+            if key:
+                seen_songs.add(key)
         elif key is None:
             row['decision'] = 'skip: no artist/song in title'
         elif key in known_songs:
