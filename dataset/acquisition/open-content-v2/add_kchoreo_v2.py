@@ -33,7 +33,15 @@ for vid, series, title in videos:
     d = f'{root}/data_video/kchoreo-v2/{vid}'
     src = {k: f'{d}/{vid}.f{k}.mp4' for k in ('642', '628')}
     dur = float(sh('ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src['642']).strip())
-    start = round(dur * 0.40, 3)
+    target = dur * 0.40
+    # Stream copy starts at a keyframe. The two renditions are encoded separately, so start at the last
+    # keyframe present in both at or before the 40% target (decided from packet flags only, no decode).
+    def keys(path):
+        out = sh('ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'packet=pts_time,flags', '-of', 'csv=p=0', path)
+        return {round(float(t), 3) for t, fl in (l.split(',')[:2] for l in out.split() if ',' in l) if 'K' in fl and t != 'N/A'}
+    common = sorted(t for t in keys(src['642']) & keys(src['628']) if t <= target)
+    assert common, vid
+    start = common[-1]
     out = {}
     for k, role in (('642', 'hdr'), ('628', 'sdr')):
         o = f'{d}/{vid}_{role}_w40_10s.mp4'
@@ -59,7 +67,7 @@ for vid, series, title in videos:
         'contentFamily': series, 'split': split, 'virginFrozen': False, 'group': f'kbs_{vid}',
         'notes': (f"Added in open-content-v2 to give the broadcast-HLG grading style more than two pairs. HDR is the platform BT.2020 HLG "
                   f"(arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, "
-                  f"so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window at 40% of the duration "
+                  f"so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration "
                   f"({start:.3f} s), stream-copied and rebased to start at 0; window, split (alternating in the user's list order) and family "
                   f"(by series) were fixed before any decode. All {series} pairs share the KBS production pipeline."),
     })

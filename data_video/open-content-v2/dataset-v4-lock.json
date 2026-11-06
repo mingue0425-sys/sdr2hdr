@@ -1,6 +1,116 @@
 {
   "files" : [
     {
+      "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_hdr_w40_10s.mp4",
+      "sha256" : "462d4126b7d6feabd86a503296e14b37d468d02e4ca0d3bd28aa468196ec40e5",
+      "sizeBytes" : 36443448
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_sdr_w40_10s.mp4",
+      "sha256" : "338e3b0bb5567b76b548d7f911dbd87e741cc8cc093af1e2983c8dd7d95f4eb9",
+      "sizeBytes" : 33095508
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_hdr_w40_10s.mp4",
+      "sha256" : "9dc03f80e55159dd88e9aecc459d614df857db5c93fd5a7d657793664c0860e3",
+      "sizeBytes" : 34370671
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_sdr_w40_10s.mp4",
+      "sha256" : "f9c4c4d6ade916a91d3081c0ca143af6a203f3d5d0a868e3924057b06aaea121",
+      "sizeBytes" : 30948846
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_hdr_w40_10s.mp4",
+      "sha256" : "fd3f9019727b0ceb98511db84e550dc7d4dc9e289e79529e0f53c181fad2eceb",
+      "sizeBytes" : 33953319
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_sdr_w40_10s.mp4",
+      "sha256" : "54d350ce1ce654bcd263c2d4b2f872c29eb9b8994083e1e7aaab2d068c79d914",
+      "sizeBytes" : 31169337
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
+      "sha256" : "fe71b4be3836b3016689a1d366e5b7c0bb2c4388ad6c49525d8ba61ae79ab467",
+      "sizeBytes" : 34293475
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_sdr_w40_10s.mp4",
+      "sha256" : "4d1aab1eb6c2cf5541259afdc98f4ab77b4c509a8b835d1c0017914068b97753",
+      "sizeBytes" : 31300918
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_hdr_w40_10s.mp4",
+      "sha256" : "144d81471d7c1d6e686932e91f7bb003c293af8373aba970211b559c8edb6931",
+      "sizeBytes" : 33945249
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_sdr_w40_10s.mp4",
+      "sha256" : "a71b94b0e7e88c2dfb6fe36085878051fc3723b1ce65707fe0899d8ed981237d",
+      "sizeBytes" : 31251667
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_hdr_w40_10s.mp4",
+      "sha256" : "cabd4ce2c66970877f6214617cc00c6dcb099fb1ed98c26ca63a6c39ff8e8f5c",
+      "sizeBytes" : 36387594
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_sdr_w40_10s.mp4",
+      "sha256" : "7c53395a943c400f8c05e9d0bc41442615c0126151a4115cc9202686cf839f84",
+      "sizeBytes" : 33273249
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_hdr_w40_10s.mp4",
+      "sha256" : "3c09546c48c93160d8ff4caf9cbbd3ec906eef4b84f47e409a50bcf7d9af3136",
+      "sizeBytes" : 34685325
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_sdr_w40_10s.mp4",
+      "sha256" : "099b07cb424c7b320c28cf6d5c72fe93d50f72fa1aab393016eb4dbecb7e4ea9",
+      "sizeBytes" : 31666164
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_hdr_w40_10s.mp4",
+      "sha256" : "8948b233e1a3e42fc8060794f467fbb911b690a6150182674605116b9a6be933",
+      "sizeBytes" : 33916678
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_sdr_w40_10s.mp4",
+      "sha256" : "6b4ef4867ab1824f550c4b1d13169536f0c2af66bf7df418567da0304e8904ee",
+      "sizeBytes" : 30811362
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_hdr_w40_10s.mp4",
+      "sha256" : "b710422491d99dbf81118bc0ba4e3999f2f62f00944ad41f7a4f59b7158cf394",
+      "sizeBytes" : 34864917
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_sdr_w40_10s.mp4",
+      "sha256" : "a28d8c49848d4407ecf9330311e16ffaea6c871391d6204871602915d66ec0da",
+      "sizeBytes" : 31067650
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_hdr_w40_10s.mp4",
+      "sha256" : "58b43d28d4769858e0bc4eb9f88eaa89e7894bac36032acdbacb8f581b62d5fe",
+      "sizeBytes" : 33954651
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_sdr_w40_10s.mp4",
+      "sha256" : "fa01b559878754a02a4b1ed3ecf582dcb5d70f0fd4b0b73de0377861f5910c74",
+      "sizeBytes" : 30898868
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_hdr_w40_10s.mp4",
+      "sha256" : "6a042f5678fe319258b0dc8eda82902a940884cb7f83a1cbdab1d778ef0469c1",
+      "sizeBytes" : 36417009
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_sdr_w40_10s.mp4",
+      "sha256" : "fb1651b40da785d96edb6d4dafaeb53b0a7359ea74f2f91f2aab99e8ec6c8a57",
+      "sizeBytes" : 33387410
+    },
+    {
       "path" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
       "sha256" : "df28f6a36093b98a0a48666775d9cb784408cc9796d0dfdfb3e04e12f9651339",
       "sizeBytes" : 712145575
@@ -161,7 +271,7 @@
       "sizeBytes" : 381626010
     }
   ],
-  "generatedAt" : "2026-11-06T10:41:42Z",
-  "manifestSHA256" : "b327d9193779655c0ca7f707e2d1a12fa75cdb954affc1f291149a05dace12cf",
+  "generatedAt" : "2026-11-06T13:43:08Z",
+  "manifestSHA256" : "cf0a6f28bfd383be72fa3587563a083a973ddd17cef9338abeb1009c36419853",
   "version" : 1
 }

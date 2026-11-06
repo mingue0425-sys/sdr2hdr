@@ -12,9 +12,20 @@ The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONT
 
 | split | pairs | families | change from v1 |
 |---|---|---|---|
-| Tune | 7 | Sol Levante ×4, K-Choreo video3, ASC StEM3 t79/t158 | **+2 StEM3** (SDR-matched cinema grade) |
-| Validation | 5 | K-Choreo video4, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks** (consumed Frozen family moved down) |
+| Tune | 13 | Sol Levante ×4, K-Choreo video3 + 5, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+6 KBS HLG** |
+| Validation | 10 | K-Choreo video4 + 4, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+5 KBS HLG** |
 | Virgin Frozen | 4 | Netflix Nocturne ×3, NAS Sole Mates ×1 | **all new**, never evaluated |
+
+### Broadcast HLG pairs (KBS Kpop uploads, user-provided)
+
+Eleven KBS HDR uploads join Tune and Validation:
+- Families, by series: K-Choreo 8K ×9 and KBS Music Bank One-take 4K HDR ×2.
+- HDR is the platform BT.2020 HLG rendition (itag 642). SDR is the platform BT.709 rendition (itag 628) of the same upload, which is YouTube's automatic conversion. The relation is therefore same-source.
+- One 10 s window per upload is stream-copied, starting at the last keyframe the two renditions share at or before 40% of the duration.
+  - For jIv-ebTYGrU and BVf-pipXhN8 the only shared keyframe is t=0, so their windows start at 0.
+  - A first cut that let each rendition snap to its own keyframe failed the audit for those two (duration delta).
+- Splits alternate in the user's list order. All 13 KBS pairs share one broadcaster pipeline.
+- License: Standard YouTube License; the files are private research copies and are not redistributed. Provenance: `provenance-kbs-youtube.json`.
 
 The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
 
