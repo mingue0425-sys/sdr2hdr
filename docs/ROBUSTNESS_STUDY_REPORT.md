@@ -10,7 +10,7 @@ HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json \
   --output results/robustness-v1/robustness-study.json
 ```
 
-Report: `results/robustness-v1/robustness-study.json` (schema `robustness-study-v3`; the v2 run is kept as `robustness-study-v2.json`).
+Report: `results/robustness-v1/robustness-study.json` (schema `robustness-study-v4`; earlier runs are kept as `robustness-study-v2.json` and `-v3.json`).
 
 ## Design
 
@@ -105,7 +105,12 @@ The estimated σ in signal units was:
 - **Clean and noisy input:** adaptive k3 keeps almost all of the clean benefit (−1% against −6% for the fixed tolerance) and still cuts noise amplification to 1.2–1.5×.
 - **Compressed, upscaled and banded input:** blocking, ringing and banding are structured, not random. The noise estimator reports little noise, the tolerance falls to the floor, and the artifacts are not suppressed.
 - **The opt-in default stays the fixed `noise-gated` setting** (radius 2, tolerance 0.12), because it is the only setting that is robust across every degradation.
-- **Next step:** an artifact-aware floor, using 8×8 block-boundary energy and luma histogram gaps, with tolerance = max(noise term, artifact term).
+- **Artifact-aware floor (v4 study): tried, and it does not help.**
+  - The candidate raises the tolerance to 0.12 when 8×8 blockiness > 1.3 or luma histogram gaps > 0.3. It fired on only 3 of 40 clips, all CRF 42 or noise + CRF 35.
+  - Histogram gaps read 0 even for 6-bit luma, because the lossy intermediate refills the empty codes.
+  - Blockiness ranges overlap (clean 1.09–1.10, light noise 1.11–1.17, CRF 32 1.04–1.30, CRF 42 1.12–1.58), because x264 deblocking removes the block-edge signal.
+  - Amplification improved only where the floor fired (CRF 42: 3.28 → 2.99) and is otherwise identical to adaptive k3.
+  - Cheap structured-artifact detection does not survive real codecs. The fixed `noise-gated` tolerance stays the default; see `IMPROVEMENT_RESEARCH_NOTES.md`.
 
 ## Cost
 

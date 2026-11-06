@@ -11,7 +11,8 @@ The [open-content V4 calibration report](docs/OPEN_CONTENT_V4_CALIBRATION_REPORT
 records the one-use Virgin Frozen result (VIRGIN_FROZEN_FAIL: +3.48% over V2,
 below the 5% gate). The [robustness study report](docs/ROBUSTNESS_STUDY_REPORT.md) measures V4 on
 noisy, compressed, upscaled and banded SDR and documents the opt-in
-noise-gated gain guidance (`--gain-guidance noise-gated`).
+noise-gated gain guidance (`--gain-guidance noise-gated`). Next steps and the
+evidence behind them are in [improvement research notes](docs/IMPROVEMENT_RESEARCH_NOTES.md).
 
 The core deliberately stops at a GPU HDR frame:
 
