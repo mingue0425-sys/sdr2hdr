@@ -572,6 +572,55 @@ public struct V4CandidateRecord: Codable, Sendable {
     public var rejectionReasons: [String]
 }
 
+/// One Tune/Validation pair's objective under the selected candidate, against both baselines.
+///
+/// Reported only; no gate reads it. The family-balanced maximin can hide a pair that regresses
+/// inside a family that improves on average, so the worst pairs are listed before Frozen.
+public struct V4PairGuardrailRecord: Codable, Sendable, Equatable {
+    public var pairID: String
+    public var split: DatasetSplit
+    public var candidateObjective: Double
+    public var v2Objective: Double
+    public var defaultObjective: Double
+    public var ratioToV2: Double
+    public var ratioToDefault: Double
+}
+
+public enum V4PairGuardrail {
+    /// Pairs scored by the candidate and both baselines, worst ratio to V2 first (ties by pair id).
+    public static func rank(
+        candidate: [String: Double], v2: [String: Double], defaults: [String: Double],
+        split: [String: DatasetSplit]
+    ) -> [V4PairGuardrailRecord] {
+        candidate.compactMap { pairID, objective -> V4PairGuardrailRecord? in
+            guard let v2Objective = v2[pairID], let defaultObjective = defaults[pairID],
+                  let pairSplit = split[pairID], v2Objective > 0, defaultObjective > 0 else { return nil }
+            return V4PairGuardrailRecord(
+                pairID: pairID, split: pairSplit, candidateObjective: objective,
+                v2Objective: v2Objective, defaultObjective: defaultObjective,
+                ratioToV2: objective / v2Objective, ratioToDefault: objective / defaultObjective
+            )
+        }
+        .sorted { ($0.ratioToV2, $1.pairID) > ($1.ratioToV2, $0.pairID) }
+    }
+
+    /// The selected candidate's Tune and Validation pairs against the `v2-*` and `default-*` baselines.
+    static func rank(selected: V4CandidateRecord?, baseline: [String: V2DatasetEvaluation]) -> [V4PairGuardrailRecord]? {
+        guard let selected, let validation = selected.validation else { return nil }
+        func objectives(_ evaluations: [V2DatasetEvaluation?]) -> [String: Double] {
+            Dictionary(evaluations.compactMap { $0 }.flatMap(\.videos).map { ($0.pairID, $0.metrics.objective) },
+                       uniquingKeysWith: { first, _ in first })
+        }
+        let videos = [selected.tune, validation].flatMap(\.videos)
+        return rank(
+            candidate: objectives([selected.tune, validation]),
+            v2: objectives([baseline["v2-tune"], baseline["v2-validation"]]),
+            defaults: objectives([baseline["default-tune"], baseline["default-validation"]]),
+            split: Dictionary(videos.map { ($0.pairID, $0.split) }, uniquingKeysWith: { first, _ in first })
+        )
+    }
+}
+
 public struct V4FreezeArtifact: Codable, Sendable {
     public var version: String
     public var candidateID: String
@@ -1006,6 +1055,8 @@ public struct V4FinalReport: Codable, Sendable {
     public var preFrozenGates: V4PreFrozenGateResult? = nil
     public var frozenStatus: V4FrozenStatus? = nil
     public var runtimeBenchmark: V4RuntimeBenchmarkResult? = nil
+    /// Per-pair ratios of the selected candidate (`V4PairGuardrail`); reported, not gating.
+    public var pairGuardrail: [V4PairGuardrailRecord]? = nil
 }
 
 private struct V4FrozenComparison: Codable, Sendable {
@@ -2375,6 +2426,10 @@ public final class CalibrationV4Runner {
     }
 
     private func writeArtifacts(_ report: V4FinalReport) throws {
+        var report = report
+        if report.pairGuardrail == nil {
+            report.pairGuardrail = V4PairGuardrail.rank(selected: report.selectedCandidate, baseline: report.baseline)
+        }
         try writeJSON(report, name: "data-video-v4-final.json")
         let markdown = makeMarkdown(report)
         try markdown.write(to: outputDirectory.appendingPathComponent("data-video-v4-report.md"), atomically: true, encoding: .utf8)
@@ -2448,6 +2503,16 @@ public final class CalibrationV4Runner {
         let selected = report.selectedCandidate.map { String(describing: $0.parameters) } ?? "NOT SELECTED"
         let reasons = report.reasons.map { "- " + $0 }.joined(separator: "\n")
         let limitations = report.limitations.map { "- " + $0 }.joined(separator: "\n")
+        let guardrail: String
+        if let pairs = report.pairGuardrail, !pairs.isEmpty {
+            guardrail = (["| Pair | Split | Candidate / V2 | Candidate / default |", "|---|---|---:|---:|"]
+                + pairs.prefix(5).map {
+                    "| " + $0.pairID + " | " + $0.split.rawValue + " | " + String(format: "%.3f", $0.ratioToV2)
+                        + " | " + String(format: "%.3f", $0.ratioToDefault) + " |"
+                }).joined(separator: "\n")
+        } else {
+            guardrail = "NOT MEASURED"
+        }
         let lines = [
             "# SDR to HDR Calibrated V4",
             "",
@@ -2477,6 +2542,10 @@ public final class CalibrationV4Runner {
             "## Decision",
             "",
             reasons,
+            "",
+            "## Worst pairs (reported, not gating)",
+            "",
+            guardrail,
             "",
             "## Limitations",
             "",
