@@ -68,6 +68,15 @@ public struct FrameSequence {
         self.samples = samples
         self.temporalProvenance = temporalProvenance
     }
+
+    /// Same metadata, no decoded samples.
+    func withoutSamples() -> FrameSequence {
+        FrameSequence(
+            url: url, pixelFormat: pixelFormat, width: width, height: height,
+            nominalFrameRate: nominalFrameRate, durationSeconds: durationSeconds,
+            samples: [], temporalProvenance: temporalProvenance
+        )
+    }
 }
 
 public enum FrameReader {

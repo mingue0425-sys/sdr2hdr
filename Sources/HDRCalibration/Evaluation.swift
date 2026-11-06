@@ -378,13 +378,47 @@ struct PreparedTemporalWindow {
 
 struct PreparedPair {
     let record: PairRecord
-    let sdrSequence: FrameSequence
-    let hdrSequence: FrameSequence
+    private(set) var sdrSequence: FrameSequence
+    private(set) var hdrSequence: FrameSequence
     let referenceTransfer: ReferenceTransfer
     let alignment: AlignmentResult
     let scenes: [SceneRange]
     let matches: [PreparedMatch]
     let temporalWindows: [PreparedTemporalWindow]
+    /// Decoded SDR sample count, kept when the decoded sequences are released.
+    let sdrDecodedSampleCount: Int
+
+    init(
+        record: PairRecord,
+        sdrSequence: FrameSequence,
+        hdrSequence: FrameSequence,
+        referenceTransfer: ReferenceTransfer,
+        alignment: AlignmentResult,
+        scenes: [SceneRange],
+        matches: [PreparedMatch],
+        temporalWindows: [PreparedTemporalWindow]
+    ) {
+        self.record = record
+        self.sdrSequence = sdrSequence
+        self.hdrSequence = hdrSequence
+        self.referenceTransfer = referenceTransfer
+        self.alignment = alignment
+        self.scenes = scenes
+        self.matches = matches
+        self.temporalWindows = temporalWindows
+        self.sdrDecodedSampleCount = sdrSequence.samples.count
+    }
+
+    /// A copy that drops every decoded sample not referenced by an accepted
+    /// match or a temporal window. Objective evaluation reads only those,
+    /// metadata and the decoded count are kept, so scores are unchanged
+    /// while most decoded proxy frames are freed.
+    func releasingDecodedSequences() -> PreparedPair {
+        var copy = self
+        copy.sdrSequence = sdrSequence.withoutSamples()
+        copy.hdrSequence = hdrSequence.withoutSamples()
+        return copy
+    }
 }
 
 public final class PairEvaluator {

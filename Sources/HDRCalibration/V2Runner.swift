@@ -16,7 +16,44 @@ public enum V2TemporalStateIsolation {
     }
 }
 
+/// One sealed-plan pair to materialize. The evaluator and inputs are only
+/// read; the decode itself creates its own readers.
+private struct MaterializeJob: @unchecked Sendable {
+    let evaluator: PairEvaluator
+    let record: PairRecord
+    let manifestURL: URL
+    let manifest: V4Manifest
+    let pairPlan: V6PreparedPairPlan
+    let preparation: V6PreparationConfiguration
+
+    func run() async throws -> PreparedPair {
+        v2Log("materialize sealed plan \(record.id)")
+        return try await evaluator.materialize(
+            record: record,
+            manifestURL: manifestURL,
+            manifest: manifest,
+            pairPlan: pairPlan,
+            preparation: preparation
+        ).releasingDecodedSequences()
+    }
+}
+
+private struct MaterializedSlot: @unchecked Sendable {
+    let index: Int
+    let pair: PreparedPair
+}
+
 final class V2PreparedRepository {
+    /// Pairs decoded concurrently by `materialize`. Override with
+    /// HDR_MATERIALIZE_CONCURRENCY (1-8); not part of any objective.
+    static let materializeConcurrency: Int = {
+        if let text = ProcessInfo.processInfo.environment["HDR_MATERIALIZE_CONCURRENCY"],
+           let value = Int(text) {
+            return min(max(value, 1), 8)
+        }
+        return 3
+    }()
+
     private let manifestURL: URL
     private let evaluator: PairEvaluator
     private var cache: [String: PreparedPair] = [:]
@@ -192,29 +229,53 @@ final class V2PreparedRepository {
             plan, records: records, inputHashes: inputHashes
         )
         let manifest = try V4Manifest.load(from: manifestURL)
-        var result: [PreparedPair] = []
-        result.reserveCapacity(records.count)
-        for record in records {
+        let jobs = try records.map { record -> MaterializeJob in
             guard let pairPlan = installed.pairPlan(for: record.id) else {
                 throw CalibrationError.incompleteEvaluation(
                     "PreparedEvaluationPlan is missing \(record.id)"
                 )
             }
-            v2Log("materialize sealed plan \(record.id)")
-            let prepared = try await evaluator.materialize(
-                record: record,
-                manifestURL: manifestURL,
-                manifest: manifest,
-                pairPlan: pairPlan,
-                preparation: installed.preparation
+            return MaterializeJob(
+                evaluator: evaluator, record: record, manifestURL: manifestURL,
+                manifest: manifest, pairPlan: pairPlan, preparation: installed.preparation
             )
-            cache[record.id] = prepared
-            result.append(prepared)
         }
+        // Pairs are independent: each one hashes, decodes and validates only
+        // its own sealed identities. Decoding is mostly I/O- and
+        // VideoToolbox-bound, so a few pairs run concurrently; results keep
+        // the sealed record order. Each pair's decoded proxy sequences are
+        // released as soon as it is validated (evaluation reads only accepted
+        // matches and temporal windows), which bounds peak memory.
+        var slots = [PreparedPair?](repeating: nil, count: jobs.count)
+        try await withThrowingTaskGroup(of: MaterializedSlot.self) { group in
+            var next = 0
+            func launch() {
+                let index = next
+                let job = jobs[index]
+                next += 1
+                group.addTask { MaterializedSlot(index: index, pair: try await job.run()) }
+            }
+            for _ in 0..<min(Self.materializeConcurrency, jobs.count) { launch() }
+            while let slot = try await group.next() {
+                slots[slot.index] = slot.pair
+                if next < jobs.count { launch() }
+            }
+        }
+        let result = slots.compactMap { $0 }
+        guard result.count == records.count else {
+            throw CalibrationError.incompleteEvaluation("sealed materialization returned \(result.count) of \(records.count) pairs")
+        }
+        for prepared in result { cache[prepared.record.id] = prepared }
         try V6PreparedEvaluationPlanBuilder.validate(
             plan: installed, preparedPairs: result
         )
         return result
+    }
+
+    /// Drops this repository's references to prepared pairs so callers that
+    /// keep slimmed copies actually free the decoded sequences.
+    func releaseCache() {
+        cache.removeAll()
     }
 }
 
@@ -290,17 +351,18 @@ final class V2EvaluationEngine {
                 plan: preparedEvaluationPlan
             )
         }
-        // Phase 1 renders every pair on the GPU in the historical order; the
-        // CPU scoring in phase 2 never touches evaluator state, so absolute
-        // results are unchanged by the split.
+        // Each pair has its own evaluator, so rendering order across pairs
+        // does not change any result. Absolute scoring renders and scores one
+        // pair at a time; shape-only scoring renders one family, fits its
+        // gain, scores it, and frees its frames before the next family. Peak
+        // memory is therefore one pair or one family, not the whole split.
         struct RenderedPair {
             let prepared: PreparedPair
             let accepted: [PreparedMatch]
             let frameData: [V2FrameData]
             let temporal: (luminance: Double, highlight: Double, flicker: Double, cutOvershoot: Double, cutRecovery: Double)
         }
-        var rendered: [RenderedPair] = []
-        for prepared in preparedPairs {
+        func render(_ prepared: PreparedPair) throws -> RenderedPair {
             let configuration = try parameters.configuration()
             let configurationKey = try Self.configurationKey(parameters)
             let evaluator: HDRCoreOfflineEvaluator
@@ -368,26 +430,15 @@ final class V2EvaluationEngine {
                 evaluator: evaluator,
                 configuration: configuration
             )
-            rendered.append(RenderedPair(
+            return RenderedPair(
                 prepared: prepared, accepted: accepted, frameData: frameData,
                 temporal: (temporal.luminance, temporal.highlight, temporal.flicker, temporal.cutOvershoot, temporal.cutRecovery)
-            ))
+            )
         }
 
-        var gainByPairID: [String: Double] = [:]
-        if levelNormalization != nil {
-            let groups = Dictionary(grouping: rendered) { familyByPairID[$0.prepared.record.id] ?? "pair:" + $0.prepared.record.id }
-            for members in groups.values {
-                let gain = V2LevelNormalization.fitGain(members.flatMap(\.frameData))
-                for member in members { gainByPairID[member.prepared.record.id] = gain }
-            }
-        }
-
-        var videos: [V2VideoEvaluation] = []
-        for item in rendered {
+        func score(_ item: RenderedPair, gain: Double?) throws -> V2VideoEvaluation {
             let prepared = item.prepared
             let temporal = item.temporal
-            let gain = gainByPairID[prepared.record.id]
             var scenes: [V2SceneEvaluation] = []
             for scene in prepared.scenes {
                 let sceneFrames = zip(item.accepted, item.frameData).compactMap { match, data -> V2FrameData? in
@@ -430,7 +481,7 @@ final class V2EvaluationEngine {
             videoMetrics.sceneCutRecovery = temporal.cutRecovery
             videoMetrics.weightedContributions["temporal"] = temporalContribution
             videoMetrics.objective += temporalContribution - oldTemporalContribution
-            videos.append(V2VideoEvaluation(
+            return V2VideoEvaluation(
                 pairID: prepared.record.id,
                 split: split,
                 frameCount: scenes.map(\.frameCount).reduce(0, +),
@@ -440,8 +491,31 @@ final class V2EvaluationEngine {
                 metrics: videoMetrics,
                 scenes: scenes,
                 levelGain: gain
-            ))
+            )
         }
+
+        var videoByID: [String: V2VideoEvaluation] = [:]
+        if levelNormalization == nil {
+            for prepared in preparedPairs {
+                videoByID[prepared.record.id] = try score(render(prepared), gain: nil)
+            }
+        } else {
+            var groupOrder: [String] = []
+            var groups: [String: [PreparedPair]] = [:]
+            for prepared in preparedPairs {
+                let key = familyByPairID[prepared.record.id] ?? "pair:" + prepared.record.id
+                if groups[key] == nil { groupOrder.append(key) }
+                groups[key, default: []].append(prepared)
+            }
+            for key in groupOrder {
+                let members = try (groups[key] ?? []).map(render)
+                let gain = V2LevelNormalization.fitGain(members.flatMap(\.frameData))
+                for member in members {
+                    videoByID[member.prepared.record.id] = try score(member, gain: gain)
+                }
+            }
+        }
+        let videos = preparedPairs.compactMap { videoByID[$0.record.id] }
         let requestedIDs = Set(preparedPairs.map(\.record.id))
         let evaluatedIDs = Set(videos.map(\.pairID))
         guard !videos.isEmpty, requestedIDs == evaluatedIDs else {

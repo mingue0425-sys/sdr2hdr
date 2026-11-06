@@ -1182,11 +1182,15 @@ public final class CalibrationV4Runner {
             allPrepared = cached
             log("reused \(cached.count) materialized Tune/Validation pairs for plan \(artifact.planSHA256)")
         } else {
+            // Evaluation reads only accepted matches and temporal windows, so
+            // the full decoded proxy sequences are released after the sealed
+            // plan has been validated against them.
             allPrepared = try await repository.materialize(
                 records: tuneValidationV4,
                 using: artifact.plan,
                 inputHashes: inputHashesForPlan
-            )
+            ).map { $0.releasingDecodedSequences() }
+            repository.releaseCache()
             preparedPairCache?.store(allPrepared, key: cacheKey)
         }
         let tuneIDs = Set(tuneV4.map(\.id))
