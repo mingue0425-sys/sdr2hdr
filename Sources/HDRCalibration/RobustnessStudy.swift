@@ -43,15 +43,31 @@ public enum RobustnessStudy {
         public let k: Double
         public let minimumTolerance: Double
         public let maximumTolerance: Double
+        /// Structured artifacts (codec blocking, bit-depth banding) are not
+        /// noise to the estimator; when either detector fires the tolerance
+        /// is raised to at least `artifactTolerance`. nil = noise only.
+        public var artifactTolerance: Double? = nil
+        public var blockinessThreshold: Double? = nil
+        public var histogramGapThreshold: Double? = nil
 
         public func tolerance(forSigma sigma: Double) -> Float {
             Float(min(max(k * sigma, minimumTolerance), maximumTolerance))
+        }
+
+        public func tolerance(for statistics: LumaArtifactStatistics) -> Float {
+            let noise = Double(tolerance(forSigma: statistics.noiseSigma))
+            let blocky = blockinessThreshold.map { statistics.blockiness > $0 } ?? false
+            let banded = histogramGapThreshold.map { statistics.histogramGapFraction > $0 } ?? false
+            guard let artifactTolerance, blocky || banded else { return Float(noise) }
+            return Float(max(noise, artifactTolerance))
         }
     }
 
     public static let defaultAdaptiveCandidates: [AdaptiveGuidance] = [
         AdaptiveGuidance(id: "v4-adaptive-k3-min0.02", radius: 2, k: 3, minimumTolerance: 0.02, maximumTolerance: 0.15),
-        AdaptiveGuidance(id: "v4-adaptive-k4-min0.05", radius: 2, k: 4, minimumTolerance: 0.05, maximumTolerance: 0.15)
+        AdaptiveGuidance(id: "v4-adaptive-k4-min0.05", radius: 2, k: 4, minimumTolerance: 0.05, maximumTolerance: 0.15),
+        AdaptiveGuidance(id: "v4-artifact-aware", radius: 2, k: 3, minimumTolerance: 0.02, maximumTolerance: 0.15,
+                         artifactTolerance: 0.12, blockinessThreshold: 1.3, histogramGapThreshold: 0.3)
     ]
 
     public struct NoiseEstimate: Codable, Sendable {
@@ -59,6 +75,10 @@ public enum RobustnessStudy {
         public let variant: String
         /// Median over frames of the Immerkaer luma sigma (signal units).
         public let lumaSigma: Double
+        /// Median over frames of the 8x8 boundary/interior step ratio.
+        public let blockiness: Double
+        /// Median over frames of the unused-code fraction in the luma range.
+        public let histogramGapFraction: Double
         public let tolerances: [String: Float]
     }
 
@@ -187,20 +207,33 @@ public enum RobustnessStudy {
                 let sdrURL = try makeVariant(variant, clean: prepared.cleanSDR, directory: pairDir, width: width, height: height)
                 let sdr = try await readFrames(sdrURL, pixelFormat: CalibrationPixelFormat.sdrNV12, limit: frameCount)
                 let count = min(sdr.count, referenceNits.count)
-                let sigmas = sdr.prefix(count).compactMap { ImmerkaerNoiseEstimator.lumaSignalSigma($0.pixelBuffer) }.sorted()
-                let sigma = sigmas.isEmpty ? 0 : sigmas[sigmas.count / 2]
+                let frameStatistics = sdr.prefix(count).compactMap { LumaArtifactStatistics.measure($0.pixelBuffer) }
+                func median(_ values: [Double]) -> Double {
+                    let sorted = values.sorted()
+                    return sorted.isEmpty ? 0 : sorted[sorted.count / 2]
+                }
+                let statistics = LumaArtifactStatistics(
+                    noiseSigma: median(frameStatistics.map(\.noiseSigma)),
+                    blockiness: median(frameStatistics.map(\.blockiness)),
+                    histogramGapFraction: median(frameStatistics.map(\.histogramGapFraction))
+                )
+                let sigma = statistics.noiseSigma
                 let adaptive = adaptiveCandidates.map { candidate -> (String, HDRConfiguration) in
                     var configuration = v4
                     configuration.gainGuidance = HDRGainGuidance(
-                        radius: candidate.radius, tolerance: candidate.tolerance(forSigma: sigma)
+                        radius: candidate.radius, tolerance: candidate.tolerance(for: statistics)
                     )
                     return (candidate.id, configuration)
                 }
                 noiseEstimates.append(NoiseEstimate(
                     pairID: pair.id, variant: variant.id, lumaSigma: sigma,
+                    blockiness: statistics.blockiness, histogramGapFraction: statistics.histogramGapFraction,
                     tolerances: Dictionary(uniqueKeysWithValues: adaptive.map { ($0.0, $0.1.gainGuidance.tolerance) })
                 ))
-                FileHandle.standardError.write(Data(String(format: "robustness: %@ %@ frames=%d sigma=%.4f\n", pair.id, variant.id, count, sigma).utf8))
+                FileHandle.standardError.write(Data(String(
+                    format: "robustness: %@ %@ frames=%d sigma=%.4f blockiness=%.3f gaps=%.3f\n",
+                    pair.id, variant.id, count, sigma, statistics.blockiness, statistics.histogramGapFraction
+                ).utf8))
                 for (name, configuration) in configurations + adaptive {
                     let output = try render(sdr.prefix(count).map { $0 }, configuration: configuration, device: device)
                     let metrics = measure(
@@ -212,7 +245,7 @@ public enum RobustnessStudy {
             }
         }
         let report = Report(
-            schemaVersion: "robustness-study-v3",
+            schemaVersion: "robustness-study-v4",
             manifestPath: manifestURL.path,
             workingWidth: workingWidth,
             frameCount: frameCount,

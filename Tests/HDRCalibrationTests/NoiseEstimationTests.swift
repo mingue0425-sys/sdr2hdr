@@ -43,4 +43,27 @@ final class NoiseEstimationTests: XCTestCase {
         XCTAssertEqual(ImmerkaerNoiseEstimator.sigma([], width: 0, height: 0), 0)
         XCTAssertEqual(ImmerkaerNoiseEstimator.sigma([1, 2, 3, 4], width: 2, height: 2), 0)
     }
+
+    func testBlockinessSeparatesBlockyFromNatural() {
+        let width = 128, height = 128
+        let natural = gaussianField(width: width, height: height, sigma: 0.01) { (x: Int, y: Int) -> Double in
+            0.5 + 0.2 * sin(Double(x) * 0.07) * cos(Double(y) * 0.05)
+        }
+        XCTAssertEqual(BlockinessEstimator.ratio(natural, width: width, height: height), 1, accuracy: 0.15)
+        // Piecewise-constant 8x8 blocks with small interior noise.
+        let blocky = gaussianField(width: width, height: height, sigma: 0.002) { (x: Int, y: Int) -> Double in
+            0.5 + 0.05 * Double(((x / 8) * 7 + (y / 8) * 3) % 5)
+        }
+        XCTAssertGreaterThan(BlockinessEstimator.ratio(blocky, width: width, height: height), 3)
+        XCTAssertEqual(BlockinessEstimator.ratio([Float](repeating: 0.3, count: 256), width: 16, height: 16), 1)
+    }
+
+    func testHistogramGapsDetectReducedBitDepth() {
+        var state: UInt32 = 7
+        let full: [UInt8] = (0..<20_000).map { _ in state = state &* 1_664_525 &+ 1_013_904_223; return UInt8(60 + Int(state >> 25) % 120) }
+        XCTAssertLessThan(HistogramGapEstimator.gapFraction(codes: full), 0.02)
+        let sixBit = full.map { $0 & 252 }
+        XCTAssertEqual(HistogramGapEstimator.gapFraction(codes: sixBit), 0.75, accuracy: 0.03)
+        XCTAssertEqual(HistogramGapEstimator.gapFraction(codes: []), 0)
+    }
 }

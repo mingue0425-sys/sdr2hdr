@@ -159,4 +159,22 @@ final class RobustnessStudyTests: XCTestCase {
         let ids = RobustnessStudy.defaultAdaptiveCandidates.map(\.id) + RobustnessStudy.defaultGuidanceCandidates.map(\.0)
         XCTAssertEqual(Set(ids).count, ids.count, "configuration names must be unique in the report")
     }
+
+    func testArtifactFloorRaisesToleranceOnlyWhenADetectorFires() {
+        guard let aware = RobustnessStudy.defaultAdaptiveCandidates.first(where: { $0.id == "v4-artifact-aware" }) else {
+            return XCTFail("artifact-aware candidate missing")
+        }
+        let clean = LumaArtifactStatistics(noiseSigma: 0.008, blockiness: 1.0, histogramGapFraction: 0.0)
+        XCTAssertEqual(aware.tolerance(for: clean), aware.tolerance(forSigma: 0.008))
+        let blocky = LumaArtifactStatistics(noiseSigma: 0.003, blockiness: 1.6, histogramGapFraction: 0.0)
+        XCTAssertEqual(aware.tolerance(for: blocky), 0.12, accuracy: 1e-6)
+        let banded = LumaArtifactStatistics(noiseSigma: 0.008, blockiness: 1.0, histogramGapFraction: 0.75)
+        XCTAssertEqual(aware.tolerance(for: banded), 0.12, accuracy: 1e-6)
+        let noisyAndBlocky = LumaArtifactStatistics(noiseSigma: 0.045, blockiness: 1.6, histogramGapFraction: 0.0)
+        XCTAssertEqual(aware.tolerance(for: noisyAndBlocky), 0.135, accuracy: 1e-6, "noise term wins when larger")
+        // The report encodes the candidates; every value must be JSON-representable.
+        XCTAssertNoThrow(try JSONEncoder().encode(RobustnessStudy.defaultAdaptiveCandidates))
+        let noiseOnly = RobustnessStudy.defaultAdaptiveCandidates[0]
+        XCTAssertEqual(noiseOnly.tolerance(for: blocky), noiseOnly.tolerance(forSigma: 0.003), "no floor without artifactTolerance")
+    }
 }
