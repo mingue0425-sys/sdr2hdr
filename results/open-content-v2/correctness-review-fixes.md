@@ -2,8 +2,8 @@
 
 - Verdict: `EXECUTABLE_EVIDENCE_INCOMPLETE`
 - Virgin Frozen objective evaluated: `false`
-- Tune structural completeness: 7/7
-- Validation structural completeness: 5/5
+- Tune structural completeness: 13/13
+- Validation structural completeness: 10/10
 
 | Finding | Status |
 | --- | --- |
