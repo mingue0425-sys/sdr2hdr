@@ -320,6 +320,15 @@ final class V2EvaluationEngine {
     /// Shape-only scoring; nil keeps the historical absolute objective.
     private var levelNormalization: V2LevelNormalization?
     private var familyByPairID: [String: String] = [:]
+    /// Pairs whose SDR source the user declares (see
+    /// `CalibrationParameters.declaredSourceSDRTransferInterpretation`).
+    private var declaredSourcePairIDs: Set<String> = []
+
+    /// Marks the pairs that use a parameter set's declared-source
+    /// reconstruction. Parameters without one (all baselines) are unaffected.
+    func configureDeclaredSource(pairIDs: Set<String>) {
+        declaredSourcePairIDs = pairIDs
+    }
 
     /// Enables shape-only scoring with one gain per content family. Pairs
     /// without a family form their own group.
@@ -392,8 +401,10 @@ final class V2EvaluationEngine {
             let temporal: (luminance: Double, highlight: Double, flicker: Double, cutOvershoot: Double, cutRecovery: Double)
         }
         func render(_ prepared: PreparedPair) throws -> RenderedPair {
-            let configuration = try parameters.configuration()
-            let configurationKey = try Self.configurationKey(parameters)
+            let declared = declaredSourcePairIDs.contains(prepared.record.id) &&
+                parameters.declaredSourceSDRTransferInterpretation != nil
+            let configuration = try parameters.configuration(declaredSource: declared)
+            let configurationKey = try Self.configurationKey(parameters) + (declared ? "|declared-source" : "")
             let evaluator: HDRCoreOfflineEvaluator
             if let cached = evaluators[prepared.record.id] {
                 evaluator = cached

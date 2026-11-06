@@ -19,6 +19,12 @@ public enum HDRTransferFunction: Equatable, Sendable {
     /// convention; midtones move toward what a BT.1886 reference display shows.
     /// Selected only by `HDRSDRTransferInterpretation.bt709ToeBT1886MidBlend`.
     case bt709ToeBT1886Blend
+    /// Inverse of YouTube's automatic SDR rendition of an HLG upload: the SDR
+    /// code is mapped through a fitted 17-knot SDR→HLG code curve, then
+    /// decoded with the BT.2100 HLG inverse OETF and a per-channel 1.2 system
+    /// gamma, normalized so SDR code 1.0 is 1.0. Selected only by
+    /// `HDRSDRTransferInterpretation.youtubeHLGDerivedInverse`.
+    case youtubeHLGInverse
 
     /// Applies an SDR interpretation policy to a resolved transfer tag. Only
     /// the BT.709/BT.2020 SDR tag is ambiguous between scene-linear and
@@ -30,6 +36,8 @@ public enum HDRTransferFunction: Equatable, Sendable {
             return .bt1886
         case (.bt709, .bt709ToeBT1886MidBlend):
             return .bt709ToeBT1886Blend
+        case (.bt709, .youtubeHLGDerivedInverse):
+            return .youtubeHLGInverse
         default:
             return self
         }
@@ -57,6 +65,12 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
     /// range keeps the minimum slope at 73% of the inverse OETF's.
     case bt709ToeBT1886MidBlend = "bt709-toe-bt1886-mid-blend-0.10-0.70-v1"
 
+    /// Source-declared policy for SDR that YouTube derived automatically from
+    /// an HLG upload. The SDR→HLG code curve was fitted on the open-content-v2
+    /// Tune broadcast pairs only (`dataset/analysis/youtube-hlg-curve-v1.json`).
+    /// It is meant to be selected by a user who knows the source, not inferred.
+    case youtubeHLGDerivedInverse = "youtube-hlg-sdr-inverse-17knot-v1"
+
     /// The default intentionally preserves historical output.
     public static let `default`: HDRSDRTransferInterpretation = .bt709InverseOETFSceneLinear
 
@@ -66,6 +80,7 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
         case .bt709InverseOETFSceneLinear: return "bt709-oetf"
         case .bt1886DisplayReferred: return "bt1886"
         case .bt709ToeBT1886MidBlend: return "bt709-1886-blend"
+        case .youtubeHLGDerivedInverse: return "youtube-hlg"
         }
     }
 
@@ -174,6 +189,33 @@ public enum HDRColorMath {
         return inverseBT709(signal) * (1 - weight) + inverseBT1886(signal) * weight
     }
 
+    /// SDR→HLG code knots at SDR code k/16, k = 0...16 (normalized
+    /// narrow-range luma codes), from `dataset/analysis/youtube-hlg-curve-v1.json`.
+    public static let youtubeHLGCurveKnots: [Float] = [
+        0.00000, 0.12609, 0.20355, 0.28179, 0.35523, 0.42496, 0.49100, 0.55358, 0.61006, 0.66057, 0.70648, 0.74818, 0.78920, 0.83003, 0.87738, 0.93165, 1.00000
+    ]
+
+    public static func youtubeSDRToHLGCode(_ signal: Float) -> Float {
+        let knots = youtubeHLGCurveKnots
+        let position = min(max(signal, 0), 1) * Float(knots.count - 1)
+        let index = min(Int(position), knots.count - 2)
+        let t = position - Float(index)
+        return knots[index] + (knots[index + 1] - knots[index]) * t
+    }
+
+    /// BT.2100 HLG inverse OETF: signal → normalized scene light.
+    public static func inverseHLGOETF(_ signal: Float) -> Float {
+        let a: Float = 0.17883277
+        let b: Float = 0.28466892
+        let c: Float = 0.55991073
+        let value = min(max(signal, 0), 1)
+        return value <= 0.5 ? value * value / 3 : (exp((value - c) / a) + b) / 12
+    }
+
+    public static func inverseYouTubeHLGDerived(_ signal: Float) -> Float {
+        pow(inverseHLGOETF(youtubeSDRToHLGCode(signal)), 1.2)
+    }
+
     public static func inverseSRGB(_ signal: Float) -> Float {
         let value = max(signal, 0)
         return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
@@ -199,6 +241,8 @@ public enum HDRColorMath {
             return inverseBT1886(signal)
         case .bt709ToeBT1886Blend:
             return inverseBT709ToeBT1886Blend(signal)
+        case .youtubeHLGInverse:
+            return inverseYouTubeHLGDerived(signal)
         }
     }
 

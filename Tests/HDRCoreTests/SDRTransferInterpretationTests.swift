@@ -21,7 +21,11 @@ final class SDRTransferInterpretationTests: XCTestCase {
             HDRSDRTransferInterpretation.bt709ToeBT1886MidBlend.rawValue,
             "bt709-toe-bt1886-mid-blend-0.10-0.70-v1"
         )
-        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 3)
+        XCTAssertEqual(
+            HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue,
+            "youtube-hlg-sdr-inverse-17knot-v1"
+        )
+        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 4)
         for policy in HDRSDRTransferInterpretation.allCases {
             XCTAssertEqual(HDRSDRTransferInterpretation(rawValue: policy.rawValue), policy)
             XCTAssertEqual(HDRSDRTransferInterpretation(cliName: policy.cliName), policy)
@@ -88,6 +92,37 @@ final class SDRTransferInterpretationTests: XCTestCase {
         }
     }
 
+    func testYouTubeHLGCurveIsMonotoneAnchoredAndMatchesItsFitRecord() throws {
+        let knots = HDRColorMath.youtubeHLGCurveKnots
+        XCTAssertEqual(knots.count, 17)
+        XCTAssertEqual(knots.first, 0)
+        XCTAssertEqual(knots.last, 1)
+        XCTAssertTrue(zip(knots.dropFirst(), knots).allSatisfy { $0 >= $1 })
+        XCTAssertEqual(HDRColorMath.inverseYouTubeHLGDerived(1), 1, accuracy: 1e-6)
+        XCTAssertEqual(HDRColorMath.inverseYouTubeHLGDerived(0), 0, accuracy: 1e-9)
+        var previous: Float = -1
+        for code in 0...255 {
+            let value = HDRColorMath.inverseYouTubeHLGDerived(Float(code) / 255)
+            XCTAssertGreaterThanOrEqual(value, previous, "code=\(code)")
+            previous = value
+        }
+        // HLG reference white (75% signal) is about 26% scene light.
+        XCTAssertEqual(HDRColorMath.inverseHLGOETF(0.75), 0.2647, accuracy: 1e-3)
+        XCTAssertEqual(HDRTransferFunction.bt709.interpreted(by: .youtubeHLGDerivedInverse), .youtubeHLGInverse)
+        XCTAssertEqual(HDRSDRTransferInterpretation(cliName: "youtube-hlg"), .youtubeHLGDerivedInverse)
+
+        let record = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("dataset/analysis/youtube-hlg-curve-v1.json")
+        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: record)) as? [String: Any]
+        let fitted = try XCTUnwrap(object?["knots"] as? [Double])
+        XCTAssertEqual(fitted.count, knots.count)
+        for (lhs, rhs) in zip(fitted, knots) {
+            XCTAssertEqual(Float(lhs), rhs, accuracy: 1e-5)
+        }
+        XCTAssertEqual(object?["fitSplit"] as? String, "tune")
+    }
+
     func testReferenceFollowsConfiguredInterpretation() {
         var config = neutralConfiguration()
         for code in [0, 16, 64, 128, 200, 255] {
@@ -114,6 +149,7 @@ final class SDRTransferInterpretationTests: XCTestCase {
                 case .bt1886DisplayReferred: expected = pow(signal, 2.4)
                 case .bt709ToeBT1886MidBlend: expected = HDRColorMath.inverseBT709ToeBT1886Blend(signal)
                 case .bt709InverseOETFSceneLinear: expected = HDRColorMath.inverseBT709(signal)
+                case .youtubeHLGDerivedInverse: expected = HDRColorMath.inverseYouTubeHLGDerived(signal)
                 }
                 let reference = HDRReference.process(
                     signalRGB: SIMD3(repeating: signal),

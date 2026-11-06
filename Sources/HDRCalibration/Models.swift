@@ -627,6 +627,14 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
     /// historical inverse-OETF convention, so existing artifacts decode and
     /// re-encode unchanged.
     public var sdrTransferInterpretation: String?
+    /// Source-declared reconstruction for pairs whose SDR the user declares
+    /// to be YouTube's automatic rendition of an HLG upload. It holds a
+    /// stable `HDRSDRTransferInterpretation` identifier. For declared pairs,
+    /// `configuration(declaredSource: true)` replaces the searched tone curve
+    /// with the parameter-free HLG reconstruction: that decode, no expansion,
+    /// and 1000-nit nominal HLG peak. `nil` (every baseline and historical
+    /// artifact) leaves the encoding and every pair unchanged.
+    public var declaredSourceSDRTransferInterpretation: String?
 
     public init(
         paperWhiteNits: Float,
@@ -640,7 +648,8 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         toneCurveRevision: UInt32? = nil,
         v6LowMidFadePosition: Float? = nil,
         v6LowMidStrength: Float? = nil,
-        sdrTransferInterpretation: String? = nil
+        sdrTransferInterpretation: String? = nil,
+        declaredSourceSDRTransferInterpretation: String? = nil
     ) {
         self.paperWhiteNits = paperWhiteNits
         self.peakNits = peakNits
@@ -654,6 +663,7 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
         self.v6LowMidFadePosition = v6LowMidFadePosition
         self.v6LowMidStrength = v6LowMidStrength
         self.sdrTransferInterpretation = sdrTransferInterpretation
+        self.declaredSourceSDRTransferInterpretation = declaredSourceSDRTransferInterpretation
     }
 
     public init(configuration: HDRConfiguration) {
@@ -704,6 +714,37 @@ public struct CalibrationParameters: Codable, Equatable, Sendable {
             value.sdrTransferInterpretation = policy
         }
         return try value.validated()
+    }
+
+    /// Nominal display peak of the BT.2100 HLG reconstruction used for
+    /// declared-source pairs.
+    public static let declaredSourceNominalPeakNits: Float = 1_000
+
+    /// The configuration for one pair. A declared-source pair with a declared
+    /// interpretation gets the fixed HLG reconstruction:
+    /// - decode through that interpretation;
+    /// - highlight strength 0 and saturation compensation 0, so no expansion;
+    /// - 1000-nit white with a 1001-nit peak, because validation needs peak
+    ///   above white.
+    /// Every other pair gets `configuration()`.
+    public func configuration(declaredSource: Bool) throws -> HDRConfiguration {
+        guard declaredSource, let declaredSourceSDRTransferInterpretation else {
+            return try configuration()
+        }
+        guard let policy = HDRSDRTransferInterpretation(rawValue: declaredSourceSDRTransferInterpretation) else {
+            throw CalibrationError.invalidManifest(
+                "unknown declaredSourceSDRTransferInterpretation: \(declaredSourceSDRTransferInterpretation)"
+            )
+        }
+        var fixed = self
+        fixed.paperWhiteNits = Self.declaredSourceNominalPeakNits
+        fixed.peakNits = Self.declaredSourceNominalPeakNits + 1
+        fixed.displayHeadroom = fixed.peakNits / fixed.paperWhiteNits
+        fixed.highlightStrength = 0
+        fixed.saturationCompensation = 0
+        fixed.sdrTransferInterpretation = policy.rawValue
+        fixed.declaredSourceSDRTransferInterpretation = nil
+        return try fixed.configuration()
     }
 }
 

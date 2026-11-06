@@ -433,6 +433,14 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     /// objective hashes are unchanged.
     public var levelNormalization: V2LevelNormalization?
 
+    /// Source-declared reconstruction for the families in
+    /// `declaredSourceFamilies`. Their pairs use the parameter-free HLG
+    /// reconstruction instead of the searched curve, while the baselines keep
+    /// their historical path. `nil` is omitted from the encoding, so
+    /// historical objective hashes are unchanged.
+    public var declaredSourceSDRTransferInterpretation: HDRSDRTransferInterpretation?
+    public var declaredSourceFamilies: [String]?
+
     /// The preregistered coverage protocol these requirements came from.
     public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
     /// Preregistered selection/promotion protocol. `nil` = historical
@@ -1231,6 +1239,7 @@ public final class CalibrationV4Runner {
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try engine.installPreparedEvaluationPlan(tuneValidationPlan)
         engine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
+        engine.configureDeclaredSource(pairIDs: declaredSourcePairIDs(manifest))
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1550,6 +1559,7 @@ public final class CalibrationV4Runner {
             frozenPlan, expectedSHA256: frozenArtifact.planSHA256
         )
         frozenEngine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
+        frozenEngine.configureDeclaredSource(pairIDs: declaredSourcePairIDs(manifest))
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
         let frozenV1 = try evaluate(frozenEngine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
@@ -1837,7 +1847,8 @@ public final class CalibrationV4Runner {
             toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue,
             sdrTransferInterpretation: configuration.sdrTransferInterpretation == .default
                 ? nil
-                : configuration.sdrTransferInterpretation.rawValue
+                : configuration.sdrTransferInterpretation.rawValue,
+            declaredSourceSDRTransferInterpretation: configuration.declaredSourceSDRTransferInterpretation?.rawValue
         )
     }
 
@@ -1964,6 +1975,13 @@ public final class CalibrationV4Runner {
         let verdict = V4PromotionGateMachine.verdict(gates)
         reasons.append("Final verdict gate: \(verdict.rawValue)")
         return (verdict, reasons, gates)
+    }
+
+    private func declaredSourcePairIDs(_ manifest: V4Manifest) -> Set<String> {
+        guard configuration.declaredSourceSDRTransferInterpretation != nil,
+              let families = configuration.declaredSourceFamilies else { return [] }
+        let declared = Set(families)
+        return Set(familyByPairID(manifest).filter { declared.contains($0.value) }.keys)
     }
 
     private func familyByPairID(_ manifest: V4Manifest) -> [String: String] {

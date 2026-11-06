@@ -106,6 +106,26 @@ inline float inverseSRGB(float value) {
     return value <= 0.04045f ? value / 12.92f : pow((value + 0.055f) / 1.055f, 2.4f);
 }
 
+// SDR→HLG code knots at SDR code k/16; must equal
+// HDRColorMath.youtubeHLGCurveKnots (dataset/analysis/youtube-hlg-curve-v1.json).
+constant float kYouTubeHLGKnots[17] = {
+    0.00000f, 0.12609f, 0.20355f, 0.28179f, 0.35523f, 0.42496f, 0.49100f, 0.55358f, 0.61006f, 0.66057f, 0.70648f, 0.74818f, 0.78920f, 0.83003f, 0.87738f, 0.93165f, 1.00000f
+};
+
+inline float inverseHLGOETF(float value) {
+    value = clamp(value, 0.0f, 1.0f);
+    return value <= 0.5f ? value * value / 3.0f
+        : (exp((value - 0.55991073f) / 0.17883277f) + 0.28466892f) / 12.0f;
+}
+
+inline float inverseYouTubeHLGDerived(float value) {
+    float position = clamp(value, 0.0f, 1.0f) * 16.0f;
+    int index = min(int(position), 15);
+    float t = position - float(index);
+    float hlg = kYouTubeHLGKnots[index] + (kYouTubeHLGKnots[index + 1] - kYouTubeHLGKnots[index]) * t;
+    return pow(inverseHLGOETF(hlg), 1.2f);
+}
+
 inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
     switch (p.transferFunction) {
         case 0: return inverseBT709(value);
@@ -117,6 +137,7 @@ inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
             float w = t * t * (3.0f - 2.0f * t);
             return mix(inverseBT709(value), pow(max(value, 0.0f), 2.4f), w);
         }
+        case 6: return inverseYouTubeHLGDerived(value);
         default: return max(value, 0.0f);
     }
 }

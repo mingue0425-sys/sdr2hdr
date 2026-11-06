@@ -788,6 +788,55 @@ final class CalibrationTests: XCTestCase {
         XCTAssertGreaterThan(full.frameCount, 0)
     }
 
+    func testDeclaredSourceParametersBuildTheFixedHLGReconstruction() throws {
+        var parameters = CalibrationParameters(configuration: .calibratedV2)
+        parameters.toneCurveRevision = HDRToneCurveRevision.sceneRelativeV4.rawValue
+        let historical = try parameters.configuration()
+        XCTAssertEqual(try parameters.configuration(declaredSource: true).paperWhiteNits, historical.paperWhiteNits)
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let before = try encoder.encode(parameters)
+        XCTAssertFalse(String(decoding: before, as: UTF8.self).contains("declaredSource"))
+
+        parameters.declaredSourceSDRTransferInterpretation = HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue
+        let undeclared = try parameters.configuration(declaredSource: false)
+        XCTAssertEqual(undeclared.paperWhiteNits, historical.paperWhiteNits)
+        XCTAssertEqual(undeclared.highlightStrength, historical.highlightStrength)
+        XCTAssertEqual(undeclared.sdrTransferInterpretation, historical.sdrTransferInterpretation)
+
+        let declared = try parameters.configuration(declaredSource: true)
+        XCTAssertEqual(declared.sdrTransferInterpretation, .youtubeHLGDerivedInverse)
+        XCTAssertEqual(declared.paperWhiteNits, CalibrationParameters.declaredSourceNominalPeakNits)
+        XCTAssertEqual(declared.highlightStrength, 0)
+        XCTAssertEqual(declared.saturationCompensation, 0)
+        XCTAssertGreaterThan(declared.peakNits, declared.paperWhiteNits)
+
+        parameters.declaredSourceSDRTransferInterpretation = "not-a-policy"
+        XCTAssertThrowsError(try parameters.configuration(declaredSource: true))
+    }
+
+    func testEngineAppliesDeclaredSourceOnlyToMarkedPairsAndDeclaringParameters() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let pair = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.50, 0.70])
+        var baseline = CalibrationParameters(configuration: .calibratedV2)
+        baseline.toneCurveRevision = HDRToneCurveRevision.sceneRelativeV4.rawValue
+        var declaring = baseline
+        declaring.declaredSourceSDRTransferInterpretation = HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue
+        func objective(_ parameters: CalibrationParameters, marked: Bool) throws -> Double {
+            let engine = V2EvaluationEngine(device: device, weights: V2ObjectiveWeights())
+            if marked { engine.configureDeclaredSource(pairIDs: [pair.record.id]) }
+            let result = try engine.evaluate(
+                preparedPairs: [pair], parameters: parameters, label: "t", split: .tune, confidenceThreshold: 0
+            )
+            return result.videos[0].metrics.objective
+        }
+        let plain = try objective(baseline, marked: false)
+        XCTAssertEqual(try objective(baseline, marked: true), plain, "baselines ignore the declaration")
+        XCTAssertEqual(try objective(declaring, marked: false), plain, "unmarked pairs ignore the declaration")
+        XCTAssertNotEqual(try objective(declaring, marked: true), plain)
+    }
+
     func testPreparedEvaluationPlanTuneValidationUsesStableSplitOrdering() throws {
         let prepared = [
             try makePreparedDiagnosticPair(values: [0.10], id: "tuneA", split: .tune),
