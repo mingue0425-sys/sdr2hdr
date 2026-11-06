@@ -227,6 +227,16 @@ final class V2EvaluationEngine {
     /// reset its causal state before the first frame of the new configuration.
     private var evaluatorConfigurationKeys: [String: String] = [:]
     private var preparedEvaluationPlan: PreparedEvaluationPlan?
+    /// Shape-only scoring; nil keeps the historical absolute objective.
+    private var levelNormalization: V2LevelNormalization?
+    private var familyByPairID: [String: String] = [:]
+
+    /// Enables shape-only scoring with one gain per content family. Pairs
+    /// without a family form their own group.
+    func configureLevelNormalization(_ mode: V2LevelNormalization?, familyByPairID: [String: String]) {
+        levelNormalization = mode
+        self.familyByPairID = familyByPairID
+    }
 
     init(device: MTLDevice, weights: V2ObjectiveWeights) {
         self.device = device
@@ -280,7 +290,16 @@ final class V2EvaluationEngine {
                 plan: preparedEvaluationPlan
             )
         }
-        var videos: [V2VideoEvaluation] = []
+        // Phase 1 renders every pair on the GPU in the historical order; the
+        // CPU scoring in phase 2 never touches evaluator state, so absolute
+        // results are unchanged by the split.
+        struct RenderedPair {
+            let prepared: PreparedPair
+            let accepted: [PreparedMatch]
+            let frameData: [V2FrameData]
+            let temporal: (luminance: Double, highlight: Double, flicker: Double, cutOvershoot: Double, cutRecovery: Double)
+        }
+        var rendered: [RenderedPair] = []
         for prepared in preparedPairs {
             let configuration = try parameters.configuration()
             let configurationKey = try Self.configurationKey(parameters)
@@ -332,25 +351,6 @@ final class V2EvaluationEngine {
                     confidence: item.match.confidence
                 ))
             }
-            var scenes: [V2SceneEvaluation] = []
-            for scene in prepared.scenes {
-                let sceneFrames = zip(accepted, frameData).compactMap { item, data -> V2FrameData? in
-                    guard let position = item.match.sdrSequencePosition else { return nil }
-                    return scene.contains(sequencePosition: position) ? data : nil
-                }
-                guard !sceneFrames.isEmpty else { continue }
-                scenes.append(V2MetricsEvaluator.evaluateScene(
-                    pairID: prepared.record.id,
-                    scene: scene,
-                    frames: sceneFrames,
-                    configuration: parameters,
-                    weights: weights
-                ))
-            }
-            guard !scenes.isEmpty else {
-                throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no scene received an accepted frame")
-            }
-            var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
             let temporalWindows: [PreparedTemporalWindow]
             if let preparedEvaluationPlan {
                 temporalWindows = try V6PreparedEvaluationEntry.temporalWindows(
@@ -368,6 +368,57 @@ final class V2EvaluationEngine {
                 evaluator: evaluator,
                 configuration: configuration
             )
+            rendered.append(RenderedPair(
+                prepared: prepared, accepted: accepted, frameData: frameData,
+                temporal: (temporal.luminance, temporal.highlight, temporal.flicker, temporal.cutOvershoot, temporal.cutRecovery)
+            ))
+        }
+
+        var gainByPairID: [String: Double] = [:]
+        if levelNormalization != nil {
+            let groups = Dictionary(grouping: rendered) { familyByPairID[$0.prepared.record.id] ?? "pair:" + $0.prepared.record.id }
+            for members in groups.values {
+                let gain = V2LevelNormalization.fitGain(members.flatMap(\.frameData))
+                for member in members { gainByPairID[member.prepared.record.id] = gain }
+            }
+        }
+
+        var videos: [V2VideoEvaluation] = []
+        for item in rendered {
+            let prepared = item.prepared
+            let temporal = item.temporal
+            let gain = gainByPairID[prepared.record.id]
+            var scenes: [V2SceneEvaluation] = []
+            for scene in prepared.scenes {
+                let sceneFrames = zip(item.accepted, item.frameData).compactMap { match, data -> V2FrameData? in
+                    guard let position = match.match.sdrSequencePosition else { return nil }
+                    return scene.contains(sequencePosition: position) ? data : nil
+                }
+                guard !sceneFrames.isEmpty else { continue }
+                var evaluation = V2MetricsEvaluator.evaluateScene(
+                    pairID: prepared.record.id,
+                    scene: scene,
+                    frames: sceneFrames,
+                    configuration: parameters,
+                    weights: weights
+                )
+                if let gain {
+                    let shape = V2MetricsEvaluator.evaluateScene(
+                        pairID: prepared.record.id,
+                        scene: scene,
+                        frames: sceneFrames.map { V2LevelNormalization.scaled($0, gain: gain) },
+                        configuration: parameters,
+                        weights: weights
+                    )
+                    evaluation.metrics = V2LevelNormalization.merge(shape: shape.metrics, absolute: evaluation.metrics)
+                    evaluation.generatedLuminance = shape.generatedLuminance
+                }
+                scenes.append(evaluation)
+            }
+            guard !scenes.isEmpty else {
+                throw CalibrationError.incompleteEvaluation("\(prepared.record.id): no scene received an accepted frame")
+            }
+            var videoMetrics = V2MetricsEvaluator.aggregate(scenes.map(\.metrics))
             let oldTemporalContribution = videoMetrics.weightedContributions["temporal"] ?? 0
             let temporalContribution = weights.temporal * (
                 temporal.luminance * 0.45 + temporal.highlight * 0.35 + temporal.flicker * 0.20
@@ -387,7 +438,8 @@ final class V2EvaluationEngine {
                 alignment: V2MetricsEvaluator.alignmentStatistics(prepared: prepared),
                 categories: V2MetricsEvaluator.categories(scenes: scenes),
                 metrics: videoMetrics,
-                scenes: scenes
+                scenes: scenes,
+                levelGain: gain
             ))
         }
         let requestedIDs = Set(preparedPairs.map(\.record.id))

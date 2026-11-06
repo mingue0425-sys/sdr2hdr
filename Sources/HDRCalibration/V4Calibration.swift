@@ -428,6 +428,11 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     /// comparable between runs that differ only in this policy.
     public var sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
 
+    /// Shape-only scoring (one gain per content family before scoring).
+    /// `nil` = absolute objective; omitted from the encoding, so historical
+    /// objective hashes are unchanged.
+    public var levelNormalization: V2LevelNormalization?
+
     /// The preregistered coverage protocol these requirements came from.
     public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
     /// Preregistered selection/promotion protocol. `nil` = historical
@@ -1165,6 +1170,7 @@ public final class CalibrationV4Runner {
         }
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try engine.installPreparedEvaluationPlan(tuneValidationPlan)
+        engine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1483,6 +1489,7 @@ public final class CalibrationV4Runner {
         try frozenEngine.installPreparedEvaluationPlan(
             frozenPlan, expectedSHA256: frozenArtifact.planSHA256
         )
+        frozenEngine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
         let frozenV1 = try evaluate(frozenEngine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
