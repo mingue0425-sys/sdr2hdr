@@ -41,6 +41,24 @@ Virgin Frozen objective per video:
 - **On StEM3.** The whole V2 family (V2 and V4) is 6–8% worse than the default. Midtone error is the gap: 0.889 for V4 against 0.866 for the default.
 - **Next step.** The next calibration round should address the V2-family midtone mapping on display-referred (BT.1886) grades like StEM3.
 
+### Why the gain was small: the masters disagree in direction
+
+The Tune and Validation evidence (no Frozen media was used here) shows that the HDR masters were graded in opposite directions relative to their SDR versions.
+
+| pair | split | master diffuse white | default / V2 / V4 output | error direction |
+|---|---|---:|---:|---|
+| Sol Levante t030–t175 | Tune | 224–450 nits | 106–317 | every configuration is too dark |
+| K-Choreo video3 / video4 | Tune / Validation | 285–430 | 181–404 | every configuration is too dark |
+| ASC StEM2 t300 / t450 | Validation | 3.6 / 87 | 12–172 | every configuration is too bright |
+
+Consequences:
+- Four of the five Tune pairs come from bright-graded Netflix masters. The search therefore learned a brighter mapping, which helps Netflix and K-Choreo.
+- The same brighter mapping overshoots the darker ASC grades: StEM2 in Validation and StEM3 in Frozen.
+- No single global curve can follow a 450-nit and an 87-nit diffuse white at the same time.
+- The next round needs one of two changes:
+  1. Balance Tune across grading styles, not only across content families.
+  2. Score the objective relative to each master's diffuse white, so a mapping is judged on its shape rather than on matching one master's absolute brightness.
+
 ## Decisions made on the way (all before Frozen access)
 
 1. **SDR transfer policy: bt709-oetf.** Both policies were compared with `--stop-before-frozen`, so Frozen was opened only once.
