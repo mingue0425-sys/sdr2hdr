@@ -17,7 +17,11 @@ final class SDRTransferInterpretationTests: XCTestCase {
             HDRSDRTransferInterpretation.bt1886DisplayReferred.rawValue,
             "bt1886-display-eotf-gamma2.4-lb0-v1"
         )
-        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 2)
+        XCTAssertEqual(
+            HDRSDRTransferInterpretation.bt709ToeBT1886MidBlend.rawValue,
+            "bt709-toe-bt1886-mid-blend-0.10-0.70-v1"
+        )
+        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 3)
         for policy in HDRSDRTransferInterpretation.allCases {
             XCTAssertEqual(HDRSDRTransferInterpretation(rawValue: policy.rawValue), policy)
             XCTAssertEqual(HDRSDRTransferInterpretation(cliName: policy.cliName), policy)
@@ -47,6 +51,30 @@ final class SDRTransferInterpretationTests: XCTestCase {
         XCTAssertEqual(HDRColorMath.inverseTransfer(0.5, function: .bt1886), 0.18946457, accuracy: 1e-6)
         // The two conventions differ materially at mid grey.
         XCTAssertGreaterThan(HDRColorMath.inverseBT709(0.5) - HDRColorMath.inverseBT1886(0.5), 0.06)
+    }
+
+    /// Independent anchors: the blend is the inverse OETF up to code 0.10,
+    /// the 2.4 power law from 0.70, and strictly increasing in between.
+    func testToeBlendAnchorsShadowsMidtonesAndMonotonicity() {
+        for signal: Float in [0, 0.02, 0.081, 0.10] {
+            XCTAssertEqual(HDRColorMath.inverseBT709ToeBT1886Blend(signal), HDRColorMath.inverseBT709(signal), accuracy: 1e-7)
+        }
+        for signal: Float in [0.70, 0.85, 1] {
+            XCTAssertEqual(HDRColorMath.inverseBT709ToeBT1886Blend(signal), pow(signal, 2.4), accuracy: 1e-6)
+        }
+        // Mid grey lies between the two conventions.
+        let mid = HDRColorMath.inverseBT709ToeBT1886Blend(0.5)
+        XCTAssertLessThan(mid, HDRColorMath.inverseBT709(0.5) - 0.03)
+        XCTAssertGreaterThan(mid, pow(0.5, 2.4) + 0.01)
+        var previous = HDRColorMath.inverseBT709ToeBT1886Blend(0.0815)
+        var signal: Float = 0.0815
+        while signal < 1 {
+            signal += 0.0005
+            let value = HDRColorMath.inverseBT709ToeBT1886Blend(signal)
+            XCTAssertGreaterThan(value, previous, "signal=\(signal)")
+            previous = value
+        }
+        XCTAssertEqual(HDRTransferFunction.bt709.interpreted(by: .bt709ToeBT1886MidBlend), .bt709ToeBT1886Blend)
     }
 
     func testInterpretationOnlyRewritesBT709TaggedSignals() {
@@ -81,9 +109,12 @@ final class SDRTransferInterpretationTests: XCTestCase {
             let processor = try HDRProcessor(device: device, configuration: config)
             for code: UInt8 in [0, 16, 64, 128, 200, 255] {
                 let signal = Float(code) / 255
-                let expected = policy == .bt1886DisplayReferred
-                    ? pow(signal, 2.4)
-                    : HDRColorMath.inverseBT709(signal)
+                let expected: Float
+                switch policy {
+                case .bt1886DisplayReferred: expected = pow(signal, 2.4)
+                case .bt709ToeBT1886MidBlend: expected = HDRColorMath.inverseBT709ToeBT1886Blend(signal)
+                case .bt709InverseOETFSceneLinear: expected = HDRColorMath.inverseBT709(signal)
+                }
                 let reference = HDRReference.process(
                     signalRGB: SIMD3(repeating: signal),
                     configuration: config

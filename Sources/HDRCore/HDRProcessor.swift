@@ -1442,6 +1442,9 @@ public final class HDRProcessor {
         case .bt1886:
             transferFunction = 4
             gamma = 2.4
+        case .bt709ToeBT1886Blend:
+            transferFunction = 5
+            gamma = 2.4
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,

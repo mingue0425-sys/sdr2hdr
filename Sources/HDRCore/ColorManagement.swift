@@ -14,6 +14,11 @@ public enum HDRTransferFunction: Equatable, Sendable {
     /// `HDRSDRTransferInterpretation.bt1886DisplayReferred` for BT.709-tagged
     /// input.
     case bt1886
+    /// Inverse BT.709 OETF below code 0.10, BT.1886 (Lb = 0) above 0.70, and
+    /// a smoothstep mix in between. Shadows decode exactly as the historical
+    /// convention; midtones move toward what a BT.1886 reference display shows.
+    /// Selected only by `HDRSDRTransferInterpretation.bt709ToeBT1886MidBlend`.
+    case bt709ToeBT1886Blend
 
     /// Applies an SDR interpretation policy to a resolved transfer tag. Only
     /// the BT.709/BT.2020 SDR tag is ambiguous between scene-linear and
@@ -23,6 +28,8 @@ public enum HDRTransferFunction: Equatable, Sendable {
         switch (self, policy) {
         case (.bt709, .bt1886DisplayReferred):
             return .bt1886
+        case (.bt709, .bt709ToeBT1886MidBlend):
+            return .bt709ToeBT1886Blend
         default:
             return self
         }
@@ -45,6 +52,11 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
     /// it yet; selecting it requires a separate calibration rebase.
     case bt1886DisplayReferred = "bt1886-display-eotf-gamma2.4-lb0-v1"
 
+    /// Historical inverse OETF in shadows (code < 0.10, so no new black
+    /// crush), blending to the BT.1886 display EOTF by code 0.70. The blend
+    /// range keeps the minimum slope at 73% of the inverse OETF's.
+    case bt709ToeBT1886MidBlend = "bt709-toe-bt1886-mid-blend-0.10-0.70-v1"
+
     /// The default intentionally preserves historical output.
     public static let `default`: HDRSDRTransferInterpretation = .bt709InverseOETFSceneLinear
 
@@ -53,6 +65,7 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
         switch self {
         case .bt709InverseOETFSceneLinear: return "bt709-oetf"
         case .bt1886DisplayReferred: return "bt1886"
+        case .bt709ToeBT1886MidBlend: return "bt709-1886-blend"
         }
     }
 
@@ -152,6 +165,15 @@ public enum HDRColorMath {
         pow(max(signal, 0), 2.4)
     }
 
+    public static let toeBlendRange: ClosedRange<Float> = 0.10...0.70
+
+    public static func inverseBT709ToeBT1886Blend(_ signal: Float) -> Float {
+        let range = toeBlendRange
+        let t = min(max((signal - range.lowerBound) / (range.upperBound - range.lowerBound), 0), 1)
+        let weight = t * t * (3 - 2 * t)
+        return inverseBT709(signal) * (1 - weight) + inverseBT1886(signal) * weight
+    }
+
     public static func inverseSRGB(_ signal: Float) -> Float {
         let value = max(signal, 0)
         return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
@@ -175,6 +197,8 @@ public enum HDRColorMath {
             return max(signal, 0)
         case .bt1886:
             return inverseBT1886(signal)
+        case .bt709ToeBT1886Blend:
+            return inverseBT709ToeBT1886Blend(signal)
         }
     }
 
