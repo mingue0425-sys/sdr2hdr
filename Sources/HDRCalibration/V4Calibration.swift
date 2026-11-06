@@ -1569,9 +1569,16 @@ public final class CalibrationV4Runner {
         let virgin = manifest.pairs.filter {
             $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
         }
-        guard tune.count == 5, validation.count == 3, virgin.count >= configuration.minimumVirginFrozenPairs else {
+        // The historical protocol fixed the split sizes exactly. A decision
+        // protocol preregisters them through the lock-bound manifest, so it
+        // only sets minimums (the historical sizes).
+        let sizesValid = configuration.decisionProtocol == nil
+            ? tune.count == 5 && validation.count == 3
+            : tune.count >= 5 && validation.count >= 3
+        guard sizesValid, virgin.count >= configuration.minimumVirginFrozenPairs else {
+            let relation = configuration.decisionProtocol == nil ? "=" : ">="
             throw CalibrationError.invalidManifest(
-                String(format: "V6 expected Tune=5, Validation=3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
+                String(format: "V6 expected Tune%@5, Validation%@3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", relation, relation, configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
             )
         }
     }
