@@ -870,10 +870,12 @@ public enum V4SourceHasher {
         let handle = try FileHandle(forReadingFrom: executableURL)
         defer { handle.closeFile() }
         var digest = SHA256()
-        while true {
-            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { break }
+        // Per-chunk pool: see V4DatasetIntegrity.sha256(url:).
+        while try autoreleasepool(invoking: {
+            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { return false }
             digest.update(data: data)
-        }
+            return true
+        }) {}
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

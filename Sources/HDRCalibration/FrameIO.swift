@@ -757,10 +757,13 @@ private enum FFmpegFrameReader {
     private static func readExactly(_ handle: FileHandle, count: Int) throws -> Data? {
         var data = Data()
         data.reserveCapacity(count)
-        while data.count < count {
-            guard let chunk = try handle.read(upToCount: count - data.count), !chunk.isEmpty else { break }
+        // Per-chunk pool: pipe reads return autoreleased NSData that would
+        // otherwise live until the whole decode finishes.
+        while data.count < count, try autoreleasepool(invoking: {
+            guard let chunk = try handle.read(upToCount: count - data.count), !chunk.isEmpty else { return false }
             data.append(chunk)
-        }
+            return true
+        }) {}
         return data.isEmpty ? nil : data
     }
 
