@@ -17,6 +17,8 @@ The [open-content v2 dataset](docs/OPEN_CONTENT_V2_DATASET.md) adds a new,
 unexposed Virgin Frozen holdout and rebalances Tune across grading styles.
 The [development roadmap](docs/DEVELOPMENT_ROADMAP.md) orders the next steps:
 the decision protocol first, then a shape-only objective, then algorithm candidates.
+The [v2 policy comparison](docs/OPEN_CONTENT_V2_POLICY_COMPARISON.md) records why the new holdout
+stays sealed: no variant passes the leave-one-family-out gate (broadcast HLG vs streaming highlight shape).
 
 The core deliberately stops at a GPU HDR frame:
 
