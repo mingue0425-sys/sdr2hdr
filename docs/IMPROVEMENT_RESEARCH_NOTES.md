@@ -22,6 +22,13 @@ Observations:
 
 The repository already has a scene-adaptive branch (`sceneAdaptiveV62Candidate`). What it is missing is a predictor that maps SDR scene statistics to curve parameters.
 
+**The cross-family check fails inside Tune.**
+- K-Choreo video3 sits between the Sol Levante scenes in normalized SDR mean (0.54).
+- Yet it wants less expansion (highlight 0.56, peak 977), where the Sol Levante trend predicts more.
+- V6.2 found the same pattern for its low-mid budget: feature correlations flipped sign between Tune and Validation, and the best controller moved Validation by only −0.0001 (`V6_2_SCENE_ADAPTIVE_EXPANSION_REPORT.md`).
+
+The preferred parameters follow the grading style (who mastered the HDR) more than any SDR statistic. An SDR-statistics-only predictor is therefore **not** recommended until Tune holds several grading styles with overlapping scene statistics.
+
 ## 2. The masters disagree on absolute brightness
 
 Diffuse white in the HDR masters varies widely:
@@ -54,7 +61,7 @@ The fixed `noise-gated` tolerance stays the robust choice. Noise-adaptive tolera
    - Acquire new, unexposed holdout pairs, since the current Frozen set is consumed.
    - Rebalance Tune across grading styles (bright-graded streaming masters vs SDR-matched cinema masters), not only across content families.
 2. **Relative objective as a preregistered variant.** Score luminance errors after normalizing each master by its own diffuse white, so the curve shape is calibrated separately from studio brightness intent. Absolute brightness can then be a separate user or display setting.
-3. **Scene-statistics predictor for the scene-adaptive branch.**
+3. **Scene-statistics predictor for the scene-adaptive branch (blocked on step 1).**
    - Learn on Tune a small monotone map from SDR scene statistics (mean, 10% and 90% luma, highlight fraction) to paper white, highlight strength and peak.
    - Regularize it heavily: N is tiny.
    - Judge it on Validation before any new Frozen.
