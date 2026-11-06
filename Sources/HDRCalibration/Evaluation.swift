@@ -385,8 +385,13 @@ struct PreparedPair {
     let scenes: [SceneRange]
     let matches: [PreparedMatch]
     let temporalWindows: [PreparedTemporalWindow]
-    /// Decoded SDR sample count, kept when the decoded sequences are released.
+    /// Decoded sample counts, kept when the decoded sequences are released.
     let sdrDecodedSampleCount: Int
+    let hdrDecodedSampleCount: Int
+    /// First and last decoded SDR timestamp inside each scene, by scene ID.
+    /// Objective scene grouping reads these, so they must outlive the
+    /// decoded sequences.
+    let sceneTimeBounds: [String: ClosedRange<Double>]
 
     init(
         record: PairRecord,
@@ -407,12 +412,26 @@ struct PreparedPair {
         self.matches = matches
         self.temporalWindows = temporalWindows
         self.sdrDecodedSampleCount = sdrSequence.samples.count
+        self.hdrDecodedSampleCount = hdrSequence.samples.count
+        var bounds: [String: ClosedRange<Double>] = [:]
+        for scene in scenes where bounds[scene.id] == nil {
+            guard let start = sdrSequence.samples.first(where: {
+                      scene.contains(sequencePosition: $0.sequencePosition)
+                  })?.descriptor.timestampSeconds,
+                  let end = sdrSequence.samples.last(where: {
+                      scene.contains(sequencePosition: $0.sequencePosition)
+                  })?.descriptor.timestampSeconds,
+                  start <= end else { continue }
+            bounds[scene.id] = start...end
+        }
+        self.sceneTimeBounds = bounds
     }
 
     /// A copy that drops every decoded sample not referenced by an accepted
-    /// match or a temporal window. Objective evaluation reads only those,
-    /// metadata and the decoded count are kept, so scores are unchanged
-    /// while most decoded proxy frames are freed.
+    /// match or a temporal window. Objective evaluation reads only those plus
+    /// the sequence metadata, decoded counts and scene time bounds kept here,
+    /// so plan validation and scores are unchanged while most decoded proxy
+    /// frames are freed.
     func releasingDecodedSequences() -> PreparedPair {
         var copy = self
         copy.sdrSequence = sdrSequence.withoutSamples()
@@ -1078,10 +1097,8 @@ public final class PairEvaluator {
 
         let sceneMetrics = prepared.scenes.map { scene in
             let sceneAnalyses = analyses.filter { analysis in
-                let time = analysis.generated.timestampSeconds
-                guard let start = prepared.sdrSequence.samples.first(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds,
-                      let end = prepared.sdrSequence.samples.last(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds else { return false }
-                return time >= start && time <= end
+                guard let bounds = prepared.sceneTimeBounds[scene.id] else { return false }
+                return bounds.contains(analysis.generated.timestampSeconds)
             }
             return ErrorMetrics.evaluateScene(
                 pairID: prepared.record.id,

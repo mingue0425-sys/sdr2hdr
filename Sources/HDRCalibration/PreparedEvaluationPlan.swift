@@ -1031,8 +1031,8 @@ enum V6PreparedEvaluationPlanBuilder {
             hdrHeight: prepared.hdrSequence.height,
             hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
-            decodedSDRFrameCount: prepared.sdrSequence.samples.count,
-            decodedHDRFrameCount: prepared.hdrSequence.samples.count,
+            decodedSDRFrameCount: prepared.sdrDecodedSampleCount,
+            decodedHDRFrameCount: prepared.hdrDecodedSampleCount,
             referenceTransfer: prepared.referenceTransfer,
             sdrPixelFormat: prepared.sdrSequence.pixelFormat,
             hdrPixelFormat: prepared.hdrSequence.pixelFormat
@@ -1154,8 +1154,8 @@ enum V6PreparedEvaluationPlanBuilder {
             hdrHeight: prepared.hdrSequence.height,
             hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
-            decodedSDRFrameCount: prepared.sdrSequence.samples.count,
-            decodedHDRFrameCount: prepared.hdrSequence.samples.count,
+            decodedSDRFrameCount: prepared.sdrDecodedSampleCount,
+            decodedHDRFrameCount: prepared.hdrDecodedSampleCount,
             referenceTransfer: prepared.referenceTransfer,
             sdrPixelFormat: prepared.sdrSequence.pixelFormat,
             hdrPixelFormat: prepared.hdrSequence.pixelFormat

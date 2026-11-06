@@ -736,6 +736,58 @@ final class CalibrationTests: XCTestCase {
         XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [drifted]))
     }
 
+    /// Releasing decoded proxy sequences after materialization must not
+    /// change plan validation or the objective: scene time bounds and decoded
+    /// counts are kept, and only unreferenced pixel buffers are dropped.
+    func testReleasedPreparedPairKeepsPlanValidityAndObjective() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.20, 0.30, 0.40])
+        let released = prepared.releasingDecodedSequences()
+        XCTAssertTrue(released.sdrSequence.samples.isEmpty)
+        XCTAssertEqual(released.sdrDecodedSampleCount, 4)
+        XCTAssertEqual(released.hdrDecodedSampleCount, 4)
+        XCTAssertEqual(released.sceneTimeBounds["scene-0"], prepared.sceneTimeBounds["scene-0"])
+
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )],
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+        XCTAssertNoThrow(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [released]))
+        let releasedPlan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [released],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )],
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+        XCTAssertEqual(
+            try V6PreparedEvaluationPlanHasher.sha256(releasedPlan),
+            try V6PreparedEvaluationPlanHasher.sha256(plan)
+        )
+
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let evaluator = PairEvaluator(device: device, experiment: ExperimentConfig(
+            seed: 1, candidateCount: 1, maxFramesPerScene: 8,
+            alignmentConfidenceThreshold: 0, referenceTargetPeakNits: 1_000, allowHLGModel: true
+        ))
+        let parameters = CalibrationParameters(configuration: .calibratedV2)
+        let full = try evaluator.evaluate(prepared: prepared, parameters: parameters, split: .tune)
+        let slim = try evaluator.evaluate(prepared: released, parameters: parameters, split: .tune)
+        let encoder = JSONEncoder()
+        encoder.nonConformingFloatEncodingStrategy = .convertToString(
+            positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan"
+        )
+        encoder.outputFormatting = .sortedKeys
+        XCTAssertEqual(try encoder.encode(slim), try encoder.encode(full))
+        XCTAssertGreaterThan(full.frameCount, 0)
+    }
+
     func testPreparedEvaluationPlanTuneValidationUsesStableSplitOrdering() throws {
         let prepared = [
             try makePreparedDiagnosticPair(values: [0.10], id: "tuneA", split: .tune),
