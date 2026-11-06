@@ -139,9 +139,29 @@
       "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t175_240f.mov",
       "sha256" : "f28bfba5eedea1ccce43d9836707747dde4015bf0d528c4e4c970e375b79ea97",
       "sizeBytes" : 863091690
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f02067_96f.mov",
+      "sha256" : "d5b30d38fbedc9571ac584ea6aa7a368c12f4dd4e512665706bfdd14629a8a3e",
+      "sizeBytes" : 874402506
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f06200_96f.mov",
+      "sha256" : "40f78f48a65497703c9d04564d9f0bc8162b5071a09d272cb4fbdba472aaa9a5",
+      "sizeBytes" : 870697098
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f02067_96f.mov",
+      "sha256" : "caaf5c84cbd0f8d9aaca79045cf43b4442980702f06e5d406d633d015f7c5d42",
+      "sizeBytes" : 367348170
+    },
+    {
+      "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f06200_96f.mov",
+      "sha256" : "7ca710dc4693cd17dd64fdcb756294d9b5f4fee4223518aaa93c3eb6d7dd734e",
+      "sizeBytes" : 381626010
     }
   ],
-  "generatedAt" : "2026-11-06T09:59:36Z",
-  "manifestSHA256" : "d2268bc3889b16dbe346233fe16d0a42b9910431a78b7a7455e770abc42668ad",
+  "generatedAt" : "2026-11-06T10:41:42Z",
+  "manifestSHA256" : "b327d9193779655c0ca7f707e2d1a12fa75cdb954affc1f291149a05dace12cf",
   "version" : 1
 }

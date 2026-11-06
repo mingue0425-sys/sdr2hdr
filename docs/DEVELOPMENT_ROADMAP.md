@@ -20,9 +20,7 @@ No media was opened for any of them. Claims checked against the code are marked 
    - Holding out Sol Levante t030 gives 3.0% on that pair, against 11.1% in-sample.
 
    Larger searches make this worse, not better.
-2. **Frozen scores are pair-weighted.** ✔ `V2MetricsEvaluator.aggregate` takes a plain mean over pairs.
-   - In v2, Nocturne would carry 75% of the verdict and Sole Mates 25%.
-   - The effective N is the number of families (2), not 4.
+2. **Pair weighting: claim corrected.** One review read `V2MetricsEvaluator.aggregate` (a plain pair mean) as the Frozen rule. ✘ In fact the V4 runner already family-balances every split (`familyBalanced`), so each v2 Frozen family carries half of the verdict. The effective N is still 2 families.
 3. **The objective is not gain-invariant.** ✔ The objective uses `log((x+1)/(r+1))`. The +1 makes it brightness-dependent on dark masters.
 4. **The "diffuse white" reported per pair is the reference p90.** That is scene brightness, not grading level.
    - StEM2 t300's 3.6 nits is a dark scene.

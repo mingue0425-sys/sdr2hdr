@@ -1,6 +1,8 @@
 # Open-content v2 dataset
 
-Manifest: `data_video/open-content-v2/manifest.json`. Coverage protocol: `open-content-coverage-v1`, unchanged.
+Manifest: `data_video/open-content-v2/manifest.json`.
+- Coverage protocol: `open-content-coverage-v1`, unchanged.
+- Decision protocol: `family-maximin-lofo-v1` (`docs/DEVELOPMENT_ROADMAP.md`, `Sources/HDRCalibration/V4FamilyDecision.swift`).
 
 The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONTENT_V4_CALIBRATION_REPORT.md`). v2 makes two changes:
 - It replaces that holdout with new, unexposed pairs.
@@ -11,10 +13,12 @@ The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONT
 | split | pairs | families | change from v1 |
 |---|---|---|---|
 | Tune | 7 | Sol Levante ×4, K-Choreo video3, ASC StEM3 t79/t158 | **+2 StEM3** (SDR-matched cinema grade) |
-| Validation | 3 | K-Choreo video4, ASC StEM2 t300/t450 | unchanged |
+| Validation | 5 | K-Choreo video4, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks** (consumed Frozen family moved down) |
 | Virgin Frozen | 4 | Netflix Nocturne ×3, NAS Sole Mates ×1 | **all new**, never evaluated |
 
-The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks ×2) are excluded.
+The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
+
+The new Sparks Validation windows start at 15% and 45% of the title (frames 2067 and 6200). They were fixed a priori and kept away from the consumed windows. Their HDR was assembled from the HDR10 TIFF sequence exactly like v1 (`get_sparks_validation.sh`). Per-TIFF SHA-256 hashes are in `provenance-netflix-sparks-validation.json`.
 
 The StEM3 Tune windows use the same title as two consumed holdout windows. This is allowed:
 - they were never Validation;

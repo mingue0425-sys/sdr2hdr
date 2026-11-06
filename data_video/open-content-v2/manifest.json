@@ -108,6 +108,50 @@
       "virginFrozen": false
     },
     {
+      "id": "aswf_stem3_warped_t079",
+      "sdr": "aswf:stem3-warped/warped_sdr_t79_120f.mov",
+      "hdr": "aswf:stem3-warped/warped_hdr_t79_120f.mov",
+      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "virtual-production",
+        "night-neon"
+      ],
+      "contentFamily": "ASC StEM3 Warped Cybercity",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "asc_stem3_warped",
+      "notes": "Tune window added in open-content-v2 to balance grading styles (SDR-matched cinema master). Start fixed a priori at 79s (20%/40% duration fractions), chosen before any decode. Same content family and group as the consumed v1 Frozen StEM3 windows (t118/t197), which are excluded from v2. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables; SDR ProRes frame headers retagged BT.709 with prores_metadata (no pixel change). StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+    },
+    {
+      "id": "aswf_stem3_warped_t158",
+      "sdr": "aswf:stem3-warped/warped_sdr_t158_120f.mov",
+      "hdr": "aswf:stem3-warped/warped_hdr_t158_120f.mov",
+      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
+      "license": "ASWF Digital Assets License v1.1",
+      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "expectedRelation": "same-master",
+      "contentCategory": [
+        "live-action",
+        "virtual-production",
+        "night-neon"
+      ],
+      "contentFamily": "ASC StEM3 Warped Cybercity",
+      "referenceTransfer": "bt1886",
+      "referencePrimaries": "bt709",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "asc_stem3_warped",
+      "notes": "Tune window added in open-content-v2 to balance grading styles (SDR-matched cinema master). Start fixed a priori at 158s (20%/40% duration fractions), chosen before any decode. Same content family and group as the consumed v1 Frozen StEM3 windows (t118/t197), which are excluded from v2. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables; SDR ProRes frame headers retagged BT.709 with prores_metadata (no pixel change). StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+    },
+    {
       "contentCategory": [
         "dance",
         "high-key",
@@ -173,48 +217,46 @@
       "notes": "Stream-copied 120-frame excerpt at 450s of the UHD Rec709 100-nit ProRes 422 HQ and UHD ST2084 1000-nit Rec2020 ProRes 4444 XQ deliverables. Same-index rank correlation >= 0.83 at sampled frames vs <= 0.95 at +/-1 frame. SDR ProRes frame headers retagged BT.709 primaries/transfer/matrix with the prores_metadata bitstream filter (no pixel change), per the source's documented 'Rec709 100 nits' (StEM2) / 'Rec709_BT1886' (StEM3) deliverable; referenceTransfer/referencePrimaries record the same documentation. StEM2 Copyright 2022 American Society of Cinematographers."
     },
     {
-      "id": "aswf_stem3_warped_t079",
-      "sdr": "aswf:stem3-warped/warped_sdr_t79_120f.mov",
-      "hdr": "aswf:stem3-warped/warped_hdr_t79_120f.mov",
-      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
-      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
-      "license": "ASWF Digital Assets License v1.1",
-      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "id": "netflix_sparks_f02067",
+      "sdr": "netflix:sparks/sparks_sdr_f02067_96f.mov",
+      "hdr": "netflix:sparks/sparks_hdr10_f02067_96f.mov",
+      "source": "Netflix Open Content: Sparks",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
       "expectedRelation": "same-master",
       "contentCategory": [
         "live-action",
-        "virtual-production",
-        "night-neon"
+        "fire",
+        "highlight-rich",
+        "low-key"
       ],
-      "contentFamily": "ASC StEM3 Warped Cybercity",
-      "referenceTransfer": "bt1886",
-      "referencePrimaries": "bt709",
-      "split": "tune",
+      "contentFamily": "Netflix Sparks",
+      "split": "validation",
       "virginFrozen": false,
-      "group": "asc_stem3_warped",
-      "notes": "Tune window added in open-content-v2 to balance grading styles (SDR-matched cinema master). Start fixed a priori at 79s (20%/40% duration fractions), chosen before any decode. Same content family and group as the consumed v1 Frozen StEM3 windows (t118/t197), which are excluded from v2. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables; SDR ProRes frame headers retagged BT.709 with prores_metadata (no pixel change). StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+      "group": "netflix_sparks",
+      "notes": "Validation window added in open-content-v2 (holdout ladder: a consumed Frozen family moves down to Validation). 96 frames from source frame 2067 (15% of 13777), fixed a priori and away from the consumed f04133/f08266 windows, which are excluded. SDR: stream copy of the BT.709 ProRes 422 HQ 59.94 fps deliverable. HDR: HDR10 TIFF sequence assembled into ProRes 4444 XQ (lossy RGB to Y'CbCr, per-TIFF SHA-256 in provenance-netflix-sparks-validation.json). Attribution: 'Sparks' by Netflix, CC BY 4.0."
     },
     {
-      "id": "aswf_stem3_warped_t158",
-      "sdr": "aswf:stem3-warped/warped_sdr_t158_120f.mov",
-      "hdr": "aswf:stem3-warped/warped_hdr_t158_120f.mov",
-      "source": "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
-      "sourceURL": "https://dpel.aswf.io/asc-stem3/",
-      "license": "ASWF Digital Assets License v1.1",
-      "licenseURL": "https://dpel.aswf.io/asc-stem3/asc-stem3-warped-cybercity-license/",
+      "id": "netflix_sparks_f06200",
+      "sdr": "netflix:sparks/sparks_sdr_f06200_96f.mov",
+      "hdr": "netflix:sparks/sparks_hdr10_f06200_96f.mov",
+      "source": "Netflix Open Content: Sparks",
+      "sourceURL": "https://opencontent.netflix.com/",
+      "license": "CC BY 4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
       "expectedRelation": "same-master",
       "contentCategory": [
         "live-action",
-        "virtual-production",
-        "night-neon"
+        "fire",
+        "highlight-rich",
+        "low-key"
       ],
-      "contentFamily": "ASC StEM3 Warped Cybercity",
-      "referenceTransfer": "bt1886",
-      "referencePrimaries": "bt709",
-      "split": "tune",
+      "contentFamily": "Netflix Sparks",
+      "split": "validation",
       "virginFrozen": false,
-      "group": "asc_stem3_warped",
-      "notes": "Tune window added in open-content-v2 to balance grading styles (SDR-matched cinema master). Start fixed a priori at 158s (20%/40% duration fractions), chosen before any decode. Same content family and group as the consumed v1 Frozen StEM3 windows (t118/t197), which are excluded from v2. Stream-copied 120-frame excerpt of the 1080p Rec709 BT1886 ProRes 422 HQ and UHD Rec2100 ST2084 500-nit ProRes 4444 XQ deliverables; SDR ProRes frame headers retagged BT.709 with prores_metadata (no pixel change). StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers."
+      "group": "netflix_sparks",
+      "notes": "Validation window added in open-content-v2 (holdout ladder: a consumed Frozen family moves down to Validation). 96 frames from source frame 6200 (45% of 13777), fixed a priori and away from the consumed f04133/f08266 windows, which are excluded. SDR: stream copy of the BT.709 ProRes 422 HQ 59.94 fps deliverable. HDR: HDR10 TIFF sequence assembled into ProRes 4444 XQ (lossy RGB to Y'CbCr, per-TIFF SHA-256 in provenance-netflix-sparks-validation.json). Attribution: 'Sparks' by Netflix, CC BY 4.0."
     },
     {
       "id": "netflix_nocturne_f11961",
@@ -305,5 +347,6 @@
       "consumed": false,
       "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. The whole published 61-frame shot (unh0400_0010), so no window was chosen. Both renders come from one ACES 2.0 scene-referred composite: 2K 100-nit Rec709 ProRes 422 HQ and 2K 1000-nit Rec2020 PQ ProRes 4444 XQ. Stream copies; the SDR ProRes frame headers were retagged BT.709 with prores_metadata (no pixel change); referenceTransfer/referencePrimaries record the SDR output-transform documentation. NAS Sole Mates - HDR Production Example Copyright 2025 Netflix, Inc. All rights reserved."
     }
-  ]
+  ],
+  "decisionProtocol": "family-maximin-lofo-v1"
 }
