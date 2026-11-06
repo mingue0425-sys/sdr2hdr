@@ -158,6 +158,9 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
     public var pairCoverage: V4GateStatus
     public var familyCoverage: V4GateStatus
     public var runtime: V4GateStatus
+    /// Leave-one-family-out readiness under a preregistered decision
+    /// protocol. `nil` when the run uses the historical selection.
+    public var leaveOneFamilyOut: V4GateStatus?
 
     public init(
         datasetIntegrity: V4GateStatus = .notMeasured,
@@ -168,8 +171,10 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         transferCoverage: V4GateStatus = .notMeasured,
         pairCoverage: V4GateStatus = .notMeasured,
         familyCoverage: V4GateStatus = .notMeasured,
-        runtime: V4GateStatus = .notMeasured
+        runtime: V4GateStatus = .notMeasured,
+        leaveOneFamilyOut: V4GateStatus? = nil
     ) {
+        self.leaveOneFamilyOut = leaveOneFamilyOut
         self.datasetIntegrity = datasetIntegrity
         self.identifiability = identifiability
         self.validationOverall = validationOverall
@@ -183,7 +188,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case datasetIntegrity, identifiability, validationOverall, validationShadow, validationTemporal
-        case transferCoverage, pairCoverage, familyCoverage, runtime
+        case transferCoverage, pairCoverage, familyCoverage, runtime, leaveOneFamilyOut
     }
 
     public init(from decoder: Decoder) throws {
@@ -200,6 +205,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         pairCoverage = try container.decodeIfPresent(V4GateStatus.self, forKey: .pairCoverage) ?? .notMeasured
         familyCoverage = try container.decode(V4GateStatus.self, forKey: .familyCoverage)
         runtime = try container.decode(V4GateStatus.self, forKey: .runtime)
+        leaveOneFamilyOut = try container.decodeIfPresent(V4GateStatus.self, forKey: .leaveOneFamilyOut)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -213,6 +219,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         try container.encode(pairCoverage, forKey: .pairCoverage)
         try container.encode(familyCoverage, forKey: .familyCoverage)
         try container.encode(runtime, forKey: .runtime)
+        try container.encodeIfPresent(leaveOneFamilyOut, forKey: .leaveOneFamilyOut)
     }
 
     public var coverageReady: Bool {
@@ -234,7 +241,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
             ("runtime", runtime)
         ].compactMap { name, status in
             status == .pass ? nil : "\(name)=\(status.rawValue)"
-        }
+        } + (leaveOneFamilyOut.map { $0 == .pass ? [] : ["leaveOneFamilyOut=\($0.rawValue)"] } ?? [])
     }
 
     public var canOpenVirginFrozen: Bool { failures.isEmpty }
@@ -423,6 +430,9 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
 
     /// The preregistered coverage protocol these requirements came from.
     public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
+    /// Preregistered selection/promotion protocol. `nil` = historical
+    /// Tune-top/Validation-best selection (and an unchanged objective hash).
+    public private(set) var decisionProtocol: V4DecisionProtocol?
 
     public init() {}
 
@@ -440,6 +450,9 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
             selected = .preV6FrozenCoverageV1
         }
         coverageProtocol = selected
+        if manifest.decisionProtocol != nil {
+            decisionProtocol = try V4DecisionProtocol(manifestValue: manifest.decisionProtocol)
+        }
         requiredTransfersBySplit = selected.requiredTransfersBySplit
         requiredFamiliesBySplit = selected.requiredFamiliesBySplit
     }
@@ -1238,9 +1251,14 @@ public final class CalibrationV4Runner {
         }
         try writeJSON(["global": global, "local": local], name: "data-video-v4-search.json")
 
-        let tuneTop = Array((global + local).filter(\.constraintsPassed)
+        // Historical protocol: the Tune top-N go to Validation. A decision
+        // protocol scores every Tune-safe candidate on Validation so that
+        // selection and the leave-one-family-out estimate use all families.
+        let tuneSafe = (global + local).filter(\.constraintsPassed)
             .sorted { $0.tune.metrics.objective < $1.tune.metrics.objective }
-            .prefix(configuration.validationTopCount))
+        let tuneTop = configuration.decisionProtocol == nil
+            ? Array(tuneSafe.prefix(configuration.validationTopCount))
+            : tuneSafe
         var validationCandidates: [V4CandidateRecord] = []
         for var candidate in tuneTop {
             let validation = try evaluate(engine, validationPrepared, candidate.parameters, candidate.id, .validation, manifest)
@@ -1254,9 +1272,42 @@ public final class CalibrationV4Runner {
         }
         try writeJSON(validationCandidates, name: "data-video-v4-validation.json")
 
-        guard let selected = validationCandidates.filter(\.constraintsPassed).min(by: {
-            ($0.validation?.metrics.objective ?? .infinity) < ($1.validation?.metrics.objective ?? .infinity)
-        }), let selectedValidation = selected.validation else {
+        var leaveOneFamilyOut: V4LeaveOneFamilyOutReport?
+        let selectedRecord: V4CandidateRecord?
+        if let decision = configuration.decisionProtocol {
+            let familyByID = familyByPairID(manifest)
+            func scores(_ id: String, _ tune: V2DatasetEvaluation, _ validation: V2DatasetEvaluation?, safe: Bool) -> V4FamilyScores {
+                V4FamilyScores(
+                    id: id,
+                    objectiveByFamily: V4FamilyDecision.objectiveByFamily(
+                        tune.videos + (validation?.videos ?? []), familyByID: familyByID
+                    ),
+                    safe: safe
+                )
+            }
+            let v2Families = scores("v2", v2Tune, v2Validation, safe: true).objectiveByFamily
+            let defaultFamilies = scores("default", defaultTune, defaultValidation, safe: true).objectiveByFamily
+            let pool = validationCandidates.map {
+                scores($0.id, $0.tune, $0.validation, safe: $0.constraintsPassed && $0.validation != nil)
+            }
+            let lofo = V4FamilyDecision.leaveOneFamilyOut(
+                candidates: pool, v2: v2Families, defaults: defaultFamilies, protocol: decision
+            )
+            try writeJSON(lofo, name: "data-video-v4-leave-one-family-out.json")
+            leaveOneFamilyOut = lofo
+            let choice = V4FamilyDecision.select(
+                candidates: pool, v2: v2Families, defaults: defaultFamilies, protocol: decision
+            )
+            log("decision protocol \(decision.rawValue): selected \(choice?.candidateID ?? "none"); LOFO \(lofo.status.rawValue) " +
+                String(format: "mean=%.4f worst=%.4f", lofo.meanHeldOutImprovement ?? .nan, lofo.worstHeldOutImprovement ?? .nan))
+            selectedRecord = choice.flatMap { choice in validationCandidates.first { $0.id == choice.candidateID } }
+        } else {
+            selectedRecord = validationCandidates.filter(\.constraintsPassed).min(by: {
+                ($0.validation?.metrics.objective ?? .infinity) < ($1.validation?.metrics.objective ?? .infinity)
+            })
+        }
+
+        guard let selected = selectedRecord, let selectedValidation = selected.validation else {
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
                 shadowAudit: shadowAudit, sensitivity: sensitivity,
@@ -1353,7 +1404,8 @@ public final class CalibrationV4Runner {
             transferCoverage: requiredCoverage.transferCoverage,
             pairCoverage: requiredCoverage.pairCoverage,
             familyCoverage: requiredCoverage.familyCoverage,
-            runtime: runtimeBenchmark.status
+            runtime: runtimeBenchmark.status,
+            leaveOneFamilyOut: leaveOneFamilyOut?.status
         )
         if preFrozenGates.canOpenVirginFrozen && accessPlan == .stopBeforeFrozen {
             let report = makeFailureReport(
@@ -1465,7 +1517,7 @@ public final class CalibrationV4Runner {
         let decision = finalVerdict(
             tuneV2: v2Tune, tuneV4: selectedTune,
             validationV2: v2Validation, validationV4: selectedValidation,
-            frozenV2: frozenV2, frozenV4: frozenV4,
+            frozenV2: frozenV2, frozenV4: frozenV4, frozenDefault: frozenDefault,
             manifest: manifest, transferByPair: transferByPair,
             runtime: runtimeBenchmark
         )
@@ -1769,7 +1821,7 @@ public final class CalibrationV4Runner {
     private func finalVerdict(
         tuneV2: V2DatasetEvaluation, tuneV4: V2DatasetEvaluation,
         validationV2: V2DatasetEvaluation, validationV4: V2DatasetEvaluation,
-        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation,
+        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation, frozenDefault: V2DatasetEvaluation,
         manifest: V4Manifest, transferByPair: [String: String],
         runtime: V4RuntimeBenchmarkResult
     ) -> (CalibrationV4Verdict, [String], V4PromotionGateResult) {
@@ -1797,11 +1849,18 @@ public final class CalibrationV4Runner {
             candidate: frozenV4, baseline: frozenV2,
             groupByID: transferByPair
         )
-        let familyByID = Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
-            guard let family = pair.contentFamily, !family.isEmpty else { return nil }
-            return (pair.id, family)
-        })
-        let family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        let familyByID = familyByPairID(manifest)
+        let family: Bool
+        if let decisionProtocol = configuration.decisionProtocol {
+            family = V4FamilyDecision.frozenFamiliesWithinTolerance(
+                candidate: V4FamilyDecision.objectiveByFamily(frozenV4.videos, familyByID: familyByID),
+                v2: V4FamilyDecision.objectiveByFamily(frozenV2.videos, familyByID: familyByID),
+                defaults: V4FamilyDecision.objectiveByFamily(frozenDefault.videos, familyByID: familyByID),
+                protocol: decisionProtocol
+            ) && groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        } else {
+            family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        }
         let hardSafety = frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance &&
             !configuration.safety.blackCrushFails(candidate: frozenV4.metrics.blackCrushRatio, baseline: frozenV2.metrics.blackCrushRatio) &&
             frozenV4.metrics.invalidSampleCount == 0
@@ -1831,6 +1890,13 @@ public final class CalibrationV4Runner {
         let verdict = V4PromotionGateMachine.verdict(gates)
         reasons.append("Final verdict gate: \(verdict.rawValue)")
         return (verdict, reasons, gates)
+    }
+
+    private func familyByPairID(_ manifest: V4Manifest) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
+            guard let family = pair.contentFamily, !family.isEmpty else { return nil }
+            return (pair.id, family)
+        })
     }
 
     private func shadowSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
