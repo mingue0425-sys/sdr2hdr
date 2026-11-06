@@ -864,14 +864,49 @@ public final class PairEvaluator {
         hdrURL: URL,
         hdrTransfer: ReferenceTransfer
     ) async throws -> [PreparedTemporalWindow] {
-        var windows: [PreparedTemporalWindow] = []
-        windows.reserveCapacity(scenes.count)
-        for scene in scenes {
-            let sceneMatches = alignment.matches.filter {
+        let sceneAnchors = scenes.map { scene in
+            V6TemporalAnchorOrder.ranked(alignment.matches.filter {
                 guard let position = $0.sdrSequencePosition else { return false }
                 return scene.contains(sequencePosition: position)
+            })
+        }
+        var windows: [PreparedTemporalWindow] = []
+        windows.reserveCapacity(scenes.count)
+        for (scene, anchors) in zip(scenes, sceneAnchors) {
+            guard let anchor = anchors.first else { continue }
+            if let window = try await prepareTemporalWindow(
+                scene: scene, anchor: anchor, sdrURL: sdrURL, hdrURL: hdrURL, hdrTransfer: hdrTransfer
+            ) {
+                windows.append(window)
             }
-            guard let anchor = sceneMatches.max(by: { $0.confidence < $1.confidence }) else { continue }
+        }
+        // Every pair needs one temporal window. When no scene's best anchor
+        // leaves room for one (for example, the best anchor falls in the
+        // last few frames of a short clip), try each scene's next-best
+        // anchors. A pair that already has a window is unchanged.
+        if windows.isEmpty {
+            for (scene, anchors) in zip(scenes, sceneAnchors) {
+                for anchor in anchors.dropFirst().prefix(V6TemporalAnchorOrder.fallbackAttempts) {
+                    if let window = try await prepareTemporalWindow(
+                        scene: scene, anchor: anchor, sdrURL: sdrURL, hdrURL: hdrURL, hdrTransfer: hdrTransfer
+                    ) {
+                        windows.append(window)
+                        break
+                    }
+                }
+            }
+        }
+        return windows
+    }
+
+    private func prepareTemporalWindow(
+        scene: SceneRange,
+        anchor: MatchedFrame,
+        sdrURL: URL,
+        hdrURL: URL,
+        hdrTransfer: ReferenceTransfer
+    ) async throws -> PreparedTemporalWindow? {
+        do {
             // Start at the detected shot boundary so the first sample exercises
             // scene-cut reset, followed by 15 genuinely sequential frames.
             let start = max(anchor.sdrTimeSeconds - 0.05, 0)
@@ -889,7 +924,7 @@ public final class PairEvaluator {
             )
             let count = V6TemporalPairing.pairedPrefixCount(sdr: sdr, hdr: hdr)
             let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
-            guard decision.accepted else { continue }
+            guard decision.accepted else { return nil }
             var frames: [PreparedTemporalFrame] = []
             frames.reserveCapacity(count)
             for index in 0..<count {
@@ -912,15 +947,14 @@ public final class PairEvaluator {
                     hdrTimestampSeconds: hdr.samples[index].descriptor.timestampSeconds
                 ))
             }
-            windows.append(PreparedTemporalWindow(
+            return PreparedTemporalWindow(
                 sceneID: scene.id,
                 frames: frames,
                 decision: decision,
                 startSeconds: start,
                 offsetSeconds: offset
-            ))
+            )
         }
-        return windows
     }
 
     private func representativeMatches(

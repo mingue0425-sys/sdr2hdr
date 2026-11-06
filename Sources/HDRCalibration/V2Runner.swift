@@ -38,13 +38,24 @@ private struct MaterializeJob: @unchecked Sendable {
     }
 }
 
+private struct PrepareJob: @unchecked Sendable {
+    let evaluator: PairEvaluator
+    let record: PairRecord
+    let manifestURL: URL
+
+    func run() async throws -> PreparedPair {
+        v2Log("decode/align \(record.id)")
+        return try await evaluator.prepare(record: record, manifestURL: manifestURL)
+    }
+}
+
 private struct MaterializedSlot: @unchecked Sendable {
     let index: Int
     let pair: PreparedPair
 }
 
 final class V2PreparedRepository {
-    /// Pairs decoded concurrently by `materialize`. Override with
+    /// Pairs decoded concurrently by `prepare` and `materialize`. Override with
     /// HDR_MATERIALIZE_CONCURRENCY (1-8); not part of any objective.
     static let materializeConcurrency: Int = {
         if let text = ProcessInfo.processInfo.environment["HDR_MATERIALIZE_CONCURRENCY"],
@@ -103,23 +114,41 @@ final class V2PreparedRepository {
     }
 
     func prepare(records: [PairRecord]) async throws -> [PreparedPair] {
-        var result: [PreparedPair] = []
-        for record in records {
-            if let cached = cache[record.id] {
-                result.append(cached)
-                continue
-            }
+        let missing = records.enumerated().filter { cache[$0.element.id] == nil }
+        if !missing.isEmpty {
             guard preparedEvaluationPlan == nil else {
                 throw CalibrationError.incompleteEvaluation(
                     "cannot prepare a new pair after PreparedEvaluationPlan was sealed"
                 )
             }
-            v2Log("decode/align \(record.id)")
-            let prepared = try await evaluator.prepare(record: record, manifestURL: manifestURL)
-            cache[record.id] = prepared
-            result.append(prepared)
+            // Each pair decodes, aligns and selects scenes from its own media
+            // only, so a few pairs run concurrently (same bound as
+            // materialize). Results are stored by record ID, and callers get
+            // them in record order.
+            let jobs = missing.map {
+                PrepareJob(evaluator: evaluator, record: $0.element, manifestURL: manifestURL)
+            }
+            try await withThrowingTaskGroup(of: MaterializedSlot.self) { group in
+                var next = 0
+                func launch() {
+                    let index = next
+                    let job = jobs[index]
+                    next += 1
+                    group.addTask { MaterializedSlot(index: index, pair: try await job.run()) }
+                }
+                for _ in 0..<min(Self.materializeConcurrency, jobs.count) { launch() }
+                while let slot = try await group.next() {
+                    cache[jobs[slot.index].record.id] = slot.pair
+                    if next < jobs.count { launch() }
+                }
+            }
         }
-        return result
+        return try records.map { record in
+            guard let prepared = cache[record.id] else {
+                throw CalibrationError.incompleteEvaluation("preparation did not return \(record.id)")
+            }
+            return prepared
+        }
     }
 
     /// Seal one immutable preparation plan after all requested records have

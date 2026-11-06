@@ -487,6 +487,121 @@ struct FFmpegProxyColorMetadata {
     }
 }
 
+/// Chooses VideoToolbox or software decoding for one ffmpeg proxy read.
+///
+/// The Apple media engine is shared, so concurrent VideoToolbox sessions mostly
+/// queue on it. On an M2, three parallel 4K VP9 decodes reach 192 fps, against
+/// 153 fps for one, while the CPU stays idle. A software decode beside one
+/// hardware session reaches 271 fps. Concurrent reads therefore hold at most
+/// `hardwareSlots` VideoToolbox sessions and decode the rest in software.
+///
+/// Both lanes produce identical pixels. VP9 decoding is bit-exact. The software
+/// lane also converts to the layout the hardware lane hands swscale (NV12 for
+/// 8-bit, P010 for 10-bit 4:2:0) before scaling. Only VP9 4:2:0 sources, where
+/// that identity was checked, use the software lane. Every other source keeps
+/// the historical `-hwaccel videotoolbox` arguments.
+struct FFmpegDecodeLane {
+    enum Mode: String, Sendable {
+        case hardware
+        case software
+    }
+
+    let mode: Mode
+    /// Explicit pixel layout fed to swscale on the software lane.
+    let scalerInputFormat: String?
+    private let slotPool: FFmpegHardwareSlotPool?
+
+    var inputArguments: [String] { mode == .hardware ? ["-hwaccel", "videotoolbox"] : [] }
+
+    func release() { slotPool?.release() }
+
+    /// The layout VideoToolbox downloads for an ffprobe `codec_name,pix_fmt`,
+    /// or nil when the source may not use the software lane.
+    static func hardwareDownloadFormat(codecName: String, pixelFormat: String) -> String? {
+        guard codecName == "vp9" else { return nil }
+        switch pixelFormat {
+        case "yuv420p": return "nv12"
+        case "yuv420p10le": return "p010le"
+        default: return nil
+        }
+    }
+
+    static func acquire(
+        sourceDownloadFormat: String?,
+        pool: FFmpegHardwareSlotPool = .shared
+    ) -> FFmpegDecodeLane {
+        guard let sourceDownloadFormat else {
+            return FFmpegDecodeLane(mode: .hardware, scalerInputFormat: nil, slotPool: nil)
+        }
+        if pool.tryAcquire() {
+            return FFmpegDecodeLane(mode: .hardware, scalerInputFormat: nil, slotPool: pool)
+        }
+        return FFmpegDecodeLane(mode: .software, scalerInputFormat: sourceDownloadFormat, slotPool: nil)
+    }
+
+    static func probeDownloadFormat(ffprobe: String, url: URL) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ffprobe)
+        process.arguments = [
+            "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,pix_fmt", "-of", "csv=p=0", url.path
+        ]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0,
+              let line = String(decoding: data, as: UTF8.self)
+                .split(whereSeparator: \.isNewline).first else { return nil }
+        let fields = line.split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard fields.count >= 2 else { return nil }
+        return hardwareDownloadFormat(codecName: fields[0], pixelFormat: fields[1])
+    }
+}
+
+/// Process-wide count of VideoToolbox proxy sessions. HDR_HW_DECODE_SLOTS
+/// (0-8, default 1) sets the limit; it never changes decoded pixels.
+final class FFmpegHardwareSlotPool: @unchecked Sendable {
+    static let shared = FFmpegHardwareSlotPool(limit: {
+        if let text = ProcessInfo.processInfo.environment["HDR_HW_DECODE_SLOTS"],
+           let value = Int(text) {
+            return min(max(value, 0), 8)
+        }
+        return 1
+    }())
+
+    let limit: Int
+    private let lock = NSLock()
+    private var inUse = 0
+
+    init(limit: Int) {
+        self.limit = limit
+    }
+
+    func tryAcquire() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard inUse < limit else { return false }
+        inUse += 1
+        return true
+    }
+
+    func release() {
+        lock.lock()
+        defer { lock.unlock() }
+        inUse = max(inUse - 1, 0)
+    }
+
+    var activeCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return inUse
+    }
+}
+
 private enum FFmpegFrameReader {
     static func read(
         url: URL,
@@ -540,13 +655,22 @@ private enum FFmpegFrameReader {
             filters.append(selection)
         }
         filters.append("showinfo")
+        let lane = FFmpegDecodeLane.acquire(
+            sourceDownloadFormat: FFmpegDecodeLane.probeDownloadFormat(
+                ffprobe: directory + "/ffprobe", url: url
+            )
+        )
+        defer { lane.release() }
+        if let layout = lane.scalerInputFormat {
+            filters.append("format=\(layout)")
+        }
         filters.append("scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         // This is an offline proxy reader, but it must still be bounded and
         // non-interactive. stderr carries showinfo and is drained
         // concurrently so a full pipe can never block rawvideo on stdout.
-        var arguments = ["-hide_banner", "-nostdin", "-nostats", "-loglevel", "info", "-hwaccel", "videotoolbox"]
+        var arguments = ["-hide_banner", "-nostdin", "-nostats", "-loglevel", "info"] + lane.inputArguments
         if let startSeconds {
             arguments += ["-ss", String(format: "%.6f", startSeconds)]
         }

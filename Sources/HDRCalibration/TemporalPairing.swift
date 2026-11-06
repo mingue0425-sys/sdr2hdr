@@ -51,3 +51,24 @@ enum V6TemporalPairing {
         )
     }
 }
+
+/// Order in which a scene's alignment matches are tried as temporal-window
+/// anchors.
+///
+/// The first element is the historical anchor: the highest-confidence match,
+/// and the earliest of any tie, exactly as `max(by:)` picked it. The rest
+/// follow by descending confidence (ties keep match order) and are tried only
+/// when a pair would otherwise have no temporal window.
+enum V6TemporalAnchorOrder {
+    static let fallbackAttempts = 4
+
+    static func ranked(_ matches: [MatchedFrame]) -> [MatchedFrame] {
+        matches.enumerated()
+            .sorted { lhs, rhs in
+                lhs.element.confidence != rhs.element.confidence
+                    ? lhs.element.confidence > rhs.element.confidence
+                    : lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+}
