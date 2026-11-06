@@ -1015,6 +1015,41 @@ public enum V4FrozenAccessPlan: String, Codable, Sendable, Equatable {
     case openOnce = "OPEN_ONCE"
 }
 
+/// Reuses Tune/Validation pairs materialized from one sealed
+/// PreparedEvaluationPlan across runs in the same process.
+///
+/// Runs that differ only in run-level policies (SDR transfer interpretation,
+/// level normalization, decision protocol) decode identical media: source
+/// strata stay on the historical decode, and policies act only in the
+/// processor and the scorer. A hit requires the same plan hash, pair order
+/// and input byte hashes; the byte hashes come from the lock-bound audit.
+/// Virgin Frozen pairs are never cached.
+public final class V4PreparedPairCache {
+    private var entries: [String: [PreparedPair]] = [:]
+    public private(set) var hits = 0
+    public private(set) var misses = 0
+
+    public init() {}
+
+    static func key(planSHA256: String, records: [PairRecord], inputHashes: [String: V6InputHashes]) -> String {
+        records.map { record in
+            let hashes = inputHashes[record.id]
+            return [record.id, record.split.rawValue, hashes?.sdrSHA256 ?? "-", hashes?.hdrSHA256 ?? "-"].joined(separator: ":")
+        }.joined(separator: "|") + "@" + planSHA256
+    }
+
+    func lookup(_ key: String) -> [PreparedPair]? {
+        if let value = entries[key] { hits += 1; return value }
+        misses += 1
+        return nil
+    }
+
+    func store(_ value: [PreparedPair], key: String) {
+        guard !value.contains(where: { $0.record.split == .frozen }) else { return }
+        entries[key] = value
+    }
+}
+
 public final class CalibrationV4Runner {
     public let manifestURL: URL
     public let outputDirectory: URL
@@ -1026,6 +1061,8 @@ public final class CalibrationV4Runner {
     /// transfer interpretation) on Validation so the one-use holdout is
     /// spent only once, on the chosen policy. Not part of the objective hash.
     public let stopBeforeFrozen: Bool
+    /// Optional in-process reuse of materialized Tune/Validation pairs.
+    public let preparedPairCache: V4PreparedPairCache?
 
     private let device: MTLDevice
     private let frozenGuard = V4FrozenExperimentGuard()
@@ -1038,6 +1075,7 @@ public final class CalibrationV4Runner {
         preparedEvaluationPlanURL: URL? = nil,
         preparedFrozenPlanURL: URL? = nil,
         stopBeforeFrozen: Bool = false,
+        preparedPairCache: V4PreparedPairCache? = nil,
         device: MTLDevice? = MTLCreateSystemDefaultDevice()
     ) throws {
         guard let device else { throw CalibrationError.decodeFailed("Metal device unavailable") }
@@ -1047,6 +1085,7 @@ public final class CalibrationV4Runner {
         self.preparedEvaluationPlanURL = preparedEvaluationPlanURL
         self.preparedFrozenPlanURL = preparedFrozenPlanURL
         self.stopBeforeFrozen = stopBeforeFrozen
+        self.preparedPairCache = preparedPairCache
         self.device = device
     }
 
@@ -1130,11 +1169,26 @@ public final class CalibrationV4Runner {
         let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
             from: preparedEvaluationPlanURL
         )
-        let allPrepared = try await repository.materialize(
-            records: tuneValidationV4,
-            using: artifact.plan,
-            inputHashes: inputHashesForPlan
+        let cacheKey = V4PreparedPairCache.key(
+            planSHA256: artifact.planSHA256, records: tuneValidationV4, inputHashes: inputHashesForPlan
         )
+        let allPrepared: [PreparedPair]
+        if let cached = preparedPairCache?.lookup(cacheKey) {
+            // The sealed plan is still installed and validated against the
+            // cached material, exactly as after a fresh materialization.
+            try V6PreparedEvaluationPlanBuilder.validate(
+                plan: artifact.plan, preparedPairs: cached
+            )
+            allPrepared = cached
+            log("reused \(cached.count) materialized Tune/Validation pairs for plan \(artifact.planSHA256)")
+        } else {
+            allPrepared = try await repository.materialize(
+                records: tuneValidationV4,
+                using: artifact.plan,
+                inputHashes: inputHashesForPlan
+            )
+            preparedPairCache?.store(allPrepared, key: cacheKey)
+        }
         let tuneIDs = Set(tuneV4.map(\.id))
         let validationIDs = Set(validationV4.map(\.id))
         let tunePrepared = allPrepared.filter { tuneIDs.contains($0.record.id) }

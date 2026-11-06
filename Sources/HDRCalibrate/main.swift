@@ -17,6 +17,7 @@ private struct CLI {
     let sdrTransferInterpretation: HDRSDRTransferInterpretation
     let stopBeforeFrozen: Bool
     let levelNormalization: V2LevelNormalization?
+    let variants: [String]
 
     init(arguments: [String]) throws {
         guard arguments.count > 1 else { throw CLIError.usage }
@@ -34,6 +35,7 @@ private struct CLI {
         var sdrTransferInterpretation = HDRSDRTransferInterpretation.default
         var stopBeforeFrozen = false
         var levelNormalization: V2LevelNormalization?
+        var variants: [String] = []
         var index = 2
         while index < arguments.count {
             switch arguments[index] {
@@ -98,6 +100,10 @@ private struct CLI {
                       let value = HDRSDRTransferInterpretation(cliName: arguments[index + 1]) else { throw CLIError.usage }
                 sdrTransferInterpretation = value
                 index += 2
+            case "--variant":
+                guard index + 1 < arguments.count else { throw CLIError.usage }
+                variants.append(arguments[index + 1])
+                index += 2
             case "--level-normalization":
                 guard index + 1 < arguments.count else { throw CLIError.usage }
                 let name = arguments[index + 1]
@@ -127,6 +133,7 @@ private struct CLI {
         self.sdrTransferInterpretation = sdrTransferInterpretation
         self.stopBeforeFrozen = stopBeforeFrozen
         self.levelNormalization = levelNormalization
+        self.variants = variants
     }
 
     func requiredManifest() throws -> URL {
@@ -177,6 +184,8 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v2-run          --manifest data_video/manifest-v2.json --seed 20260823 --output results/data-video-v2-final.json
       HDRCalibrate v3-run          --manifest data_video/manifest-v2.json --seed 20260824 --output results/data-video-v3-final.json
       HDRCalibrate v4-run          --manifest data_video/manifest-v4.json --prepared-plan results/v6-prepared-evaluation-plan.json --prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json --seed 20260824 [--sdr-transfer bt709-oetf|bt1886] [--level-normalization off|family-midtone-gain] [--stop-before-frozen] --output results/data-video-v4-final.json
+      HDRCalibrate v4-run-batch    --manifest data_video/open-content-v2/manifest.json --prepared-plan results/open-content-v2/v6-prepared-evaluation-plan.json --seed 20260824 --variant NAME,SDR_TRANSFER,LEVEL_NORMALIZATION [--variant ...] --output results/open-content-v2/batch.json
+          (always --stop-before-frozen; each variant writes to <output dir>/v4-NAME/ and reuses one materialization)
       HDRCalibrate correctness-review --manifest data_video/manifest-v4.json [--prepared-frozen-plan /path/to/admitted-v6-frozen-plan.json] --output results/correctness-review-fixes.json
       HDRCalibrate matcher-diagnostic --manifest data_video/manifest-v4.json --output results/v6-matcher-diagnostic.json
       HDRCalibrate v6-curve-audit --output /tmp/v6-tone-curve-audit.json
@@ -368,6 +377,49 @@ private func run(arguments: [String]) async throws {
         let report = try await runner.run()
         print("V3 verdict: \(report.verdict.rawValue)")
         print("V3 report: \(cli.output.path)")
+        return
+    }
+
+    if cli.command == "v4-run-batch" {
+        let manifestURL = try cli.requiredManifest()
+        let parent = cli.output.deletingLastPathComponent()
+        let audit = parent.appendingPathComponent("dataset-v4-final.json")
+        let manifest = try V4Manifest.load(from: manifestURL)
+        struct Variant { let name: String; let transfer: HDRSDRTransferInterpretation; let level: V2LevelNormalization? }
+        let parsed = try cli.variants.map { text -> Variant in
+            let fields = text.split(separator: ",").map(String.init)
+            guard fields.count == 3, !fields[0].isEmpty,
+                  fields[0].allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }),
+                  let transfer = HDRSDRTransferInterpretation(cliName: fields[1]) else { throw CLIError.usage }
+            let level: V2LevelNormalization?
+            if fields[2] == "off" { level = nil } else if let value = V2LevelNormalization(cliName: fields[2]) { level = value } else { throw CLIError.usage }
+            return Variant(name: fields[0], transfer: transfer, level: level)
+        }
+        guard !parsed.isEmpty, Set(parsed.map(\.name)).count == parsed.count else { throw CLIError.usage }
+        let cache = V4PreparedPairCache()
+        for variant in parsed {
+            let directory = parent.appendingPathComponent("v4-" + variant.name)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let target = directory.appendingPathComponent("dataset-v4-final.json")
+            if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+            try FileManager.default.copyItem(at: audit, to: target)
+            var configuration = try V4CalibrationConfiguration(manifest: manifest)
+            configuration.searchSeed = cli.seed
+            configuration.sdrTransferInterpretation = variant.transfer
+            configuration.levelNormalization = variant.level
+            let runner = try CalibrationV4Runner(
+                manifestURL: manifestURL,
+                outputDirectory: directory,
+                configuration: configuration,
+                preparedEvaluationPlanURL: try cli.requiredPreparedPlan(),
+                preparedFrozenPlanURL: nil,
+                stopBeforeFrozen: true,
+                preparedPairCache: cache
+            )
+            let report = try await runner.run()
+            print("V4 batch \(variant.name): \(report.verdict.rawValue) (\(directory.path))")
+        }
+        print("V4 batch materialization reuse: hits=\(cache.hits) misses=\(cache.misses)")
         return
     }
 
