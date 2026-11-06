@@ -33,7 +33,12 @@ private struct BenchmarkOptions {
                 case "--warmup": warmup = Int(arguments[index + 1]) ?? warmup
                 case "--mode": mode = HDROutputMode(rawValue: arguments[index + 1].uppercased()) ?? mode
                 case "--preset": preset = arguments[index + 1].lowercased()
-                case "--gain-guidance": gainGuidance = HDRGainGuidance(cliName: arguments[index + 1]) ?? gainGuidance
+                case "--gain-guidance":
+                    guard let parsed = HDRGainGuidance(cliName: arguments[index + 1]) else {
+                        FileHandle.standardError.write(Data("HDRBenchmark: unsupported --gain-guidance \(arguments[index + 1]) (off|noise-gated)\n".utf8))
+                        exit(2)
+                    }
+                    gainGuidance = parsed
                 case "--precision":
                     switch arguments[index + 1].lowercased() {
                     case "automatic": precision = .automatic
