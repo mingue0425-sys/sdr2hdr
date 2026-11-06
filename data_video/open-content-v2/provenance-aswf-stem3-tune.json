@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "collection": "aswf-dpel-asc-stem3-tune",
+  "license": "ASWF Digital Assets License v1.1",
+  "copyright": "StEM3 Warped : Cybercity Copyright 2026 American Society of Cinematographers. All rights reserved.",
+  "modifications": "Stream copies at 20%/40% of duration; SDR ProRes frame headers retagged BT.709 via prores_metadata (no pixel change).",
+  "note": "Tune windows. Other StEM2/StEM3 files keep their provenance in ../open-content/provenance-aswf-stem.json.",
+  "files": [
+    {
+      "pairID": "aswf_stem3_warped_t079",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_sdr_t79_120f.mov",
+      "sha256": "53804ed6e5cbc2cadae30d3218f0231aec060a5ba0ed60b8b59af7efe9149cfe",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_1920x1080_Rec709_BT1886_5.1ch.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartSeconds": 79,
+      "retaggedBT709": true
+    },
+    {
+      "pairID": "aswf_stem3_warped_t079",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_hdr_t79_120f.mov",
+      "sha256": "63c3b050d7a1ae90da17c64042108b5e8277eb16c3450a17639821a64e54aadc",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_3840x2160_Rec2100_ST2084_500nits_5.1ch.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartSeconds": 79
+    },
+    {
+      "pairID": "aswf_stem3_warped_t158",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_sdr_t158_120f.mov",
+      "sha256": "dff86b8585fe40355a33fc364d1eef8a8692c6193b2bd66c12b96cedf784b2f3",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_1920x1080_Rec709_BT1886_5.1ch.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartSeconds": 158,
+      "retaggedBT709": true
+    },
+    {
+      "pairID": "aswf_stem3_warped_t158",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/stem3-warped/warped_hdr_t158_120f.mov",
+      "sha256": "6ba52f9a1e730aee3c8c8ba33a0a633aed1f68f621be9ae2233117ca26eb727f",
+      "sourceObject": "https://dpel-assets.aswf.io/asc-stem3/Warped-Cybercity/Warped_Cybercity_3840x2160_Rec2100_ST2084_500nits_5.1ch.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartSeconds": 158
+    }
+  ]
+}

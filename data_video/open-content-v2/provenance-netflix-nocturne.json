@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "collection": "netflix-opencontent-nocturne",
+  "license": "CC BY 4.0",
+  "licenseURL": "https://creativecommons.org/licenses/by/4.0/legalcode",
+  "attribution": "'Nocturne' by Netflix, CC BY 4.0 (https://opencontent.netflix.com/)",
+  "modifications": [
+    "Excerpts of 120 frames at fixed start frames (30%/50%/70% of the 60 fps masters), chosen before any decode.",
+    "SDR: stream copy; ProRes frame headers retagged BT.709 via prores_metadata (no pixel change).",
+    "HDR: P3-D65 ST.2084 converted to BT.2020 primaries: Y'CbCr (BT.709 matrix, limited range) -> 16-bit full-range RGB -> PQ EOTF -> linear 3x3 P3D65->BT.2020 -> PQ OETF (float64) -> Y'CbCr BT.2020nc limited 4:4:4 12-bit, ProRes 4444 XQ. Matrix rows [0.753833,0.198597,0.04757],[0.045744,0.941777,0.012479],[-0.00121,0.017602,0.983609]. Round-trip error about 0.16 10-bit codes (synthetic test only; no Nocturne statistics computed).",
+    "HDR: the encoder left primaries/transfer untagged, so ProRes frame headers and the container were then retagged BT.2020 / ST.2084 / BT.2020nc via prores_metadata with stream copy (no pixel change)."
+  ],
+  "holdoutCustody": "Virgin Frozen. Not viewed or measured; only container headers and frame counts were read.",
+  "files": [
+    {
+      "pairID": "netflix_nocturne_f11961",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_sdr_f11961_120f.mov",
+      "sha256": "90bcdd7f5105d5af6e3e3bfeb3b9b5bb5e00856684536e5a25a29ea4f0dbd011",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_sdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 11961,
+      "retaggedBT709": true
+    },
+    {
+      "pairID": "netflix_nocturne_f11961",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_hdr_f11961_120f.mov",
+      "sha256": "5ffb2c9f07457ab221ad077d0e9b33c1df0e83c61ccf49ad8e3c0c9e94ce2aea",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_hdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 11961,
+      "convertedFrom": {
+        "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/raw/nocturne_hdr_p3_f11961_120f.mov",
+        "sha256": "1e9664821cc8a1251d72c55ca4ee36246e0b56ba2b888c85eaeb6ccd581ff0c4",
+        "primaries": "P3-D65",
+        "transfer": "ST.2084"
+      }
+    },
+    {
+      "pairID": "netflix_nocturne_f19935",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_sdr_f19935_120f.mov",
+      "sha256": "4b440ecce8f7bcd4bea16f645a0ee6e06d8e9af72751f59c26b0fafadd781565",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_sdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 19935,
+      "retaggedBT709": true
+    },
+    {
+      "pairID": "netflix_nocturne_f19935",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_hdr_f19935_120f.mov",
+      "sha256": "e66b50a9b5edfdb92ca5a0dd9c388f2ad70292b32526b0e6740c6a98569a5ac1",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_hdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 19935,
+      "convertedFrom": {
+        "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/raw/nocturne_hdr_p3_f19935_120f.mov",
+        "sha256": "40e9e6e0b7d353afb107cedc41399ba63c66721a87f2d5485e0b67f640ab4005",
+        "primaries": "P3-D65",
+        "transfer": "ST.2084"
+      }
+    },
+    {
+      "pairID": "netflix_nocturne_f27909",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_sdr_f27909_120f.mov",
+      "sha256": "aa1c75dd4aab647140eaa78a03c575903ae7b99519ba4944dadf6678ac3c029c",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_sdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 27909,
+      "retaggedBT709": true
+    },
+    {
+      "pairID": "netflix_nocturne_f27909",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/nocturne_hdr_f27909_120f.mov",
+      "sha256": "0da184b202354fd8b9322409a2aa950eaeba33aecf97d90d666456527ad3a561",
+      "sourceObject": "https://s3.amazonaws.com/download.opencontent.netflix.com/Nocturne/nocturne_filmgrain/nocturne_60fps_uhd_filmgrain_hdr.mov",
+      "frameCount": 120,
+      "accessDate": "2026-11-06",
+      "excerptStartFrame": 27909,
+      "convertedFrom": {
+        "file": "sdr2hdr-real-media/netflix-opencontent/nocturne/raw/nocturne_hdr_p3_f27909_120f.mov",
+        "sha256": "2028269255e6ab918403698dc6a8851d0ec515664e4fc7f6131518dd5b18d59b",
+        "primaries": "P3-D65",
+        "transfer": "ST.2084"
+      }
+    }
+  ]
+}
