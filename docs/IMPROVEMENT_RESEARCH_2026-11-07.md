@@ -79,6 +79,12 @@ Within the existing candidate pool, the best candidate per family gives the foll
 - **The shape suggests a scene-light conversion.** It looks like an HLG→SDR conversion with a gain of about 1.9 in the midtones and a highlight knee (BT.2408-style).
 - **Exact identification of YouTube's LUT is open.**
 
+**Out-of-sample check on the round-3 uploads.**
+- The same curve, fitted only on the 7 round-2 Tune pairs, was tested on the 8 round-3 uploads. These were never seen, and they span 2023–2026.
+- Code MAE was 0.012–0.032, within 0.002–0.008 of each upload's own-fit floor.
+- Mean |log nits ratio| was 0.084–0.194.
+- So the conversion is stable across KBS uploads and years.
+
 ## 4. Proposals, in order of expected value
 
 1. **Source-type policy "YouTube SDR of an HLG upload".**

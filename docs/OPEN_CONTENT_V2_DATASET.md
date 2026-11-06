@@ -12,8 +12,8 @@ The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONT
 
 | split | pairs | families | change from v1 |
 |---|---|---|---|
-| Tune | 13 | Sol Levante ×4, K-Choreo video3 + 5, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+6 KBS HLG** |
-| Validation | 10 | K-Choreo video4 + 4, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+5 KBS HLG** |
+| Tune | 17 | Sol Levante ×4, K-Choreo video3 + 9, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+10 KBS HLG** |
+| Validation | 14 | K-Choreo video4 + 8, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+9 KBS HLG** |
 | Virgin Frozen | 4 | Netflix Nocturne ×3, NAS Sole Mates ×1 | **all new**, never evaluated |
 
 ### Broadcast HLG pairs (KBS Kpop uploads, user-provided)
@@ -26,6 +26,14 @@ Eleven KBS HDR uploads join Tune and Validation:
   - A first cut that let each rendition snap to its own keyframe failed the audit for those two (duration delta).
 - Splits alternate in the user's list order. All 13 KBS pairs share one broadcaster pipeline.
 - License: Standard YouTube License; the files are private research copies and are not redistributed. Provenance: `provenance-kbs-youtube.json`.
+
+**Round 3 (2026-11-07).**
+- Eight more user-provided K-Choreo 8K HDR uploads joined, added by `add_kchoreo_v3.py`. They are -cnGceAdbs4, xWyeg5qYL2I, BXa_OjjJIDY, rjQX-XKilF8, iSEvfuJO0hQ, 2IGhGkJIq0k, GXUlNQMZuzo and 7PMhlVxFfZg, uploaded 2023–2026.
+- Five links from the same list had no HDR rendition and were dropped before download: Q63qAE6pr9Y, KwOgOTrTtKI (M2, the only non-KBS link), NuDgD4M9bcs, xqabEYkiEZ4 and NtT4mnLh-Y4. jIv-ebTYGrU was already present.
+- Same window rule. 7PMhlVxFfZg's only shared keyframe at or before 40% is t=0.
+- Splits alternate in list order, starting with Validation (K-Choreo was Tune 6 / Validation 5).
+- dataset-audit: 35/35 main calibration.
+- All 21 broadcast pairs still come from one KBS pipeline.
 
 The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
 
