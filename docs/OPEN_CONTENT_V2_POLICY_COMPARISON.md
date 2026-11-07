@@ -278,3 +278,21 @@ Findings:
 - Without the declaration, `video3_newjeans_how_sweet` is again the worst pair (1.146× V2). With it, the worst pair is `aswf_stem2_t450` (1.044× V2, 1.048× default), as in rounds 3–6.
 - The LOFO fancam fold is +57.0% under the declaration. As with K-Choreo and KBS, that fold is not held out for the declaration itself, only for the parameter search.
 - **Not yet shown:** a Frozen test of the declaration. The new sealed holdout (YouTube HLG landscape ×4, K-Choreo ×3) exists for that and needs separate approval to open.
+
+## Runtime: proxy frame cache (after round 7)
+
+Round 7's correctness review took 43 min and its batch 37.5 min. Most of that was decoding the same proxy frames again, including full reads of 4-minute 8K VP9 originals on the external USB disk.
+
+`HDR_PROXY_CACHE_DIR=<dir>` (for example `$PWD/.build/proxy-cache`) now stores every Tune/Validation proxy decode once and replays it. Frozen pairs, the dataset audit and the HLG holdout audit never use it.
+
+| correctness review, 47 pairs | wall time | decode passes |
+|---|---:|---:|
+| round 7, no cache (batch running alongside) | 43 min | most of it |
+| cold cache (fills 362 entries, 2.0 GB) | 25.3 min | – |
+| warm cache | **11.6 min** | **2.3 min** |
+
+The rest of a warm review is the uncached audits and GPU checks. The sealed plan is identical in all three runs: SHA-256 `ba3da666…`, with the same plan JSON. The batch's materialization (about 16 min in round 7) uses the same cache.
+
+Two bugs were found and fixed while measuring this:
+- An ffmpeg reader that stopped early could deadlock.
+- The review held both passes' frames at once, close to the 16,384 IOSurfaces a process may create.
