@@ -20,6 +20,7 @@ public enum HDRPlayerError: Error, LocalizedError {
     case presentationSamplerCreationFailed
     case displayLinkUnavailable
     case invalidPlaybackState(String)
+    case undecodableVideo(String)
 
     public var errorDescription: String? {
         switch self {
@@ -36,6 +37,7 @@ public enum HDRPlayerError: Error, LocalizedError {
         case .presentationSamplerCreationFailed: return "presentation sampler creation failed"
         case .displayLinkUnavailable: return "CAMetalDisplayLink could not be created"
         case .invalidPlaybackState(let reason): return "invalid playback state: \(reason)"
+        case .undecodableVideo(let advice): return advice
         }
     }
 }
@@ -487,6 +489,9 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                 let tracks = try await asset.loadTracks(withMediaType: .video)
                 guard let track = tracks.first else {
                     throw HDRPlayerError.assetLoadFailed("no video track")
+                }
+                if let advice = try await UndecodableVideoAdvice.check(track: track, url: (asset as? AVURLAsset)?.url ?? URL(fileURLWithPath: "input-video")) {
+                    throw HDRPlayerError.undecodableVideo(advice)
                 }
                 let naturalSize = try await track.load(.naturalSize)
                 let transform = try await track.load(.preferredTransform)

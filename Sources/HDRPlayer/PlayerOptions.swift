@@ -102,7 +102,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --debug --diagnostic-json
           HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
-          HDRPlayer <video-file> --sdr-transfer bt709-oetf|bt1886
+          HDRPlayer <video-file> --sdr-transfer \(HDRSDRTransferInterpretation.allCases.map(\.cliName).joined(separator: "|"))
           HDRPlayer <video-file> --gain-guidance off|noise-gated
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000

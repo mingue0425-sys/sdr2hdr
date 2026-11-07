@@ -111,6 +111,34 @@ explicit opt-in (`--sdr-transfer bt1886` in `HDRPlayer` and `HDRSample`). A
 preset may adopt it only after a calibration rebase that records the policy
 identifier.
 
+### SDR renditions of YouTube HDR uploads
+
+When an upload is HLG HDR, YouTube also serves an SDR rendition. That SDR file
+is YouTube's automatic conversion, not a separate grade.
+`--sdr-transfer youtube-hlg-v2` inverts that conversion: a 17-knot curve back
+to the HLG signal, then the HLG inverse OETF with a luminance OOTF.
+
+Results against YouTube's own HLG rendition (open-content v2, round 7):
+
+| family | error / V2, default decode | error / V2, `youtube-hlg-v2` |
+|---|---:|---:|
+| KBS uploads | 0.905 | 0.384 |
+| other uploaders (fancam) | 0.824 | 0.430 |
+| fancam, Validation pairs only | 0.900 | 0.545 |
+
+- The fancam pairs are other uploaders and were never used to fit the curve.
+- The absolute level is within about 6% of the HDR rendition (median level gain 0.93–0.95). The default decode is 20–30% too dark.
+- Use the flag only for such renditions. An upload that is SDR at the source has no HDR original, and the curve does not apply to it.
+
+YouTube serves VP9 or AV1. AVFoundation cannot decode its VP9 (checked on an
+M2), and AV1 may fail too. `HDRPlayer` and `HDRSample` check that the track is
+decodable and otherwise print the conversion. VideoToolbox HEVC keeps the BT.709 tags:
+
+```bash
+ffmpeg -i in.webm -map 0:v:0 -map '0:a?' -c:v hevc_videotoolbox -q:v 75 -tag:v hvc1 -c:a aac in-hevc.mov
+./.build/release/HDRPlayer in-hevc.mov --sdr-transfer youtube-hlg-v2
+```
+
 ## Commands
 
 ```bash

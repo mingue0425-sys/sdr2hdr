@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreMedia
 import CoreGraphics
 import CoreVideo
@@ -704,6 +705,57 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer"
         ]))
+    }
+
+    func testYouTubeHLGDecodeIsSelectableAndListedInUsage() throws {
+        let parsed = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mov", "--sdr-transfer", "youtube-hlg-v2"
+        ])
+        XCTAssertEqual(try parsed.baseConfiguration().sdrTransferInterpretation, .youtubeHLGDerivedInverseLuminanceGain)
+        for policy in HDRSDRTransferInterpretation.allCases {
+            XCTAssertTrue(PlayerOptions.usage.contains(policy.cliName), "usage must list \(policy.cliName)")
+        }
+    }
+
+    func testUndecodableVideoAdviceGivesAShellSafeConversion() {
+        let url = URL(fileURLWithPath: "/tmp/My Fancam's [4K].webm")
+        let advice = UndecodableVideoAdvice.message(url: url, codec: "vp09")
+        XCTAssertTrue(advice.contains("cannot decode VP9 video"))
+        XCTAssertTrue(advice.contains("-i '/tmp/My Fancam'\\''s [4K].webm'"), advice)
+        XCTAssertTrue(advice.contains("'/tmp/My Fancam'\\''s [4K]-hevc.mov'"), advice)
+        // zsh treats an unquoted 0:a? as a glob and refuses to run the command.
+        XCTAssertTrue(advice.contains("-map '0:a?'"))
+        XCTAssertTrue(advice.contains("--sdr-transfer youtube-hlg-v2"))
+        XCTAssertTrue(UndecodableVideoAdvice.message(url: url, codec: "av01").contains("AV1"))
+    }
+
+    func testUndecodableVideoAdviceFlagsVP9AndPassesHEVC() async throws {
+        guard let ffmpeg = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].first(where: {
+            FileManager.default.isExecutableFile(atPath: $0)
+        }) else { throw XCTSkip("ffmpeg is required for codec fixtures") }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("hdr-undecodable-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cases: [(String, [String], Bool)] = [
+            ("vp9.mp4", ["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8"], true),
+            ("hevc.mov", ["-c:v", "hevc_videotoolbox", "-tag:v", "hvc1"], false)
+        ]
+        for (name, codec, undecodable) in cases {
+            let url = root.appendingPathComponent(name)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ffmpeg)
+            process.arguments = ["-hide_banner", "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi",
+                                 "-i", "testsrc2=s=128x72:r=30:d=0.5", "-pix_fmt", "yuv420p"] + codec + [url.path]
+            process.standardError = FileHandle.nullDevice
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw XCTSkip("\(name) encoding unavailable") }
+            let asset = AVURLAsset(url: url)
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            let track = try XCTUnwrap(tracks.first)
+            let advice = try await UndecodableVideoAdvice.check(track: track, url: url)
+            XCTAssertEqual(advice != nil, undecodable, name)
+        }
     }
 
     func testGainGuidanceOptionIsOptInAndReachesConfiguration() throws {

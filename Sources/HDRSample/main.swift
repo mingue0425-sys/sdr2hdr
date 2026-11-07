@@ -48,6 +48,9 @@ private func run(arguments: [String]) async throws {
     guard let track = try await asset.loadTracks(withMediaType: .video).first else {
         throw NSError(domain: "HDRSample", code: 3, userInfo: [NSLocalizedDescriptionKey: "No video track found"])
     }
+    if let advice = try await UndecodableVideoAdvice.check(track: track, url: asset.url) {
+        throw NSError(domain: "HDRSample", code: 7, userInfo: [NSLocalizedDescriptionKey: advice])
+    }
     let precisionDecision = await HDRDecodePrecisionResolver.resolve(
         asset: asset,
         requested: precision
