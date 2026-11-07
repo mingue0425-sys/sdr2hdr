@@ -208,3 +208,42 @@ Findings:
 Open items:
 - **Chroma model.** The declared reconstruction applies the luma-fitted curve and the 1.2 system gamma per channel. BT.2100's HLG OOTF uses one gain derived from luminance, as `HDRReferenceDecoder` does. A luminance-OOTF variant is the next comparison; colour terms are about 7% of the objective (research §1).
 - **Generality beyond KBS**, and the Frozen evaluation, as in round 3.
+
+# Round 6: declared reconstruction v1 against v2 (2026-11-07)
+
+Setup:
+- Same 41 Tune/Validation pairs, seed and protocol as the Frozen run, with `--stop-before-frozen`. The v2 Frozen set is consumed and was not touched.
+- v1 is `youtube-hlg`: the per-channel 1.2 system gamma.
+- v2 is `youtube-hlg-v2`: per-channel chromaticity, with luminance from the BT.2100 luminance OOTF.
+- v2 was chosen from the Tune-only analysis in `dataset/analysis/compare_youtube_hlg_ootf.py`. At 128×72, on the broadcast pairs:
+
+  | split | method | \|log Y\| | du′v′ |
+  |---|---|---:|---:|
+  | Tune | v1 | 0.079 | 0.0118 |
+  | Tune | luminance OOTF | 0.064 | 0.0137 |
+  | Tune | v2 | 0.064 | 0.0118 |
+  | Validation | v1 | 0.078 | 0.0134 |
+  | Validation | luminance OOTF | 0.060 | 0.0177 |
+  | Validation | v2 | 0.060 | 0.0134 |
+
+- Artifacts: `results/open-content-v2/round6/`.
+
+Results:
+
+| run | selected | LOFO mean / worst | K-Choreo / V2 | KBS One-take / V2 |
+|---|---|---|---:|---:|
+| shape-oetf-ythlg (v1) | `local_020` | +27.5% / +5.9% | 0.430 | 0.394 |
+| shape-oetf-ythlg2 (v2) | `local_020` | +28.4% / +5.9% | **0.391** | **0.384** |
+
+Broadcast pairs, mean of v2 / v1:
+
+| split | objective | luminanceError | chromaError | saturationError | pairs worse under v2 |
+|---|---:|---:|---:|---:|---:|
+| Tune (15) | 0.923 | 0.866 | 1.054 | 0.915 | 3 |
+| Validation (16) | 0.905 | 0.858 | 1.040 | 0.943 | 1 |
+
+Findings:
+- **v2 lowers the broadcast objective by 8–10%.** The gain comes from luminance. The per-channel 1.2 gamma over-brightens saturated colours, because x^1.2 is convex.
+- **The objective's `chromaError` rises by 4–5%**, while the u′v′ distance in the analysis is unchanged. The two measure chroma differently. The net effect is still clearly positive.
+- The cinema families and the selected candidate are unchanged, because the declaration touches only broadcast pairs.
+- **Not yet shown:** v2 has had no Frozen test. A new sealed holdout with broadcast and non-KBS HLG pairs is being acquired (`OPEN_CONTENT_V2_DATASET.md`).
