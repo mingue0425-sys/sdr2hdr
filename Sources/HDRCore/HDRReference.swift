@@ -70,7 +70,7 @@ public enum HDRReference {
         inputPrimaries: HDRInputPrimaries = .bt709,
         temporalAdaptation: Float = 1,
         sceneStatistics: HDRSceneStatistics? = nil,
-        skinRegion: Float = 1
+        skinRegion: SIMD2<Float>? = nil
     ) -> SIMD4<Float> {
         let signal = SIMD3<Float>(
             min(max(signalRGB.x, 0), 1),
@@ -101,8 +101,9 @@ public enum HDRReference {
         var gain = luminance > 0 ? expandedLuminance / luminance : 0
         let ceiling = HDRConfiguration.skinHighlightCeiling
         if configuration.skinHighlightProtection > 0, expandedLuminance > ceiling {
-            let weight = skinHighlightWeight(signal) * smoothstep(0.72, 0.92, skinRegion) *
-                configuration.skinHighlightProtection
+            let region = skinRegion ?? flatFieldSkinRegion(signal)
+            let weight = max(skinHighlightWeight(signal) * smoothstep(0.10, 0.35, region.x),
+                             smoothstep(0.25, 0.50, region.y)) * configuration.skinHighlightProtection
             if weight > 0 {
                 let rolled = skinRolledLuminance(expandedLuminance, ceiling: ceiling)
                 let protectedLuminance = expandedLuminance + (rolled - expandedLuminance) * weight
@@ -146,6 +147,14 @@ public enum HDRReference {
         return over <= 0 ? y : ceiling + over * (0.1 + 0.9 * 0.15 / (0.15 + over))
     }
 
+    /// The kernel's ring test on a flat field of `signal`: every sample is as
+    /// bright as the pixel, and skin-coloured when the pixel is.
+    static func flatFieldSkinRegion(_ signal: SIMD3<Float>) -> SIMD2<Float> {
+        let luma = simd_dot(signal, SIMD3<Float>(0.2126, 0.7152, 0.0722))
+        guard luma >= 0.5, signal.x + 0.02 >= signal.z else { return SIMD2(1, 0) }
+        return SIMD2(1, skinHighlightWeight(signal) >= 0.5 ? 1 : 0)
+    }
+
     /// How skin-like a signal RGB is (0...1). Mirrors the Metal
     /// `skinHighlightWeight`.
     static func skinHighlightWeight(_ s: SIMD3<Float>) -> Float {
@@ -154,7 +163,7 @@ public enum HDRReference {
         guard range > 1e-5, s.x > 1e-5 else { return 0 }
         let hue = 60 * (s.y - s.z) / range
         let saturation = range / s.x
-        let hueWeight = smoothstep(-35, -20, hue) * (1 - smoothstep(45, 55, hue))
+        let hueWeight = smoothstep(-35, -20, hue) * (1 - smoothstep(58, 68, hue))
         let saturationWeight = smoothstep(0.025, 0.06, saturation) * (1 - smoothstep(0.40, 0.55, saturation))
         return hueWeight * saturationWeight
     }

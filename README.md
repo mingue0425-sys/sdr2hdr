@@ -162,17 +162,22 @@ On toon-shaded CG and anime (MMD renders, for example), large bright skin areas 
 `HDRPlayer` enables skin protection by default (`--skin-protection off|weak|on`, also in settings).
 
 How it works:
-- A pixel is a candidate when its colour is skin-like: red the largest channel, hue from pale pink (−25°) to orange (50°), saturation 0.025–0.55.
-- It must also lie in a broad bright region. The mean luma on two rings around it (radius 1.2% and 2.4% of the frame height) must be close to its own luma.
-- Candidates above 1.1× paper white are compressed. The slope eases from 1 to 0.1, so skin shading keeps its order.
-- Small speculars of the same colour on darker surroundings, such as eye highlights and glints, keep their full expansion.
-- Neutral white, cool colours and strongly saturated colours are bit-identical.
+- **Candidates:** bright warm or neutral pixels.
+- **Skin colour:** red is the largest channel, hue runs from pale pink (−25°) to cream yellow (60°), and saturation is 0.025–0.55.
+- **Ring test:** 16 samples on two rings around the pixel (radius 1.2% and 2.4% of the frame height). Each is checked for being at least 85% as bright as the pixel, and for being skin-coloured.
+- **Compressed:**
+  - skin-coloured pixels inside a broad bright area, including its edges next to dark hair;
+  - highlights of any colour surrounded by equally bright skin, such as a white toon highlight on the nose.
+- **How:** above 1.1× paper white, the slope eases from 1 to 0.1, so skin shading keeps its order.
+- **Kept:** eye glints on the iris, glints on darker skin, neutral white, cool and strongly saturated colours.
 
 | `calibrated-v5`, BT.709 decode | before | broad skin | small glint |
 |---|---:|---:|---:|
 | pale pink (255, 238, 238) | 1153 nits | 343 nits | 1153 nits |
 | peach (255, 232, 220) | 1032 nits | 331 nits | 1032 nits |
 | white (255, 255, 255) | 1323 nits | 1323 nits | 1323 nits |
+
+On a face close-up from a real MMD render (1080p H.264), face skin went from median 856 / p95 1149 nits to 313 / 344 nits. White elsewhere in the frame stayed at 1270 nits.
 
 Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
 

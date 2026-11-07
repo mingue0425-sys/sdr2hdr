@@ -60,7 +60,7 @@ final class SkinHighlightProtectionTests: XCTestCase {
         // A small specular (darker surroundings) keeps its expansion even in skin colours.
         let speculars: [SIMD3<Float>] = skinRamp + [SIMD3<Float>(255, 238, 238) / 255]
         for specular in speculars {
-            XCTAssertEqual(HDRReference.process(signalRGB: specular, configuration: on, skinRegion: 0.6),
+            XCTAssertEqual(HDRReference.process(signalRGB: specular, configuration: on, skinRegion: SIMD2(0.05, 0)),
                            HDRReference.process(signalRGB: specular, configuration: off), "\(specular)")
         }
     }
@@ -71,6 +71,8 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.2, 0.5, 0.9)), 0, "cool colours are not skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 180, 100) / 255), 0, "saturated orange is not skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 238, 238) / 255), 1, accuracy: 1e-6, "pale pink skin")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(252, 244, 200) / 255), 1, accuracy: 1e-6, "cream-lit skin (MMD)")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 255, 0) / 255), 0, "saturated yellow is not skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 253, 253) / 255), 0, "near-neutral white")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.9, 0.4, 0.9)), 0, "magenta is not skin")
         let ceiling = HDRConfiguration.skinHighlightCeiling
@@ -136,7 +138,11 @@ final class SkinHighlightProtectionTests: XCTestCase {
                 // Left half: broad pale skin. Right half: darker skin with a 3x3 glint at (240, 90).
                 let broad = x < 160
                 let glint = abs(x - 240) <= 1 && abs(y - 90) <= 1
-                let rgb: (UInt8, UInt8, UInt8) = broad || glint ? (255, 238, 238) : (190, 140, 130)
+                // White 3x3 spots: a toon highlight inside the broad skin, and a glint on the darker skin.
+                let toonHighlight = abs(x - 80) <= 1 && abs(y - 40) <= 1
+                let whiteGlint = abs(x - 240) <= 1 && abs(y - 40) <= 1
+                let rgb: (UInt8, UInt8, UInt8) = toonHighlight || whiteGlint ? (255, 255, 255)
+                    : broad || glint ? (255, 238, 238) : (190, 140, 130)
                 row[4 * x] = rgb.2; row[4 * x + 1] = rgb.1; row[4 * x + 2] = rgb.0; row[4 * x + 3] = 255
             }
         }
@@ -160,6 +166,9 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertLessThan(broadSkin, 2.0, "broad skin no longer glows")
         XCTAssertEqual(glint, unprotected, accuracy: unprotected * 0.02, "the glint keeps its full expansion")
         XCTAssertGreaterThan(glint, broadSkin * 2)
+        let white = luminance(HDRReference.process(signalRGB: SIMD3(repeating: 1), configuration: configuration))
+        XCTAssertLessThan(y(80, 40), 2.0, "a white toon highlight inside bright skin is part of the skin")
+        XCTAssertEqual(y(240, 40), white, accuracy: white * 0.02, "a white glint on darker skin keeps its expansion")
     }
 
     private func readRGBA16Float(_ texture: MTLTexture, device: MTLDevice) throws -> [Float] {

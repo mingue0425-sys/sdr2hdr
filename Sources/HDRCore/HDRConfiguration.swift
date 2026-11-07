@@ -732,8 +732,9 @@ public struct HDRConfiguration: Sendable, Equatable {
     public var gainGuidance: HDRGainGuidance
 
     /// Skin highlight protection, 0...1. 0 (every preset) leaves output
-    /// unchanged. Above 0, skin-like pixels (pale pink to orange) that belong
-    /// to a broad bright region and whose expanded luminance exceeds
+    /// unchanged. Above 0, skin-like pixels (pale pink to cream yellow) that
+    /// belong to a broad bright region, and highlights surrounded by equally
+    /// bright skin (toon nose highlights), whose expanded luminance exceeds
     /// `skinHighlightCeiling` × paper white are compressed (slope easing from
     /// 1 to 0.1, order kept), so large bright diffuse skin (toon-shaded CG and anime
     /// such as MMD renders) is not pushed into specular-highlight brightness.
