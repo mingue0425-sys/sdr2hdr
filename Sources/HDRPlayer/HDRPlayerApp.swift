@@ -74,7 +74,8 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
 
     public func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
-        open(url)
+        // hdrplayer://open?url=<link> comes from the Safari button.
+        open(YouTubeLink.handoffTarget(url) ?? url)
     }
 
     @objc public func openDocument(_ sender: Any?) {
@@ -89,8 +90,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         }
     }
 
-    /// Replaces whatever is playing with `url`.
-    private func open(_ url: URL) {
+    private func closeCurrent() {
         openedAnyFile = true
         hasReportedError = false
         if let window {
@@ -103,6 +103,20 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         controller?.stop()
         controller = nil
         window = nil
+    }
+
+    /// Replaces whatever is playing with `url` (a file or a YouTube link).
+    private func open(_ url: URL) {
+        if let id = YouTubeLink.videoID(from: url) {
+            openYouTube(id: id)
+            return
+        }
+        guard url.isFileURL else {
+            closeCurrent()
+            handleError(YouTubeDownloadError.invalidLink(url.absoluteString))
+            return
+        }
+        closeCurrent()
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -112,6 +126,89 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             } catch {
                 self.handleError(error)
             }
+        }
+    }
+
+    // MARK: - YouTube
+
+    private func openYouTube(id: String) {
+        closeCurrent()
+        guard let downloader = YouTubeDownloader(cacheDirectory: YouTubeDownloader.defaultCacheDirectory()) else {
+            handleError(YouTubeDownloadError.failed("yt-dlp 또는 ffmpeg를 찾을 수 없습니다 (/opt/homebrew/bin, /usr/local/bin)"))
+            return
+        }
+        let panel = ConversionPanel(fileName: "유튜브 영상", verb: "받는 중")
+        conversionPanel = panel
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let download = try await downloader.download(id: id) { fraction in
+                    Task { @MainActor in panel.update(fraction) }
+                }
+                panel.close()
+                self.conversionPanel = nil
+                let playable = try await self.playableURL(for: download.url)
+                await self.startPlayback(url: playable, displayName: download.title)
+            } catch {
+                panel.close()
+                self.conversionPanel = nil
+                self.handleError(error)
+            }
+        }
+    }
+
+    @objc public func openYouTubeLink(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "유튜브 링크 열기"
+        alert.informativeText = "영상 주소를 붙여넣으세요. H.264(최대 1080p)로 한 번 받아 두고 HDR로 재생합니다."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 380, height: 24))
+        field.placeholderString = "https://www.youtube.com/watch?v=…"
+        if let clipboard = NSPasteboard.general.string(forType: .string), YouTubeLink.videoID(from: clipboard) != nil {
+            field.stringValue = clipboard.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        alert.accessoryView = field
+        alert.addButton(withTitle: "열기")
+        alert.addButton(withTitle: "취소")
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard let id = YouTubeLink.videoID(from: field.stringValue) else {
+            closeCurrent()
+            handleError(YouTubeDownloadError.invalidLink(field.stringValue))
+            return
+        }
+        openYouTube(id: id)
+    }
+
+    /// Opens the YouTube video in Safari's front tab (asks for Automation
+    /// permission the first time).
+    @objc public func openSafariTab(_ sender: Any?) {
+        var error: NSDictionary?
+        let script = NSAppleScript(source: "tell application \"Safari\" to return URL of current tab of front window")
+        let result = script?.executeAndReturnError(&error).stringValue
+        guard let address = result, let id = YouTubeLink.videoID(from: address) else {
+            let alert = NSAlert()
+            alert.messageText = "Safari의 현재 탭에서 유튜브 영상을 찾지 못했습니다"
+            alert.informativeText = error == nil
+                ? "Safari 맨 앞 창에서 유튜브 영상 페이지를 열어 두고 다시 시도하세요."
+                : "시스템 설정 → 개인정보 보호 및 보안 → 자동화에서 HDRPlayer가 Safari를 제어하도록 허용해 주세요."
+            alert.runModal()
+            return
+        }
+        openYouTube(id: id)
+    }
+
+    /// Writes a page with the Safari bookmarklet and opens it in Safari.
+    @objc public func installSafariButton(_ sender: Any?) {
+        let directory = YouTubeDownloader.defaultCacheDirectory()
+        let page = directory.appendingPathComponent("safari-button.html")
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try SafariButtonPage.html.write(to: page, atomically: true, encoding: .utf8)
+            let safari = URL(fileURLWithPath: "/Applications/Safari.app")
+            NSWorkspace.shared.open([page], withApplicationAt: safari, configuration: NSWorkspace.OpenConfiguration())
+        } catch {
+            NSSound.beep()
         }
     }
 
@@ -409,6 +506,12 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         let fileItem = NSMenuItem()
         let fileMenu = NSMenu(title: "파일")
         fileMenu.addItem(withTitle: "열기…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        fileMenu.addItem(withTitle: "유튜브 링크 열기…", action: #selector(openYouTubeLink(_:)), keyEquivalent: "l")
+        let safariTab = NSMenuItem(title: "Safari 현재 탭의 유튜브 열기", action: #selector(openSafariTab(_:)), keyEquivalent: "l")
+        safariTab.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.addItem(safariTab)
+        fileMenu.addItem(withTitle: "Safari에 HDR 버튼 추가하는 법…", action: #selector(installSafariButton(_:)), keyEquivalent: "")
+        fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "닫기", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         fileItem.submenu = fileMenu
         main.addItem(fileItem)
@@ -499,9 +602,11 @@ final class ConversionPanel {
     private let label: NSTextField
     private let bar: NSProgressIndicator
     private let fileName: String
+    private let verb: String
 
-    init(fileName: String) {
+    init(fileName: String, verb: String = "재생용으로 변환 중") {
         self.fileName = fileName
+        self.verb = verb
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 96),
                         styleMask: [.titled], backing: .buffered, defer: false)
         panel.title = "HDRPlayer"
@@ -528,7 +633,7 @@ final class ConversionPanel {
 
     func update(_ fraction: Double) {
         bar.doubleValue = fraction
-        label.stringValue = "\(fileName) 재생용으로 변환 중… \(Int(fraction * 100))%"
+        label.stringValue = "\(fileName) \(verb)… \(Int(fraction * 100))%"
     }
 
     func close() {

@@ -225,6 +225,24 @@ How the app behaves:
 - WebM/VP9 is converted on first open into `.build/converted/`.
 - The app remembers your last Y choice.
 
+### YouTube links and Safari
+
+`HDRPlayer` can play a YouTube video from its link:
+- File → "유튜브 링크 열기…" (⌘L) takes a pasted link and pre-fills one from the clipboard;
+- File → "Safari 현재 탭의 유튜브 열기" (⌘⇧L) reads Safari's front tab (macOS asks once for Automation permission);
+- `hdrplayer://open?url=<link>` opens a link, which is what the Safari button uses;
+- on the command line, `HDRPlayer https://youtu.be/<id>`.
+
+How the video is fetched:
+- The installed `yt-dlp` downloads H.264 up to 1080p with AAC audio and merges them into MP4 with ffmpeg. AVFoundation decodes that directly.
+- Videos without an H.264 rendition fall back to the best format up to 1080p, which the WebM/VP9 converter then turns into HEVC.
+- Browser cookies are never read (`--no-cookies --no-cookies-from-browser`). A bot check is reported as such.
+- Files go to `.build/youtube/<id>.mp4` with the title in `<id>.title.txt`. A finished download is reused; partial downloads are removed.
+
+The Safari button is a bookmarklet that sends the current tab to `hdrplayer://`. File → "Safari에 HDR 버튼 추가하는 법…" opens a local page with the button and the steps: drag it to the Favourites bar, then press it on a YouTube page.
+
+Applying the engine inside Safari itself is not possible today. Safari 26 accepts a WebGPU canvas `toneMapping: "extended"` setting but still displays it as SDR ([WebKit bug 272702](https://bugs.webkit.org/show_bug.cgi?id=272702)), so highlights could not exceed SDR white.
+
 ### Images
 
 `HDRPlayer` also opens still images (JPEG, PNG, HEIC, TIFF, WebP, GIF), from the command line, File → Open or Finder's Open With. The same engine and settings apply: preset, upscaling and skin protection.
