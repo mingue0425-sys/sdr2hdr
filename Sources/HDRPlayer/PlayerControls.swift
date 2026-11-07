@@ -26,6 +26,11 @@ public final class PlayerContentView: NSView {
 
     public override func layout() {
         super.layout()
+        if bar.isStillImage {
+            // Only the settings button: a small pill at the bottom right.
+            bar.frame = NSRect(x: bounds.width - 58, y: 14, width: 44, height: 44)
+            return
+        }
         let width = min(bounds.width - 24, 760)
         bar.frame = NSRect(x: (bounds.width - width) / 2, y: 14, width: max(width, 200), height: 44)
     }
@@ -81,8 +86,17 @@ public final class PlaybackBarView: NSVisualEffectView {
     private var dragging = false
     private var playing = false
 
-    /// True while paused or scrubbing.
-    var keepsVisible: Bool { dragging || !playing }
+    /// True while a video is paused or being scrubbed.
+    var keepsVisible: Bool { dragging || (!playing && !isStillImage) }
+
+    /// A still image has nothing to play or seek: only settings remain, and
+    /// the bar hides like during playback.
+    public var isStillImage = false {
+        didSet {
+            for view in [playButton, timeLabel, slider, durationLabel] as [NSView] { view.isHidden = isStillImage }
+            superview?.needsLayout = true
+        }
+    }
 
     public init() {
         super.init(frame: .zero)
@@ -237,7 +251,9 @@ public final class PlayerSettingsPanel: NSObject {
     }
 
     public func show(preset: String, sdrTransfer: HDRSDRTransferInterpretation, upscale: HDRUpscaleMode,
-                     skinProtection: HDRSkinProtection) {
+                     skinProtection: HDRSkinProtection, isStillImage: Bool = false) {
+        // Images are sRGB: the SDR decode choice applies to video only.
+        sdrPopup.isEnabled = !isStillImage
         if let index = HDRSkinProtection.allCases.firstIndex(of: skinProtection) { skinPopup.selectItem(at: index) }
         if let index = presetPopup.itemArray.firstIndex(where: { ($0.representedObject as? String) == preset }) {
             presetPopup.selectItem(at: index)

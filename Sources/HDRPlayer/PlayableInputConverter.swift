@@ -62,6 +62,8 @@ public struct PlayableInputConverter: Sendable {
     /// Returns `.decodable` for inputs AVFoundation can decode, otherwise the
     /// converted file. `progress` receives a fraction in 0...1.
     public func prepare(_ url: URL, progress: @Sendable (Double) -> Void = { _ in }) async throws -> Outcome {
+        // Images go to the engine directly (StillImageSource), never to ffmpeg.
+        if StillImageSource.isImage(url) { return .decodable }
         guard try await Self.isDecodable(url) == false else { return .decodable }
         let output = try convertedURL(for: url)
         if FileManager.default.fileExists(atPath: output.path), try await Self.isDecodable(output) == true {

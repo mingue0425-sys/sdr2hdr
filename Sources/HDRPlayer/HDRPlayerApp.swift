@@ -79,7 +79,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
 
     @objc public func openDocument(_ sender: Any?) {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.movie, .audiovisualContent]
+        panel.allowedContentTypes = [.movie, .audiovisualContent, .image]
         panel.allowsMultipleSelection = false
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
@@ -118,6 +118,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     /// Converts inputs AVFoundation cannot decode, showing progress.
     private func playableURL(for url: URL) async throws -> URL {
         guard options.convertUndecodable,
+              !StillImageSource.isImage(url),
               let converter = PlayableInputConverter(
                   cacheDirectory: options.convertDirectory ?? PlayableInputConverter.defaultCacheDirectory()
               ) else { return url }
@@ -225,6 +226,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     private func handleReady(_ info: PlaybackVideoInfo, window: HDRPlayerWindow?) {
         guard let controller, let window else { return }
         window.resizeToVideo(size: info.displaySize)
+        window.content.bar.isStillImage = controller.isStillImage
         window.content.showBar()
         controller.play()
         // Start consuming display-link frames only after playCalled has been
@@ -276,7 +278,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             return
         }
         let alert = NSAlert()
-        alert.messageText = "이 파일을 재생할 수 없습니다"
+        alert.messageText = "이 파일을 열 수 없습니다"
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         alert.addButton(withTitle: "다른 파일 열기…")
@@ -302,6 +304,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     /// Y: switches between the YouTube HDR rendition decode and the plain
     /// BT.709 inverse OETF.
     @objc public func toggleYouTubeDecode(_ sender: Any?) {
+        guard controller?.isStillImage != true else { NSSound.beep(); return }
         let next: HDRSDRTransferInterpretation = youTubeDecodeIsOn
             ? .bt709InverseOETFSceneLinear : .youtubeHLGDerivedInverseLuminanceGain
         options.sdrTransferInterpretation = next
@@ -320,13 +323,13 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         let panel = settingsPanel ?? makeSettingsPanel()
         settingsPanel = panel
         panel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale,
-                   skinProtection: options.skinProtection)
+                   skinProtection: options.skinProtection, isStillImage: controller?.isStillImage == true)
     }
 
     private func refreshSettingsPanel() {
         guard let settingsPanel else { return }
         settingsPanel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale,
-                           skinProtection: options.skinProtection)
+                           skinProtection: options.skinProtection, isStillImage: controller?.isStillImage == true)
     }
 
     private func makeSettingsPanel() -> PlayerSettingsPanel {
@@ -377,13 +380,16 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(toggleYouTubeDecode(_:)) {
             menuItem.state = youTubeDecodeIsOn ? .on : .off
+            return controller?.isStillImage != true
         }
         return true
     }
 
     private func updateTitle() {
         guard let window else { return }
-        let mode = youTubeDecodeIsOn ? "YouTube HDR 해석 (Y)" : "일반 SDR (Y)"
+        // Images are sRGB-tagged, so the YouTube decode (a BT.709-tag
+        // reinterpretation) does not apply to them.
+        let mode = controller?.isStillImage == true ? "이미지" : (youTubeDecodeIsOn ? "YouTube HDR 해석 (Y)" : "일반 SDR (Y)")
         window.title = "\(window.displayName) — \(mode)"
     }
 

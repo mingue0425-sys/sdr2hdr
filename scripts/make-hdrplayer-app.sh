@@ -54,6 +54,21 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
         <string>org.matroska.mkv</string>
       </array>
     </dict>
+    <dict>
+      <key>CFBundleTypeName</key><string>Image</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.image</string>
+        <string>public.jpeg</string>
+        <string>public.png</string>
+        <string>public.heic</string>
+        <string>public.tiff</string>
+        <string>org.webmproject.webp</string>
+        <string>com.compuserve.gif</string>
+      </array>
+    </dict>
   </array>
   <key>UTImportedTypeDeclarations</key>
   <array>

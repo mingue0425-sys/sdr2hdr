@@ -89,6 +89,17 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public let player: AVPlayer
     public let metrics = PlayerMetrics()
     public let isTestPattern: Bool
+    /// A still image shown through the engine instead of a video.
+    public let stillImage: CVPixelBuffer?
+    public var isStillImage: Bool { stillImage != nil }
+    /// Frames left to process the still image (its scene statistics and
+    /// temporal adaptation settle over the first frames, as at a video's
+    /// start), then frames left before the display link pauses.
+    private var stillFramesToProcess = 0
+    private var stillIdleFramesBeforePause = 0
+    private var stillTimestampIndex: Int64 = 0
+    static let stillSettleFrames = 30
+    static let stillIdleFrames = 30
 
     public private(set) var videoInfo: PlaybackVideoInfo?
     public private(set) var displayCapabilities = DisplayCapabilities.fallback
@@ -284,7 +295,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             v62Candidate: v62Candidate,
             resolvedDecodePrecision: fallbackDecision.resolved,
             precisionDecision: fallbackDecision,
-            assetOverride: nil
+            assetOverride: nil,
+            stillImage: nil
         )
     }
 
@@ -318,6 +330,24 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw HDRPlayerError.fileNotFound(url)
         }
+        if StillImageSource.isImage(url) {
+            let image = try await StillImageSource.loadInBackground(url)
+            let fallbackDecision = HDRDecodePrecisionResolver.fallbackDecision(for: decodePrecision)
+            return try PlaybackController(
+                url: nil,
+                configuration: configuration,
+                device: device,
+                controlledAB: controlledAB,
+                diagnosticsEnabled: diagnosticsEnabled,
+                controlledV6: controlledV6,
+                v6Candidate: v6Candidate,
+                v62Candidate: v62Candidate,
+                resolvedDecodePrecision: fallbackDecision.resolved,
+                precisionDecision: fallbackDecision,
+                assetOverride: nil,
+                stillImage: image
+            )
+        }
         let asset = AVURLAsset(url: url)
         let decision = await HDRDecodePrecisionResolver.resolve(
             asset: asset,
@@ -334,7 +364,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             v62Candidate: v62Candidate,
             resolvedDecodePrecision: decision.resolved,
             precisionDecision: decision,
-            assetOverride: asset
+            assetOverride: asset,
+            stillImage: nil
         )
     }
 
@@ -349,10 +380,12 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         v62Candidate: HDRV62ToneCurveCandidate,
         resolvedDecodePrecision: HDRResolvedDecodePrecision,
         precisionDecision: HDRDecodePrecisionDecision,
-        assetOverride: AVAsset?
+        assetOverride: AVAsset?,
+        stillImage: CVPixelBuffer?
     ) throws {
         self.baseConfiguration = configuration
-        self.isTestPattern = url == nil
+        self.isTestPattern = url == nil && stillImage == nil
+        self.stillImage = stillImage
         self.decodePrecisionDecision = precisionDecision
         let useControlledV6 = controlledV6 && !controlledAB
         self.controlledABComparisonEnabled = controlledAB
@@ -463,6 +496,25 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
 
     public func prepare() {
         metrics.markPrepareCalled()
+        if let stillImage {
+            let size = CGSize(width: CVPixelBufferGetWidth(stillImage), height: CVPixelBufferGetHeight(stillImage))
+            let info = PlaybackVideoInfo(
+                encodedSize: size,
+                displaySize: size,
+                orientation: .identity,
+                duration: .invalid,
+                nominalFrameRate: 0,
+                hasAudioTrack: false
+            )
+            videoInfo = info
+            isReady = true
+            didNotifyReady = true
+            stillFramesToProcess = Self.stillSettleFrames
+            stillIdleFramesBeforePause = Self.stillIdleFrames
+            metrics.markReadyToPlay()
+            onReady?(info)
+            return
+        }
         if isTestPattern {
             let info = PlaybackVideoInfo(
                 encodedSize: CGSize(width: 1920, height: 1080),
@@ -559,6 +611,11 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
 
     public func play() {
         guard isReady else { return }
+        if isStillImage {
+            // Nothing to play: run the display link until the image settles.
+            onPlaybackActivityChanged?(true)
+            return
+        }
         player.play()
         metrics.markPlaybackStarted()
         onPlaybackActivityChanged?(true)
@@ -570,6 +627,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     }
 
     public func togglePlayPause() {
+        guard !isStillImage else { return }
         if player.rate == 0 {
             play()
         } else {
@@ -808,6 +866,54 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                 orientation: .identity,
                 fallbackToSDR: !displayCapabilities.isActivelyUsingEDR,
                 testPattern: true,
+                masteringHeadroom: activeMasteringHeadroom,
+                displayHeadroom: effectiveDisplayHeadroom,
+                diagnosticFrameIndex: diagnosticFrameIndexStorage,
+                diagnosticROI: displayROI
+            )
+        } else if let stillImage, let info = videoInfo {
+            if needsFrameReprocessing {
+                // A setting or the display changed: settle again, then idle.
+                needsFrameReprocessing = false
+                stillFramesToProcess = Self.stillSettleFrames
+                stillIdleFramesBeforePause = Self.stillIdleFrames
+                onPlaybackActivityChanged?(true)
+            }
+            if stillFramesToProcess > 0 || lastFrame == nil {
+                do {
+                    stillTimestampIndex += 1
+                    let frames = try processFrame(
+                        pixelBuffer: stillImage,
+                        timestamp: CMTime(value: stillTimestampIndex, timescale: 60),
+                        commandBuffer: commandBuffer,
+                        frameIndex: nextDiagnosticFrameIndex(),
+                        roi: displayROI
+                    )
+                    processedFrame = frames.active
+                    lastFrame = frames.active
+                    stillFramesToProcess = max(stillFramesToProcess - 1, 0)
+                    metrics.recordProcessedFrame()
+                } catch HDRProcessorError.outputTexturePoolExhausted {
+                    metrics.recordInFlightSaturation()
+                } catch {
+                    reportError(error)
+                }
+            } else {
+                reused = lastFrame != nil
+                if stillIdleFramesBeforePause > 0 {
+                    stillIdleFramesBeforePause -= 1
+                    if stillIdleFramesBeforePause == 0 { onPlaybackActivityChanged?(false) }
+                }
+            }
+            didEncodePresentation = renderer.encode(
+                texture: processedFrame?.texture ?? lastFrame?.texture,
+                drawable: update.drawable,
+                commandBuffer: commandBuffer,
+                sourceSize: info.displaySize,
+                drawableSize: drawableSize,
+                orientation: .identity,
+                fallbackToSDR: !displayCapabilities.isActivelyUsingEDR,
+                testPattern: false,
                 masteringHeadroom: activeMasteringHeadroom,
                 displayHeadroom: effectiveDisplayHeadroom,
                 diagnosticFrameIndex: diagnosticFrameIndexStorage,

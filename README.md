@@ -224,6 +224,15 @@ How the app behaves:
 - File → Open (⌘O) replaces the current video.
 - WebM/VP9 is converted on first open into `.build/converted/`.
 - The app remembers your last Y choice.
+
+### Images
+
+`HDRPlayer` also opens still images (JPEG, PNG, HEIC, TIFF, WebP, GIF), from the command line, File → Open or Finder's Open With. The same engine and settings apply: preset, upscaling and skin protection.
+- The image is decoded once with ImageIO, its EXIF orientation applied, and scaled so its longer side is at most 4096 px.
+- It is drawn into an sRGB buffer, so Display P3 colours are converted into sRGB, because the engine accepts BT.709-family primaries only. Transparency is composited over black.
+- It enters the engine as one sRGB-tagged frame, processed for 30 frames so scene statistics and temporal adaptation settle, as at a video's start. The display link then pauses until a setting or the display's headroom changes.
+- The SDR decode choice (Y, the YouTube decode) is a reinterpretation of BT.709-tagged video, so it is disabled for images.
+- The bar shrinks to a settings button.
 - The app is signed ad hoc and lives only in this folder.
 
 ## Commands
