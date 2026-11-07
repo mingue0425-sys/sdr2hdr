@@ -13,7 +13,7 @@ SHA-256, so the window can be re-derived if the upload is fetched again.
 
 Usage: python3 -I add_kchoreo_from_list.py REPO_ROOT LIST.json [--drop-originals]
 """
-import hashlib, json, os, re, subprocess, sys
+import datetime, hashlib, json, os, re, subprocess, sys
 root = sys.argv[1]
 listed = json.load(open(sys.argv[2]))
 drop_originals = '--drop-originals' in sys.argv[3:]
@@ -55,8 +55,8 @@ for vid, series, title in videos:
         st = sh('ffprobe', '-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', o).strip()
         assert abs(float(st)) < 1e-6, (o, st)
         out[role] = o
-    tune = sum(1 for p in m['pairs'] if p['contentFamily'] == series and p['split'] == 'tune')
-    validation = sum(1 for p in m['pairs'] if p['contentFamily'] == series and p['split'] == 'validation')
+    tune = sum(1 for p in m['pairs'] if p['id'] != f'kbs_{vid}' and p['contentFamily'] == series and p['split'] == 'tune')
+    validation = sum(1 for p in m['pairs'] if p['id'] != f'kbs_{vid}' and p['contentFamily'] == series and p['split'] == 'validation')
     split = 'tune' if tune < validation else 'validation'
     pid = f'kbs_{vid}'
     m['pairs'] = [p for p in m['pairs'] if p['id'] != pid]
@@ -82,11 +82,8 @@ for vid, series, title in videos:
                      'sourceFile': src['628' if role == 'sdr' else '642'].replace(root + '/', ''),
                      'sourceSHA256': sha(src['628' if role == 'sdr' else '642']),
                      'sourceObject': f"https://www.youtube.com/watch?v={vid} (itag {'628' if role == 'sdr' else '642'})",
-                     'accessDate': '2026-11-07'})
+                     'accessDate': datetime.date.today().isoformat()})
     print(pid, series, split, start)
-    if drop_originals:
-        for path in src.values():
-            os.remove(path)
 order = {'tune': 0, 'validation': 1, 'frozen': 2}
 m['pairs'].sort(key=lambda p: order[p['split']])
 json.dump(m, open(mpath, 'w'), indent=2, ensure_ascii=False); open(mpath, 'a').write('\n')
@@ -95,3 +92,9 @@ pdoc = json.load(open(ppath))
 added = {f['pairID'] for f in prov}
 pdoc['files'] = [f for f in pdoc['files'] if f['pairID'] not in added] + prov
 json.dump(pdoc, open(ppath, 'w'), indent=2, ensure_ascii=False)
+# Originals go only after the manifest and provenance are written: if any upload in the list fails,
+# nothing has been deleted and the run can be repeated.
+if drop_originals:
+    for vid, _, _ in videos:
+        for itag in ('642', '628'):
+            os.remove(f'{root}/data_video/kchoreo-v2/{vid}/{vid}.f{itag}.mp4')
