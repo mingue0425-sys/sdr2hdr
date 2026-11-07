@@ -48,6 +48,18 @@ final class PlayableInputConverterTests: XCTestCase {
         XCTAssertEqual(PlayableInputConverter.defaultCacheDirectory(executable: executable).path, "/repo/.build/converted")
     }
 
+    func testAppBundlesNeverConvertIntoTheirOwnBundle() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("hdr-app-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = root.appendingPathComponent("HDRPlayer.app/Contents/MacOS/HDRPlayer")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        XCTAssertEqual(PlayableInputConverter.defaultCacheDirectory(executable: executable).lastPathComponent, "HDRPlayer-converted")
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".build"), withIntermediateDirectories: true)
+        let inCheckout = PlayableInputConverter.defaultCacheDirectory(executable: executable)
+        XCTAssertEqual(inCheckout.deletingLastPathComponent().lastPathComponent, ".build")
+        XCTAssertEqual(inCheckout.lastPathComponent, "converted")
+    }
+
     func testConversionOptionsParse() throws {
         let defaults = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.webm"])
         XCTAssertTrue(defaults.convertUndecodable)

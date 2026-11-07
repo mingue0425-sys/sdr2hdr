@@ -19,3 +19,7 @@ data_video/virgin_candidates/**/.work/
 
 # External local corpus, including raw Y4M and provenance caches.
 /sdr2hdr-real-media/
+
+# Assembled by scripts/make-hdrplayer-app.sh
+/HDRPlayer.app/
+/HDRPlayer-converted/

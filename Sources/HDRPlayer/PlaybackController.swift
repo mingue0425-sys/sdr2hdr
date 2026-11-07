@@ -232,7 +232,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public var onPlaybackActivityChanged: ((Bool) -> Void)?
     public var diagnosticJSONDirectory: URL?
 
-    private let baseConfiguration: HDRConfiguration
+    private var baseConfiguration: HDRConfiguration
     private let diagnosticsEnabled: Bool
     private let v2Processor: HDRProcessor?
     private let v4Processor: HDRProcessor?
@@ -543,6 +543,18 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         } catch {
             reportError(error)
         }
+    }
+
+    /// The SDR decode of the base configuration.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation {
+        baseConfiguration.sdrTransferInterpretation
+    }
+
+    /// Switches the SDR decode during playback and redraws the current frame.
+    public func setSDRTransferInterpretation(_ policy: HDRSDRTransferInterpretation) {
+        guard policy != baseConfiguration.sdrTransferInterpretation else { return }
+        baseConfiguration.sdrTransferInterpretation = policy
+        updateDisplayCapabilities(displayCapabilities)
     }
 
     public func play() {

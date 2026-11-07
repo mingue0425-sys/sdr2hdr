@@ -145,6 +145,29 @@ such an input once with VideoToolbox HEVC, then plays it:
 `--no-convert` turns this off. `HDRSample` and `--no-convert` print the
 equivalent ffmpeg command instead.
 
+**`HDRPlayer` decodes BT.709 SDR with `youtube-hlg-v2` by default.**
+- Press **Y** (View → YouTube HDR Source) for a video that was SDR at the source. This switches to the plain BT.709 inverse OETF while the video keeps playing.
+- The window title shows the active decode.
+- `--sdr-transfer bt709-oetf` starts in that mode.
+- The calibration presets and `HDRSample` keep the historical inverse OETF.
+
+### Opening videos from Finder
+
+```bash
+scripts/make-hdrplayer-app.sh   # builds HDRPlayer.app in this folder
+```
+
+Then, for any video:
+- **Right-click → Open With → HDRPlayer**; or
+- **Get Info → Open with: HDRPlayer → Change All…**, after which a double-click opens HDRPlayer.
+
+How the app behaves:
+- Double-clicking the app itself asks for a file.
+- File → Open (⌘O) replaces the current video.
+- WebM/VP9 is converted on first open into `.build/converted/`.
+- The app remembers your last Y choice.
+- The app is signed ad hoc and lives only in this folder.
+
 ## Commands
 
 ```bash

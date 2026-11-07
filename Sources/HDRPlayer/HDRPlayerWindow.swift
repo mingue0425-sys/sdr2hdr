@@ -3,6 +3,10 @@
 @MainActor
 public final class HDRPlayerWindow: NSWindow, NSWindowDelegate {
     public let metalView: HDRMetalView
+    /// Called when the window closes. The default quits the app.
+    public var onClose: (() -> Void)?
+    /// The file name shown in the title.
+    public var displayName = "HDRPlayer"
 
     public init(metalView: HDRMetalView, initialSize: CGSize = CGSize(width: 1280, height: 720)) {
         self.metalView = metalView
@@ -48,6 +52,6 @@ public final class HDRPlayerWindow: NSWindow, NSWindowDelegate {
 
     public func windowWillClose(_ notification: Notification) {
         metalView.playbackController?.stop()
-        NSApp.terminate(nil)
+        if let onClose { onClose() } else { NSApp.terminate(nil) }
     }
 }

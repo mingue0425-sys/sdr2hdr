@@ -26,11 +26,24 @@ public struct PlayableInputConverter: Sendable {
     }
 
     /// `<directory of the executable>/../converted`, so a checkout's
-    /// `.build/release/HDRPlayer` writes to `.build/converted`.
+    /// `.build/release/HDRPlayer` writes to `.build/converted`. Inside an app
+    /// bundle (which must not change) it is `.build/converted` next to the app
+    /// when that folder exists, else `HDRPlayer-converted` next to the app.
     public static func defaultCacheDirectory(executable: URL? = Bundle.main.executableURL) -> URL {
         let base = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
             ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        return base.deletingLastPathComponent().appendingPathComponent("converted", isDirectory: true)
+        let contents = base.deletingLastPathComponent()
+        let app = contents.deletingLastPathComponent()
+        if base.lastPathComponent == "MacOS", contents.lastPathComponent == "Contents", app.pathExtension == "app" {
+            let parent = app.deletingLastPathComponent()
+            let build = parent.appendingPathComponent(".build", isDirectory: true)
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: build.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                return build.appendingPathComponent("converted", isDirectory: true)
+            }
+            return parent.appendingPathComponent("HDRPlayer-converted", isDirectory: true)
+        }
+        return contents.appendingPathComponent("converted", isDirectory: true)
     }
 
     public enum Outcome: Equatable, Sendable {

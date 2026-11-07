@@ -210,6 +210,8 @@ public final class HDRMetalView: NSView, @preconcurrency CAMetalDisplayLinkDeleg
             _ = playbackController.toggleV6Preset()
         case 26: // 7
             _ = playbackController.toggleV62Preset()
+        case 16: // Y: YouTube HDR decode on/off (handled by the app delegate)
+            NSApp.sendAction(#selector(HDRPlayerApplication.toggleYouTubeDecode(_:)), to: nil, from: self)
         case 2: // D
             print(playbackController.diagnosticDump(renderer: renderer))
             if let url = playbackController.writeDiagnosticJSON(renderer: renderer) {

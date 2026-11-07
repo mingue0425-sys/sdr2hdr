@@ -34,6 +34,11 @@ public enum HDRPlayerCLIError: Error, LocalizedError, Equatable {
 }
 
 public struct PlayerOptions: Equatable, Sendable {
+    /// The player decodes BT.709 SDR as the SDR rendition of a YouTube HDR
+    /// (HLG) upload unless told otherwise; Y switches to the plain BT.709
+    /// inverse OETF during playback. Calibration presets are unaffected.
+    public static let defaultSDRTransferInterpretation: HDRSDRTransferInterpretation = .youtubeHLGDerivedInverseLuminanceGain
+
     public var inputURL: URL?
     public var preset: String
     public var paperWhiteNits: Float?
@@ -76,7 +81,7 @@ public struct PlayerOptions: Equatable, Sendable {
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
         decodePrecision: HDRDecodePrecision = .automatic,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
-        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = PlayerOptions.defaultSDRTransferInterpretation,
         gainGuidance: HDRGainGuidance = .off
     ) {
         self.inputURL = inputURL
@@ -115,7 +120,9 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
 
-        Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen,
+        SDR is decoded as a YouTube HDR (HLG) rendition by default (youtube-hlg-v2); Y switches to bt709-oetf.
+
+        Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen, Y YouTube HDR decode on/off,
         B quick V2/V4 A/B toggle, 6 quick V4/V6 candidate toggle, 7 quick V4/V6.2 candidate toggle, D diagnostic dump, Shift-drag generic ROI, Up/Down volume,
         Command-Q quit.
         """
