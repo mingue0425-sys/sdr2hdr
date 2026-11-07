@@ -25,6 +25,11 @@ public enum HDRTransferFunction: Equatable, Sendable {
     /// gamma, normalized so SDR code 1.0 is 1.0. Selected only by
     /// `HDRSDRTransferInterpretation.youtubeHLGDerivedInverse`.
     case youtubeHLGInverse
+    /// `youtubeHLGInverse` per channel, then rescaled so its luminance equals
+    /// the BT.2100 luminance OOTF (Ys^1.2) while its chromaticity stays the
+    /// per-channel one. Selected only by
+    /// `HDRSDRTransferInterpretation.youtubeHLGDerivedInverseLuminanceGain`.
+    case youtubeHLGInverseLuminanceGain
 
     /// Applies an SDR interpretation policy to a resolved transfer tag. Only
     /// the BT.709/BT.2020 SDR tag is ambiguous between scene-linear and
@@ -38,6 +43,8 @@ public enum HDRTransferFunction: Equatable, Sendable {
             return .bt709ToeBT1886Blend
         case (.bt709, .youtubeHLGDerivedInverse):
             return .youtubeHLGInverse
+        case (.bt709, .youtubeHLGDerivedInverseLuminanceGain):
+            return .youtubeHLGInverseLuminanceGain
         default:
             return self
         }
@@ -71,6 +78,13 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
     /// It is meant to be selected by a user who knows the source, not inferred.
     case youtubeHLGDerivedInverse = "youtube-hlg-sdr-inverse-17knot-v1"
 
+    /// v1's curve and per-channel decode, with luminance set by the BT.2100
+    /// luminance OOTF instead of the per-channel 1.2 gamma. Chosen on the
+    /// Tune broadcast pairs: per-channel keeps chromaticity closer to the
+    /// reference, the luminance OOTF keeps luminance closer, and this takes
+    /// each from the better one.
+    case youtubeHLGDerivedInverseLuminanceGain = "youtube-hlg-sdr-inverse-17knot-lumgain-v2"
+
     /// The default intentionally preserves historical output.
     public static let `default`: HDRSDRTransferInterpretation = .bt709InverseOETFSceneLinear
 
@@ -81,6 +95,7 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
         case .bt1886DisplayReferred: return "bt1886"
         case .bt709ToeBT1886MidBlend: return "bt709-1886-blend"
         case .youtubeHLGDerivedInverse: return "youtube-hlg"
+        case .youtubeHLGDerivedInverseLuminanceGain: return "youtube-hlg-v2"
         }
     }
 
@@ -249,6 +264,22 @@ public enum HDRColorMath {
         pow(inverseHLGOETF(youtubeSDRToHLGCode(signal)), 1.2)
     }
 
+    /// The three-channel step of `youtubeHLGInverseLuminanceGain`. `perChannel`
+    /// is the per-channel decode E^1.2 (BT.709 linear). The result keeps its
+    /// chromaticity and takes the luminance Y(E)^1.2 of the BT.2100 luminance
+    /// OOTF. Neutral input is unchanged.
+    public static func youtubeHLGLuminanceGain(_ perChannel: SIMD3<Float>) -> SIMD3<Float> {
+        let current = simd_dot(perChannel, bt709Luminance)
+        guard current > 0 else { return perChannel }
+        let scene = SIMD3<Float>(
+            pow(max(perChannel.x, 0), 1 / 1.2),
+            pow(max(perChannel.y, 0), 1 / 1.2),
+            pow(max(perChannel.z, 0), 1 / 1.2)
+        )
+        let target = pow(max(simd_dot(scene, bt709Luminance), 0), 1.2)
+        return perChannel * (target / current)
+    }
+
     public static func inverseSRGB(_ signal: Float) -> Float {
         let value = max(signal, 0)
         return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
@@ -274,7 +305,7 @@ public enum HDRColorMath {
             return inverseBT1886(signal)
         case .bt709ToeBT1886Blend:
             return inverseBT709ToeBT1886Blend(signal)
-        case .youtubeHLGInverse:
+        case .youtubeHLGInverse, .youtubeHLGInverseLuminanceGain:
             return inverseYouTubeHLGDerived(signal)
         }
     }

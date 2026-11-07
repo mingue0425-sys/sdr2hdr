@@ -140,6 +140,7 @@ inline float inverseTransfer(float value, constant SDRToHDRParameters& p) {
             return mix(inverseBT709(value), pow(max(value, 0.0f), 2.4f), w);
         }
         case 6: return inverseYouTubeHLGDerived(value);
+        case 7: return inverseYouTubeHLGDerived(value);
         default: return max(value, 0.0f);
     }
 }
@@ -541,6 +542,16 @@ inline float3 linearizeSignal(float3 signal, constant SDRToHDRParameters& p) {
         inverseTransfer(signal.y, p),
         inverseTransfer(signal.z, p)
     ), 0.0f);
+    if (p.transferFunction == 7) {
+        // youtubeHLGInverseLuminanceGain: per-channel chromaticity, BT.2100
+        // luminance OOTF luminance (HDRColorMath.youtubeHLGLuminanceGain).
+        constexpr float3 kBT709Y = float3(0.2126f, 0.7152f, 0.0722f);
+        float current = dot(linear, kBT709Y);
+        if (current > 0.0f) {
+            float3 scene = pow(linear, float3(1.0f / 1.2f));
+            linear *= pow(max(dot(scene, kBT709Y), 0.0f), 1.2f) / current;
+        }
+    }
     if (p.inputPrimaries == 1) {
         linear = max(kSMPTECToBT709 * linear, 0.0f);
     } else if (p.inputPrimaries == 2) {

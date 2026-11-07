@@ -82,6 +82,9 @@ public enum HDRReference {
             HDRColorMath.inverseTransfer(signal.y, function: decode),
             HDRColorMath.inverseTransfer(signal.z, function: decode)
         )
+        if decode == .youtubeHLGInverseLuminanceGain {
+            linear = HDRColorMath.youtubeHLGLuminanceGain(linear)
+        }
         if let toBT709 = HDRColorMath.toBT709(inputPrimaries) {
             linear = simd_max(toBT709 * linear, SIMD3<Float>(repeating: 0))
         }

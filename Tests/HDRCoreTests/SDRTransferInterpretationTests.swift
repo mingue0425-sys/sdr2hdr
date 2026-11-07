@@ -25,7 +25,11 @@ final class SDRTransferInterpretationTests: XCTestCase {
             HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue,
             "youtube-hlg-sdr-inverse-17knot-v1"
         )
-        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 4)
+        XCTAssertEqual(
+            HDRSDRTransferInterpretation.youtubeHLGDerivedInverseLuminanceGain.rawValue,
+            "youtube-hlg-sdr-inverse-17knot-lumgain-v2"
+        )
+        XCTAssertEqual(HDRSDRTransferInterpretation.allCases.count, 5)
         for policy in HDRSDRTransferInterpretation.allCases {
             XCTAssertEqual(HDRSDRTransferInterpretation(rawValue: policy.rawValue), policy)
             XCTAssertEqual(HDRSDRTransferInterpretation(cliName: policy.cliName), policy)
@@ -149,7 +153,8 @@ final class SDRTransferInterpretationTests: XCTestCase {
                 case .bt1886DisplayReferred: expected = pow(signal, 2.4)
                 case .bt709ToeBT1886MidBlend: expected = HDRColorMath.inverseBT709ToeBT1886Blend(signal)
                 case .bt709InverseOETFSceneLinear: expected = HDRColorMath.inverseBT709(signal)
-                case .youtubeHLGDerivedInverse: expected = HDRColorMath.inverseYouTubeHLGDerived(signal)
+                case .youtubeHLGDerivedInverse, .youtubeHLGDerivedInverseLuminanceGain:
+                    expected = HDRColorMath.inverseYouTubeHLGDerived(signal)
                 }
                 let reference = HDRReference.process(
                     signalRGB: SIMD3(repeating: signal),

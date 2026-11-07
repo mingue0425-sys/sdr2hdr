@@ -1448,6 +1448,9 @@ public final class HDRProcessor {
         case .youtubeHLGInverse:
             transferFunction = 6
             gamma = 1.2
+        case .youtubeHLGInverseLuminanceGain:
+            transferFunction = 7
+            gamma = 1.2
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,
