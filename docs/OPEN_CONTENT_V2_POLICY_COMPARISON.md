@@ -247,3 +247,34 @@ Findings:
 - **The objective's `chromaError` rises by 4–5%**, while the u′v′ distance in the analysis is unchanged. The two measure chroma differently. The net effect is still clearly positive.
 - The cinema families and the selected candidate are unchanged, because the declaration touches only broadcast pairs.
 - **Not yet shown:** v2 has had no Frozen test. A new sealed holdout with broadcast and non-KBS HLG pairs is being acquired (`OPEN_CONTENT_V2_DATASET.md`).
+
+# Round 7: does the declaration hold beyond KBS? (2026-11-07)
+
+Setup:
+- 47 Tune/Validation pairs (Tune 24, Validation 23), 7 families, same seed and protocol, `--stop-before-frozen`. The new sealed holdout (7 pairs) was not touched.
+- New family: **YouTube HLG fancam**, 6 pairs (Tune 3, Validation 3) from non-KBS uploaders. Like KBS, they are YouTube's VP9 HLG rendition and its automatic SDR rendition of the same upload. Family and split were fixed from titles and uploaders before download (`OPEN_CONTENT_V2_DATASET.md`, round 7).
+- Declared families: K-Choreo, KBS Music Bank One-take and YouTube HLG fancam.
+- The 17-knot curve was fitted on Tune K-Choreo/KBS pairs before any fancam pair existed. For the curve, all 6 fancam pairs are out of sample; the 3 Validation pairs are out of sample for the parameter search as well.
+- Correctness review: Tune 24/24, Validation 23/23 structurally complete (commit `a9745f8`).
+- Artifacts: `results/open-content-v2/round7/`.
+
+Results:
+
+| run | selected | LOFO mean / worst | K-Choreo / V2 | KBS / V2 | **fancam / V2** | cinema worst / V2 |
+|---|---|---|---:|---:|---:|---:|
+| shape-oetf | `local_049` | +11.6% / +5.4% | 0.896 | 0.905 | 0.824 | 0.937 |
+| shape-oetf-ythlg2 (v2 declared) | `local_020` | +32.4% / +5.9% | 0.391 | 0.384 | **0.430** | 0.917 |
+
+Fancam pairs, ratio to V2 by split:
+
+| split | shape-oetf | declared v2 | pairs |
+|---|---:|---:|---|
+| Tune | 0.742 (worst 0.769) | **0.334** (worst 0.473) | 3 |
+| Validation | 0.900 (worst 0.954) | **0.545** (worst 0.635) | 3 |
+
+Findings:
+- **The declaration generalises to non-KBS YouTube HLG uploads.** Fancam error falls by more than half, the same order as on KBS. That includes the 3 Validation pairs, which neither the curve fit nor the search saw. YouTube's SDR conversion is evidently one pipeline across uploaders, not a KBS-specific grade.
+- **The selected candidate is again `local_020`, the shipped `calibrated-v5`.** Adding a seventh family did not move the choice, and there is nothing new to promote.
+- Without the declaration, `video3_newjeans_how_sweet` is again the worst pair (1.146× V2). With it, the worst pair is `aswf_stem2_t450` (1.044× V2, 1.048× default), as in rounds 3–6.
+- The LOFO fancam fold is +57.0% under the declaration. As with K-Choreo and KBS, that fold is not held out for the declaration itself, only for the parameter search.
+- **Not yet shown:** a Frozen test of the declaration. The new sealed holdout (YouTube HLG landscape ×4, K-Choreo ×3) exists for that and needs separate approval to open.
