@@ -20,6 +20,7 @@ private struct CLI {
     let variants: [String]
     let declaredSource: HDRSDRTransferInterpretation?
     let declaredSourceFamilies: [String]?
+    let guidanceSet: String?
 
     init(arguments: [String]) throws {
         guard arguments.count > 1 else { throw CLIError.usage }
@@ -36,6 +37,7 @@ private struct CLI {
         var selectionCount = 6
         var sdrTransferInterpretation = HDRSDRTransferInterpretation.default
         var stopBeforeFrozen = false
+        var guidanceSet: String?
         var levelNormalization: V2LevelNormalization?
         var variants: [String] = []
         var declaredSource: HDRSDRTransferInterpretation?
@@ -99,6 +101,10 @@ private struct CLI {
             case "--stop-before-frozen":
                 stopBeforeFrozen = true
                 index += 1
+            case "--guidance-set":
+                guard index + 1 < arguments.count, arguments[index + 1] == "texture-v1" else { throw CLIError.usage }
+                guidanceSet = arguments[index + 1]
+                index += 2
             case "--sdr-transfer":
                 guard index + 1 < arguments.count,
                       let value = HDRSDRTransferInterpretation(cliName: arguments[index + 1]) else { throw CLIError.usage }
@@ -149,6 +155,7 @@ private struct CLI {
         self.selectionCount = selectionCount
         self.sdrTransferInterpretation = sdrTransferInterpretation
         self.stopBeforeFrozen = stopBeforeFrozen
+        self.guidanceSet = guidanceSet
         self.levelNormalization = levelNormalization
         self.variants = variants
         // A declared-source policy needs its families. Families alone are
@@ -215,7 +222,7 @@ private enum CLIError: Error, LocalizedError {
       HDRCalibrate v6-1-attribution --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.1-error-attribution.json
       HDRCalibrate v6-2-adaptive --manifest data_video/visual-regression/v6-development-manifest.json --output /tmp/v6.2-scene-adaptive.json
       HDRCalibrate prepare-frozen-plan --manifest data_video/open-content/manifest.json --prepared-plan results/open-content-v1/v6-prepared-evaluation-plan.json --output results/open-content-v1/v6-frozen-prepared-evaluation-plan.json
-      HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json --output results/robustness-study.json
+      HDRCalibrate robustness-study --manifest data_video/open-content/manifest.json [--guidance-set texture-v1] --output results/robustness-study.json
       HDRCalibrate verify-prepared-plan --prepared-plan results/v6-prepared-evaluation-plan.json
       HDRCalibrate dataset-audit   --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
       HDRCalibrate dataset-audit-preflight --manifest data_video/manifest-v4.json --output results/dataset-v4-final.json
@@ -332,7 +339,12 @@ private func run(arguments: [String]) async throws {
     }
 
     if cli.command == "robustness-study" {
-        let report = try await RobustnessStudy.run(manifestURL: try cli.requiredManifest(), outputURL: cli.output)
+        let report = cli.guidanceSet == "texture-v1"
+            ? try await RobustnessStudy.run(
+                manifestURL: try cli.requiredManifest(), outputURL: cli.output,
+                guidanceCandidates: RobustnessStudy.textureAdaptiveCandidates, adaptiveCandidates: []
+            )
+            : try await RobustnessStudy.run(manifestURL: try cli.requiredManifest(), outputURL: cli.output)
         print("robustness study: Tune pairs=\(report.pairs.count), variants=\(report.variants.count), configurations=\(report.configurations.joined(separator: ","))")
         print("Validation/Frozen accessed: \(report.validationOrFrozenAccessed ? "YES" : "NO")")
         print("robustness report: \(cli.output.path)")

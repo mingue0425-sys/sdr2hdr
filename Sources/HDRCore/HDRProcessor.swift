@@ -1509,7 +1509,10 @@ public final class HDRProcessor {
             gainGuidanceRadius: UInt32(clamping: configuration.gainGuidance.radius),
             gainGuidanceTolerance: configuration.gainGuidance.tolerance,
             gainGuidanceReferencePath: gainGuidanceReferencePathEnabled ? 1 : 0,
-            inputPrimaries: color.metadata.primaries.rawValue
+            inputPrimaries: color.metadata.primaries.rawValue,
+            gainGuidanceTextureLow: configuration.gainGuidance.textureLow,
+            gainGuidanceTextureHigh: configuration.gainGuidance.textureHigh,
+            gainGuidanceMinimumTolerance: configuration.gainGuidance.minimumTolerance
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

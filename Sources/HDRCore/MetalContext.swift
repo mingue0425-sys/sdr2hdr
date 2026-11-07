@@ -56,6 +56,10 @@ internal struct HDRShaderParameters {
     var gainGuidanceReferencePath: UInt32
     /// `HDRInputPrimaries` raw value; 0 (BT.709) skips the conversion.
     var inputPrimaries: UInt32
+    /// Texture-adaptive gate (`HDRGainGuidance`); textureHigh <= textureLow disables it.
+    var gainGuidanceTextureLow: Float
+    var gainGuidanceTextureHigh: Float
+    var gainGuidanceMinimumTolerance: Float
 }
 
 internal final class MetalContext {

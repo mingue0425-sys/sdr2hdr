@@ -601,15 +601,29 @@ public struct HDRGainGuidance: Equatable, Sendable, Codable {
 
     public let radius: Int
     public let tolerance: Float
+    /// Texture-adaptive gate (experimental, off when `textureHigh <= textureLow`).
+    /// Per pixel, the gate tolerance falls from `tolerance` to
+    /// `minimumTolerance` as the window's local luma standard deviation rises
+    /// from `textureLow` to `textureHigh` (signal units). Flat regions, where
+    /// banding steps and codec blocks live, keep the wide gate; textured
+    /// regions get a narrow one and keep most of their per-pixel expansion.
+    public let textureLow: Float
+    public let textureHigh: Float
+    public let minimumTolerance: Float
 
-    public init(radius: Int, tolerance: Float) {
+    public init(radius: Int, tolerance: Float, textureLow: Float = 0, textureHigh: Float = 0, minimumTolerance: Float = 0) {
         self.radius = min(max(radius, 0), Self.maximumRadius)
         self.tolerance = radius > 0 ? max(tolerance, 1e-4) : 0
+        let adaptive = radius > 0 && textureHigh > textureLow && textureLow >= 0
+        self.textureLow = adaptive ? textureLow : 0
+        self.textureHigh = adaptive ? textureHigh : 0
+        self.minimumTolerance = adaptive ? min(max(minimumTolerance, 1e-4), self.tolerance) : 0
     }
 
     public var isEnabled: Bool { radius > 0 }
+    public var isTextureAdaptive: Bool { textureHigh > textureLow }
 
-    private enum CodingKeys: String, CodingKey { case radius, tolerance }
+    private enum CodingKeys: String, CodingKey { case radius, tolerance, textureLow, textureHigh, minimumTolerance }
 
     /// Decoding goes through the clamping initializer, so a stored radius
     /// outside 0...maximumRadius or a non-positive tolerance cannot reach
@@ -618,8 +632,23 @@ public struct HDRGainGuidance: Equatable, Sendable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             radius: try container.decode(Int.self, forKey: .radius),
-            tolerance: try container.decode(Float.self, forKey: .tolerance)
+            tolerance: try container.decode(Float.self, forKey: .tolerance),
+            textureLow: try container.decodeIfPresent(Float.self, forKey: .textureLow) ?? 0,
+            textureHigh: try container.decodeIfPresent(Float.self, forKey: .textureHigh) ?? 0,
+            minimumTolerance: try container.decodeIfPresent(Float.self, forKey: .minimumTolerance) ?? 0
         )
+    }
+
+    /// Non-adaptive guidance encodes exactly as before (radius, tolerance).
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(radius, forKey: .radius)
+        try container.encode(tolerance, forKey: .tolerance)
+        if isTextureAdaptive {
+            try container.encode(textureLow, forKey: .textureLow)
+            try container.encode(textureHigh, forKey: .textureHigh)
+            try container.encode(minimumTolerance, forKey: .minimumTolerance)
+        }
     }
 }
 

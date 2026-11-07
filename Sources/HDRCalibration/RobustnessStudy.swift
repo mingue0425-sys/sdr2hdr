@@ -63,6 +63,16 @@ public enum RobustnessStudy {
         }
     }
 
+    /// Texture-adaptive gate study (`--guidance-set texture-v1`): the fixed
+    /// noise-gated gate against per-pixel gates whose tolerance narrows with
+    /// the window's local luma standard deviation.
+    public static let textureAdaptiveCandidates: [(String, HDRGainGuidance)] = [
+        ("v4-guided-r2-t0.12", HDRGainGuidance(radius: 2, tolerance: 0.12)),
+        ("v4-texture-l0.015-h0.035-m0.02", HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.015, textureHigh: 0.035, minimumTolerance: 0.02)),
+        ("v4-texture-l0.02-h0.05-m0.03", HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.02, textureHigh: 0.05, minimumTolerance: 0.03)),
+        ("v4-texture-l0.03-h0.08-m0.04", HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.03, textureHigh: 0.08, minimumTolerance: 0.04)),
+    ]
+
     public static let defaultAdaptiveCandidates: [AdaptiveGuidance] = [
         AdaptiveGuidance(id: "v4-adaptive-k3-min0.02", radius: 2, k: 3, minimumTolerance: 0.02, maximumTolerance: 0.15),
         AdaptiveGuidance(id: "v4-adaptive-k4-min0.05", radius: 2, k: 4, minimumTolerance: 0.05, maximumTolerance: 0.15),

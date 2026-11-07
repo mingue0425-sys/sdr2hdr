@@ -65,6 +65,38 @@ final class GainGuidanceTests: XCTestCase {
         }
     }
 
+    func testTextureAdaptiveGateIsOptInAndEncodesLikeBeforeWhenOff() throws {
+        XCTAssertFalse(HDRGainGuidance.noiseGatedCandidate.isTextureAdaptive)
+        XCTAssertFalse(HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.05, textureHigh: 0.05).isTextureAdaptive)
+        let adaptive = HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.01, textureHigh: 0.04, minimumTolerance: 0.5)
+        XCTAssertTrue(adaptive.isTextureAdaptive)
+        XCTAssertEqual(adaptive.minimumTolerance, 0.12, "the minimum never exceeds the flat-region tolerance")
+        let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(HDRGainGuidance.noiseGatedCandidate)) as? [String: Any]
+        XCTAssertEqual(Set(plain?.keys ?? [:].keys), ["radius", "tolerance"])
+        XCTAssertEqual(try JSONDecoder().decode(HDRGainGuidance.self, from: JSONEncoder().encode(adaptive)), adaptive)
+    }
+
+    func testTextureAdaptiveGateKeepsTextureExpansionButStillGatesFlatSteps() throws {
+        let adaptive = HDRGainGuidance(radius: 2, tolerance: 0.12, textureLow: 0.015, textureHigh: 0.035, minimumTolerance: 0.02)
+        // Textured highlight: a ±12-code checkerboard (local deviation ~0.05).
+        let texture = try makeFrame { x, y in (x + y) % 2 == 0 ? 222 : 246 }
+        let plainTexture = pqDeviation(try render(texture, guidance: .off))
+        let fixedTexture = pqDeviation(try render(texture, guidance: .noiseGatedCandidate))
+        let adaptiveTexture = pqDeviation(try render(texture, guidance: adaptive))
+        // The fixed 0.12 gate averages the texture and loses its expansion;
+        // the adaptive gate narrows and keeps most of it.
+        XCTAssertLessThan(fixedTexture, plainTexture * 0.9, "fixed=\(fixedTexture) plain=\(plainTexture)")
+        XCTAssertGreaterThan(adaptiveTexture, plainTexture * 0.97, "adaptive=\(adaptiveTexture) plain=\(plainTexture)")
+
+        // Flat highlight with 2-code banding steps (local deviation < 0.01).
+        let banded = try makeFrame { x, _ in UInt8(232 + 2 * (x / 8)) }
+        let plainBands = pqDeviation(try render(banded, guidance: .off))
+        let fixedBands = pqDeviation(try render(banded, guidance: .noiseGatedCandidate))
+        let adaptiveBands = pqDeviation(try render(banded, guidance: adaptive))
+        XCTAssertLessThan(fixedBands, plainBands, "fixed=\(fixedBands) plain=\(plainBands)")
+        XCTAssertEqual(adaptiveBands, fixedBands, accuracy: fixedBands * 0.02, "adaptive=\(adaptiveBands) fixed=\(fixedBands)")
+    }
+
     // MARK: - Helpers
 
     /// EDR-relative BT.2020 luminance per pixel.

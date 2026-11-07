@@ -59,6 +59,13 @@ struct SDRToHDRParameters {
     uint gainGuidanceReferencePath;
     // HDRInputPrimaries: 0 BT.709 (no conversion), 1 SMPTE C, 2 EBU 3213.
     uint inputPrimaries;
+    // Texture-adaptive gate: the bilateral tolerance falls from
+    // gainGuidanceTolerance to gainGuidanceMinimumTolerance as the window's
+    // local luma standard deviation rises from TextureLow to TextureHigh.
+    // TextureHigh <= TextureLow disables it (bit-identical to the fixed gate).
+    float gainGuidanceTextureLow;
+    float gainGuidanceTextureHigh;
+    float gainGuidanceMinimumTolerance;
 };
 
 struct HDRDebugStats {
@@ -740,9 +747,14 @@ struct GuidanceAccumulator {
     }
 };
 
-inline GuidanceAccumulator makeGuidanceAccumulator(float center, constant SDRToHDRParameters& p) {
-    float tolerance = max(p.gainGuidanceTolerance, 1e-4f);
+inline GuidanceAccumulator makeGuidanceAccumulator(float center, constant SDRToHDRParameters& p,
+                                                   float toleranceOverride = -1.0f) {
+    float tolerance = max(toleranceOverride > 0.0f ? toleranceOverride : p.gainGuidanceTolerance, 1e-4f);
     return GuidanceAccumulator{center, 1.0f / (2.0f * tolerance * tolerance), 0.0f, 0.0f};
+}
+
+inline bool guidanceIsTextureAdaptive(constant SDRToHDRParameters& p) {
+    return p.gainGuidanceTextureHigh > p.gainGuidanceTextureLow;
 }
 
 inline float guidanceRatioFromAccumulator(GuidanceAccumulator a, constant SDRToHDRParameters& p) {
@@ -771,7 +783,25 @@ template <typename Texture>
 inline float gainGuidanceRatioReference(Texture texture, uint2 gid, uint layout, int radius,
                                         constant SDRToHDRParameters& p) {
     int2 last = int2(texture.get_width() - 1, texture.get_height() - 1);
-    GuidanceAccumulator a = makeGuidanceAccumulator(guidanceLumaSignal(texture, gid, layout, p), p);
+    float tolerance = -1.0f;
+    if (guidanceIsTextureAdaptive(p)) {
+        // First pass: unweighted local standard deviation of the window.
+        float sum = 0.0f, sumSquares = 0.0f;
+        int count = 0;
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                float v = guidanceLumaSignal(texture, uint2(clamp(int2(gid) + int2(dx, dy), int2(0), last)), layout, p);
+                sum += v;
+                sumSquares += v * v;
+                ++count;
+            }
+        }
+        float mean = sum / float(count);
+        float deviation = sqrt(max(sumSquares / float(count) - mean * mean, 0.0f));
+        float texture01 = smoothStepSafe(p.gainGuidanceTextureLow, p.gainGuidanceTextureHigh, deviation);
+        tolerance = mix(p.gainGuidanceTolerance, p.gainGuidanceMinimumTolerance, texture01);
+    }
+    GuidanceAccumulator a = makeGuidanceAccumulator(guidanceLumaSignal(texture, gid, layout, p), p, tolerance);
     for (int by = 0; by <= radius; ++by) {
         for (int bx = 0; bx <= radius; ++bx) {
             int2 origin = int2(gid) + int2(2 * bx - radius, 2 * by - radius);
@@ -824,7 +854,7 @@ inline float gainGuidanceRatio(texture2d<float, access::sample> texture, uint2 g
         return 1.0f;
     }
     int radius = int(min(p.gainGuidanceRadius, 4u));
-    if (p.gainGuidanceReferencePath == 0u) {
+    if (p.gainGuidanceReferencePath == 0u && !guidanceIsTextureAdaptive(p)) {
         if (radius == 2) { return gainGuidanceRatioGather<2>(texture, gid, layout, p); }
         if (radius == 1) { return gainGuidanceRatioGather<1>(texture, gid, layout, p); }
     }
