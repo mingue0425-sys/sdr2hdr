@@ -1505,7 +1505,8 @@ public final class HDRProcessor {
             chromaSampleCenterY: color.chromaGeometry.sampleCenterY,
             gainGuidanceRadius: UInt32(clamping: configuration.gainGuidance.radius),
             gainGuidanceTolerance: configuration.gainGuidance.tolerance,
-            gainGuidanceReferencePath: gainGuidanceReferencePathEnabled ? 1 : 0
+            gainGuidanceReferencePath: gainGuidanceReferencePathEnabled ? 1 : 0,
+            inputPrimaries: color.metadata.primaries.rawValue
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

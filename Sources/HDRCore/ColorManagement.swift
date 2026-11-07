@@ -92,6 +92,16 @@ public enum HDRSDRTransferInterpretation: String, CaseIterable, Codable, Sendabl
     }
 }
 
+/// RGB primaries of an SDR input. Everything downstream works in BT.709
+/// linear light, so non-BT.709 primaries are converted right after the
+/// transfer decode. BT.601 sources (phone and screen recordings are commonly
+/// tagged `smpte170m`) use SMPTE C (525-line) or EBU 3213 (625-line).
+public enum HDRInputPrimaries: UInt32, Sendable {
+    case bt709 = 0
+    case smpteC = 1
+    case ebu3213 = 2
+}
+
 public enum HDRYCbCrMatrix: String, Sendable {
     case bt709
     case bt601
@@ -113,7 +123,7 @@ public enum HDRColorMetadataError: Error, LocalizedError, Equatable, Sendable {
         case .incompleteMetadata:
             return "Input CVPixelBuffer has incomplete color metadata; refusing to guess"
         case .unsupportedPrimaries:
-            return "Only BT.709 SDR RGB primaries are supported by this core"
+            return "Only BT.709 or BT.601 (SMPTE C, EBU 3213) SDR RGB primaries are supported by this core"
         case .unsupportedTransferFunction:
             return "Input transfer function is not a supported SDR transfer function"
         case .unsupportedMatrix:
@@ -125,7 +135,8 @@ public enum HDRColorMetadataError: Error, LocalizedError, Equatable, Sendable {
 }
 
 public struct HDRInputMetadata: Equatable, Sendable {
-    public let primariesAreBT709: Bool
+    public let primaries: HDRInputPrimaries
+    public var primariesAreBT709: Bool { primaries == .bt709 }
     public let transferFunction: HDRTransferFunction
     public let yCbCrMatrix: HDRYCbCrMatrix
     public let isFullRange: Bool
@@ -141,13 +152,13 @@ public struct HDRInputMetadata: Equatable, Sendable {
     }
 
     public init(
-        primariesAreBT709: Bool = true,
+        primaries: HDRInputPrimaries = .bt709,
         transferFunction: HDRTransferFunction = .bt709,
         yCbCrMatrix: HDRYCbCrMatrix = .bt709,
         isFullRange: Bool = false,
         metadataWasExplicit: Bool = false
     ) {
-        self.primariesAreBT709 = primariesAreBT709
+        self.primaries = primaries
         self.transferFunction = transferFunction
         self.yCbCrMatrix = yCbCrMatrix
         self.isFullRange = isFullRange
@@ -156,6 +167,28 @@ public struct HDRInputMetadata: Equatable, Sendable {
 }
 
 public enum HDRColorMath {
+    /// Linear RGB in `primaries` to linear BT.709 RGB (both D65). Derived
+    /// from the primaries' chromaticities; must equal the shader's
+    /// kSMPTECToBT709 / kEBU3213ToBT709.
+    public static func toBT709(_ primaries: HDRInputPrimaries) -> simd_float3x3? {
+        switch primaries {
+        case .bt709:
+            return nil
+        case .smpteC:
+            return simd_float3x3(rows: [
+                SIMD3<Float>(0.9395421, 0.0501814, 0.0102766),
+                SIMD3<Float>(0.0177722, 0.9657929, 0.0164349),
+                SIMD3<Float>(-0.0016216, -0.0043697, 1.0059913),
+            ])
+        case .ebu3213:
+            return simd_float3x3(rows: [
+                SIMD3<Float>(1.0440432, -0.0440432, 0),
+                SIMD3<Float>(0, 1, 0),
+                SIMD3<Float>(0, 0.0117934, 0.9882066),
+            ])
+        }
+    }
+
     public static let bt709ToBT2020 = simd_float3x3(columns: (
         SIMD3<Float>(0.6274040, 0.0690970, 0.0163916),
         SIMD3<Float>(0.3292820, 0.9195400, 0.0880132),
@@ -345,8 +378,14 @@ internal enum HDRColorMetadataResolver {
             throw HDRColorMetadataError.incompleteMetadata
         }
 
-        let primariesAreBT709 = equals(primaries, kCVImageBufferColorPrimaries_ITU_R_709_2)
-        guard primariesAreBT709 else {
+        let inputPrimaries: HDRInputPrimaries
+        if equals(primaries, kCVImageBufferColorPrimaries_ITU_R_709_2) {
+            inputPrimaries = .bt709
+        } else if equals(primaries, kCVImageBufferColorPrimaries_SMPTE_C) {
+            inputPrimaries = .smpteC
+        } else if equals(primaries, kCVImageBufferColorPrimaries_EBU_3213) {
+            inputPrimaries = .ebu3213
+        } else {
             throw HDRColorMetadataError.unsupportedPrimaries
         }
 
@@ -392,7 +431,7 @@ internal enum HDRColorMetadataResolver {
         let rangeIsFull = isYUV ? isFullRange : true
         return ResolvedColorDescription(
             metadata: HDRInputMetadata(
-                primariesAreBT709: true,
+                primaries: inputPrimaries,
                 transferFunction: transferFunction,
                 yCbCrMatrix: yCbCrMatrix,
                 isFullRange: rangeIsFull,

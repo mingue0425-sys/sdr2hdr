@@ -57,6 +57,8 @@ struct SDRToHDRParameters {
     float gainGuidanceTolerance;
     // 1 forces the per-texel reference window (tests); 0 uses gather.
     uint gainGuidanceReferencePath;
+    // HDRInputPrimaries: 0 BT.709 (no conversion), 1 SMPTE C, 2 EBU 3213.
+    uint inputPrimaries;
 };
 
 struct HDRDebugStats {
@@ -520,13 +522,31 @@ inline float pqDecode(float signal) {
     return pow(max(powered - c1, 0.0f) / max(c2 - c3 * powered, 1e-6f), 1.0f / m1);
 }
 
+// Linear RGB to linear BT.709 (columns); must equal HDRColorMath.toBT709.
+constant float3x3 kSMPTECToBT709 = float3x3(
+    float3(0.9395421f, 0.0177722f, -0.0016216f),
+    float3(0.0501814f, 0.9657929f, -0.0043697f),
+    float3(0.0102766f, 0.0164349f, 1.0059913f)
+);
+constant float3x3 kEBU3213ToBT709 = float3x3(
+    float3(1.0440432f, 0.0f, 0.0f),
+    float3(-0.0440432f, 1.0f, 0.0117934f),
+    float3(0.0f, 0.0f, 0.9882066f)
+);
+
 inline float3 linearizeSignal(float3 signal, constant SDRToHDRParameters& p) {
     signal = clamp(signal, 0.0f, 1.0f);
-    return max(float3(
+    float3 linear = max(float3(
         inverseTransfer(signal.x, p),
         inverseTransfer(signal.y, p),
         inverseTransfer(signal.z, p)
     ), 0.0f);
+    if (p.inputPrimaries == 1) {
+        linear = max(kSMPTECToBT709 * linear, 0.0f);
+    } else if (p.inputPrimaries == 2) {
+        linear = max(kEBU3213ToBT709 * linear, 0.0f);
+    }
+    return linear;
 }
 
 constant uint kDiagnosticBinCount = 64;
