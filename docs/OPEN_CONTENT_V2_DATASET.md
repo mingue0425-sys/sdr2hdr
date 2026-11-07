@@ -12,8 +12,8 @@ The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONT
 
 | split | pairs | families | change from v1 |
 |---|---|---|---|
-| Tune | 17 | Sol Levante ×4, K-Choreo video3 + 9, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+10 KBS HLG** |
-| Validation | 14 | K-Choreo video4 + 8, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+9 KBS HLG** |
+| Tune | 19 | Sol Levante ×4, K-Choreo video3 + 11, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+12 KBS HLG** |
+| Validation | 18 | K-Choreo video4 + 12, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+13 KBS HLG** |
 | Virgin Frozen | 4 | Netflix Nocturne ×3, NAS Sole Mates ×1 | **all new**, never evaluated |
 
 ### Broadcast HLG pairs (KBS Kpop uploads, user-provided)
@@ -34,6 +34,17 @@ Eleven KBS HDR uploads join Tune and Validation:
 - Splits alternate in list order, starting with Validation (K-Choreo was Tune 6 / Validation 5).
 - dataset-audit: 35/35 main calibration.
 - All 21 broadcast pairs still come from one KBS pipeline.
+
+**Round 4 (2026-11-07), found rather than user-provided.**
+- `find_kchoreo_hdr.py` searched the KBS Kpop channel for "K-Choreo 8K HDR" titles.
+  - It keeps only songs (artist + title) that are not already in the manifest and not duplicated in the listing.
+  - It requires both itag 642 and itag 628, and checks after download that the HDR is HLG (`arib-std-b67`).
+- Six uploads were added by `add_kchoreo_from_list.py --drop-originals`: ptNuFAIfykE, BQPWd1npLic, uNMiKwHot0I, sQcbGTVzzVQ, 4I4X0VjUeOw and HWOzx_hIGZs, uploaded 2023–2026.
+- Same window rule. Splits go to whichever of Tune/Validation holds fewer K-Choreo pairs, with ties to Validation. Result: 4 to Validation, 2 to Tune (K-Choreo 12/13).
+- dataset-audit: 41/41 main calibration, `DATASET_V4_READY`.
+- The full renditions were deleted after cutting. Their SHA-256 hashes stay in provenance.
+- The four new Validation uploads were not used to fit the YouTube-HLG curve (`youtube-hlg-curve-v1.json`, 11 round-3 Tune pairs).
+- YouTube throttles metadata requests with a bot check. The tool probes one listing at a time, stops at the first check and never uses browser cookies.
 
 The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
 

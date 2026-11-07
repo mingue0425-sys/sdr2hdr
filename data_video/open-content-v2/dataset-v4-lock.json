@@ -21,6 +21,16 @@
       "sizeBytes" : 31166162
     },
     {
+      "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_hdr_w40_10s.mp4",
+      "sha256" : "db3b8f6b0d29fbbd16056fe0d2407c3b73d28ef26cc8c2e6364bbc476c9ac016",
+      "sizeBytes" : 34372750
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_sdr_w40_10s.mp4",
+      "sha256" : "da4dcabec10a375e35b6a1d93c37532e1b72fdc600c4b3a5bb781a30bb179a61",
+      "sizeBytes" : 31285968
+    },
+    {
       "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_hdr_w40_10s.mp4",
       "sha256" : "462d4126b7d6feabd86a503296e14b37d468d02e4ca0d3bd28aa468196ec40e5",
       "sizeBytes" : 36443448
@@ -51,6 +61,16 @@
       "sizeBytes" : 30948846
     },
     {
+      "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_hdr_w40_10s.mp4",
+      "sha256" : "dae85aa32d1b935b9c3c10fffa4a0e9c994d9f25eab772795487685f5d0d9173",
+      "sizeBytes" : 34403651
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_sdr_w40_10s.mp4",
+      "sha256" : "415d962cc5641a52cd91a0679c98bdd235fc73163f2dd6f5b74d9d360d3d48fe",
+      "sizeBytes" : 31731330
+    },
+    {
       "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_hdr_w40_10s.mp4",
       "sha256" : "fd3f9019727b0ceb98511db84e550dc7d4dc9e289e79529e0f53c181fad2eceb",
       "sizeBytes" : 33953319
@@ -79,6 +99,16 @@
       "path" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_sdr_w40_10s.mp4",
       "sha256" : "71503904d52c0361b35e740e91105a6b2bd0daeb45002c618512ee186fb3f751",
       "sizeBytes" : 31303941
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_hdr_w40_10s.mp4",
+      "sha256" : "8d0490bd61d040a594e273b7fc196801b41f03b6f5a72511ae968a21d553914b",
+      "sizeBytes" : 34126637
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_sdr_w40_10s.mp4",
+      "sha256" : "f5f4c35e0bab73249f68ba0da6cccb812d5e00e79f5e4fe917124bd52adffb51",
+      "sizeBytes" : 31132278
     },
     {
       "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
@@ -151,6 +181,16 @@
       "sizeBytes" : 31067650
     },
     {
+      "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_hdr_w40_10s.mp4",
+      "sha256" : "e93bc759d0b212a5bffabeab81aef523a862600964b47b68c98656609c5be92d",
+      "sizeBytes" : 34183337
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_sdr_w40_10s.mp4",
+      "sha256" : "f98d46668ce65ebfe1bebdbbef94f6b9550ba1c1db0b1c9a7376a3c85cfd398d",
+      "sizeBytes" : 31053594
+    },
+    {
       "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_hdr_w40_10s.mp4",
       "sha256" : "0df873bac0f7d29723adc6bc6c59887eb109990622a60ac677122c7e9df93d42",
       "sizeBytes" : 35407939
@@ -159,6 +199,26 @@
       "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_sdr_w40_10s.mp4",
       "sha256" : "9a01d48e225210de9303fd4c05a4f11e16e35e2301255b70c24a7ccb49fadf87",
       "sizeBytes" : 32265294
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_hdr_w40_10s.mp4",
+      "sha256" : "f9bac35b11d82b42161d69a2c4371bc364d6a852f909f7b9b22bc4c58e41e988",
+      "sizeBytes" : 33915223
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_sdr_w40_10s.mp4",
+      "sha256" : "03a26507f531817211f2e7ceabd65ae3b946a00a37d3d07d11bd258685744904",
+      "sizeBytes" : 30906308
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_hdr_w40_10s.mp4",
+      "sha256" : "2f023f20f94b375cda19214770c49e6ffe7cac94a0bfe77476099ce72082b57b",
+      "sizeBytes" : 34055736
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_sdr_w40_10s.mp4",
+      "sha256" : "4583fcef955232158291ca52586ef940343de12074a3eb4c62440277e755c0a6",
+      "sizeBytes" : 31222252
     },
     {
       "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_hdr_w40_10s.mp4",
@@ -351,7 +411,7 @@
       "sizeBytes" : 381626010
     }
   ],
-  "generatedAt" : "2026-11-06T21:10:51Z",
-  "manifestSHA256" : "8f4e3ef1d89cee7884c15cad0c28c02eefff1dd3f46bd848d14cc81bed42f5cf",
+  "generatedAt" : "2026-11-07T00:38:40Z",
+  "manifestSHA256" : "7b00f376b8b2f7b130858036614d6e20ececb28c39baea4d77389ca7fe3aece3",
   "version" : 1
 }

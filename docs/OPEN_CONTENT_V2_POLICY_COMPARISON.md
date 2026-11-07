@@ -120,3 +120,56 @@ The preregistered readiness gate passed for shape-oetf. The next steps would exp
 1. build the Frozen prepared plan;
 2. run correctness-review with `--prepared-frozen-plan`;
 3. run the one-shot Frozen evaluation of `global_047`.
+
+# Round 3: 31 pairs and the declared YouTube-HLG source (2026-11-07)
+
+Setup:
+- Tune 17 and Validation 14 pairs. The 8 user-provided K-Choreo uploads joined (K-Choreo now has 19 pairs).
+- Correctness review: Tune 17/17 and Validation 14/14 structurally complete.
+- Six variants ran as one `v4-run-batch` with `--stop-before-frozen`, the same seed and the same `family-maximin-lofo-v1` protocol.
+  - `-ythlg` variants declare K-Choreo and KBS Music Bank One-take as "YouTube SDR of an HLG upload" (`--declared-source-families`). On those pairs only, SDR is reconstructed with the fixed 17-knot curve (`youtube-hlg-sdr-inverse-17knot-v1`), the HLG inverse OETF and a 1000-nit system gamma. The candidate parameters do not touch those pairs.
+  - The curve was fitted on the 11 Tune broadcast pairs only (`dataset/analysis/youtube-hlg-curve-v1.json`).
+  - `-1886` variants decode SDR with BT.1886 instead of the inverse BT.709 OETF.
+- Baselines (V2, default) are unchanged by the declaration.
+- The Virgin Frozen holdout was **not opened**. Artifacts: `results/open-content-v2/round3/v4-*/`.
+
+| run | selected | LOFO mean / worst held-out vs V2 | verdict |
+|---|---|---|---|
+| shape-oetf | `global_047` | +9.0% / +3.2% (Sol Levante) | every pre-Frozen gate PASS |
+| **shape-oetf-ythlg** | **`local_020`** | **+27.6% / +5.9% (Sol Levante)** | **every pre-Frozen gate PASS** |
+| abs-oetf | none | – | VALIDATION_FAIL |
+| abs-oetf-ythlg | none | – | VALIDATION_FAIL |
+| shape-1886 | none | – | VALIDATION_FAIL (no Tune-safe candidate) |
+| shape-1886-ythlg | none | – | VALIDATION_FAIL (no Tune-safe candidate) |
+
+## Family objective of the selected candidate, ratio to V2
+
+| family | shape-oetf (`global_047`) | shape-oetf-ythlg (`local_020`) |
+|---|---:|---:|
+| ASC StEM2 | 0.850 | 0.837 |
+| ASC StEM3 Warped Cybercity | 0.871 | 0.814 |
+| K-Choreo | 0.907 | **0.423** |
+| KBS Music Bank One-take | 0.916 | **0.394** |
+| Netflix Sol Levante | 0.902 | 0.912 |
+| Netflix Sparks | 0.943 | 0.917 |
+| mean / worst | 0.898 / 0.943 | 0.716 / 0.917 |
+
+## Findings
+
+1. **The declared source cuts the broadcast error by more than half, also out of sample.** Mean per-pair ratio to V2 is shown by split; the Validation pairs never entered the curve fit.
+
+   | | Tune (fit pairs) | Validation (not fitted) |
+   |---|---|---|
+   | K-Choreo | 0.385 (10 pairs, worst 0.491) | 0.488 (9 pairs, worst 0.746) |
+   | KBS One-take | 0.403 (1) | 0.387 (1) |
+
+2. **The cinema families also improve a little (StEM3 0.871 → 0.814).** The broadcast pairs no longer pull the shared candidate towards their highlight roll-off (research §2), so the search settles on a cinema-friendly local candidate.
+3. **The per-pair outlier is gone.** Under `global_047`, `video3_newjeans_how_sweet` was 1.14× V2. Under `local_020` the worst pair is `aswf_stem2_t450` at 1.044× V2 (1.048× default); every other pair is ≤ 0.97.
+4. **LOFO caveat, stronger here.** The curve was fitted on Tune broadcast pairs before folding. So the K-Choreo and KBS folds (+57.7%, +60.6%) are not held out for the curve; only the Validation column in finding 1 is. The four cinema folds (+5.9% to +18.6%) are unaffected by the curve.
+5. **BT.1886 as a global SDR decode fails safety.** All 128 global candidates introduce black crush over V2 on Tune: the candidates' minimum crush ratio is 1.4e-4 against V2's 6.0e-5, and the gate has zero tolerance. The measured cinema toe (research §5) is real, but a full BT.1886 decode is too deep for the gate. A bounded toe is the open lead.
+6. **Absolute scoring still fails** with or without the declaration.
+
+## Not yet shown
+
+- **Generality beyond one KBS pipeline.** Every broadcast pair is a KBS YouTube upload, so the declared policy is validated for that source only.
+- **Frozen.** The Virgin Frozen set (Nocturne ×3, Sole Mates ×1) is cinema only. It would test the candidate's cinema behaviour, not the declaration.

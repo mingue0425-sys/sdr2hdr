@@ -105,6 +105,22 @@ Within the existing candidate pool, the best candidate per family gives the foll
    - The round-3 links add 8 more KBS uploads (2023–2026). The only non-KBS link (M2) has no HDR rendition.
    - Proposal 1's generality beyond KBS/YouTube is untested until another broadcaster's HLG upload is included.
 
+## 5. Shadows of graded cinema masters follow BT.1886 (Tune/Validation luma)
+
+- The reference HDR's linear light at SDR code 0.10, relative to the inverse BT.709 OETF prediction, is 0.22–0.39 on the cinema families. BT.1886 (gamma 2.4) predicts 0.24.
+- So the cinema SDR masters were graded for a BT.1886 display, and the inverse OETF lifts their shadows. That matches Sparks' `shadowLiftRatio` of 1.0 (§1).
+- The broadcast (YouTube HLG) toe sits between the two curves. It is captured by the §3 curve rather than by either transfer.
+
+## 6. Outcome (round 3, `docs/OPEN_CONTENT_V2_POLICY_COMPARISON.md`)
+
+- **Proposal 1** is implemented as `--declared-source youtube-hlg` / `--declared-source-families`, with the curve fitted on the 11 Tune broadcast pairs.
+  - The shape-oetf variant with the declaration passes every pre-Frozen gate. The broadcast families drop to 0.39–0.42× V2 (Validation pairs alone: 0.39–0.49×).
+  - LOFO mean is +27.6%, worst +5.9%.
+  - It beats the §2 per-family upper bound (−12 to −14%) by a wide margin, because the curve is not limited to the parametric family.
+- **Proposal 2:** a full BT.1886 decode is too deep. Every candidate fails the zero-tolerance black-crush gate on Tune. The next try is a bounded toe, for example a blend between the inverse OETF and BT.1886 below code 0.1, swept on Tune.
+- **Proposal 3** is implemented as `pairGuardrail` in the v4 final report (top five in the markdown), reported and not gating. Under the declared policy the worst pair is `aswf_stem2_t450`, at 1.044× V2.
+- **Proposal 4** is still open. Six more K-Choreo uploads were found by `find_kchoreo_hdr.py` and added (4 to Validation), but they come from the same KBS pipeline.
+
 ## Not pursued
 
 - **Colour, temporal and structure terms:** together about 7% of the error.
