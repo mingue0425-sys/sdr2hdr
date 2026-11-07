@@ -34,14 +34,17 @@ public enum StillImageSource {
         return type.conforms(to: .image)
     }
 
-    /// Decodes off the main actor. The buffer is created here and handed
-    /// over once, never shared while being written.
-    public static func loadInBackground(_ url: URL, maxPixelSize: Int = defaultMaxPixelSize) async throws -> CVPixelBuffer {
-        struct Handoff: @unchecked Sendable { let buffer: CVPixelBuffer }
-        let handoff = try await Task.detached(priority: .userInitiated) {
-            Handoff(buffer: try load(url, maxPixelSize: maxPixelSize))
+    /// A decoded image crossing from the decoding task to the main actor.
+    /// The buffer is written once before the hand-over and only read after.
+    public struct Decoded: @unchecked Sendable {
+        public let pixelBuffer: CVPixelBuffer
+    }
+
+    /// Decodes off the main actor.
+    public static func loadInBackground(_ url: URL, maxPixelSize: Int = defaultMaxPixelSize) async throws -> Decoded {
+        try await Task.detached(priority: .userInitiated) {
+            Decoded(pixelBuffer: try load(url, maxPixelSize: maxPixelSize))
         }.value
-        return handoff.buffer
     }
 
     public static func load(_ url: URL, maxPixelSize: Int = defaultMaxPixelSize) throws -> CVPixelBuffer {

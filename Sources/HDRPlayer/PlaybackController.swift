@@ -331,7 +331,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             throw HDRPlayerError.fileNotFound(url)
         }
         if StillImageSource.isImage(url) {
-            let image = try await StillImageSource.loadInBackground(url)
+            let image = try await StillImageSource.loadInBackground(url).pixelBuffer
             let fallbackDecision = HDRDecodePrecisionResolver.fallbackDecision(for: decodePrecision)
             return try PlaybackController(
                 url: nil,
