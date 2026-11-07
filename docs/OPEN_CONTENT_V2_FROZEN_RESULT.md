@@ -4,6 +4,9 @@ Verdict: **PROMOTE_CALIBRATED_V4**. The selected candidate `local_020` is promot
 
 ## Run
 
+Commit hashes below predate the 2026-11-07 history rewrite. See `docs/COMMIT_HASH_MAP_2026-11-07.md`: for example, preregistration 6be5ffd → f24f24e and run commit 442c7c1 → 801860a. Full per-candidate reports are stored as `data-video-v4-final.json.xz`.
+
+
 - Preregistration: `docs/OPEN_CONTENT_V2_FROZEN_PREREGISTRATION.md`, commit `6be5ffd`. It was committed before the Frozen plan existed.
 - Dataset: `data_video/open-content-v2/manifest.json`, with Tune 21, Validation 20 and Virgin Frozen 4.
 - Correctness: `CORRECTNESS_READY_FOR_V6`, with the admitted Frozen plan `37397ce2…` (50 accepted frames).
