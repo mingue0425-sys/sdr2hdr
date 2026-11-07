@@ -404,6 +404,48 @@
       "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (65.499 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
     },
     {
+      "id": "kbs_wpw_jpVEbD4",
+      "sdr": "local:kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4_sdr_w40_10s.mp4",
+      "hdr": "local:kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4_hdr_w40_10s.mp4",
+      "source": "KBS Kpop YouTube upload wpw_jpVEbD4 (LE SSERAFIM 'ANTIFRAGILE')",
+      "sourceURL": "https://www.youtube.com/watch?v=wpw_jpVEbD4",
+      "license": "Standard YouTube License (KBS); user-provided for private research",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "dance",
+        "stage",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "kbs_wpw_jpVEbD4",
+      "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (85.000 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
+    },
+    {
+      "id": "kbs_OeDWcncRfwc",
+      "sdr": "local:kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc_sdr_w40_10s.mp4",
+      "hdr": "local:kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc_hdr_w40_10s.mp4",
+      "source": "KBS Kpop YouTube upload OeDWcncRfwc (aespa) 'WDA(Whole Different Animal)' (aespa 'WDA(Whole Different Animal)')",
+      "sourceURL": "https://www.youtube.com/watch?v=OeDWcncRfwc",
+      "license": "Standard YouTube License (KBS); user-provided for private research",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "dance",
+        "stage",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "kbs_OeDWcncRfwc",
+      "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (69.186 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
+    },
+    {
       "contentCategory": [
         "dance",
         "high-key",
@@ -782,6 +824,48 @@
       "virginFrozen": false,
       "group": "kbs_HWOzx_hIGZs",
       "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (80.080 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
+    },
+    {
+      "id": "kbs_fKBftf9P-7U",
+      "sdr": "local:kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U_sdr_w40_10s.mp4",
+      "hdr": "local:kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U_hdr_w40_10s.mp4",
+      "source": "KBS Kpop YouTube upload fKBftf9P-7U (NewJeans 'Cool With You')",
+      "sourceURL": "https://www.youtube.com/watch?v=fKBftf9P-7U",
+      "license": "Standard YouTube License (KBS); user-provided for private research",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "dance",
+        "stage",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "kbs_fKBftf9P-7U",
+      "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (65.499 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
+    },
+    {
+      "id": "kbs_Yy5W59zJn_A",
+      "sdr": "local:kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A_sdr_w40_10s.mp4",
+      "hdr": "local:kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A_hdr_w40_10s.mp4",
+      "source": "KBS Kpop YouTube upload Yy5W59zJn_A (IVE 'REBEL HEART')",
+      "sourceURL": "https://www.youtube.com/watch?v=Yy5W59zJn_A",
+      "license": "Standard YouTube License (KBS); user-provided for private research",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "dance",
+        "stage",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "kbs_Yy5W59zJn_A",
+      "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (80.614 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
     },
     {
       "id": "netflix_nocturne_f11961",

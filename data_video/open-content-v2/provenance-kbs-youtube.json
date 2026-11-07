@@ -603,6 +603,102 @@
       "sourceSHA256": "39f00329e82dc321f6f13810a18b0bab0d67656ff37c9eae8af81e4df6c1112c",
       "sourceObject": "https://www.youtube.com/watch?v=HWOzx_hIGZs (itag 642)",
       "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_wpw_jpVEbD4",
+      "role": "sdr",
+      "file": "data_video/kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4_sdr_w40_10s.mp4",
+      "sha256": "9a765e42b190d8bdb0e546f2a679e62cd88f173283f5bb47024fbe38e68bc275",
+      "excerptStartSeconds": 85.0,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4.f628.mp4",
+      "sourceSHA256": "bd3fb6ffed620af524acdf883111b2f39c6474d1e694f8fc60667d2866ff1f79",
+      "sourceObject": "https://www.youtube.com/watch?v=wpw_jpVEbD4 (itag 628)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_wpw_jpVEbD4",
+      "role": "hdr",
+      "file": "data_video/kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4_hdr_w40_10s.mp4",
+      "sha256": "bc8b59c1a75a2168fcdd431178092dfa3437ccdfeba568275b9b1a6658b76961",
+      "excerptStartSeconds": 85.0,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/wpw_jpVEbD4/wpw_jpVEbD4.f642.mp4",
+      "sourceSHA256": "f5034cccd186e452a006b869b05c0184691c9720c480fa67fc9891fbc78a9766",
+      "sourceObject": "https://www.youtube.com/watch?v=wpw_jpVEbD4 (itag 642)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_fKBftf9P-7U",
+      "role": "sdr",
+      "file": "data_video/kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U_sdr_w40_10s.mp4",
+      "sha256": "1704a535f5ace61694d7add7dd641148319e85075ac7d504b8eb00fcffe21289",
+      "excerptStartSeconds": 65.499,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U.f628.mp4",
+      "sourceSHA256": "3e06274d4e253f5055078b0904416304e7efc34e15482c8e7f58b9dc7cd59596",
+      "sourceObject": "https://www.youtube.com/watch?v=fKBftf9P-7U (itag 628)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_fKBftf9P-7U",
+      "role": "hdr",
+      "file": "data_video/kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U_hdr_w40_10s.mp4",
+      "sha256": "b7a579bc86a3e2a62f7e6fc0bb2154781a50d6ae8413806e07f04e81db1d0f90",
+      "excerptStartSeconds": 65.499,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/fKBftf9P-7U/fKBftf9P-7U.f642.mp4",
+      "sourceSHA256": "eb10502fb4821f3eb7a9e0ec7a2bbba9547c1abba5bfa38a577eae27d892f0bd",
+      "sourceObject": "https://www.youtube.com/watch?v=fKBftf9P-7U (itag 642)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_OeDWcncRfwc",
+      "role": "sdr",
+      "file": "data_video/kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc_sdr_w40_10s.mp4",
+      "sha256": "0b0be4b135696268a5dc34b31ae957af6a386dd8c67d07dc1c71371db112baad",
+      "excerptStartSeconds": 69.186,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc.f628.mp4",
+      "sourceSHA256": "0aadee9a88efccd2d954e08a26229205c4c46a0dbb3795a97334bb800c068ad9",
+      "sourceObject": "https://www.youtube.com/watch?v=OeDWcncRfwc (itag 628)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_OeDWcncRfwc",
+      "role": "hdr",
+      "file": "data_video/kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc_hdr_w40_10s.mp4",
+      "sha256": "0f7d061a0fc0bf8900db6538a35856bb833cc5d72120802f0f3eb872fcb5f86d",
+      "excerptStartSeconds": 69.186,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/OeDWcncRfwc/OeDWcncRfwc.f642.mp4",
+      "sourceSHA256": "f1e9fd87364c7da6032d6e533ce21a8e17fe4fd9d9727e7ceaf77643cac1cdb2",
+      "sourceObject": "https://www.youtube.com/watch?v=OeDWcncRfwc (itag 642)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_Yy5W59zJn_A",
+      "role": "sdr",
+      "file": "data_video/kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A_sdr_w40_10s.mp4",
+      "sha256": "4515b7a711d423936dd4deebd6296fefaf3a926efec3336a2228d38e19ebef3d",
+      "excerptStartSeconds": 80.614,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A.f628.mp4",
+      "sourceSHA256": "4cc7ad37ce557a85ef71e7d87bdd5d5bda9cbfd4fac3cd9cd5c5891c242841a3",
+      "sourceObject": "https://www.youtube.com/watch?v=Yy5W59zJn_A (itag 628)",
+      "accessDate": "2026-11-07"
+    },
+    {
+      "pairID": "kbs_Yy5W59zJn_A",
+      "role": "hdr",
+      "file": "data_video/kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A_hdr_w40_10s.mp4",
+      "sha256": "fedab840a553966f6316220a1a73b2a0e291d9fb4ff754e3d58f5e65cb0153b4",
+      "excerptStartSeconds": 80.614,
+      "durationSeconds": 10,
+      "sourceFile": "data_video/kchoreo-v2/Yy5W59zJn_A/Yy5W59zJn_A.f642.mp4",
+      "sourceSHA256": "1648ffeec7c51e4a0a94626f59c0d7ab1c1e210ae1869d5448832a3d745096bb",
+      "sourceObject": "https://www.youtube.com/watch?v=Yy5W59zJn_A (itag 642)",
+      "accessDate": "2026-11-07"
     }
   ]
 }

@@ -173,3 +173,38 @@ Setup:
 
 - **Generality beyond one KBS pipeline.** Every broadcast pair is a KBS YouTube upload, so the declared policy is validated for that source only.
 - **Frozen.** The Virgin Frozen set (Nocturne ×3, Sole Mates ×1) is cinema only. It would test the candidate's cinema behaviour, not the declaration.
+
+# Round 4: 37 pairs, six found uploads (2026-11-07)
+
+Setup:
+- Tune 19 and Validation 18 pairs. The six K-Choreo uploads found by `find_kchoreo_hdr.py` joined: 4 in Validation, 2 in Tune.
+- None of the six entered the YouTube-HLG curve fit, which still uses the 11 round-3 Tune pairs.
+- Correctness review: Tune 19/19 and Validation 18/18 structurally complete.
+- Same seed and protocol. Two variants ran: shape-oetf and shape-oetf-ythlg.
+- Runtime: 31 min, peak footprint 1.96 GB.
+- The Virgin Frozen holdout was **not opened**. Artifacts: `results/open-content-v2/round4/v4-*/`.
+
+| run | selected | LOFO mean / worst held-out vs V2 | K-Choreo / V2 | mean / worst family / V2 |
+|---|---|---|---:|---|
+| shape-oetf | `global_047` | +9.2% / +3.2% | 0.897 | 0.897 / 0.943 |
+| shape-oetf-ythlg | `local_020` | +27.5% / +5.9% | 0.430 | 0.717 / 0.917 |
+
+The six new pairs, per-pair ratio to V2:
+
+| pair | split | shape-oetf | shape-oetf-ythlg |
+|---|---|---:|---:|
+| kbs_ptNuFAIfykE | Validation | 0.843 | 0.389 |
+| kbs_BQPWd1npLic | Validation | 0.850 | 0.374 |
+| kbs_sQcbGTVzzVQ | Validation | 0.793 | 0.471 |
+| kbs_HWOzx_hIGZs | Validation | 0.901 | 0.601 |
+| kbs_uNMiKwHot0I | Tune | 0.919 | 0.443 |
+| kbs_4I4X0VjUeOw | Tune | 0.914 | 0.336 |
+
+Findings:
+- **Selection is stable.** Both variants pick the same candidates as in round 3, and every cinema family's ratio is unchanged.
+- **The declared policy holds on unseen uploads.** The 13 K-Choreo Validation pairs average 0.478× V2 (worst 0.740), against 0.865× under shape-oetf.
+- **`pairGuardrail` is now in the report.** Under shape-oetf the worst pair is still `video3_newjeans_how_sweet` (1.141× V2). Under the declared policy it is `aswf_stem2_t450` (1.044×).
+
+Open items:
+- **Chroma model.** The declared reconstruction applies the luma-fitted curve and the 1.2 system gamma per channel. BT.2100's HLG OOTF uses one gain derived from luminance, as `HDRReferenceDecoder` does. A luminance-OOTF variant is the next comparison; colour terms are about 7% of the objective (research §1).
+- **Generality beyond KBS**, and the Frozen evaluation, as in round 3.

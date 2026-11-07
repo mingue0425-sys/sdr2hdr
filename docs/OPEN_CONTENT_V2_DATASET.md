@@ -12,8 +12,8 @@ The v1 Virgin Frozen holdout was consumed by the open-content V4 run (`OPEN_CONT
 
 | split | pairs | families | change from v1 |
 |---|---|---|---|
-| Tune | 19 | Sol Levante ×4, K-Choreo video3 + 11, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+12 KBS HLG** |
-| Validation | 18 | K-Choreo video4 + 12, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+13 KBS HLG** |
+| Tune | 21 | Sol Levante ×4, K-Choreo video3 + 13, Music Bank One-take ×1, ASC StEM3 t79/t158 | **+2 StEM3**, **+14 KBS HLG** |
+| Validation | 20 | K-Choreo video4 + 14, Music Bank One-take ×1, ASC StEM2 t300/t450, Netflix Sparks f02067/f06200 | **+2 Sparks**, **+15 KBS HLG** |
 | Virgin Frozen | 4 | Netflix Nocturne ×3, NAS Sole Mates ×1 | **all new**, never evaluated |
 
 ### Broadcast HLG pairs (KBS Kpop uploads, user-provided)
@@ -45,6 +45,12 @@ Eleven KBS HDR uploads join Tune and Validation:
 - The full renditions were deleted after cutting. Their SHA-256 hashes stay in provenance.
 - The four new Validation uploads were not used to fit the YouTube-HLG curve (`youtube-hlg-curve-v1.json`, 11 round-3 Tune pairs).
 - YouTube throttles metadata requests with a bot check. The tool probes one listing at a time, stops at the first check and never uses browser cookies.
+
+**Round 5 (2026-11-07), found.**
+- Four more uploads from the same search joined after the round-4 runs: wpw_jpVEbD4, fKBftf9P-7U, OeDWcncRfwc and Yy5W59zJn_A, uploaded 2022–2026.
+- Splits were set by the same balancing rule: 2 to Tune, 2 to Validation (K-Choreo 14/15).
+- dataset-audit: 45/45 main calibration, `DATASET_V4_READY`.
+- They are not in the round-4 results.
 
 The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
 

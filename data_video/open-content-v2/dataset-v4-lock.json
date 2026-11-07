@@ -111,6 +111,16 @@
       "sizeBytes" : 31132278
     },
     {
+      "path" : "repo:data_video\/kchoreo-v2\/OeDWcncRfwc\/OeDWcncRfwc_hdr_w40_10s.mp4",
+      "sha256" : "0f7d061a0fc0bf8900db6538a35856bb833cc5d72120802f0f3eb872fcb5f86d",
+      "sizeBytes" : 35384331
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/OeDWcncRfwc\/OeDWcncRfwc_sdr_w40_10s.mp4",
+      "sha256" : "0b0be4b135696268a5dc34b31ae957af6a386dd8c67d07dc1c71371db112baad",
+      "sizeBytes" : 32106623
+    },
+    {
       "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
       "sha256" : "fe71b4be3836b3016689a1d366e5b7c0bb2c4388ad6c49525d8ba61ae79ab467",
       "sizeBytes" : 34293475
@@ -119,6 +129,16 @@
       "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_sdr_w40_10s.mp4",
       "sha256" : "4d1aab1eb6c2cf5541259afdc98f4ab77b4c509a8b835d1c0017914068b97753",
       "sizeBytes" : 31300918
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/Yy5W59zJn_A\/Yy5W59zJn_A_hdr_w40_10s.mp4",
+      "sha256" : "fedab840a553966f6316220a1a73b2a0e291d9fb4ff754e3d58f5e65cb0153b4",
+      "sizeBytes" : 33975588
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/Yy5W59zJn_A\/Yy5W59zJn_A_sdr_w40_10s.mp4",
+      "sha256" : "4515b7a711d423936dd4deebd6296fefaf3a926efec3336a2228d38e19ebef3d",
+      "sizeBytes" : 31142774
     },
     {
       "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_hdr_w40_10s.mp4",
@@ -139,6 +159,16 @@
       "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_sdr_w40_10s.mp4",
       "sha256" : "7c53395a943c400f8c05e9d0bc41442615c0126151a4115cc9202686cf839f84",
       "sizeBytes" : 33273249
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/fKBftf9P-7U\/fKBftf9P-7U_hdr_w40_10s.mp4",
+      "sha256" : "b7a579bc86a3e2a62f7e6fc0bb2154781a50d6ae8413806e07f04e81db1d0f90",
+      "sizeBytes" : 33951193
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/fKBftf9P-7U\/fKBftf9P-7U_sdr_w40_10s.mp4",
+      "sha256" : "1704a535f5ace61694d7add7dd641148319e85075ac7d504b8eb00fcffe21289",
+      "sizeBytes" : 30987655
     },
     {
       "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_hdr_w40_10s.mp4",
@@ -219,6 +249,16 @@
       "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_sdr_w40_10s.mp4",
       "sha256" : "4583fcef955232158291ca52586ef940343de12074a3eb4c62440277e755c0a6",
       "sizeBytes" : 31222252
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/wpw_jpVEbD4\/wpw_jpVEbD4_hdr_w40_10s.mp4",
+      "sha256" : "bc8b59c1a75a2168fcdd431178092dfa3437ccdfeba568275b9b1a6658b76961",
+      "sizeBytes" : 36278133
+    },
+    {
+      "path" : "repo:data_video\/kchoreo-v2\/wpw_jpVEbD4\/wpw_jpVEbD4_sdr_w40_10s.mp4",
+      "sha256" : "9a765e42b190d8bdb0e546f2a679e62cd88f173283f5bb47024fbe38e68bc275",
+      "sizeBytes" : 32808155
     },
     {
       "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_hdr_w40_10s.mp4",
@@ -411,7 +451,7 @@
       "sizeBytes" : 381626010
     }
   ],
-  "generatedAt" : "2026-11-07T00:38:40Z",
-  "manifestSHA256" : "7b00f376b8b2f7b130858036614d6e20ececb28c39baea4d77389ca7fe3aece3",
+  "generatedAt" : "2026-11-07T02:10:52Z",
+  "manifestSHA256" : "776f0e062bab6e1f9459bdf7ce6dcf6d28dca4d12ba61fd303d5f01984654f0e",
   "version" : 1
 }
