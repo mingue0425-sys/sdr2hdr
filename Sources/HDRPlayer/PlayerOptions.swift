@@ -135,6 +135,7 @@ public struct PlayerOptions: Equatable, Sendable {
         """
         Usage:
           HDRPlayer <video-file> [--preset \(HDRPresetResolver.supportedPresetNames.joined(separator: "|"))] [--debug]
+          HDRPlayer <image-file> | <youtube-link>   (a link is downloaded once as H.264 up to 1080p)
           HDRPlayer <video-file> --controlled-ab --debug
           HDRPlayer <video-file> --controlled-v6 --debug
           HDRPlayer <video-file> --debug --diagnostic-json
@@ -294,7 +295,12 @@ public struct PlayerOptions: Equatable, Sendable {
 
         guard positional.count <= 1 else { throw HDRPlayerCLIError.tooManyInputs }
         if let path = positional.first {
-            options.inputURL = URL(fileURLWithPath: path).standardizedFileURL
+            // A YouTube link is downloaded before playback; anything else is a file.
+            if YouTubeLink.videoID(from: path) != nil, path.contains("youtu"), let link = URL(string: path.hasPrefix("http") ? path : "https://" + path) {
+                options.inputURL = link
+            } else {
+                options.inputURL = URL(fileURLWithPath: path).standardizedFileURL
+            }
         }
         guard options.edrTestPattern || options.inputURL != nil else {
             throw HDRPlayerCLIError.missingInput

@@ -18,6 +18,12 @@ struct HDRPlayerMain {
         }
         do {
             var options = try PlayerOptions.parse(arguments: CommandLine.arguments)
+            if let link = options.inputURL, let id = YouTubeLink.videoID(from: link) {
+                guard let downloader = YouTubeDownloader(cacheDirectory: YouTubeDownloader.defaultCacheDirectory()) else {
+                    throw YouTubeDownloadError.failed("yt-dlp or ffmpeg not found in /opt/homebrew/bin or /usr/local/bin")
+                }
+                options.inputURL = try downloader.downloadForPlayback(id: id).url
+            }
             if let input = options.inputURL, options.convertUndecodable,
                let converter = PlayableInputConverter(
                    cacheDirectory: options.convertDirectory ?? PlayableInputConverter.defaultCacheDirectory()
