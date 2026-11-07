@@ -117,6 +117,29 @@ final class DecodeLaneTests: XCTestCase {
         }
     }
 
+    /// A reader that stops early must not wait forever for an ffmpeg blocked
+    /// on a full stdout pipe.
+    func testStoppingAnFFmpegBlockedOnAFullPipeReturns() throws {
+        let tools = try requireFFmpegTools()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tools.ffmpeg)
+        process.arguments = [
+            "-hide_banner", "-nostdin", "-nostats", "-loglevel", "error",
+            "-f", "lavfi", "-i", "testsrc2=s=640x360:r=30:d=600", "-pix_fmt", "yuv420p", "-f", "rawvideo", "pipe:1"
+        ]
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        // Read one frame, then stop reading, as a reader that hits an error does.
+        _ = try stdout.fileHandleForReading.read(upToCount: 640 * 360 * 3 / 2)
+        Thread.sleep(forTimeInterval: 0.5)
+        let started = Date()
+        FFmpegFrameReader.stop(process, stdout: stdout)
+        XCTAssertFalse(process.isRunning)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+
     // MARK: - Helpers
 
     private func planeBytes(_ buffer: CVPixelBuffer) -> [[UInt8]] {

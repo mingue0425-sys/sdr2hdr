@@ -645,7 +645,7 @@ final class FFmpegHardwareSlotPool: @unchecked Sendable {
     }
 }
 
-private enum FFmpegFrameReader {
+enum FFmpegFrameReader {
     static func read(
         url: URL,
         formatDescription: CMFormatDescription?,
@@ -731,29 +731,32 @@ private enum FFmpegFrameReader {
         process.standardError = stderr
         let stderrCollector = PipeCollector(stderr.fileHandleForReading)
         try process.run()
-        defer {
-            if process.isRunning { process.terminate() }
-            process.waitUntilExit()
-        }
+        defer { stop(process, stdout: stdout) }
 
         let frameBytes = isP010
             ? proxyWidth * proxyHeight * 2 + proxyWidth * max(1, proxyHeight / 2) * 2
             : proxyWidth * proxyHeight + proxyWidth * max(1, proxyHeight / 2)
         var decoded: [(pixelBuffer: CVPixelBuffer, grid: [Float])] = []
-        while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
-            guard data.count == frameBytes else {
-                process.terminate()
-                throw CalibrationError.decodeFailed("ffmpeg returned a truncated raw frame for \(url.lastPathComponent)")
+        do {
+            while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
+                guard data.count == frameBytes else {
+                    throw CalibrationError.decodeFailed("ffmpeg returned a truncated raw frame for \(url.lastPathComponent)")
+                }
+                let pixelBuffer = try makePixelBuffer(
+                    data: data,
+                    width: proxyWidth,
+                    height: proxyHeight,
+                    pixelFormat: pixelFormat,
+                    color: color
+                )
+                let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
+                decoded.append((pixelBuffer, grid))
             }
-            let pixelBuffer = try makePixelBuffer(
-                data: data,
-                width: proxyWidth,
-                height: proxyHeight,
-                pixelFormat: pixelFormat,
-                color: color
-            )
-            let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
-            decoded.append((pixelBuffer, grid))
+        } catch {
+            FileHandle.standardError.write(Data(
+                "ffmpeg proxy read of \(url.lastPathComponent) stopped after \(decoded.count) frames: \(error)\n".utf8
+            ))
+            throw error
         }
         process.waitUntilExit()
         let log = String(decoding: stderrCollector.finish(), as: UTF8.self)
@@ -795,6 +798,18 @@ private enum FFmpegFrameReader {
             samples: samples,
             temporalProvenance: provenance
         )
+    }
+
+    /// Ends an ffmpeg proxy process. An early exit leaves ffmpeg blocked
+    /// writing a frame nobody reads, and SIGTERM alone cannot end that write
+    /// (ffmpeg waits for its muxer thread). Closing the read end makes the
+    /// write fail, so ffmpeg exits.
+    static func stop(_ process: Process, stdout: Pipe) {
+        if process.isRunning {
+            try? stdout.fileHandleForReading.close()
+            process.terminate()
+        }
+        process.waitUntilExit()
     }
 
     private static func readExactly(_ handle: FileHandle, count: Int) throws -> Data? {

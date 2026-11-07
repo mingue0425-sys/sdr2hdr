@@ -36,7 +36,7 @@ import Foundation
 public final class ProxyFrameCache: @unchecked Sendable {
     /// SHA-256 over `decoderSources`, in order, each as "<name>\0<bytes>\0",
     /// with the line that holds this constant removed from this file.
-    static let decoderSourceDigest = "932cf0b0e29fd1fd38cf8e580ff95947ab1ba67d719a75d1a4bd2a27cdd9440d"
+    static let decoderSourceDigest = "e18c1137a87c05fc423aa041a60414257073ed300cf75f09ee859aca93696dfc"
     static let decoderSources = [
         "FrameIO.swift", "ProxyTemporalProvenance.swift", "MetadataProbe.swift",
         "V4DatasetAudit.swift", "ProxyFrameCache.swift"

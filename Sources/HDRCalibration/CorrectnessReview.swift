@@ -452,14 +452,21 @@ public enum V4CorrectnessReview {
             scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
             split: { $0.split }
         )
-        let preparedStructural = try await repository.prepare(records: structuralRecords)
         let inputHashesForPlan = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit)
-        let preparedPlan = try repository.sealPreparedEvaluationPlan(
-            records: structuralRecords,
-            inputHashes: inputHashesForPlan,
-            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
-        )
-        try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        let preparedPlan: PreparedEvaluationPlan
+        do {
+            let preparedStructural = try await repository.prepare(records: structuralRecords)
+            preparedPlan = try repository.sealPreparedEvaluationPlan(
+                records: structuralRecords,
+                inputHashes: inputHashesForPlan,
+                scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+            )
+            try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        }
+        // The sealed plan carries every decision the second pass needs. Free
+        // the first pass's frames first: both passes together hold about two
+        // IOSurfaces per retained frame, and a process can create only 16,384.
+        repository.releaseCache()
         // Exercise the same read-only evaluator-entry materialization used by
         // V4/V6 after a plan is sealed.  The second pass may decode the
         // already-sealed identities, but it cannot align, select scenes, or
