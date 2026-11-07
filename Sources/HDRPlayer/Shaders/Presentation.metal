@@ -14,6 +14,10 @@ struct PresentationUniforms {
     float diagnosticROIWidth;
     float diagnosticROIHeight;
     uint diagnosticEnabled;
+    /// 1 when sourceTexture is a MetalFX upscale of originalTexture: clamp
+    /// each sample to the 2x2 original texels around it (anti-ringing), so
+    /// sharpening adds no halo brighter or darker than the source.
+    uint antiRingingClamp;
 };
 
 struct PresentationDebugStats {
@@ -127,6 +131,7 @@ inline void accumulatePresentationDebug(
 fragment float4 presentationFragment(
     PresentationVertexOut in [[stage_in]],
     texture2d<float, access::sample> sourceTexture [[texture(0)]],
+    texture2d<float, access::sample> originalTexture [[texture(1)]],
     sampler sourceSampler [[sampler(0)]],
     constant PresentationUniforms& uniforms [[buffer(0)]],
     device PresentationDebugStats* debugStats [[buffer(1)]]) {
@@ -145,6 +150,17 @@ fragment float4 presentationFragment(
     } else if (uniforms.hasTexture != 0) {
         float2 uv = orientedSourceUV(in.uv, uniforms.orientation);
         color = sourceTexture.sample(sourceSampler, uv).rgb;
+        if (uniforms.antiRingingClamp != 0) {
+            float2 size = float2(originalTexture.get_width(), originalTexture.get_height());
+            float2 texel = 1.0f / size;
+            float2 base = (floor(uv * size - 0.5f) + 0.5f) * texel;
+            // Exact texel centres: the linear sampler returns the texel itself.
+            float3 a = originalTexture.sample(sourceSampler, base).rgb;
+            float3 b = originalTexture.sample(sourceSampler, base + float2(texel.x, 0.0f)).rgb;
+            float3 c = originalTexture.sample(sourceSampler, base + float2(0.0f, texel.y)).rgb;
+            float3 d = originalTexture.sample(sourceSampler, base + texel).rgb;
+            color = clamp(color, min(min(a, b), min(c, d)), max(max(a, b), max(c, d)));
+        }
     } else {
         color = float3(0.0f);
     }

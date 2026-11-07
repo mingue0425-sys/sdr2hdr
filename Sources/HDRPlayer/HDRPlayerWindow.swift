@@ -3,6 +3,8 @@
 @MainActor
 public final class HDRPlayerWindow: NSWindow, NSWindowDelegate {
     public let metalView: HDRMetalView
+    /// The Metal view plus the playback bar.
+    public let content: PlayerContentView
     /// Called when the window closes. The default quits the app.
     public var onClose: (() -> Void)?
     /// The file name shown in the title.
@@ -10,6 +12,7 @@ public final class HDRPlayerWindow: NSWindow, NSWindowDelegate {
 
     public init(metalView: HDRMetalView, initialSize: CGSize = CGSize(width: 1280, height: 720)) {
         self.metalView = metalView
+        self.content = PlayerContentView(metalView: metalView)
         let rect = NSRect(origin: .zero, size: initialSize)
         super.init(
             contentRect: rect,
@@ -20,7 +23,8 @@ public final class HDRPlayerWindow: NSWindow, NSWindowDelegate {
         delegate = self
         title = "HDRPlayer"
         isReleasedWhenClosed = false
-        contentView = metalView
+        contentView = content
+        acceptsMouseMovedEvents = true
         initialFirstResponder = metalView
         makeFirstResponder(metalView)
         center()

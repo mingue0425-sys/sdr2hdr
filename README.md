@@ -146,10 +146,26 @@ such an input once with VideoToolbox HEVC, then plays it:
 equivalent ffmpeg command instead.
 
 **`HDRPlayer` decodes BT.709 SDR with `youtube-hlg-v2` by default.**
-- Press **Y** (View → YouTube HDR Source) for a video that was SDR at the source. This switches to the plain BT.709 inverse OETF while the video keeps playing.
+- Press **Y** (보기 menu, or the settings window) for a video that was SDR at the source. This switches to the plain BT.709 inverse OETF while the video keeps playing.
 - The window title shows the active decode.
 - `--sdr-transfer bt709-oetf` starts in that mode.
 - The calibration presets and `HDRSample` keep the historical inverse OETF.
+
+### Upscaling, settings and the playback bar
+
+`HDRPlayer` upscales the processed HDR frame with **MetalFX spatial scaling** before presentation:
+- `--upscale off|1.5x|2x|auto`; the default `auto` goes up to the size the video occupies on screen.
+- Factors never exceed the on-screen size, and a video already at least as large as its window is not upscaled.
+- The scaler runs in its HDR mode on the linear EDR frame. The presentation shader then clamps each sample to the 2×2 source texels around it (anti-ringing), so sharpening adds no halo.
+- On a hard HDR edge (0.2 → 2.0) at 4× display size:
+  - 10–90% edge width: 2 px, against 4 px for bilinear;
+  - overshoot: 0% with the clamp, against 15.5% without it.
+- Cost: about 1 ms of GPU per frame for 360×640 → 704×1280 on an M2. GPU render p50 went from 1.9 to 3.0 ms.
+
+The window has a playback bar: play/pause, position, a seek slider, duration and a settings button.
+- It appears when the mouse moves and hides after a few seconds of playback.
+- The settings window (⌘, or the gear) switches preset, SDR decode and upscaling while the video plays.
+- The app remembers these choices.
 
 ### Opening videos from Finder
 

@@ -60,6 +60,17 @@ final class PlayableInputConverterTests: XCTestCase {
         XCTAssertEqual(inCheckout.lastPathComponent, "converted")
     }
 
+    func testUpscaleOptionAndTimeFormatting() throws {
+        XCTAssertEqual(try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.mov"]).upscale, .auto)
+        XCTAssertEqual(try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.mov", "--upscale", "2x"]).upscale, .x2)
+        XCTAssertEqual(try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.mov", "--upscale", "off"]).upscale, .off)
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.mov", "--upscale", "4x"]))
+        XCTAssertEqual(PlaybackBarView.format(0), "0:00")
+        XCTAssertEqual(PlaybackBarView.format(65.9), "1:05")
+        XCTAssertEqual(PlaybackBarView.format(3_725), "1:02:05")
+        XCTAssertEqual(PlaybackBarView.format(.nan), "0:00")
+    }
+
     func testConversionOptionsParse() throws {
         let defaults = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/a.webm"])
         XCTAssertTrue(defaults.convertUndecodable)

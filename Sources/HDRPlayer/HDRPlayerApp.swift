@@ -17,7 +17,11 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     private var hasReportedError = false
     private var openedAnyFile = false
     private var conversionPanel: ConversionPanel?
+    private var controlsTimer: Timer?
+    private var settingsPanel: PlayerSettingsPanel?
     static let sdrTransferDefaultsKey = "HDRPlayerSDRTransfer"
+    static let presetDefaultsKey = "HDRPlayerPreset"
+    static let upscaleDefaultsKey = "HDRPlayerUpscale"
 
     public init(options: PlayerOptions, documentMode: Bool = false) {
         var options = options
@@ -25,6 +29,16 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
            let stored = UserDefaults.standard.string(forKey: Self.sdrTransferDefaultsKey),
            let policy = HDRSDRTransferInterpretation(cliName: stored) {
             options.sdrTransferInterpretation = policy
+        }
+        if documentMode {
+            let defaults = UserDefaults.standard
+            if let preset = defaults.string(forKey: Self.presetDefaultsKey),
+               HDRPresetResolver.configuration(for: preset) != nil {
+                options.preset = preset
+            }
+            if let stored = defaults.string(forKey: Self.upscaleDefaultsKey), let mode = HDRUpscaleMode(rawValue: stored) {
+                options.upscale = mode
+            }
         }
         self.options = options
         self.documentMode = documentMode
@@ -81,6 +95,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         }
         metricsTimer?.invalidate()
         playForTimer?.invalidate()
+        controlsTimer?.invalidate()
         controller?.stop()
         controller = nil
         window = nil
@@ -140,6 +155,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             }
             let view = try HDRMetalView(device: device)
             view.playbackController = controller
+            view.renderer.upscaleMode = options.upscale
             view.renderer.onNonBlackPresented = { [weak controller] in
                 Task { @MainActor [weak controller] in
                     controller?.metrics.markFirstNonBlackPresentedFrame()
@@ -166,6 +182,22 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             self.window = window
             self.controller = controller
             updateTitle()
+            let bar = window.content.bar
+            bar.onTogglePlay = { [weak controller] in controller?.togglePlayPause() }
+            bar.onSeek = { [weak controller] fraction, finished in
+                guard let controller, let duration = controller.videoInfo?.durationSeconds else { return }
+                controller.seek(toSeconds: fraction * duration, exact: finished)
+            }
+            bar.onSettings = { [weak self] in self?.showSettings(nil) }
+            controlsTimer?.invalidate()
+            controlsTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let controller = self?.controller, let bar = self?.window?.content.bar else { return }
+                    bar.update(currentSeconds: controller.currentSeconds,
+                               durationSeconds: controller.videoInfo?.durationSeconds,
+                               isPlaying: controller.isPlaying)
+                }
+            }
             // Rebind the ready closure now that the window exists.
             controller.onReady = { [weak self, weak window] info in
                 self?.handleReady(info, window: window)
@@ -189,6 +221,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     private func handleReady(_ info: PlaybackVideoInfo, window: HDRPlayerWindow?) {
         guard let controller, let window else { return }
         window.resizeToVideo(size: info.displaySize)
+        window.content.showBar()
         controller.play()
         // Start consuming display-link frames only after playCalled has been
         // recorded. This keeps startup latency timestamps causal and avoids
@@ -200,6 +233,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             print(window.metalView.displayCapabilities.logDescription)
             print(window.metalView.presentationDescription)
             print(controller.edrMappingDescription)
+            print("upscale mode: \(options.upscale.rawValue)")
             print("decode precision: \(controller.decodePrecisionDiagnosticDescription)")
             print("A/B mode: \(options.controlledAB ? "controlled dual-processor" : "quick single-processor")")
             metricsTimer = Timer.scheduledTimer(
@@ -238,11 +272,11 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             return
         }
         let alert = NSAlert()
-        alert.messageText = "HDRPlayer could not play this file"
+        alert.messageText = "이 파일을 재생할 수 없습니다"
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Open Another File…")
-        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "다른 파일 열기…")
+        alert.addButton(withTitle: "종료")
         NSApp.activate(ignoringOtherApps: true)
         if let window { window.onClose = {}; window.close() }
         controller?.stop()
@@ -273,6 +307,54 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         }
         updateTitle()
         if options.debug { print("sdr transfer interpretation: \(next.rawValue)") }
+        refreshSettingsPanel()
+    }
+
+    // MARK: - Settings
+
+    @objc public func showSettings(_ sender: Any?) {
+        let panel = settingsPanel ?? makeSettingsPanel()
+        settingsPanel = panel
+        panel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale)
+    }
+
+    private func refreshSettingsPanel() {
+        guard let settingsPanel else { return }
+        settingsPanel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale)
+    }
+
+    private func makeSettingsPanel() -> PlayerSettingsPanel {
+        let supported = MTLCreateSystemDefaultDevice().map(PresentationUpscaler.isSupported(on:)) ?? false
+        let panel = PlayerSettingsPanel(upscaleSupported: supported)
+        panel.onPreset = { [weak self] name in self?.applyPreset(name) }
+        panel.onSDRTransfer = { [weak self] policy in
+            guard let self, policy != self.options.sdrTransferInterpretation else { return }
+            self.toggleYouTubeDecode(nil)
+        }
+        panel.onUpscale = { [weak self] mode in self?.applyUpscale(mode) }
+        return panel
+    }
+
+    private func applyPreset(_ name: String) {
+        var next = options
+        next.preset = name
+        do {
+            let configuration = try next.baseConfiguration()
+            options = next
+            controller?.setBaseConfiguration(configuration)
+            if documentMode { UserDefaults.standard.set(name, forKey: Self.presetDefaultsKey) }
+            if options.debug { print("preset: \(name)") }
+        } catch {
+            NSSound.beep()
+        }
+    }
+
+    private func applyUpscale(_ mode: HDRUpscaleMode) {
+        options.upscale = mode
+        window?.metalView.renderer.upscaleMode = mode
+        window?.metalView.requestDisplayRefresh()
+        if documentMode { UserDefaults.standard.set(mode.rawValue, forKey: Self.upscaleDefaultsKey) }
+        if options.debug { print("upscale: \(mode.rawValue)") }
     }
 
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -284,7 +366,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
 
     private func updateTitle() {
         guard let window else { return }
-        let mode = youTubeDecodeIsOn ? "YouTube HDR source (Y)" : "standard SDR (Y)"
+        let mode = youTubeDecodeIsOn ? "YouTube HDR 해석 (Y)" : "일반 SDR (Y)"
         window.title = "\(window.displayName) — \(mode)"
     }
 
@@ -292,26 +374,28 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About HDRPlayer", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "HDRPlayer에 관하여", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide HDRPlayer", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit HDRPlayer", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "설정…", action: #selector(showSettings(_:)), keyEquivalent: ",")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "HDRPlayer 가리기", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "HDRPlayer 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
         let fileItem = NSMenuItem()
-        let fileMenu = NSMenu(title: "File")
-        fileMenu.addItem(withTitle: "Open…", action: #selector(openDocument(_:)), keyEquivalent: "o")
-        fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let fileMenu = NSMenu(title: "파일")
+        fileMenu.addItem(withTitle: "열기…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        fileMenu.addItem(withTitle: "닫기", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         fileItem.submenu = fileMenu
         main.addItem(fileItem)
 
         let viewItem = NSMenuItem()
-        let viewMenu = NSMenu(title: "View")
-        let youtube = NSMenuItem(title: "YouTube HDR Source (SDR rendition)", action: #selector(toggleYouTubeDecode(_:)), keyEquivalent: "y")
+        let viewMenu = NSMenu(title: "보기")
+        let youtube = NSMenuItem(title: "YouTube HDR 영상의 SDR 버전으로 해석", action: #selector(toggleYouTubeDecode(_:)), keyEquivalent: "y")
         youtube.keyEquivalentModifierMask = []
         viewMenu.addItem(youtube)
-        let fullScreen = NSMenuItem(title: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        let fullScreen = NSMenuItem(title: "전체 화면", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fullScreen.keyEquivalentModifierMask = [.control, .command]
         viewMenu.addItem(fullScreen)
         viewItem.submenu = viewMenu
@@ -370,6 +454,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     @objc private func debugTimerFired(_ timer: Timer) {
         guard let controller else { return }
         print(controller.metrics.snapshot().debugLine)
+        if let renderer = window?.metalView.renderer { print(renderer.upscaleDescription) }
         if let renderer = window?.metalView.renderer,
            let diagnostic = controller.diagnosticSnapshot(renderer: renderer) {
             print(diagnostic.formattedText())
@@ -420,7 +505,7 @@ final class ConversionPanel {
 
     func update(_ fraction: Double) {
         bar.doubleValue = fraction
-        label.stringValue = "Converting \(fileName) for playback… \(Int(fraction * 100))%"
+        label.stringValue = "\(fileName) 재생용으로 변환 중… \(Int(fraction * 100))%"
     }
 
     func close() {

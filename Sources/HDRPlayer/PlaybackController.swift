@@ -577,10 +577,30 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         }
     }
 
+    /// The playback position in seconds.
+    public var currentSeconds: Double {
+        player.currentTime().isNumeric ? player.currentTime().seconds : 0
+    }
+
+    public var isPlaying: Bool { player.rate != 0 }
+
+    /// Replaces the base configuration (for example another preset) and
+    /// redraws the current frame.
+    public func setBaseConfiguration(_ configuration: HDRConfiguration) {
+        baseConfiguration = configuration
+        updateDisplayCapabilities(displayCapabilities)
+    }
+
     public func seek(by seconds: Double) {
+        seek(toSeconds: currentSeconds + seconds)
+    }
+
+    /// Seeks to an absolute position. `exact: false` allows the nearest
+    /// keyframe within half a second, for scrubbing.
+    public func seek(toSeconds seconds: Double, exact: Bool = true) {
         guard let duration = videoInfo?.duration, duration.isNumeric else { return }
-        let current = player.currentTime().isNumeric ? player.currentTime().seconds : 0
-        let target = min(max(current + seconds, 0), max(duration.seconds, 0))
+        let target = min(max(seconds, 0), max(duration.seconds, 0))
+        let tolerance = exact ? CMTime.zero : CMTime(seconds: 0.5, preferredTimescale: 600)
         let requestedSeekGeneration = seekRedrawCoordinator.begin(wasPlaying: player.rate != 0)
         player.pause()
         selector.reset()
@@ -592,8 +612,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         needsFrameReprocessing = false
         player.seek(
             to: CMTime(seconds: target, preferredTimescale: 600),
-            toleranceBefore: .zero,
-            toleranceAfter: .zero
+            toleranceBefore: tolerance,
+            toleranceAfter: tolerance
         ) { [weak self] finished in
             Task { @MainActor [weak self] in
                 guard let self else { return }

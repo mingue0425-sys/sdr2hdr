@@ -63,6 +63,8 @@ public struct PlayerOptions: Equatable, Sendable {
     /// Where converted inputs go; nil means
     /// `PlayableInputConverter.defaultCacheDirectory()`.
     public var convertDirectory: URL?
+    /// MetalFX upscaling before presentation (`--upscale off|1.5x|2x|auto`).
+    public var upscale: HDRUpscaleMode = .auto
 
     public init(
         inputURL: URL? = nil,
@@ -115,6 +117,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
           HDRPlayer <video-file> --sdr-transfer \(HDRSDRTransferInterpretation.allCases.map(\.cliName).joined(separator: "|"))
           HDRPlayer <video-file> --gain-guidance off|noise-gated
+          HDRPlayer <video-file> --upscale off|1.5x|2x|auto   (MetalFX, default auto: up to the on-screen size)
           HDRPlayer <youtube.webm> [--convert-dir DIR | --no-convert]   (VP9/AV1 inputs are converted once to HEVC)
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
@@ -221,6 +224,13 @@ public struct PlayerOptions: Equatable, Sendable {
                     throw HDRPlayerCLIError.invalidOption("unsupported gain guidance: \(value) (off|noise-gated)")
                 }
                 options.gainGuidance = guidance
+                index += 2
+            case "--upscale":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                guard let mode = HDRUpscaleMode(cliName: value) else {
+                    throw HDRPlayerCLIError.invalidOption("unsupported upscale: \(value) (off|1.5x|2x|auto)")
+                }
+                options.upscale = mode
                 index += 2
             case "--no-convert":
                 options.convertUndecodable = false
