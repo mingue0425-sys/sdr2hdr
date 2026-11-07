@@ -1,15 +1,15 @@
 # Correctness Review Fixes
 
-- Verdict: `CORRECTNESS_READY_FOR_V6`
+- Verdict: `EXECUTABLE_EVIDENCE_INCOMPLETE`
 - Virgin Frozen objective evaluated: `false`
-- Tune structural completeness: 21/21
-- Validation structural completeness: 20/20
+- Tune structural completeness: 24/24
+- Validation structural completeness: 23/23
 
 | Finding | Status |
 | --- | --- |
 | v6PreparedEvaluationPlan | PASS |
 | dataset-audit-lock | PASS |
-| v6FrozenPreparedEvaluationPlan | PASS |
+| v6FrozenPreparedEvaluationPlan | FAIL |
 | sparse-index-domain | PASS |
 | sparseSpatialTemporalSeparation | PASS |
 | realTemporalWindowPreparation | PASS |
