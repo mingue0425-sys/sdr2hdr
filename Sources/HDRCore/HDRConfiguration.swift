@@ -880,12 +880,14 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: .production
     )
 
-    /// Open-content v2 round-4 candidate `local_020` (shape-oetf-ythlg run,
-    /// `results/open-content-v2/round4/v4-shape-oetf-ythlg/`). Selected on
-    /// Tune/Validation only; it is **not promoted**, so it is opt-in and the
-    /// production default stays `calibratedV4`. The declared YouTube-HLG
-    /// reconstruction of that run is not part of this preset.
-    public static let openContentV2Candidate = HDRConfiguration(
+    /// Production preset promoted from the open-content v2 calibration
+    /// (`local_020`, `results/open-content-v2/frozen-v2/`, verdict
+    /// PROMOTE_CALIBRATED_V4). It improved the objective over V2 by 33.7% on
+    /// Tune, 27.3% on Validation and 23.1% on the one-shot Virgin Frozen
+    /// holdout (gate 5%). The declared YouTube-HLG reconstruction used for
+    /// broadcast pairs during that calibration is a separate input policy and
+    /// is not part of this preset.
+    public static let calibratedV5 = HDRConfiguration(
         paperWhiteNits: 203.30556,
         peakNits: 1_408.8245,
         highlightStrength: 0.86,

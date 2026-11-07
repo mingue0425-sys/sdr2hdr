@@ -672,7 +672,8 @@ final class HDRMathTests: XCTestCase {
     }
 
     func testPresetResolverAndEffectivePeakSemanticsAreConsistent() throws {
-        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v4")
+        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v5")
+        XCTAssertEqual(HDRPresetResolver.configuration(for: "calibrated-v5"), .calibratedV5)
         XCTAssertEqual(HDRPresetResolver.configuration(for: "calibrated-v4"), .calibratedV4)
         XCTAssertNil(HDRPresetResolver.configuration(for: "unknown-preset"))
 
@@ -682,7 +683,8 @@ final class HDRMathTests: XCTestCase {
             .vivid,
             .calibratedV1,
             .calibratedV2,
-            .calibratedV4
+            .calibratedV4,
+            .calibratedV5
         ] {
             let validated = try configuration.validated()
             XCTAssertEqual(

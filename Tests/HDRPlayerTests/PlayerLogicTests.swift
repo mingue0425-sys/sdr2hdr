@@ -421,13 +421,15 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(try configuration.validated(), configuration)
     }
 
-    func testPlayerOptionsDefaultsToCalibratedV4() throws {
+    func testPlayerOptionsDefaultsToCalibratedV5() throws {
         let options = PlayerOptions()
-        XCTAssertEqual(options.preset, "calibrated-v4")
+        XCTAssertEqual(options.preset, "calibrated-v5")
 
         let parsed = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
-        XCTAssertEqual(parsed.preset, "calibrated-v4")
-        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV4)
+        XCTAssertEqual(parsed.preset, "calibrated-v5")
+        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV5)
+        let previous = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v4"])
+        XCTAssertEqual(try previous.baseConfiguration(), HDRConfiguration.calibratedV4)
     }
 
     func testRejectedV3CandidateIsExplicitlySelectableButDoesNotReplaceV4() throws {
@@ -674,10 +676,10 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
     }
 
-    func testOpenContentV2CandidatePresetIsOptInAndMatchesTheRound4Candidate() throws {
-        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v4")
+    func testCalibratedV5IsTheDefaultAndMatchesTheFrozenPromotedCandidate() throws {
+        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v5")
         let configuration = try PlayerOptions.parse(arguments: [
-            "HDRPlayer", "/tmp/video.mp4", "--preset", "open-v2-candidate"
+            "HDRPlayer", "/tmp/video.mp4"
         ]).baseConfiguration()
         XCTAssertEqual(configuration.paperWhiteNits, 203.30556, accuracy: 1e-4)
         XCTAssertEqual(configuration.peakNits, 1_408.8245, accuracy: 1e-3)

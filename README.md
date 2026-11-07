@@ -13,6 +13,9 @@ below the 5% gate). The [robustness study report](docs/ROBUSTNESS_STUDY_REPORT.m
 noisy, compressed, upscaled and banded SDR and documents the opt-in
 noise-gated gain guidance (`--gain-guidance noise-gated`). Next steps and the
 evidence behind them are in [improvement research notes](docs/IMPROVEMENT_RESEARCH_NOTES.md).
+The [open-content v2 Frozen result](docs/OPEN_CONTENT_V2_FROZEN_RESULT.md) records the second
+one-use Virgin Frozen evaluation (PROMOTE_CALIBRATED_V4: +23.07% over V2), which made
+`calibrated-v5` the default preset.
 The [open-content v2 dataset](docs/OPEN_CONTENT_V2_DATASET.md) adds a new,
 unexposed Virgin Frozen holdout and rebalances Tune across grading styles.
 The [development roadmap](docs/DEVELOPMENT_ROADMAP.md) orders the next steps:

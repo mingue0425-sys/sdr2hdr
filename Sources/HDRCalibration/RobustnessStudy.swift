@@ -164,7 +164,9 @@ public enum RobustnessStudy {
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: work) }
 
-        guard let v4 = HDRPresetResolver.configuration(for: HDRPresetResolver.productionDefault) else {
+        // Pinned to calibrated-v4, the preset this study was designed and
+        // reported against; it does not follow the production default.
+        guard let v4 = HDRPresetResolver.configuration(for: "calibrated-v4") else {
             throw CalibrationError.invalidManifest("production preset unavailable")
         }
         var noExpansion = v4
