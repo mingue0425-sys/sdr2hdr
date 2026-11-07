@@ -750,7 +750,7 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// Lower ceiling for the YouTube HLG-derived decodes. They render skin
     /// about 1.5x more saturated (chroma 0.8 against 0.5 on MMD skin), and
     /// saturated bright colour reads brighter than its luminance.
-    public static let youtubeSkinHighlightCeiling: Float = 0.75
+    public static let youtubeSkinHighlightCeiling: Float = 0.65
 
     /// The skin highlight ceiling for an effective (interpreted) SDR decode.
     public static func skinHighlightCeiling(for decode: HDRTransferFunction) -> Float {
