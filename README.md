@@ -130,14 +130,20 @@ Results against YouTube's own HLG rendition (open-content v2, round 7):
 - The absolute level is within about 6% of the HDR rendition (median level gain 0.93–0.95). The default decode is 20–30% too dark.
 - Use the flag only for such renditions. An upload that is SDR at the source has no HDR original, and the curve does not apply to it.
 
-YouTube serves VP9 or AV1. AVFoundation cannot decode its VP9 (checked on an
-M2), and AV1 may fail too. `HDRPlayer` and `HDRSample` check that the track is
-decodable and otherwise print the conversion. VideoToolbox HEVC keeps the BT.709 tags:
+YouTube serves VP9 or AV1, usually in WebM. AVFoundation cannot open WebM or
+decode its VP9 (checked on an M2), and AV1 may fail too. `HDRPlayer` converts
+such an input once with VideoToolbox HEVC, then plays it:
+- colour tags are kept;
+- 10-bit sources stay 10-bit (Main10) and keep their transfer (checked with HLG);
+- the copy goes to `.build/converted/` beside the binary, or to `--convert-dir DIR`;
+- the copy is reused while the source file is unchanged.
 
 ```bash
-ffmpeg -i in.webm -map 0:v:0 -map '0:a?' -c:v hevc_videotoolbox -q:v 75 -tag:v hvc1 -c:a aac in-hevc.mov
-./.build/release/HDRPlayer in-hevc.mov --sdr-transfer youtube-hlg-v2
+./.build/release/HDRPlayer "video.webm" --sdr-transfer youtube-hlg-v2
 ```
+
+`--no-convert` turns this off. `HDRSample` and `--no-convert` print the
+equivalent ffmpeg command instead.
 
 ## Commands
 

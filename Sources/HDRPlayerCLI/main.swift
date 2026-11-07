@@ -6,7 +6,13 @@ struct HDRPlayerMain {
     @MainActor
     static func main() {
         do {
-            let options = try PlayerOptions.parse(arguments: CommandLine.arguments)
+            var options = try PlayerOptions.parse(arguments: CommandLine.arguments)
+            if let input = options.inputURL, options.convertUndecodable,
+               let converter = PlayableInputConverter(
+                   cacheDirectory: options.convertDirectory ?? PlayableInputConverter.defaultCacheDirectory()
+               ) {
+                options.inputURL = try converter.prepareForPlayback(input)
+            }
             let application = NSApplication.shared
             application.setActivationPolicy(.regular)
             let delegate = HDRPlayerApplication(options: options)

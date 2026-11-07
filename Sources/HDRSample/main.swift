@@ -45,7 +45,7 @@ private func run(arguments: [String]) async throws {
     }
 
     let asset = AVURLAsset(url: URL(fileURLWithPath: inputPath))
-    guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+    guard let track = try await UndecodableVideoAdvice.videoTrack(of: asset, url: asset.url) else {
         throw NSError(domain: "HDRSample", code: 3, userInfo: [NSLocalizedDescriptionKey: "No video track found"])
     }
     if let advice = try await UndecodableVideoAdvice.check(track: track, url: asset.url) {

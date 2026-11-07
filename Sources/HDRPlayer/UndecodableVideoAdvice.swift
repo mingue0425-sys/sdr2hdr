@@ -11,6 +11,21 @@ import Foundation
 /// is for. VideoToolbox HEVC keeps the
 /// BT.709 primaries, transfer, matrix and narrow range of the source.
 public enum UndecodableVideoAdvice {
+    /// The first video track. A container AVFoundation cannot open (WebM,
+    /// the yt-dlp default) throws the conversion advice.
+    public static func videoTrack(of asset: AVAsset, url: URL) async throws -> AVAssetTrack? {
+        do {
+            return try await asset.loadTracks(withMediaType: .video).first
+        } catch {
+            throw AdviceError(message: message(url: url, codec: url.pathExtension.isEmpty ? "this" : url.pathExtension))
+        }
+    }
+
+    public struct AdviceError: Error, LocalizedError {
+        public let message: String
+        public var errorDescription: String? { message }
+    }
+
     /// Nil when the track is decodable.
     public static func check(track: AVAssetTrack, url: URL) async throws -> String? {
         guard try await !track.load(.isDecodable) else { return nil }
@@ -34,6 +49,7 @@ public enum UndecodableVideoAdvice {
         switch fourCC {
         case "vp09": return "VP9"
         case "av01": return "AV1"
+        case "webm", "mkv": return fourCC.uppercased()
         default: return fourCC
         }
     }

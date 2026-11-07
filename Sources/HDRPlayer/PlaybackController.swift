@@ -486,11 +486,11 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         }
         Task { @MainActor [weak self] in
             do {
-                let tracks = try await asset.loadTracks(withMediaType: .video)
-                guard let track = tracks.first else {
+                let sourceURL = (asset as? AVURLAsset)?.url ?? URL(fileURLWithPath: "input-video")
+                guard let track = try await UndecodableVideoAdvice.videoTrack(of: asset, url: sourceURL) else {
                     throw HDRPlayerError.assetLoadFailed("no video track")
                 }
-                if let advice = try await UndecodableVideoAdvice.check(track: track, url: (asset as? AVURLAsset)?.url ?? URL(fileURLWithPath: "input-video")) {
+                if let advice = try await UndecodableVideoAdvice.check(track: track, url: sourceURL) {
                     throw HDRPlayerError.undecodableVideo(advice)
                 }
                 let naturalSize = try await track.load(.naturalSize)

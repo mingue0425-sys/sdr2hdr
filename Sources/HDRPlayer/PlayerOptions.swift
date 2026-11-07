@@ -52,6 +52,12 @@ public struct PlayerOptions: Equatable, Sendable {
     public var chromaReconstructionMode: HDRChromaReconstructionMode
     public var sdrTransferInterpretation: HDRSDRTransferInterpretation
     public var gainGuidance: HDRGainGuidance
+    /// Convert inputs AVFoundation cannot decode (YouTube VP9/AV1) once
+    /// before playback. `--no-convert` turns it off.
+    public var convertUndecodable: Bool = true
+    /// Where converted inputs go; nil means
+    /// `PlayableInputConverter.defaultCacheDirectory()`.
+    public var convertDirectory: URL?
 
     public init(
         inputURL: URL? = nil,
@@ -104,6 +110,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
           HDRPlayer <video-file> --sdr-transfer \(HDRSDRTransferInterpretation.allCases.map(\.cliName).joined(separator: "|"))
           HDRPlayer <video-file> --gain-guidance off|noise-gated
+          HDRPlayer <youtube.webm> [--convert-dir DIR | --no-convert]   (VP9/AV1 inputs are converted once to HEVC)
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
@@ -207,6 +214,13 @@ public struct PlayerOptions: Equatable, Sendable {
                     throw HDRPlayerCLIError.invalidOption("unsupported gain guidance: \(value) (off|noise-gated)")
                 }
                 options.gainGuidance = guidance
+                index += 2
+            case "--no-convert":
+                options.convertUndecodable = false
+                index += 1
+            case "--convert-dir":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                options.convertDirectory = URL(fileURLWithPath: value, isDirectory: true).standardizedFileURL
                 index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
