@@ -12,7 +12,7 @@ private func argumentValue(_ name: String, in arguments: [String]) -> String? {
 
 private func run(arguments: [String]) async throws {
     guard let inputPath = argumentValue("--input", in: arguments) else {
-        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ] [--preset calibrated-v4] [--precision automatic|8bit|10bit]"])
+        throw NSError(domain: "HDRSample", code: 1, userInfo: [NSLocalizedDescriptionKey: "Usage: HDRSample --input /path/to/video [--frames N] [--mode EDR|PQ] [--preset calibrated-v4] [--precision automatic|8bit|10bit] [--sdr-transfer bt709-oetf|bt1886] [--gain-guidance off|noise-gated]"])
     }
     let requestedFrames = max(Int(argumentValue("--frames", in: arguments) ?? "1") ?? 1, 1)
     let outputMode = HDROutputMode(rawValue: (argumentValue("--mode", in: arguments) ?? "EDR").uppercased()) ?? .edr
@@ -27,6 +27,18 @@ private func run(arguments: [String]) async throws {
     }
     guard var configuration = HDRPresetResolver.configuration(for: presetName) else {
         throw NSError(domain: "HDRSample", code: 7, userInfo: [NSLocalizedDescriptionKey: "Unsupported preset: \(presetName)"])
+    }
+    if let value = argumentValue("--sdr-transfer", in: arguments) {
+        guard let policy = HDRSDRTransferInterpretation(cliName: value) else {
+            throw NSError(domain: "HDRSample", code: 9, userInfo: [NSLocalizedDescriptionKey: "Unsupported SDR transfer interpretation: \(value)"])
+        }
+        configuration.sdrTransferInterpretation = policy
+    }
+    if let value = argumentValue("--gain-guidance", in: arguments) {
+        guard let guidance = HDRGainGuidance(cliName: value) else {
+            throw NSError(domain: "HDRSample", code: 10, userInfo: [NSLocalizedDescriptionKey: "Unsupported gain guidance: \(value) (off|noise-gated)"])
+        }
+        configuration.gainGuidance = guidance
     }
     guard let device = MTLCreateSystemDefaultDevice() else {
         throw NSError(domain: "HDRSample", code: 2, userInfo: [NSLocalizedDescriptionKey: "Metal device unavailable"])
@@ -64,6 +76,8 @@ private func run(arguments: [String]) async throws {
     }
 
     print("decode precision decision: \(precisionDecision.diagnosticDescription)")
+    print("sdr transfer interpretation: \(configuration.sdrTransferInterpretation.rawValue)")
+    print("gain guidance: \(configuration.gainGuidance.isEnabled ? "radius \(configuration.gainGuidance.radius), tolerance \(configuration.gainGuidance.tolerance)" : "off")")
     var processed = 0
     while processed < requestedFrames, let sampleBuffer = output.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),

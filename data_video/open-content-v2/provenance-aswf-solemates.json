@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "collection": "aswf-dpel-nas-solemates",
+  "license": "ASWF Digital Assets License v1.1",
+  "licenseURL": "https://dpel.aswf.io/solemates/solemates-license",
+  "copyright": "NAS Sole Mates - HDR Production Example Copyright 2025 Netflix, Inc. All rights reserved.",
+  "archiveSHA256": "9602f3ea2b12adf68f15d5c0683b22da79cfdfb7a41885bb0114156acacbdf98",
+  "modifications": "Video stream copied out of the published QuickTimes (whole 61-frame shot); SDR ProRes frame headers retagged BT.709 via prores_metadata (no pixel change).",
+  "holdoutCustody": "Virgin Frozen. Not viewed or measured; only container headers and frame counts were read.",
+  "files": [
+    {
+      "pairID": "nas_solemates_unh0400",
+      "role": "sdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/solemates/solemates_sdr_unh0400_61f.mov",
+      "sha256": "fe7360ee262b4bcd90eb49980d8f3f1fbc5cc4f93df521585d408b86e1724ce1",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/solemates/quicktime_media-sdr_hdr-v1.0.0.zip#unh0400_0010_21_2k_100nits_Rec709_ACES2_ProRes422HQ.mov",
+      "frameCount": 61,
+      "accessDate": "2026-11-06",
+      "retaggedBT709": true,
+      "originalSHA256": "f61b6d19022e13aedd01fff9ef8b3b11a79550c62ed13fa1bd08e9f75c9c690c"
+    },
+    {
+      "pairID": "nas_solemates_unh0400",
+      "role": "hdr",
+      "file": "sdr2hdr-real-media/aswf-dpel/solemates/solemates_hdr_unh0400_61f.mov",
+      "sha256": "4351a4403e4331500b7176c2c83954e02c0cef04c641bbb975d9255614308d37",
+      "sourceObject": "https://aswf-dpel-assets.s3.amazonaws.com/solemates/quicktime_media-sdr_hdr-v1.0.0.zip#unh0400_0010_21_2k_1000nits_Rec2020_ACES2_ProRes4444XQ.mov",
+      "frameCount": 61,
+      "accessDate": "2026-11-06",
+      "originalSHA256": "b02b96ec1f30076f8e167af213bee7745e876c4816cdb6e36c3e1f0a9d083136"
+    }
+  ]
+}

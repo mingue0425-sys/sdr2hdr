@@ -12,6 +12,8 @@ public struct HDRFrameMetadata: Equatable, Sendable {
     /// EDR uses min(peakNits / paperWhiteNits, masteringHeadroom), while PQ
     /// retains the configured peak ratio.
     public let effectivePeakNits: Float
+    /// Versioned SDR input convention used to linearize BT.709-tagged input.
+    public let sdrTransferInterpretation: HDRSDRTransferInterpretation
 
     @available(*, deprecated, renamed: "masteringHeadroom")
     public var displayHeadroom: Float { masteringHeadroom }
@@ -22,13 +24,15 @@ public struct HDRFrameMetadata: Equatable, Sendable {
         peakNits: Float,
         paperWhiteNits: Float,
         masteringHeadroom: Float,
-        effectivePeakNits: Float? = nil
+        effectivePeakNits: Float? = nil,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
     ) {
         self.outputMode = outputMode
         self.outputPrimaries = outputPrimaries
         self.peakNits = peakNits
         self.paperWhiteNits = paperWhiteNits
         self.masteringHeadroom = masteringHeadroom
+        self.sdrTransferInterpretation = sdrTransferInterpretation
         let peakRatio = peakNits / max(paperWhiteNits, 1)
         self.effectivePeakNits = effectivePeakNits ?? (
             outputMode == .edr
@@ -67,7 +71,8 @@ public struct HDRFrame {
             peakNits: configuration.peakNits,
             paperWhiteNits: configuration.paperWhiteNits,
             masteringHeadroom: configuration.masteringHeadroom,
-            effectivePeakNits: configuration.effectivePeakNits
+            effectivePeakNits: configuration.effectivePeakNits,
+            sdrTransferInterpretation: configuration.sdrTransferInterpretation
         )
     }
 }

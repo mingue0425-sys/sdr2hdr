@@ -1,0 +1,47 @@
+{
+  "decisionProtocol" : "family-maximin-lofo-v1",
+  "folds" : [
+    {
+      "heldOutFamily" : "ASC StEM2",
+      "heldOutImprovementOverDefault" : 0.15491726304291611,
+      "heldOutImprovementOverV2" : 0.1495725412059141,
+      "selectedCandidateID" : "global_047"
+    },
+    {
+      "heldOutFamily" : "ASC StEM3 Warped Cybercity",
+      "heldOutImprovementOverDefault" : 0.12890490549901631,
+      "heldOutImprovementOverV2" : 0.12879091720976543,
+      "selectedCandidateID" : "global_047"
+    },
+    {
+      "heldOutFamily" : "K-Choreo",
+      "heldOutImprovementOverDefault" : 0.03933890331499438,
+      "heldOutImprovementOverV2" : 0.059915156423409256,
+      "selectedCandidateID" : "global_047"
+    },
+    {
+      "heldOutFamily" : "KBS Music Bank One-take",
+      "heldOutImprovementOverDefault" : 0.049669833419745395,
+      "heldOutImprovementOverV2" : 0.08432013971352025,
+      "selectedCandidateID" : "global_047"
+    },
+    {
+      "heldOutFamily" : "Netflix Sol Levante",
+      "heldOutImprovementOverDefault" : 0.10983913078217926,
+      "heldOutImprovementOverV2" : 0.03180702755584425,
+      "selectedCandidateID" : "global_113"
+    },
+    {
+      "heldOutFamily" : "Netflix Sparks",
+      "heldOutImprovementOverDefault" : 0.04907536232473321,
+      "heldOutImprovementOverV2" : 0.04904992014085788,
+      "selectedCandidateID" : "global_019"
+    }
+  ],
+  "meanHeldOutImprovement" : 0.08390928370821854,
+  "reasons" : [
+    "candidate pool is fixed before folding; local-refinement centres used all Tune families"
+  ],
+  "status" : "PASS",
+  "worstHeldOutImprovement" : 0.03180702755584425
+}

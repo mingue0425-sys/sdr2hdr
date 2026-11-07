@@ -156,17 +156,36 @@ public struct V4Manifest: Codable, Sendable {
     public var version: Int
     public var pairs: [V4PairRecord]
     public var roots: [String: String]
+    /// Preregistered coverage protocol identifier. `nil` keeps the historical
+    /// `pre-v6-frozen-coverage-v1` requirements. The manifest is byte-bound
+    /// by the dataset lock, so the protocol is fixed with the data before any
+    /// objective evaluation.
+    public var coverageProtocol: String?
+    /// Preregistered candidate-selection and promotion protocol identifier.
+    /// `nil` keeps the historical Tune-top/Validation-best selection. Bound
+    /// by the dataset lock together with the data, like `coverageProtocol`.
+    public var decisionProtocol: String?
 
-    public init(version: Int = 4, pairs: [V4PairRecord], roots: [String: String] = [:]) {
+    public init(
+        version: Int = 4,
+        pairs: [V4PairRecord],
+        roots: [String: String] = [:],
+        coverageProtocol: String? = nil,
+        decisionProtocol: String? = nil
+    ) {
         self.version = version
         self.pairs = pairs
         self.roots = roots
+        self.coverageProtocol = coverageProtocol
+        self.decisionProtocol = decisionProtocol
     }
 
     private enum CodingKeys: String, CodingKey {
         case version
         case pairs
         case roots
+        case coverageProtocol
+        case decisionProtocol
     }
 
     public init(from decoder: Decoder) throws {
@@ -174,6 +193,8 @@ public struct V4Manifest: Codable, Sendable {
         version = try container.decode(Int.self, forKey: .version)
         pairs = try container.decode([V4PairRecord].self, forKey: .pairs)
         roots = try container.decodeIfPresent([String: String].self, forKey: .roots) ?? [:]
+        coverageProtocol = try container.decodeIfPresent(String.self, forKey: .coverageProtocol)
+        decisionProtocol = try container.decodeIfPresent(String.self, forKey: .decisionProtocol)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -183,6 +204,8 @@ public struct V4Manifest: Codable, Sendable {
         if !roots.isEmpty {
             try container.encode(roots, forKey: .roots)
         }
+        try container.encodeIfPresent(coverageProtocol, forKey: .coverageProtocol)
+        try container.encodeIfPresent(decisionProtocol, forKey: .decisionProtocol)
     }
 
     public static func load(from url: URL) throws -> V4Manifest {

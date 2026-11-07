@@ -681,6 +681,9 @@ public final class HDRProcessor {
     private let adaptiveState = HDRAdaptiveStateStore()
     private let debugStore = DebugStatisticsStore()
     private var debugEnabled = false
+    /// Test hook: force the per-texel reference window instead of the
+    /// gather path. Both must produce bit-identical output.
+    internal var gainGuidanceReferencePathEnabled = false
     private var debugPresetLabel = "configuration"
     private var configurationGenerationStorage: UInt64 = 0
     private var automaticTemporalEnabled = true
@@ -1151,6 +1154,15 @@ public final class HDRProcessor {
             case .bgra8:
                 pipeline = context.bgraDebugPipeline
             }
+        } else if configuration.gainGuidance.isEnabled {
+            switch inputTextures.pixelFormat {
+            case .nv12VideoRange, .nv12FullRange:
+                pipeline = context.nv12GuidedPipeline
+            case .p010VideoRange, .p010FullRange:
+                pipeline = context.p010GuidedPipeline
+            case .bgra8:
+                pipeline = context.bgraGuidedPipeline
+            }
         } else {
             switch inputTextures.pixelFormat {
             case .nv12VideoRange, .nv12FullRange:
@@ -1414,7 +1426,7 @@ public final class HDRProcessor {
         }
         let transferFunction: UInt32
         let gamma: Float
-        switch color.metadata.transferFunction {
+        switch color.metadata.transferFunction.interpreted(by: configuration.sdrTransferInterpretation) {
         case .bt709:
             transferFunction = 0
             gamma = 1
@@ -1427,6 +1439,18 @@ public final class HDRProcessor {
         case .linear:
             transferFunction = 3
             gamma = 1
+        case .bt1886:
+            transferFunction = 4
+            gamma = 2.4
+        case .bt709ToeBT1886Blend:
+            transferFunction = 5
+            gamma = 2.4
+        case .youtubeHLGInverse:
+            transferFunction = 6
+            gamma = 1.2
+        case .youtubeHLGInverseLuminanceGain:
+            transferFunction = 7
+            gamma = 1.2
         }
         let parameters = HDRShaderParameters(
             yOffset: color.yOffset,
@@ -1481,7 +1505,14 @@ public final class HDRProcessor {
             developmentExpansionCombinedMidtoneWeight: configuration.developmentExpansionCombinedMidtoneWeight,
             chromaReconstructionMode: chromaReconstructionDecision.effective.rawValue,
             chromaSampleCenterX: color.chromaGeometry.sampleCenterX,
-            chromaSampleCenterY: color.chromaGeometry.sampleCenterY
+            chromaSampleCenterY: color.chromaGeometry.sampleCenterY,
+            gainGuidanceRadius: UInt32(clamping: configuration.gainGuidance.radius),
+            gainGuidanceTolerance: configuration.gainGuidance.tolerance,
+            gainGuidanceReferencePath: gainGuidanceReferencePathEnabled ? 1 : 0,
+            inputPrimaries: color.metadata.primaries.rawValue,
+            gainGuidanceTextureLow: configuration.gainGuidance.textureLow,
+            gainGuidanceTextureHigh: configuration.gainGuidance.textureHigh,
+            gainGuidanceMinimumTolerance: configuration.gainGuidance.minimumTolerance
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

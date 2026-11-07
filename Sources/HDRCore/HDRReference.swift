@@ -67,6 +67,7 @@ public enum HDRReference {
         signalRGB: SIMD3<Float>,
         configuration: HDRConfiguration,
         transferFunction: HDRTransferFunction = .bt709,
+        inputPrimaries: HDRInputPrimaries = .bt709,
         temporalAdaptation: Float = 1,
         sceneStatistics: HDRSceneStatistics? = nil
     ) -> SIMD4<Float> {
@@ -75,11 +76,18 @@ public enum HDRReference {
             min(max(signalRGB.y, 0), 1),
             min(max(signalRGB.z, 0), 1)
         )
-        let linear = SIMD3<Float>(
-            HDRColorMath.inverseTransfer(signal.x, function: transferFunction),
-            HDRColorMath.inverseTransfer(signal.y, function: transferFunction),
-            HDRColorMath.inverseTransfer(signal.z, function: transferFunction)
+        let decode = transferFunction.interpreted(by: configuration.sdrTransferInterpretation)
+        var linear = SIMD3<Float>(
+            HDRColorMath.inverseTransfer(signal.x, function: decode),
+            HDRColorMath.inverseTransfer(signal.y, function: decode),
+            HDRColorMath.inverseTransfer(signal.z, function: decode)
         )
+        if decode == .youtubeHLGInverseLuminanceGain {
+            linear = HDRColorMath.youtubeHLGLuminanceGain(linear)
+        }
+        if let toBT709 = HDRColorMath.toBT709(inputPrimaries) {
+            linear = simd_max(toBT709 * linear, SIMD3<Float>(repeating: 0))
+        }
         let luminance = max(simd_dot(linear, HDRColorMath.bt709Luminance), 0)
         let expandedLuminance = toneExpand(
             luminance,

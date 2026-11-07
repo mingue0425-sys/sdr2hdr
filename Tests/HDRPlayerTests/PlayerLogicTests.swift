@@ -421,13 +421,15 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(try configuration.validated(), configuration)
     }
 
-    func testPlayerOptionsDefaultsToCalibratedV4() throws {
+    func testPlayerOptionsDefaultsToCalibratedV5() throws {
         let options = PlayerOptions()
-        XCTAssertEqual(options.preset, "calibrated-v4")
+        XCTAssertEqual(options.preset, "calibrated-v5")
 
         let parsed = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
-        XCTAssertEqual(parsed.preset, "calibrated-v4")
-        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV4)
+        XCTAssertEqual(parsed.preset, "calibrated-v5")
+        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV5)
+        let previous = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v4"])
+        XCTAssertEqual(try previous.baseConfiguration(), HDRConfiguration.calibratedV4)
     }
 
     func testRejectedV3CandidateIsExplicitlySelectableButDoesNotReplaceV4() throws {
@@ -671,5 +673,57 @@ final class PlayerLogicTests: XCTestCase {
             arguments: ["HDRPlayer", "/tmp/video.mp4"]
         ).baseConfiguration()
         XCTAssertEqual(defaultConfiguration.chromaReconstructionMode, .nearest)
+        XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+    }
+
+    func testCalibratedV5IsTheDefaultAndMatchesTheFrozenPromotedCandidate() throws {
+        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v5")
+        let configuration = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4"
+        ]).baseConfiguration()
+        XCTAssertEqual(configuration.paperWhiteNits, 203.30556, accuracy: 1e-4)
+        XCTAssertEqual(configuration.peakNits, 1_408.8245, accuracy: 1e-3)
+        XCTAssertEqual(configuration.highlightStrength, 0.86, accuracy: 1e-6)
+        XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
+        XCTAssertEqual(configuration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+    }
+
+    func testSDRTransferInterpretationOptionReachesConfiguration() throws {
+        let parsed = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "bt1886"
+        ])
+        XCTAssertEqual(parsed.sdrTransferInterpretation, .bt1886DisplayReferred)
+        XCTAssertEqual(try parsed.baseConfiguration().sdrTransferInterpretation, .bt1886DisplayReferred)
+        let explicitLegacy = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "bt709-oetf"
+        ])
+        XCTAssertEqual(explicitLegacy.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "gamma2.2"
+        ]))
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer"
+        ]))
+    }
+
+    func testGainGuidanceOptionIsOptInAndReachesConfiguration() throws {
+        let defaults = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
+        XCTAssertEqual(try defaults.baseConfiguration().gainGuidance, .off, "production output must stay unguided by default")
+        let guided = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "noise-gated"
+        ])
+        XCTAssertEqual(guided.gainGuidance, .noiseGatedCandidate)
+        XCTAssertEqual(try guided.baseConfiguration().gainGuidance, .noiseGatedCandidate)
+        let off = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "off"
+        ])
+        XCTAssertEqual(off.gainGuidance, .off)
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance", "strong"
+        ]))
+        XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--gain-guidance"
+        ]))
+        XCTAssertTrue(PlayerOptions.usage.contains("--gain-guidance off|noise-gated"))
     }
 }

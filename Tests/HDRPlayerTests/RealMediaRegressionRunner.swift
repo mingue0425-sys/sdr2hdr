@@ -773,6 +773,10 @@ struct RealMediaRegressionRunner {
         case .sRGB: return "sRGB"
         case .gamma(let value): return "gamma(\(value))"
         case .linear: return "linear"
+        case .bt1886: return "bt1886"
+        case .bt709ToeBT1886Blend: return "bt709-toe-bt1886-blend"
+        case .youtubeHLGInverse: return "youtube-hlg-inverse"
+        case .youtubeHLGInverseLuminanceGain: return "youtube-hlg-inverse-lumgain"
         }
     }
 

@@ -1,0 +1,38 @@
+{
+  "decisionProtocol" : "family-maximin-lofo-v1",
+  "folds" : [
+    {
+      "heldOutFamily" : "ASC StEM2"
+    },
+    {
+      "heldOutFamily" : "ASC StEM3 Warped Cybercity"
+    },
+    {
+      "heldOutFamily" : "K-Choreo",
+      "heldOutImprovementOverDefault" : -0.13146872812347038,
+      "heldOutImprovementOverV2" : 0.008879224765354538,
+      "selectedCandidateID" : "global_113"
+    },
+    {
+      "heldOutFamily" : "Netflix Sol Levante",
+      "heldOutImprovementOverDefault" : 0.03273495870147596,
+      "heldOutImprovementOverV2" : -0.05205614834432517,
+      "selectedCandidateID" : "global_055"
+    },
+    {
+      "heldOutFamily" : "Netflix Sparks"
+    }
+  ],
+  "meanHeldOutImprovement" : -0.021588461789485314,
+  "reasons" : [
+    "no eligible candidate when ASC StEM2 is held out",
+    "no eligible candidate when ASC StEM3 Warped Cybercity is held out",
+    "no eligible candidate when Netflix Sparks is held out",
+    "mean held-out improvement -2.16% < 5.00%",
+    "worst held-out improvement -5.21% is not positive",
+    "held-out K-Choreo is 13.15% worse than the default",
+    "candidate pool is fixed before folding; local-refinement centres used all Tune families"
+  ],
+  "status" : "FAIL",
+  "worstHeldOutImprovement" : -0.05205614834432517
+}

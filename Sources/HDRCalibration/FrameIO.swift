@@ -46,6 +46,8 @@ public struct FrameSequence {
     public let nominalFrameRate: Double
     public let durationSeconds: Double
     public let samples: [FrameSample]
+    /// Source-timeline provenance of `samples`, when the reader recorded it.
+    public let temporalProvenance: FrameTemporalProvenance?
 
     public init(
         url: URL,
@@ -54,7 +56,8 @@ public struct FrameSequence {
         height: Int,
         nominalFrameRate: Double,
         durationSeconds: Double,
-        samples: [FrameSample]
+        samples: [FrameSample],
+        temporalProvenance: FrameTemporalProvenance? = nil
     ) {
         self.url = url
         self.pixelFormat = pixelFormat
@@ -63,10 +66,22 @@ public struct FrameSequence {
         self.nominalFrameRate = nominalFrameRate
         self.durationSeconds = durationSeconds
         self.samples = samples
+        self.temporalProvenance = temporalProvenance
+    }
+
+    /// Same metadata, no decoded samples.
+    func withoutSamples() -> FrameSequence {
+        FrameSequence(
+            url: url, pixelFormat: pixelFormat, width: width, height: height,
+            nominalFrameRate: nominalFrameRate, durationSeconds: durationSeconds,
+            samples: [], temporalProvenance: temporalProvenance
+        )
     }
 }
 
 public enum FrameReader {
+    /// Historical uniform-grid mapping used before the source-PTS proxy. It is
+    /// retained for diagnostics of old evidence only; readers no longer use it.
     static func sourceFrameIndex(
         startSeconds: Double,
         outputIndex: Int,
@@ -116,7 +131,34 @@ public enum FrameReader {
         startSeconds: Double,
         frameCount: Int = 16,
         framesPerSecond: Double = 30,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        cache: ProxyFrameCache? = ProxyFrameCache.current
+    ) async throws -> FrameSequence {
+        guard let cache else {
+            return try await readWindowUncached(
+                url: url, pixelFormat: pixelFormat, startSeconds: startSeconds,
+                frameCount: frameCount, framesPerSecond: framesPerSecond, proxyWidth: proxyWidth
+            )
+        }
+        let request = [
+            "window", String(pixelFormat), String(startSeconds.bitPattern), String(frameCount),
+            String(framesPerSecond.bitPattern), String(proxyWidth)
+        ]
+        return try await cache.sequence(source: url, request: request) {
+            try await readWindowUncached(
+                url: url, pixelFormat: pixelFormat, startSeconds: startSeconds,
+                frameCount: frameCount, framesPerSecond: framesPerSecond, proxyWidth: proxyWidth
+            )
+        }
+    }
+
+    private static func readWindowUncached(
+        url: URL,
+        pixelFormat: OSType,
+        startSeconds: Double,
+        frameCount: Int,
+        framesPerSecond: Double,
+        proxyWidth: Int
     ) async throws -> FrameSequence {
         guard (1...512).contains(frameCount),
               (16...512).contains(proxyWidth),
@@ -171,7 +213,23 @@ public enum FrameReader {
         url: URL,
         pixelFormat: OSType,
         maxFrames: Int = 240,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        cache: ProxyFrameCache? = ProxyFrameCache.current
+    ) async throws -> FrameSequence {
+        guard let cache else {
+            return try await readUncached(url: url, pixelFormat: pixelFormat, maxFrames: maxFrames, proxyWidth: proxyWidth)
+        }
+        let request = ["read", String(pixelFormat), String(maxFrames), String(proxyWidth)]
+        return try await cache.sequence(source: url, request: request) {
+            try await readUncached(url: url, pixelFormat: pixelFormat, maxFrames: maxFrames, proxyWidth: proxyWidth)
+        }
+    }
+
+    private static func readUncached(
+        url: URL,
+        pixelFormat: OSType,
+        maxFrames: Int,
+        proxyWidth: Int
     ) async throws -> FrameSequence {
         guard (1...512).contains(maxFrames),
               (16...512).contains(proxyWidth),
@@ -286,6 +344,12 @@ public enum FrameReader {
         }
         let actualWidth = samples.first.map { CVPixelBufferGetWidth($0.pixelBuffer) } ?? metadata.sourceWidth
         let actualHeight = samples.first.map { CVPixelBufferGetHeight($0.pixelBuffer) } ?? metadata.sourceHeight
+        let provenance = try FrameTemporalProvenance.make(
+            policy: FrameTemporalProvenance.avAssetReaderPolicy,
+            timestamps: samples.map(\.timestamp.seconds),
+            indices: samples.map(\.index),
+            isVariableFrameRate: nil
+        )
         return FrameSequence(
             url: url,
             pixelFormat: pixelFormat,
@@ -293,7 +357,8 @@ public enum FrameReader {
             height: actualHeight,
             nominalFrameRate: metadata.nominalFrameRate,
             durationSeconds: metadata.durationSeconds,
-            samples: samples
+            samples: samples,
+            temporalProvenance: provenance
         )
     }
 
@@ -465,7 +530,122 @@ struct FFmpegProxyColorMetadata {
     }
 }
 
-private enum FFmpegFrameReader {
+/// Chooses VideoToolbox or software decoding for one ffmpeg proxy read.
+///
+/// The Apple media engine is shared, so concurrent VideoToolbox sessions mostly
+/// queue on it. On an M2, three parallel 4K VP9 decodes reach 192 fps, against
+/// 153 fps for one, while the CPU stays idle. A software decode beside one
+/// hardware session reaches 271 fps. Concurrent reads therefore hold at most
+/// `hardwareSlots` VideoToolbox sessions and decode the rest in software.
+///
+/// Both lanes produce identical pixels. VP9 decoding is bit-exact. The software
+/// lane also converts to the layout the hardware lane hands swscale (NV12 for
+/// 8-bit, P010 for 10-bit 4:2:0) before scaling. Only VP9 4:2:0 sources, where
+/// that identity was checked, use the software lane. Every other source keeps
+/// the historical `-hwaccel videotoolbox` arguments.
+struct FFmpegDecodeLane {
+    enum Mode: String, Sendable {
+        case hardware
+        case software
+    }
+
+    let mode: Mode
+    /// Explicit pixel layout fed to swscale on the software lane.
+    let scalerInputFormat: String?
+    private let slotPool: FFmpegHardwareSlotPool?
+
+    var inputArguments: [String] { mode == .hardware ? ["-hwaccel", "videotoolbox"] : [] }
+
+    func release() { slotPool?.release() }
+
+    /// The layout VideoToolbox downloads for an ffprobe `codec_name,pix_fmt`,
+    /// or nil when the source may not use the software lane.
+    static func hardwareDownloadFormat(codecName: String, pixelFormat: String) -> String? {
+        guard codecName == "vp9" else { return nil }
+        switch pixelFormat {
+        case "yuv420p": return "nv12"
+        case "yuv420p10le": return "p010le"
+        default: return nil
+        }
+    }
+
+    static func acquire(
+        sourceDownloadFormat: String?,
+        pool: FFmpegHardwareSlotPool = .shared
+    ) -> FFmpegDecodeLane {
+        guard let sourceDownloadFormat else {
+            return FFmpegDecodeLane(mode: .hardware, scalerInputFormat: nil, slotPool: nil)
+        }
+        if pool.tryAcquire() {
+            return FFmpegDecodeLane(mode: .hardware, scalerInputFormat: nil, slotPool: pool)
+        }
+        return FFmpegDecodeLane(mode: .software, scalerInputFormat: sourceDownloadFormat, slotPool: nil)
+    }
+
+    static func probeDownloadFormat(ffprobe: String, url: URL) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ffprobe)
+        process.arguments = [
+            "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,pix_fmt", "-of", "csv=p=0", url.path
+        ]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0,
+              let line = String(decoding: data, as: UTF8.self)
+                .split(whereSeparator: \.isNewline).first else { return nil }
+        let fields = line.split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard fields.count >= 2 else { return nil }
+        return hardwareDownloadFormat(codecName: fields[0], pixelFormat: fields[1])
+    }
+}
+
+/// Process-wide count of VideoToolbox proxy sessions. HDR_HW_DECODE_SLOTS
+/// (0-8, default 1) sets the limit; it never changes decoded pixels.
+final class FFmpegHardwareSlotPool: @unchecked Sendable {
+    static let shared = FFmpegHardwareSlotPool(limit: {
+        if let text = ProcessInfo.processInfo.environment["HDR_HW_DECODE_SLOTS"],
+           let value = Int(text) {
+            return min(max(value, 0), 8)
+        }
+        return 1
+    }())
+
+    let limit: Int
+    private let lock = NSLock()
+    private var inUse = 0
+
+    init(limit: Int) {
+        self.limit = limit
+    }
+
+    func tryAcquire() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard inUse < limit else { return false }
+        inUse += 1
+        return true
+    }
+
+    func release() {
+        lock.lock()
+        defer { lock.unlock() }
+        inUse = max(inUse - 1, 0)
+    }
+
+    var activeCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return inUse
+    }
+}
+
+enum FFmpegFrameReader {
     static func read(
         url: URL,
         formatDescription: CMFormatDescription?,
@@ -479,9 +659,13 @@ private enum FFmpegFrameReader {
         startSeconds: Double? = nil,
         samplingFPS: Double? = nil
     ) async throws -> FrameSequence {
-        guard let executable = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw CalibrationError.decodeFailed("AVAssetReader failed and ffmpeg fallback is unavailable")
+        guard let directory = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].first(where: {
+            FileManager.default.isExecutableFile(atPath: $0 + "/ffmpeg") &&
+                FileManager.default.isExecutableFile(atPath: $0 + "/ffprobe")
+        }) else {
+            throw CalibrationError.decodeFailed("AVAssetReader failed and the ffmpeg/ffprobe fallback is unavailable")
         }
+        let executable = directory + "/ffmpeg"
         let isP010 = pixelFormat == CalibrationPixelFormat.hdrP010
         let color = try await FFmpegProxyColorMetadata.resolve(url: url, formatDescription: formatDescription, pixelFormat: pixelFormat)
         let proxyHeight = max(2, Int((Double(proxyWidth) * Double(sourceHeight) / Double(max(sourceWidth, 1))).rounded() / 2) * 2)
@@ -501,80 +685,108 @@ private enum FFmpegFrameReader {
                 "ffmpeg proxy rate or dimensions exceed safe bounds"
             )
         }
-        let filter = "fps=\(String(format: "%.6f", outputFPS)):round=up,scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)"
+        // The source packet table supplies true presentation-order ordinals
+        // and VFR evidence without decoding.
+        let table = try FFmpegPacketTableProbe.probe(
+            ffprobe: directory + "/ffprobe",
+            url: url
+        )
+        // Source timestamps are preserved (-copyts, passthrough): frames are
+        // decimated by slot selection, never duplicated or re-timed.
+        var filters: [String] = []
+        if let selection = FFmpegProxySelection.filter(requestedFPS: outputFPS, nominalFrameRate: nominalFrameRate) {
+            filters.append(selection)
+        }
+        filters.append("showinfo")
+        let lane = FFmpegDecodeLane.acquire(
+            sourceDownloadFormat: FFmpegDecodeLane.probeDownloadFormat(
+                ffprobe: directory + "/ffprobe", url: url
+            )
+        )
+        defer { lane.release() }
+        if let layout = lane.scalerInputFormat {
+            filters.append("format=\(layout)")
+        }
+        filters.append("scale=\(proxyWidth):\(proxyHeight):flags=bicubic:\(color.scaleOptions)")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         // This is an offline proxy reader, but it must still be bounded and
-        // non-interactive.  In particular, never leave ffmpeg's stderr pipe
-        // undrained: a noisy VideoToolbox fallback can fill that pipe while
-        // the caller is blocked waiting for rawvideo on stdout.
-        var arguments = ["-hide_banner", "-nostdin", "-loglevel", "error", "-hwaccel", "videotoolbox"]
+        // non-interactive. stderr carries showinfo and is drained
+        // concurrently so a full pipe can never block rawvideo on stdout.
+        var arguments = ["-hide_banner", "-nostdin", "-nostats", "-loglevel", "info"] + lane.inputArguments
         if let startSeconds {
             arguments += ["-ss", String(format: "%.6f", startSeconds)]
         }
         arguments += [
+            "-copyts",
             "-i", url.path,
-            "-an", "-vf", filter, "-pix_fmt", outputPixelFormat, "-frames:v", String(maxFrames),
+            "-an", "-vf", filters.joined(separator: ","), "-fps_mode", "passthrough",
+            "-pix_fmt", outputPixelFormat, "-frames:v", String(maxFrames),
             "-f", "rawvideo", "pipe:1"
         ]
         process.arguments = arguments
         let stdout = Pipe()
+        let stderr = Pipe()
         process.standardOutput = stdout
-        process.standardError = FileHandle(forWritingAtPath: "/dev/null")
+        process.standardError = stderr
+        let stderrCollector = PipeCollector(stderr.fileHandleForReading)
         try process.run()
-        defer {
-            if process.isRunning { process.terminate() }
-            process.waitUntilExit()
-        }
+        defer { stop(process, stdout: stdout) }
 
         let frameBytes = isP010
             ? proxyWidth * proxyHeight * 2 + proxyWidth * max(1, proxyHeight / 2) * 2
             : proxyWidth * proxyHeight + proxyWidth * max(1, proxyHeight / 2)
-        let outputFPSForTimestamp = max(outputFPS, 0.001)
-        var samples: [FrameSample] = []
-        var index = 0
-        while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
-            guard data.count == frameBytes else {
-                process.terminate()
-                throw CalibrationError.decodeFailed("ffmpeg returned a truncated raw frame for \(url.lastPathComponent)")
-            }
-            let pixelBuffer = try makePixelBuffer(
-                data: data,
-                width: proxyWidth,
-                height: proxyHeight,
-                pixelFormat: pixelFormat,
-                color: color
-            )
-            let seconds = (startSeconds ?? 0) + Double(index) / outputFPSForTimestamp
-            let timestamp = CMTime(seconds: seconds, preferredTimescale: 1_000)
-            let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
-            let descriptor = FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: grid)
-            guard let sourceFrameIndex = FrameReader.sourceFrameIndex(
-                startSeconds: startSeconds ?? 0,
-                outputIndex: index,
-                outputFramesPerSecond: outputFPSForTimestamp,
-                sourceFramesPerSecond: max(
-                    nominalFrameRate,
-                    outputFPSForTimestamp
+        var decoded: [(pixelBuffer: CVPixelBuffer, grid: [Float])] = []
+        do {
+            while let data = try readExactly(stdout.fileHandleForReading, count: frameBytes) {
+                guard data.count == frameBytes else {
+                    throw CalibrationError.decodeFailed("ffmpeg returned a truncated raw frame for \(url.lastPathComponent)")
+                }
+                let pixelBuffer = try makePixelBuffer(
+                    data: data,
+                    width: proxyWidth,
+                    height: proxyHeight,
+                    pixelFormat: pixelFormat,
+                    color: color
                 )
-            ) else {
-                throw CalibrationError.decodeFailed(
-                    "ffmpeg source position exceeds the supported timeline"
-                )
+                let grid = try OfflinePixelSampler.lumaGrid(pixelBuffer: pixelBuffer, width: 64, height: 36)
+                decoded.append((pixelBuffer, grid))
             }
-            samples.append(FrameSample(
-                index: sourceFrameIndex,
-                sequencePosition: index,
-                timestamp: timestamp,
-                pixelBuffer: pixelBuffer,
-                descriptor: descriptor,
-                lumaGrid: grid
+        } catch {
+            FileHandle.standardError.write(Data(
+                "ffmpeg proxy read of \(url.lastPathComponent) stopped after \(decoded.count) frames: \(error)\n".utf8
             ))
-            index += 1
+            throw error
         }
         process.waitUntilExit()
-        guard process.terminationStatus == 0, !samples.isEmpty else {
+        let log = String(decoding: stderrCollector.finish(), as: UTF8.self)
+        guard process.terminationStatus == 0, !decoded.isEmpty else {
             throw CalibrationError.decodeFailed("ffmpeg could not decode \(url.lastPathComponent)")
+        }
+        // showinfo may log one frame beyond the -frames:v limit; pairing is by
+        // output order and only the delivered prefix is used.
+        let shown = try FFmpegShowinfoParser.parse(log)
+        guard shown.count >= decoded.count else {
+            throw CalibrationError.decodeFailed(
+                "ffmpeg reported \(shown.count) source timestamps for \(decoded.count) frames of \(url.lastPathComponent)"
+            )
+        }
+        let provenance = try table.provenance(
+            forFrameSeconds: shown.prefix(decoded.count).map(\.seconds),
+            policy: FrameTemporalProvenance.ffmpegSourcePTSPolicy
+        )
+        var samples: [FrameSample] = []
+        samples.reserveCapacity(decoded.count)
+        for (position, frame) in decoded.enumerated() {
+            let timestamp = CMTime(seconds: provenance.sourceTimestampsSeconds[position], preferredTimescale: 90_000)
+            samples.append(FrameSample(
+                index: provenance.sourceFrameIndices[position],
+                sequencePosition: position,
+                timestamp: timestamp,
+                pixelBuffer: frame.pixelBuffer,
+                descriptor: FrameDescriptorBuilder.make(timestamp: timestamp, lumaGrid: frame.grid),
+                lumaGrid: frame.grid
+            ))
         }
         return FrameSequence(
             url: url,
@@ -583,17 +795,33 @@ private enum FFmpegFrameReader {
             height: proxyHeight,
             nominalFrameRate: nominalFrameRate,
             durationSeconds: durationSeconds,
-            samples: samples
+            samples: samples,
+            temporalProvenance: provenance
         )
+    }
+
+    /// Ends an ffmpeg proxy process. An early exit leaves ffmpeg blocked
+    /// writing a frame nobody reads, and SIGTERM alone cannot end that write
+    /// (ffmpeg waits for its muxer thread). Closing the read end makes the
+    /// write fail, so ffmpeg exits.
+    static func stop(_ process: Process, stdout: Pipe) {
+        if process.isRunning {
+            try? stdout.fileHandleForReading.close()
+            process.terminate()
+        }
+        process.waitUntilExit()
     }
 
     private static func readExactly(_ handle: FileHandle, count: Int) throws -> Data? {
         var data = Data()
         data.reserveCapacity(count)
-        while data.count < count {
-            guard let chunk = try handle.read(upToCount: count - data.count), !chunk.isEmpty else { break }
+        // Per-chunk pool: pipe reads return autoreleased NSData that would
+        // otherwise live until the whole decode finishes.
+        while data.count < count, try autoreleasepool(invoking: {
+            guard let chunk = try handle.read(upToCount: count - data.count), !chunk.isEmpty else { return false }
             data.append(chunk)
-        }
+            return true
+        }) {}
         return data.isEmpty ? nil : data
     }
 
@@ -718,10 +946,15 @@ public enum OfflinePixelSampler {
     /// HDR shader. `lumaGrid` is intentionally an encoded Y proxy for frame
     /// matching; diagnostic attribution must use this method instead so its
     /// bins and scalar tone-curve contributions are in the shader's domain.
+    ///
+    /// `sdrTransferInterpretation` must match the configuration whose output
+    /// is compared against these samples. The default is the historical
+    /// convention used by every recorded preparation plan.
     public static func linearLumaGrid(
         pixelBuffer: CVPixelBuffer,
         width: Int,
-        height: Int
+        height: Int,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
     ) throws -> [Float] {
         guard width > 0, height > 0 else { throw CalibrationError.decodeFailed("invalid proxy size") }
         let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -737,6 +970,7 @@ public enum OfflinePixelSampler {
                 ? .bt709FullRange : .bt709VideoRange
         )
         let matrix = metadata.yCbCrMatrix
+        let decode = metadata.transferFunction.interpreted(by: sdrTransferInterpretation)
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -745,7 +979,7 @@ public enum OfflinePixelSampler {
         var result = [Float](repeating: 0, count: width * height)
 
         func inverse(_ value: Float) -> Float {
-            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: metadata.transferFunction)
+            HDRColorMath.inverseTransfer(min(max(value, 0), 1), function: decode)
         }
 
         func linearLuminance(y: Float, cb: Float, cr: Float) -> Float {

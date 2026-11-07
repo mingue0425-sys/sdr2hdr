@@ -272,6 +272,7 @@ internal final class DebugStatisticsStore: @unchecked Sendable {
             requestedChromaReconstructionMode: context.requestedChromaReconstructionMode,
             effectiveChromaReconstructionMode: context.effectiveChromaReconstructionMode,
             chromaReconstructionFallbackReason: context.chromaReconstructionFallbackReason,
+            sdrTransferInterpretation: context.configuration.sdrTransferInterpretation.rawValue,
             sceneShadowFloor: context.sceneShadowFloor,
             sceneShadowTop: context.sceneShadowTop,
             sceneStatisticsValid: context.sceneStatisticsValid,

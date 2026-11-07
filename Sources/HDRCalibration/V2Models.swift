@@ -182,6 +182,9 @@ public struct V2VideoEvaluation: Codable, Sendable {
     public var categories: [String]
     public var metrics: V2MetricBreakdown
     public var scenes: [V2SceneEvaluation]
+    /// Gain applied to generated output before shape-only scoring
+    /// (`V2LevelNormalization`); nil when scoring is absolute.
+    public var levelGain: Double? = nil
 }
 
 public struct V2DatasetEvaluation: Codable, Sendable {

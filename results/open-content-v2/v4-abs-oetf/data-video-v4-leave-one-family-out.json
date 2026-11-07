@@ -1,0 +1,29 @@
+{
+  "decisionProtocol" : "family-maximin-lofo-v1",
+  "folds" : [
+    {
+      "heldOutFamily" : "ASC StEM2"
+    },
+    {
+      "heldOutFamily" : "ASC StEM3 Warped Cybercity"
+    },
+    {
+      "heldOutFamily" : "K-Choreo"
+    },
+    {
+      "heldOutFamily" : "Netflix Sol Levante"
+    },
+    {
+      "heldOutFamily" : "Netflix Sparks"
+    }
+  ],
+  "reasons" : [
+    "no eligible candidate when ASC StEM2 is held out",
+    "no eligible candidate when ASC StEM3 Warped Cybercity is held out",
+    "no eligible candidate when K-Choreo is held out",
+    "no eligible candidate when Netflix Sol Levante is held out",
+    "no eligible candidate when Netflix Sparks is held out",
+    "candidate pool is fixed before folding; local-refinement centres used all Tune families"
+  ],
+  "status" : "FAIL"
+}

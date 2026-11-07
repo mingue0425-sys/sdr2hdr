@@ -182,10 +182,14 @@ public enum V4DatasetIntegrity {
         let handle = try FileHandle(forReadingFrom: url)
         defer { handle.closeFile() }
         var digest = SHA256()
-        while true {
-            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { break }
+        // Each chunk is an autoreleased NSData. Without a per-chunk pool, an
+        // async caller keeps every chunk alive until the whole file is read,
+        // so hashing 22 GB of media peaked at 20.6 GB footprint.
+        while try autoreleasepool(invoking: {
+            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { return false }
             digest.update(data: data)
-        }
+            return true
+        }) {}
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

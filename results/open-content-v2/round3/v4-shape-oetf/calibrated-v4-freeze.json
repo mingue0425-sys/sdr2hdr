@@ -1,0 +1,29 @@
+{
+  "auditArtifactHash" : "90d53dc6de1d29bf91cdc766e2b1f9570c6ee395d66bbdad4a43c5c6a3272e46",
+  "candidateID" : "global_047",
+  "codeHash" : "0e3b7615c2793b8f142d121e40f2f2ee2958eacb6cdb4d457fb73a02c59e132a",
+  "datasetLockHash" : "eb1fef7d4d0501d37c8d259d2de00f49771997f0e52f33ad122f9424afa5305b",
+  "evaluationConfigHash" : "c2bb8264a88b8f0dbee2798063b21c08499f9222e0d778cf7a5d74d7410f7458",
+  "executableHash" : "0e3b7615c2793b8f142d121e40f2f2ee2958eacb6cdb4d457fb73a02c59e132a",
+  "finalCandidateFrozen" : true,
+  "frozenOpened" : false,
+  "gitCommit" : "2667f6fa676c4df32697c0b8878f0c9fa4962ef2",
+  "gitTree" : "4a4610b25787a24915b1bbc74637fdb63d6de26f",
+  "manifestHash" : "8f4e3ef1d89cee7884c15cad0c28c02eefff1dd3f46bd848d14cc81bed42f5cf",
+  "objectiveHash" : "c2bb8264a88b8f0dbee2798063b21c08499f9222e0d778cf7a5d74d7410f7458",
+  "parameterHash" : "9e26df16e2d906d0c0b77e4bcf9044d822dabde9cf580d9476004cc37c591e39",
+  "parameters" : {
+    "contrastStrength" : 0.9408163,
+    "displayHeadroom" : 5.288859,
+    "highlightStrength" : 0.75792,
+    "paperWhiteNits" : 192.57812,
+    "peakNits" : 1018.5185,
+    "saturationCompensation" : 0.2586777,
+    "shadowProtection" : 0.7245562,
+    "temporalStability" : 0.8477509,
+    "toneCurveRevision" : 2
+  },
+  "sourceHash" : "1e3d55f26996d3a209f03a63da41b2ece558c1b6203a60cf2a44aca85574787f",
+  "version" : "calibration-v4-freeze",
+  "workingTreeDirty" : false
+}

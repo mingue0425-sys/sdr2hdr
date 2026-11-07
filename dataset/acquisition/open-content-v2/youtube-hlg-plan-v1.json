@@ -1,0 +1,15 @@
+[
+ {"id": "WMbTq-9DLDU", "family": "YouTube HLG fancam", "split": "tune", "note": "VIVIZ SinB stage fancam, uploader 이야얍, 4K HLG"},
+ {"id": "cX4o3aixYBg", "family": "YouTube HLG fancam", "split": "tune", "note": "Song Ha-ye concert, uploader 아터스84, LUMIX S9 HLG"},
+ {"id": "9DDPdfl--K4", "family": "YouTube HLG fancam", "split": "tune", "note": "same concert as cX4o3aixYBg, kept in the same split"},
+ {"id": "TMeG6fI_hyw", "family": "YouTube HLG fancam", "split": "validation", "note": "STAYC stage fancam, 4K60 HLG"},
+ {"id": "ihoKQohCg-w", "family": "YouTube HLG fancam", "split": "validation", "note": "urban dance, Panasonic All-Intra HLG"},
+ {"id": "866WofuGz_Q", "family": "YouTube HLG fancam", "split": "validation", "note": "dragon dance, Osmo Action 5 HLG"},
+ {"id": "fzw9lhul0Qk", "family": "YouTube HLG landscape", "split": "frozen", "note": "Dolomites, uploader Paolo Bucci, 4K HLG"},
+ {"id": "gPTN6WUOlu0", "family": "YouTube HLG landscape", "split": "frozen", "note": "San Marino, Fujifilm X-T4 HLG"},
+ {"id": "8CU4z_0I2LI", "family": "YouTube HLG landscape", "split": "frozen", "note": "sunset branches, live HLG camera test"},
+ {"id": "puLTFiSqb0Y", "family": "YouTube HLG landscape", "split": "frozen", "note": "DJI Mini 5 Pro aerial, ungraded HLG"},
+ {"id": "rTyxh15BCsw", "family": "K-Choreo", "split": "frozen", "maxHeight": 4320, "note": "Red Velvet 'Cosmic', KBS K-Choreo 8K HDR"},
+ {"id": "LdlEgjn61AE", "family": "K-Choreo", "split": "frozen", "maxHeight": 4320, "note": "SEVENTEEN 'THUNDER', KBS K-Choreo 8K HDR"},
+ {"id": "9zwMajaMdTo", "family": "K-Choreo", "split": "frozen", "maxHeight": 4320, "note": "MEOVV 'DDI RO RI', KBS K-Choreo 8K HDR"}
+]

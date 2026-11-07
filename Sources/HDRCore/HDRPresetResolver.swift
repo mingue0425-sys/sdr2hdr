@@ -3,10 +3,10 @@ import Foundation
 /// Single source of truth for command-line and benchmark preset names. The
 /// default remains the promoted calibrated V4 configuration.
 public enum HDRPresetResolver {
-    public static let productionDefault = "calibrated-v4"
+    public static let productionDefault = "calibrated-v5"
 
     public static var supportedPresetNames: [String] {
-        ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"] +
+        ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate", "calibrated-v5"] +
             HDRV6ToneCurveCandidate.allCases.map(\.rawValue) +
             HDRV62ToneCurveCandidate.allCases.map(\.rawValue)
     }
@@ -27,6 +27,7 @@ public enum HDRPresetResolver {
         case "calibrated-v2": return .calibratedV2
         case "calibrated-v4": return .calibratedV4
         case "calibrated-v3-candidate": return .calibratedV3Candidate
+        case "calibrated-v5": return .calibratedV5
         default: return nil
         }
     }

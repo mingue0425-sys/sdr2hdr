@@ -378,13 +378,66 @@ struct PreparedTemporalWindow {
 
 struct PreparedPair {
     let record: PairRecord
-    let sdrSequence: FrameSequence
-    let hdrSequence: FrameSequence
+    private(set) var sdrSequence: FrameSequence
+    private(set) var hdrSequence: FrameSequence
     let referenceTransfer: ReferenceTransfer
     let alignment: AlignmentResult
     let scenes: [SceneRange]
     let matches: [PreparedMatch]
     let temporalWindows: [PreparedTemporalWindow]
+    /// Decoded sample counts, kept when the decoded sequences are released.
+    let sdrDecodedSampleCount: Int
+    let hdrDecodedSampleCount: Int
+    /// First and last decoded SDR timestamp inside each scene, by scene ID.
+    /// Objective scene grouping reads these, so they must outlive the
+    /// decoded sequences.
+    let sceneTimeBounds: [String: ClosedRange<Double>]
+
+    init(
+        record: PairRecord,
+        sdrSequence: FrameSequence,
+        hdrSequence: FrameSequence,
+        referenceTransfer: ReferenceTransfer,
+        alignment: AlignmentResult,
+        scenes: [SceneRange],
+        matches: [PreparedMatch],
+        temporalWindows: [PreparedTemporalWindow]
+    ) {
+        self.record = record
+        self.sdrSequence = sdrSequence
+        self.hdrSequence = hdrSequence
+        self.referenceTransfer = referenceTransfer
+        self.alignment = alignment
+        self.scenes = scenes
+        self.matches = matches
+        self.temporalWindows = temporalWindows
+        self.sdrDecodedSampleCount = sdrSequence.samples.count
+        self.hdrDecodedSampleCount = hdrSequence.samples.count
+        var bounds: [String: ClosedRange<Double>] = [:]
+        for scene in scenes where bounds[scene.id] == nil {
+            guard let start = sdrSequence.samples.first(where: {
+                      scene.contains(sequencePosition: $0.sequencePosition)
+                  })?.descriptor.timestampSeconds,
+                  let end = sdrSequence.samples.last(where: {
+                      scene.contains(sequencePosition: $0.sequencePosition)
+                  })?.descriptor.timestampSeconds,
+                  start <= end else { continue }
+            bounds[scene.id] = start...end
+        }
+        self.sceneTimeBounds = bounds
+    }
+
+    /// A copy that drops every decoded sample not referenced by an accepted
+    /// match or a temporal window. Objective evaluation reads only those plus
+    /// the sequence metadata, decoded counts and scene time bounds kept here,
+    /// so plan validation and scores are unchanged while most decoded proxy
+    /// frames are freed.
+    func releasingDecodedSequences() -> PreparedPair {
+        var copy = self
+        copy.sdrSequence = sdrSequence.withoutSamples()
+        copy.hdrSequence = hdrSequence.withoutSamples()
+        return copy
+    }
 }
 
 public final class PairEvaluator {
@@ -419,6 +472,12 @@ public final class PairEvaluator {
     }
 
     func prepare(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
+        try await ProxyFrameCache.scope(for: record.split) {
+            try await prepareInScope(record: record, manifestURL: manifestURL)
+        }
+    }
+
+    private func prepareInScope(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
         guard (1...512).contains(experiment.maxFramesPerScene) else {
             throw CalibrationError.incompleteEvaluation(
                 "maxFramesPerScene is outside the supported 1...512 range"
@@ -523,6 +582,21 @@ public final class PairEvaluator {
     /// Any path, byte, decode, timestamp, or identity drift fails closed before
     /// objective pixels are evaluated.
     func materialize(
+        record: PairRecord,
+        manifestURL: URL,
+        manifest: V4Manifest,
+        pairPlan: V6PreparedPairPlan,
+        preparation: V6PreparationConfiguration
+    ) async throws -> PreparedPair {
+        try await ProxyFrameCache.scope(for: record.split) {
+            try await materializeInScope(
+                record: record, manifestURL: manifestURL, manifest: manifest,
+                pairPlan: pairPlan, preparation: preparation
+            )
+        }
+    }
+
+    private func materializeInScope(
         record: PairRecord,
         manifestURL: URL,
         manifest: V4Manifest,
@@ -759,7 +833,7 @@ public final class PairEvaluator {
                 framesPerSecond: preparation.temporalFramesPerSecond,
                 proxyWidth: preparation.proxyWidth
             )
-            let count = min(sdr.samples.count, hdr.samples.count)
+            let count = V6TemporalPairing.pairedPrefixCount(sdr: sdr, hdr: hdr)
             let temporalPolicy = V4TemporalWindowPolicy(
                 targetFrameCount: preparation.temporalTargetFrameCount,
                 minimumRequiredFrameCount: preparation.temporalMinimumFrameCount,
@@ -830,14 +904,52 @@ public final class PairEvaluator {
         hdrURL: URL,
         hdrTransfer: ReferenceTransfer
     ) async throws -> [PreparedTemporalWindow] {
-        var windows: [PreparedTemporalWindow] = []
-        windows.reserveCapacity(scenes.count)
-        for scene in scenes {
-            let sceneMatches = alignment.matches.filter {
+        let sceneAnchors = scenes.map { scene in
+            V6TemporalAnchorOrder.ranked(alignment.matches.filter {
                 guard let position = $0.sdrSequencePosition else { return false }
                 return scene.contains(sequencePosition: position)
+            })
+        }
+        var windows: [PreparedTemporalWindow] = []
+        windows.reserveCapacity(scenes.count)
+        for (scene, anchors) in zip(scenes, sceneAnchors) {
+            guard let anchor = anchors.first else { continue }
+            if let window = try await prepareTemporalWindow(
+                scene: scene, anchor: anchor, sdrURL: sdrURL, hdrURL: hdrURL, hdrTransfer: hdrTransfer
+            ) {
+                windows.append(window)
             }
-            guard let anchor = sceneMatches.max(by: { $0.confidence < $1.confidence }) else { continue }
+        }
+        // Every pair needs one temporal window. When no scene's best anchor
+        // leaves room for one (for example, the best anchor falls in the
+        // last few frames of a short clip), try each scene's next-best
+        // anchors. Only anchors that pass the accepted-confidence threshold
+        // are tried, because a window on a weaker anchor would be sealed as
+        // not accepted. A pair that already has a window is unchanged.
+        if windows.isEmpty {
+            for (scene, anchors) in zip(scenes, sceneAnchors) {
+                for anchor in anchors.dropFirst().prefix(V6TemporalAnchorOrder.fallbackAttempts)
+                    where anchor.confidence >= matcherConfiguration.acceptedConfidenceThreshold {
+                    if let window = try await prepareTemporalWindow(
+                        scene: scene, anchor: anchor, sdrURL: sdrURL, hdrURL: hdrURL, hdrTransfer: hdrTransfer
+                    ) {
+                        windows.append(window)
+                        break
+                    }
+                }
+            }
+        }
+        return windows
+    }
+
+    private func prepareTemporalWindow(
+        scene: SceneRange,
+        anchor: MatchedFrame,
+        sdrURL: URL,
+        hdrURL: URL,
+        hdrTransfer: ReferenceTransfer
+    ) async throws -> PreparedTemporalWindow? {
+        do {
             // Start at the detected shot boundary so the first sample exercises
             // scene-cut reset, followed by 15 genuinely sequential frames.
             let start = max(anchor.sdrTimeSeconds - 0.05, 0)
@@ -853,9 +965,9 @@ public final class PairEvaluator {
                 frameCount: V4TemporalWindowPolicy.v5.targetFrameCount,
                 framesPerSecond: 30
             )
-            let count = min(sdr.samples.count, hdr.samples.count)
+            let count = V6TemporalPairing.pairedPrefixCount(sdr: sdr, hdr: hdr)
             let decision = V4TemporalWindowPolicy.v5.decision(actualDecodedFrameCount: count)
-            guard decision.accepted else { continue }
+            guard decision.accepted else { return nil }
             var frames: [PreparedTemporalFrame] = []
             frames.reserveCapacity(count)
             for index in 0..<count {
@@ -878,15 +990,14 @@ public final class PairEvaluator {
                     hdrTimestampSeconds: hdr.samples[index].descriptor.timestampSeconds
                 ))
             }
-            windows.append(PreparedTemporalWindow(
+            return PreparedTemporalWindow(
                 sceneID: scene.id,
                 frames: frames,
                 decision: decision,
                 startSeconds: start,
                 offsetSeconds: offset
-            ))
+            )
         }
-        return windows
     }
 
     private func representativeMatches(
@@ -1010,10 +1121,8 @@ public final class PairEvaluator {
 
         let sceneMetrics = prepared.scenes.map { scene in
             let sceneAnalyses = analyses.filter { analysis in
-                let time = analysis.generated.timestampSeconds
-                guard let start = prepared.sdrSequence.samples.first(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds,
-                      let end = prepared.sdrSequence.samples.last(where: { scene.contains(sequencePosition: $0.sequencePosition) })?.descriptor.timestampSeconds else { return false }
-                return time >= start && time <= end
+                guard let bounds = prepared.sceneTimeBounds[scene.id] else { return false }
+                return bounds.contains(analysis.generated.timestampSeconds)
             }
             return ErrorMetrics.evaluateScene(
                 pairID: prepared.record.id,

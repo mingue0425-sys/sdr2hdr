@@ -33,7 +33,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
     public let matcherConfigurationHash: String
 
     public init(
-        version: String = "v6-prepared-evaluation-plan-v5-linear-source-luminance",
+        version: String = "v6-prepared-evaluation-plan-v6-source-pts-proxy",
         maxFramesPerScene: Int = 8,
         maxDecodedFrames: Int = 128,
         proxyWidth: Int = 320,
@@ -47,11 +47,11 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         allowHLGModel: Bool = true,
         sdrPixelFormat: UInt32 = CalibrationPixelFormat.sdrNV12,
         hdrPixelFormat: UInt32 = CalibrationPixelFormat.hdrP010,
-        frameDecoderPolicy: String = "FrameReader.auto(avfoundation;ffmpeg-fallback)",
+        frameDecoderPolicy: String = "FrameReader.auto(avfoundation-pts;ffmpeg-fallback-copyts-slot-select-source-pts-v1)",
         referenceDecoderPolicy: String = "HDRReferenceDecoder.linear-reference-v1",
         pathResolutionPolicy: String = "manifest-resolved-once;repository-relative-plan-paths",
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
-        temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window",
+        temporalSelectionPolicy: String = "anchor=max-confidence;fallback=next-4-accepted-when-pair-has-none;start=anchorTime-0.05;paired-contiguous-window;pts-paired-prefix-half-frame-v1",
         matcherConfiguration: V6MatcherConfiguration = .v6
     ) {
         self.version = version
@@ -1031,8 +1031,8 @@ enum V6PreparedEvaluationPlanBuilder {
             hdrHeight: prepared.hdrSequence.height,
             hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
-            decodedSDRFrameCount: prepared.sdrSequence.samples.count,
-            decodedHDRFrameCount: prepared.hdrSequence.samples.count,
+            decodedSDRFrameCount: prepared.sdrDecodedSampleCount,
+            decodedHDRFrameCount: prepared.hdrDecodedSampleCount,
             referenceTransfer: prepared.referenceTransfer,
             sdrPixelFormat: prepared.sdrSequence.pixelFormat,
             hdrPixelFormat: prepared.hdrSequence.pixelFormat
@@ -1154,8 +1154,8 @@ enum V6PreparedEvaluationPlanBuilder {
             hdrHeight: prepared.hdrSequence.height,
             hdrNominalFrameRate: prepared.hdrSequence.nominalFrameRate,
             hdrDurationSeconds: prepared.hdrSequence.durationSeconds,
-            decodedSDRFrameCount: prepared.sdrSequence.samples.count,
-            decodedHDRFrameCount: prepared.hdrSequence.samples.count,
+            decodedSDRFrameCount: prepared.sdrDecodedSampleCount,
+            decodedHDRFrameCount: prepared.hdrDecodedSampleCount,
             referenceTransfer: prepared.referenceTransfer,
             sdrPixelFormat: prepared.sdrSequence.pixelFormat,
             hdrPixelFormat: prepared.hdrSequence.pixelFormat

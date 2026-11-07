@@ -1,0 +1,4096 @@
+{
+  "auditConfigHash" : "1b3162e53d632c26b4281deeb9e63b2ae1932657d8f7d3659d56ffd8336fe638",
+  "diversity" : {
+    "acceptedPairs" : 41,
+    "categories" : {
+      "animation" : 5,
+      "broadcast-hlg" : 25,
+      "cg-render" : 1,
+      "dance" : 27,
+      "film-grain" : 3,
+      "fire" : 2,
+      "high-contrast" : 3,
+      "high-key" : 5,
+      "highlight-rich" : 5,
+      "live-action" : 34,
+      "low-key" : 7,
+      "night-neon" : 2,
+      "saturated" : 4,
+      "skin" : 4,
+      "stage" : 25,
+      "virtual-production" : 2
+    },
+    "conditionalPairs" : 0,
+    "contentFamilies" : {
+      "ASC StEM2" : 2,
+      "ASC StEM3 Warped Cybercity" : 2,
+      "K-Choreo" : 25,
+      "KBS Music Bank One-take" : 2,
+      "NAS Sole Mates" : 1,
+      "Netflix Nocturne" : 3,
+      "Netflix Sol Levante" : 4,
+      "Netflix Sparks" : 2
+    },
+    "frameRates" : {
+      "24.000" : 9,
+      "59.940" : 10,
+      "59.945" : 2,
+      "59.946" : 17,
+      "60.000" : 3
+    },
+    "frozenPairs" : 4,
+    "hdrTransfers" : {
+      "HLG" : 27,
+      "PQ" : 14
+    },
+    "mainCalibrationPairs" : 41,
+    "rejectedPairs" : 0,
+    "resolutions" : {
+      "2048x1024" : 1,
+      "3840x2026" : 24,
+      "3840x2160" : 14,
+      "4096x2160" : 2
+    },
+    "totalPairs" : 41,
+    "tunePairs" : 19,
+    "validationPairs" : 18,
+    "virginFrozenPairs" : 4
+  },
+  "frozenObjectiveEvaluated" : [
+
+  ],
+  "gateReasons" : [
+
+  ],
+  "generatedAt" : "2026-11-07T00:38:40Z",
+  "manifestPath" : "repo:data_video\/open-content-v2\/manifest.json",
+  "manifestSHA256" : "7b00f376b8b2f7b130858036614d6e20ececb28c39baea4d77389ca7fe3aece3",
+  "notes" : [
+    "This command performs manifest, integrity, metadata, decode-smoke, spatial and temporal alignment checks only.",
+    "No baseline, candidate, validation or frozen objective was evaluated.",
+    "Virgin frozen media may be inspected for integrity\/alignment but remains unavailable to calibration runners."
+  ],
+  "objectiveEvaluated" : false,
+  "pairs" : [
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8608621968327521,
+        "medianConfidence" : 0.8803652629679363,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8118888911897344,
+        "p50Confidence" : 0.8803652629679363,
+        "p90Confidence" : 0.8870514553394888,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t030_240f.mov",
+        "sha256" : "69fbcc9fbfb71542aa3df7ffbe5242b0bcb994d8126385cb404aec2deb5577cb",
+        "sizeBytes" : 1930181362
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t030_240f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t030_240f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sollevante_t030",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t030_240f.mov",
+        "sha256" : "85f00937be4227345697fcea9ec0d677f12bbcc68485dee4cea56d459d77fcdf",
+        "sizeBytes" : 870787850
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t030_240f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/19200",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t030_240f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sol Levante",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.875,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8266534931308149,
+        "medianConfidence" : 0.8227168612191796,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.7884652996317799,
+        "p50Confidence" : 0.8227168612191796,
+        "p90Confidence" : 0.8732608952497694,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t090_240f.mov",
+        "sha256" : "c637f26d29144798658f63a153b8b676c7efa26edba63833ce8dfcb711e33fc1",
+        "sizeBytes" : 1925138114
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t090_240f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t090_240f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sollevante_t090",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t090_240f.mov",
+        "sha256" : "015b721c56f6a5e508ffc80dfd866170af1625ed073f65ba29c9182a63defef2",
+        "sizeBytes" : 858073050
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t090_240f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/19200",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t090_240f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sol Levante",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.8,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8538520100405211,
+        "medianConfidence" : 0.8620174098303268,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.781186267715836,
+        "p50Confidence" : 0.8620174098303268,
+        "p90Confidence" : 0.8983827389678779,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t150_240f.mov",
+        "sha256" : "a8cecda5b6c7c88c2a8f217b08dcde4fdc0129ba3ab1231a5693797323bf9bfd",
+        "sizeBytes" : 1977653506
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t150_240f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t150_240f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sollevante_t150",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t150_240f.mov",
+        "sha256" : "78d4de3a1428558492fb5069cf5592686ea94b30bf13c95d14c3012f549d17ca",
+        "sizeBytes" : 903276538
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t150_240f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/19200",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t150_240f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sol Levante",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.4,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8055555182720596,
+        "medianConfidence" : 0.7941405490883819,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.7180812529064706,
+        "p50Confidence" : 0.7941405490883819,
+        "p90Confidence" : 0.890067959552274,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t175_240f.mov",
+        "sha256" : "904c865310d95835a10eb350af510f9852b4bdd56d6262394cf4c5664f4dd2af",
+        "sizeBytes" : 1851658546
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t175_240f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_hdr10_t175_240f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sollevante_t175",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t175_240f.mov",
+        "sha256" : "f28bfba5eedea1ccce43d9836707747dde4015bf0d528c4e4c970e375b79ea97",
+        "sizeBytes" : 863091690
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t175_240f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/19200",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sollevante\/sollevante_sdr_t175_240f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sol Levante",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.88962815165643,
+        "medianConfidence" : 0.8760143183423917,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8746477665578097,
+        "p50Confidence" : 0.8760143183423917,
+        "p90Confidence" : 0.9420707224020821,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+        "sha256" : "14cb657c0cf89c6846b4f21d3bf1fd437c01ec9b8860e6cc5e2d36d5c213ff85",
+        "sizeBytes" : 798290138
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 240.556,
+        "frameRate" : 59.94454121784825,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video3_newjeans_how_sweet",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+        "sha256" : "df28f6a36093b98a0a48666775d9cb784408cc9796d0dfdfb3e04e12f9651339",
+        "sizeBytes" : 712145575
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 240.556,
+        "frameRate" : 59.94454121784825,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/video3\/[K-Choreo 8k HDR] 뉴진스 직캠 'How Sweet' (NewJeans Choreography) 🎧공간음향.Ver @MusicBank 240524 [pxMhfO-0VXk].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.8941413343282836,
+        "medianConfidence" : 0.8948204434882288,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8796301550853802,
+        "p50Confidence" : 0.8948204434882288,
+        "p90Confidence" : 0.9093637822866425,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t79_120f.mov",
+        "sha256" : "63c3b050d7a1ae90da17c64042108b5e8277eb16c3450a17639821a64e54aadc",
+        "sizeBytes" : 1023715178
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t79_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t79_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "aswf_stem3_warped_t079",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t79_120f.mov",
+        "sha256" : "53804ed6e5cbc2cadae30d3218f0231aec060a5ba0ed60b8b59af7efe9149cfe",
+        "sizeBytes" : 111946472
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 1080,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t79_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "bt709",
+        "width" : 1920
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t79_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.9216988372059299,
+        "medianConfidence" : 0.9356684036320598,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.87959423505248,
+        "p50Confidence" : 0.9356684036320598,
+        "p90Confidence" : 0.956155619210807,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t158_120f.mov",
+        "sha256" : "6ba52f9a1e730aee3c8c8ba33a0a633aed1f68f621be9ae2233117ca26eb727f",
+        "sizeBytes" : 910373002
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t158_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_hdr_t158_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "aswf_stem3_warped_t158",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t158_120f.mov",
+        "sha256" : "dff86b8585fe40355a33fc364d1eef8a8692c6193b2bd66c12b96cedf784b2f3",
+        "sizeBytes" : 113454424
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 1080,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t158_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "bt709",
+        "width" : 1920
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem3-warped\/warped_sdr_t158_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "ASC StEM3 'Warped : Cybercity' via ASWF Digital Production Example Library",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9139393504395488,
+        "medianConfidence" : 0.9144608369209382,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.909739407938205,
+        "p50Confidence" : 0.9144608369209382,
+        "p90Confidence" : 0.9164396915010654,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_hdr_w40_10s.mp4",
+        "sha256" : "3c09546c48c93160d8ff4caf9cbbd3ec906eef4b84f47e409a50bcf7d9af3136",
+        "sizeBytes" : 34685325
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_fPWoqFuf6OI",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_sdr_w40_10s.mp4",
+        "sha256" : "099b07cb424c7b320c28cf6d5c72fe93d50f72fa1aab393016eb4dbecb7e4ea9",
+        "sizeBytes" : 31666164
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/fPWoqFuf6OI\/fPWoqFuf6OI_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload fPWoqFuf6OI (NMIXX 'Blue Valentine')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8920094755114156,
+        "medianConfidence" : 0.8947797547747673,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8798827241202681,
+        "p50Confidence" : 0.8947797547747673,
+        "p90Confidence" : 0.8970001974089045,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_hdr_w40_10s.mp4",
+        "sha256" : "6a042f5678fe319258b0dc8eda82902a940884cb7f83a1cbdab1d778ef0469c1",
+        "sizeBytes" : 36417009
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_zWpnFNYlggE",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_sdr_w40_10s.mp4",
+        "sha256" : "fb1651b40da785d96edb6d4dafaeb53b0a7359ea74f2f91f2aab99e8ec6c8a57",
+        "sizeBytes" : 33387410
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/zWpnFNYlggE\/zWpnFNYlggE_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload zWpnFNYlggE (fromis_9 'Vitamin ME')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.8,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8757808880811468,
+        "medianConfidence" : 0.8954194485765777,
+        "offsetVariance" : 2.275061728395138e-07,
+        "p10Confidence" : 0.7945815095179679,
+        "p50Confidence" : 0.8954194485765777,
+        "p90Confidence" : 0.8975775869180974,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_hdr_w40_10s.mp4",
+        "sha256" : "b710422491d99dbf81118bc0ba4e3999f2f62f00944ad41f7a4f59b7158cf394",
+        "sizeBytes" : 34864917
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_jIv-ebTYGrU",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_sdr_w40_10s.mp4",
+        "sha256" : "a28d8c49848d4407ecf9330311e16ffaea6c871391d6204871602915d66ec0da",
+        "sizeBytes" : 31067650
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/jIv-ebTYGrU\/jIv-ebTYGrU_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload jIv-ebTYGrU (IVE 'XOXZ')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9079146239345002,
+        "medianConfidence" : 0.907888082015266,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.9012499656030762,
+        "p50Confidence" : 0.907888082015266,
+        "p90Confidence" : 0.9139111245032585,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_hdr_w40_10s.mp4",
+        "sha256" : "9dc03f80e55159dd88e9aecc459d614df857db5c93fd5a7d657793664c0860e3",
+        "sizeBytes" : 34370671
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_9AUdaAiXoXA",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_sdr_w40_10s.mp4",
+        "sha256" : "f9c4c4d6ade916a91d3081c0ca143af6a203f3d5d0a868e3924057b06aaea121",
+        "sizeBytes" : 30948846
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/9AUdaAiXoXA\/9AUdaAiXoXA_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload 9AUdaAiXoXA (LE SSERAFIM 'HOT')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9020491430588867,
+        "medianConfidence" : 0.9039749553685066,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.894765140651683,
+        "p50Confidence" : 0.9039749553685066,
+        "p90Confidence" : 0.9070051029972414,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
+        "sha256" : "fe71b4be3836b3016689a1d366e5b7c0bb2c4388ad6c49525d8ba61ae79ab467",
+        "sizeBytes" : 34293475
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_WSMX4_qI_Hg",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_sdr_w40_10s.mp4",
+        "sha256" : "4d1aab1eb6c2cf5541259afdc98f4ab77b4c509a8b835d1c0017914068b97753",
+        "sizeBytes" : 31300918
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/WSMX4_qI_Hg\/WSMX4_qI_Hg_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload WSMX4_qI_Hg (izna 'SIGN')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8640556345546321,
+        "medianConfidence" : 0.8667757040568015,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8551911523803666,
+        "p50Confidence" : 0.8667757040568015,
+        "p90Confidence" : 0.8700136331163494,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_hdr_w40_10s.mp4",
+        "sha256" : "144d81471d7c1d6e686932e91f7bb003c293af8373aba970211b559c8edb6931",
+        "sizeBytes" : 33945249
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_aAmajD-DzTY",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_sdr_w40_10s.mp4",
+        "sha256" : "a71b94b0e7e88c2dfb6fe36085878051fc3723b1ce65707fe0899d8ed981237d",
+        "sizeBytes" : 31251667
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/aAmajD-DzTY\/aAmajD-DzTY_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload aAmajD-DzTY (TWICE 'THIS IS FOR')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8874527819878383,
+        "medianConfidence" : 0.8864384139828809,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8858987198075488,
+        "p50Confidence" : 0.8864384139828809,
+        "p90Confidence" : 0.8897454024913947,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_hdr_w40_10s.mp4",
+        "sha256" : "aee509d6fb9da277a21910ff9244df926118e21a3953acdde8df958f2fcad568",
+        "sizeBytes" : 33735402
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_xWyeg5qYL2I",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_sdr_w40_10s.mp4",
+        "sha256" : "81cf82db3ee5fdeea8b207b4612f5464e520658fc5384a3fe3936c591313e7f2",
+        "sizeBytes" : 30841967
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/xWyeg5qYL2I\/xWyeg5qYL2I_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload xWyeg5qYL2I (aespa 'Spicy')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8963046638575509,
+        "medianConfidence" : 0.8977756809111055,
+        "offsetVariance" : 5.254922839506054e-07,
+        "p10Confidence" : 0.881652678992047,
+        "p50Confidence" : 0.8977756809111055,
+        "p90Confidence" : 0.9122572217399504,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_hdr_w40_10s.mp4",
+        "sha256" : "0df873bac0f7d29723adc6bc6c59887eb109990622a60ac677122c7e9df93d42",
+        "sizeBytes" : 35407939
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_rjQX-XKilF8",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_sdr_w40_10s.mp4",
+        "sha256" : "9a01d48e225210de9303fd4c05a4f11e16e35e2301255b70c24a7ccb49fadf87",
+        "sizeBytes" : 32265294
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/rjQX-XKilF8\/rjQX-XKilF8_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload rjQX-XKilF8 (IVE 'BLACKHOLE')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8723985783441426,
+        "medianConfidence" : 0.874535300061704,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8636112565316341,
+        "p50Confidence" : 0.874535300061704,
+        "p90Confidence" : 0.8798967303580136,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_hdr_w40_10s.mp4",
+        "sha256" : "afaeb57aebbb73b90818afd2616fd7f0617d7dee3fde19f210bdc08361762e43",
+        "sizeBytes" : 34250990
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_2IGhGkJIq0k",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_sdr_w40_10s.mp4",
+        "sha256" : "48fc928fa9c69d5280f712bd425b6315809c0a4c3492cb681c571bc1e06234e0",
+        "sizeBytes" : 31166162
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/2IGhGkJIq0k\/2IGhGkJIq0k_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload 2IGhGkJIq0k (ITZY 'CAKE')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8786788127822783,
+        "medianConfidence" : 0.8787545304949221,
+        "offsetVariance" : 1.604474537037071e-07,
+        "p10Confidence" : 0.8768599894727496,
+        "p50Confidence" : 0.8787545304949221,
+        "p90Confidence" : 0.8800536545850818,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_hdr_w40_10s.mp4",
+        "sha256" : "ab3b339376aa9740a2c422c91b75f8089e1b0cdac41504adf3ba5e83ff703056",
+        "sizeBytes" : 33939247
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_7PMhlVxFfZg",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_sdr_w40_10s.mp4",
+        "sha256" : "8d80d3609f323f3c13792276ec87a9c817e24c8c90f79978cb0e5601c8a8812d",
+        "sizeBytes" : 31240171
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/7PMhlVxFfZg\/7PMhlVxFfZg_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload 7PMhlVxFfZg (NMIXX 'Love Me Like This')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8979108463965602,
+        "medianConfidence" : 0.9007846463362006,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8924396525792905,
+        "p50Confidence" : 0.9007846463362006,
+        "p90Confidence" : 0.9019640676011054,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_hdr_w40_10s.mp4",
+        "sha256" : "2f023f20f94b375cda19214770c49e6ffe7cac94a0bfe77476099ce72082b57b",
+        "sizeBytes" : 34055736
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_uNMiKwHot0I",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_sdr_w40_10s.mp4",
+        "sha256" : "4583fcef955232158291ca52586ef940343de12074a3eb4c62440277e755c0a6",
+        "sizeBytes" : 31222252
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/uNMiKwHot0I\/uNMiKwHot0I_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload uNMiKwHot0I (TWICE 'Strategy')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9059355741069733,
+        "medianConfidence" : 0.9054033287669022,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8987060160374534,
+        "p50Confidence" : 0.9054033287669022,
+        "p90Confidence" : 0.9117998146857239,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_hdr_w40_10s.mp4",
+        "sha256" : "db3b8f6b0d29fbbd16056fe0d2407c3b73d28ef26cc8c2e6364bbc476c9ac016",
+        "sizeBytes" : 34372750
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_4I4X0VjUeOw",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_sdr_w40_10s.mp4",
+        "sha256" : "da4dcabec10a375e35b6a1d93c37532e1b72fdc600c4b3a5bb781a30bb179a61",
+        "sizeBytes" : 31285968
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/4I4X0VjUeOw\/4I4X0VjUeOw_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload 4I4X0VjUeOw (Stray Kids 'Chk Chk Boom')",
+      "split" : "tune",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9138089106367057,
+        "medianConfidence" : 0.9084952982109256,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8942436142510931,
+        "p50Confidence" : 0.9084952982109256,
+        "p90Confidence" : 0.9428087112972512,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+        "sha256" : "643c413b3c8b588e479f2d7cd0d2381fce5b9896b40cd230655dc63a152da71b",
+        "sizeBytes" : 689583065
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 209.692,
+        "frameRate" : 59.94458142762439,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f642.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "video4_aespa_lemonade",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+        "sha256" : "c568bba8230d83d1b90038f1b7927da3f76e68fbd28c9ebe3c91cc7230e42ac0",
+        "sizeBytes" : 616318033
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 209.692,
+        "frameRate" : 59.94458142762439,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/1000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/video4\/[K-Choreo 8K HDR] 에스파 (aespa) 'LEMONADE' (aespa Choreography) @MusicBank 260529 [0FCM13lr2xU].f628.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "user-provided-local",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.9487179487179487,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.875450158335951,
+        "medianConfidence" : 0.8857826642260719,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.809512233000555,
+        "p50Confidence" : 0.8857826642260719,
+        "p90Confidence" : 0.8985681161997793,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t300_120f.mov",
+        "sha256" : "e177061702b99ecf3648e73107e40888bd52696a38fed6ea7deb9a11fbfea033",
+        "sizeBytes" : 868754970
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t300_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t300_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "aswf_stem2_t300",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t300_120f.mov",
+        "sha256" : "fe5661c30c689852750591dc3ac5fd430cf59bd750323318f88b264753d98838",
+        "sizeBytes" : 429814120
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t300_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t300_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "ASC StEM2 via ASWF Digital Production Example Library",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 0.8205128205128205,
+        "confidenceAtLeast80" : 0,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.7172723251925407,
+        "medianConfidence" : 0.7221045765044579,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.6981730471132329,
+        "p50Confidence" : 0.7221045765044579,
+        "p90Confidence" : 0.7330595036694859,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t450_120f.mov",
+        "sha256" : "239f0220d8f889a502ea5ff161245c29522c894fe6fce2298be5b824067e1150",
+        "sizeBytes" : 940909978
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t450_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_hdr_t450_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "aswf_stem2_t450",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t450_120f.mov",
+        "sha256" : "838daf07f7774bf794fcdf841447a833242819c3632036da33bddd38f976ca47",
+        "sizeBytes" : 434030488
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 5,
+        "frameRate" : 24,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t450_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/stem2\/stem2_sdr_t450_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "ASC StEM2 via ASWF Digital Production Example Library",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 38,
+        "meanConfidence" : 0.9346600611026553,
+        "medianConfidence" : 0.9352607617898102,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.929464236006458,
+        "p50Confidence" : 0.9352607617898102,
+        "p90Confidence" : 0.939054264922211,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 38,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f02067_96f.mov",
+        "sha256" : "d5b30d38fbedc9571ac584ea6aa7a368c12f4dd4e512665706bfdd14629a8a3e",
+        "sizeBytes" : 874402506
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 1.6016,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f02067_96f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 4096
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f02067_96f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sparks_f02067",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f02067_96f.mov",
+        "sha256" : "caaf5c84cbd0f8d9aaca79045cf43b4442980702f06e5d406d633d015f7c5d42",
+        "sizeBytes" : 367348170
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 1.593267,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f02067_96f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 4096
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f02067_96f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sparks",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 38,
+        "meanConfidence" : 0.8452289402309838,
+        "medianConfidence" : 0.8492345757922138,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.816497213229946,
+        "p50Confidence" : 0.8492345757922138,
+        "p90Confidence" : 0.8615999191825986,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 38,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f06200_96f.mov",
+        "sha256" : "40f78f48a65497703c9d04564d9f0bc8162b5071a09d272cb4fbdba472aaa9a5",
+        "sizeBytes" : 870697098
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 1.6016,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f06200_96f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "smpte2084",
+        "width" : 4096
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_hdr10_f06200_96f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_sparks_f06200",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f06200_96f.mov",
+        "sha256" : "7ca710dc4693cd17dd64fdcb756294d9b5f4fee4223518aaa93c3eb6d7dd734e",
+        "sizeBytes" : 381626010
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 1.593267,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f06200_96f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/60000",
+        "transfer" : "bt709",
+        "width" : 4096
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/sparks\/sparks_sdr_f06200_96f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Sparks",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8720262144099371,
+        "medianConfidence" : 0.8721787391779733,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8707817536469445,
+        "p50Confidence" : 0.8721787391779733,
+        "p90Confidence" : 0.8726517990247704,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_hdr_w40_10s.mp4",
+        "sha256" : "58b43d28d4769858e0bc4eb9f88eaa89e7894bac36032acdbacb8f581b62d5fe",
+        "sizeBytes" : 33954651
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_yFTAYXDTjqI",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_sdr_w40_10s.mp4",
+        "sha256" : "fa01b559878754a02a4b1ed3ecf582dcb5d70f0fd4b0b73de0377861f5910c74",
+        "sizeBytes" : 30898868
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/yFTAYXDTjqI\/yFTAYXDTjqI_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload yFTAYXDTjqI (NewJeans 'New Jeans')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8978883446047405,
+        "medianConfidence" : 0.8978180167115254,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8941798517909622,
+        "p50Confidence" : 0.8978180167115254,
+        "p90Confidence" : 0.9017398143215433,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_hdr_w40_10s.mp4",
+        "sha256" : "cabd4ce2c66970877f6214617cc00c6dcb099fb1ed98c26ca63a6c39ff8e8f5c",
+        "sizeBytes" : 36387594
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2160,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_d7s-2eLvT8Q",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_sdr_w40_10s.mp4",
+        "sha256" : "7c53395a943c400f8c05e9d0bc41442615c0126151a4115cc9202686cf839f84",
+        "sizeBytes" : 33273249
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/d7s-2eLvT8Q\/d7s-2eLvT8Q_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload d7s-2eLvT8Q (IVE 'Looks Can Kill')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9042288840634708,
+        "medianConfidence" : 0.9047925750439958,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.9008113405383872,
+        "p50Confidence" : 0.9047925750439958,
+        "p90Confidence" : 0.9066631699138613,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_hdr_w40_10s.mp4",
+        "sha256" : "8948b233e1a3e42fc8060794f467fbb911b690a6150182674605116b9a6be933",
+        "sizeBytes" : 33916678
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_ivDC7Kh8l4g",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_sdr_w40_10s.mp4",
+        "sha256" : "6b4ef4867ab1824f550c4b1d13169536f0c2af66bf7df418567da0304e8904ee",
+        "sizeBytes" : 30811362
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/ivDC7Kh8l4g\/ivDC7Kh8l4g_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload ivDC7Kh8l4g (NewJeans 'Ditto')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8567415168261222,
+        "medianConfidence" : 0.857381334667576,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8518886480132067,
+        "p50Confidence" : 0.857381334667576,
+        "p90Confidence" : 0.859646140987148,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_hdr_w40_10s.mp4",
+        "sha256" : "462d4126b7d6feabd86a503296e14b37d468d02e4ca0d3bd28aa468196ec40e5",
+        "sizeBytes" : 36443448
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_72EnmzVeOOw",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_sdr_w40_10s.mp4",
+        "sha256" : "338e3b0bb5567b76b548d7f911dbd87e741cc8cc093af1e2983c8dd7d95f4eb9",
+        "sizeBytes" : 33095508
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/72EnmzVeOOw\/72EnmzVeOOw_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload 72EnmzVeOOw (LE SSERAFIM 'SPAGHETTI')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9220088569339371,
+        "medianConfidence" : 0.9210709858300485,
+        "offsetVariance" : 1.604474537037071e-07,
+        "p10Confidence" : 0.9201149619122484,
+        "p50Confidence" : 0.9210709858300485,
+        "p90Confidence" : 0.9245173776020925,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_hdr_w40_10s.mp4",
+        "sha256" : "fd3f9019727b0ceb98511db84e550dc7d4dc9e289e79529e0f53c181fad2eceb",
+        "sizeBytes" : 33953319
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_BVf-pipXhN8",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_sdr_w40_10s.mp4",
+        "sha256" : "54d350ce1ce654bcd263c2d4b2f872c29eb9b8994083e1e7aaab2d068c79d914",
+        "sizeBytes" : 31169337
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/BVf-pipXhN8\/BVf-pipXhN8_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload BVf-pipXhN8 (IVE 'I AM')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8975874811856782,
+        "medianConfidence" : 0.8989483936220412,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8855877152589421,
+        "p50Confidence" : 0.8989483936220412,
+        "p90Confidence" : 0.9024197529791586,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_hdr_w40_10s.mp4",
+        "sha256" : "c771c87378baad06bd3501505ac34bf08473b429c3b7d9ce68854804166e9277",
+        "sizeBytes" : 33895312
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_-cnGceAdbs4",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_sdr_w40_10s.mp4",
+        "sha256" : "da02e2d152d3edc1fa4474549b2a640024379bf66aa292ce9c89653445adab33",
+        "sizeBytes" : 31263779
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/-cnGceAdbs4\/-cnGceAdbs4_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload -cnGceAdbs4 ((G)I-DLE 'Queencard')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0.225,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.7651217252974212,
+        "medianConfidence" : 0.7489531788272772,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.7224460757598316,
+        "p50Confidence" : 0.7489531788272772,
+        "p90Confidence" : 0.821404708898142,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_hdr_w40_10s.mp4",
+        "sha256" : "d7a71702ee52bdcf94e95d5d06277b96f7eedfdac89755422d0057323036b839",
+        "sizeBytes" : 33562362
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_BXa_OjjJIDY",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_sdr_w40_10s.mp4",
+        "sha256" : "decb590623de44cc5be6312ae68df94aae594ada3969792fc5499a4247d777aa",
+        "sizeBytes" : 29899421
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/BXa_OjjJIDY\/BXa_OjjJIDY_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload BXa_OjjJIDY (LE SSERAFIM 'CELEBRATION')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8722994100832396,
+        "medianConfidence" : 0.8714231921576012,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8582035000007673,
+        "p50Confidence" : 0.8714231921576012,
+        "p90Confidence" : 0.8815661325730376,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_hdr_w40_10s.mp4",
+        "sha256" : "262ea12760366271bdefaa5ef1538d972757f97cdb6916e1d7c9fa36fbc083da",
+        "sizeBytes" : 35095058
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_iSEvfuJO0hQ",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_sdr_w40_10s.mp4",
+        "sha256" : "1bf51a5c2100ad4ff08c18b0f80cb57e963298d139c993ac090e9f47f90ef889",
+        "sizeBytes" : 31866962
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/iSEvfuJO0hQ\/iSEvfuJO0hQ_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload iSEvfuJO0hQ (aespa 'Dirty Work')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8906884595984519,
+        "medianConfidence" : 0.8907228484788949,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.889379551495441,
+        "p50Confidence" : 0.8907228484788949,
+        "p90Confidence" : 0.8919736298972931,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_hdr_w40_10s.mp4",
+        "sha256" : "0b2578cf1caaf8c7d9a8bfaf6c8799b6ef78c3b0605164428e97180429ca9bb6",
+        "sizeBytes" : 34391017
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_GXUlNQMZuzo",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_sdr_w40_10s.mp4",
+        "sha256" : "71503904d52c0361b35e740e91105a6b2bd0daeb45002c618512ee186fb3f751",
+        "sizeBytes" : 31303941
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/GXUlNQMZuzo\/GXUlNQMZuzo_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload GXUlNQMZuzo (TWICE 'ONE SPARK')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8999318014915343,
+        "medianConfidence" : 0.8995743328062367,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8989119500260415,
+        "p50Confidence" : 0.8995743328062367,
+        "p90Confidence" : 0.9011214004465102,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_hdr_w40_10s.mp4",
+        "sha256" : "e93bc759d0b212a5bffabeab81aef523a862600964b47b68c98656609c5be92d",
+        "sizeBytes" : 34183337
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_ptNuFAIfykE",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_sdr_w40_10s.mp4",
+        "sha256" : "f98d46668ce65ebfe1bebdbbef94f6b9550ba1c1db0b1c9a7376a3c85cfd398d",
+        "sizeBytes" : 31053594
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.01,
+        "frameRate" : 59.94005994005994,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/ptNuFAIfykE\/ptNuFAIfykE_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload ptNuFAIfykE (ILLIT 'NOT CUTE ANYMORE')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8784652957713204,
+        "medianConfidence" : 0.8783080974578689,
+        "offsetVariance" : 1.7480856481479667e-07,
+        "p10Confidence" : 0.8679919716356854,
+        "p50Confidence" : 0.8783080974578689,
+        "p90Confidence" : 0.8898914157284361,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_hdr_w40_10s.mp4",
+        "sha256" : "dae85aa32d1b935b9c3c10fffa4a0e9c994d9f25eab772795487685f5d0d9173",
+        "sizeBytes" : 34403651
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_BQPWd1npLic",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_sdr_w40_10s.mp4",
+        "sha256" : "415d962cc5641a52cd91a0679c98bdd235fc73163f2dd6f5b74d9d360d3d48fe",
+        "sizeBytes" : 31731330
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/BQPWd1npLic\/BQPWd1npLic_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload BQPWd1npLic (IVE 'BANG BANG')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.8802435389667578,
+        "medianConfidence" : 0.8790935591200244,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8760178862201735,
+        "p50Confidence" : 0.8790935591200244,
+        "p90Confidence" : 0.8848187527430866,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_hdr_w40_10s.mp4",
+        "sha256" : "f9bac35b11d82b42161d69a2c4371bc364d6a852f909f7b9b22bc4c58e41e988",
+        "sizeBytes" : 33915223
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_sQcbGTVzzVQ",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_sdr_w40_10s.mp4",
+        "sha256" : "03a26507f531817211f2e7ceabd65ae3b946a00a37d3d07d11bd258685744904",
+        "sizeBytes" : 30906308
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/sQcbGTVzzVQ\/sQcbGTVzzVQ_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload sQcbGTVzzVQ (ATEEZ 'Adrenaline')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 40,
+        "meanConfidence" : 0.9092496807061267,
+        "medianConfidence" : 0.9105527992382991,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.9017061672216863,
+        "p50Confidence" : 0.9105527992382991,
+        "p90Confidence" : 0.9152734185355745,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 40,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-source",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_hdr_w40_10s.mp4",
+        "sha256" : "8d0490bd61d040a594e273b7fc196801b41f03b6f5a72511ae968a21d553914b",
+        "sizeBytes" : 34126637
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_hdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "arib-std-b67",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_hdr_w40_10s.mp4",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "HLG",
+      "id" : "kbs_HWOzx_hIGZs",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_sdr_w40_10s.mp4",
+        "sha256" : "f5f4c35e0bab73249f68ba0da6cccb812d5e00e79f5e4fe917124bd52adffb51",
+        "sizeBytes" : 31132278
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 8,
+        "codec" : "vp9",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 10.009,
+        "frameRate" : 59.94604855629933,
+        "height" : 2026,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_sdr_w40_10s.mp4",
+        "pixelFormat" : "yuv420p",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/16000",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:data_video\/kchoreo-v2\/HWOzx_hIGZs\/HWOzx_hIGZs_sdr_w40_10s.mp4",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "KBS Kpop YouTube upload HWOzx_hIGZs (K-HOT CHILLI PEPPERS)' (ATEEZ 'BOUNCY (K-HOT CHILLI PEPPERS)')",
+      "split" : "validation",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : false
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.8670813004285597,
+        "medianConfidence" : 0.8644249112758299,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8596761854232723,
+        "p50Confidence" : 0.8644249112758299,
+        "p90Confidence" : 0.88014987652767,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f11961_120f.mov",
+        "sha256" : "5ffb2c9f07457ab221ad077d0e9b33c1df0e83c61ccf49ad8e3c0c9e94ce2aea",
+        "sizeBytes" : 963883954
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f11961_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f11961_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_nocturne_f11961",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f11961_120f.mov",
+        "sha256" : "90bcdd7f5105d5af6e3e3bfeb3b9b5bb5e00856684536e5a25a29ea4f0dbd011",
+        "sizeBytes" : 283677151
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f11961_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f11961_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Nocturne (film grain ProRes)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.8616405817612093,
+        "medianConfidence" : 0.8628911750521628,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8547988276267333,
+        "p50Confidence" : 0.8628911750521628,
+        "p90Confidence" : 0.8655189159244536,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f19935_120f.mov",
+        "sha256" : "e66b50a9b5edfdb92ca5a0dd9c388f2ad70292b32526b0e6740c6a98569a5ac1",
+        "sizeBytes" : 1037381787
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f19935_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f19935_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_nocturne_f19935",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f19935_120f.mov",
+        "sha256" : "4b440ecce8f7bcd4bea16f645a0ee6e06d8e9af72751f59c26b0fafadd781565",
+        "sizeBytes" : 296794438
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f19935_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f19935_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Nocturne (film grain ProRes)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 0,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.7936593314758855,
+        "medianConfidence" : 0.7930411660461995,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.7904084447883284,
+        "p50Confidence" : 0.7930411660461995,
+        "p90Confidence" : 0.7971784862519816,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f27909_120f.mov",
+        "sha256" : "0da184b202354fd8b9322409a2aa950eaeba33aecf97d90d666456527ad3a561",
+        "sizeBytes" : 958936678
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f27909_120f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "smpte2084",
+        "width" : 3840
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_hdr_f27909_120f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "netflix_nocturne_f27909",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 6,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f27909_120f.mov",
+        "sha256" : "aa1c75dd4aab647140eaa78a03c575903ae7b99519ba4944dadf6678ac3c029c",
+        "sizeBytes" : 283650491
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 2,
+        "frameRate" : 60,
+        "height" : 2160,
+        "masteringMetadataPresent" : false,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f27909_120f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/15360",
+        "transfer" : "bt709",
+        "width" : 3840
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/netflix-opencontent\/nocturne\/nocturne_sdr_f27909_120f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "Netflix Open Content: Nocturne (film grain ProRes)",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    },
+    {
+      "alignment" : {
+        "confidenceAtLeast60" : 1,
+        "confidenceAtLeast70" : 1,
+        "confidenceAtLeast80" : 1,
+        "estimatedTimeOffsetSeconds" : 0,
+        "matchRatio" : 1,
+        "matchedFrames" : 39,
+        "meanConfidence" : 0.8270814501623907,
+        "medianConfidence" : 0.827913227136548,
+        "offsetVariance" : 0,
+        "p10Confidence" : 0.8132618919675226,
+        "p50Confidence" : 0.827913227136548,
+        "p90Confidence" : 0.8371909345140247,
+        "rejectedFrames" : 0,
+        "sampledFrames" : 39,
+        "spatialChecks" : [
+          "same_aspect_uniform_scale"
+        ],
+        "status" : "ALIGNED"
+      },
+      "expectedRelation" : "same-master",
+      "hdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 5,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "hdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_hdr_unh0400_61f.mov",
+        "sha256" : "4351a4403e4331500b7176c2c83954e02c0cef04c641bbb975d9255614308d37",
+        "sizeBytes" : 106797066
+      },
+      "hdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 12,
+        "codec" : "prores",
+        "colorPrimaries" : "bt2020",
+        "colorRange" : "tv",
+        "durationSeconds" : 2.541667,
+        "frameRate" : 24,
+        "height" : 1024,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt2020nc",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_hdr_unh0400_61f.mov",
+        "pixelFormat" : "yuv444p12le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "smpte2084",
+        "width" : 2048
+      },
+      "hdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_hdr_unh0400_61f.mov",
+      "hdrReferenceValid" : true,
+      "hdrTransferFamily" : "PQ",
+      "id" : "nas_solemates_unh0400",
+      "notes" : [
+        "objective evaluation is forbidden in dataset-audit"
+      ],
+      "sdrDecode" : {
+        "attempted" : true,
+        "decodedSampleCount" : 5,
+        "firstFrame" : true,
+        "lastFrame" : true,
+        "middleFrame" : true
+      },
+      "sdrDigest" : {
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_sdr_unh0400_61f.mov",
+        "sha256" : "fe7360ee262b4bcd90eb49980d8f3f1fbc5cc4f93df521585d408b86e1724ce1",
+        "sizeBytes" : 62597000
+      },
+      "sdrMetadata" : {
+        "audioTrackCount" : 0,
+        "bitDepth" : 10,
+        "codec" : "prores",
+        "colorPrimaries" : "bt709",
+        "colorRange" : "tv",
+        "durationSeconds" : 2.541667,
+        "frameRate" : 24,
+        "height" : 1024,
+        "masteringMetadataPresent" : true,
+        "matrix" : "bt709",
+        "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_sdr_unh0400_61f.mov",
+        "pixelFormat" : "yuv422p10le",
+        "probeTool" : "ffprobe",
+        "timeBase" : "1\/12288",
+        "transfer" : "bt709",
+        "width" : 2048
+      },
+      "sdrPath" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_sdr_unh0400_61f.mov",
+      "sdrReferenceValid" : true,
+      "sdrTransferFamily" : "SDR",
+      "source" : "NAS Sole Mates - HDR Production Example via ASWF Digital Production Example Library",
+      "split" : "frozen",
+      "status" : "ACCEPTED",
+      "suitability" : "MAIN_CALIBRATION",
+      "virginFrozen" : true
+    }
+  ],
+  "verdict" : "DATASET_V4_READY",
+  "version" : "dataset-v4-audit-v3"
+}

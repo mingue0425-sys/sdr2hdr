@@ -51,8 +51,25 @@ public struct V4SafetyThresholds: Codable, Sendable {
     public var frozenPerVideoRegressionTolerance: Double = 0.02
     public var zeroTolerance: Double = 0.000001
     public var runtime: V4RuntimeThresholds? = V4RuntimeThresholds()
+    /// nil = historical absolute gate (blackCrushRatio <= zeroTolerance).
+    /// `blackCrushIntroducedOverV2`: crush beyond the V2 baseline's on the same
+    /// pixels must stay <= zeroTolerance. Crush already present in the SDR
+    /// grade (code black where the HDR master has detail) is produced by every
+    /// mapping and is not attributable to a candidate.
+    public var blackCrushPolicy: String? = V4SafetyThresholds.blackCrushIntroducedOverV2
+
+    public static let blackCrushIntroducedOverV2 = "black-crush-introduced-over-v2-v1"
 
     public var runtimeThresholds: V4RuntimeThresholds { runtime ?? V4RuntimeThresholds() }
+
+    /// Unknown policies fail closed.
+    public func blackCrushFails(candidate: Double, baseline: Double) -> Bool {
+        switch blackCrushPolicy {
+        case nil: return candidate > zeroTolerance
+        case Self.blackCrushIntroducedOverV2?: return candidate > baseline + zeroTolerance
+        default: return true
+        }
+    }
 
     public init() {}
 }
@@ -141,6 +158,9 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
     public var pairCoverage: V4GateStatus
     public var familyCoverage: V4GateStatus
     public var runtime: V4GateStatus
+    /// Leave-one-family-out readiness under a preregistered decision
+    /// protocol. `nil` when the run uses the historical selection.
+    public var leaveOneFamilyOut: V4GateStatus?
 
     public init(
         datasetIntegrity: V4GateStatus = .notMeasured,
@@ -151,8 +171,10 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         transferCoverage: V4GateStatus = .notMeasured,
         pairCoverage: V4GateStatus = .notMeasured,
         familyCoverage: V4GateStatus = .notMeasured,
-        runtime: V4GateStatus = .notMeasured
+        runtime: V4GateStatus = .notMeasured,
+        leaveOneFamilyOut: V4GateStatus? = nil
     ) {
+        self.leaveOneFamilyOut = leaveOneFamilyOut
         self.datasetIntegrity = datasetIntegrity
         self.identifiability = identifiability
         self.validationOverall = validationOverall
@@ -166,7 +188,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case datasetIntegrity, identifiability, validationOverall, validationShadow, validationTemporal
-        case transferCoverage, pairCoverage, familyCoverage, runtime
+        case transferCoverage, pairCoverage, familyCoverage, runtime, leaveOneFamilyOut
     }
 
     public init(from decoder: Decoder) throws {
@@ -183,6 +205,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         pairCoverage = try container.decodeIfPresent(V4GateStatus.self, forKey: .pairCoverage) ?? .notMeasured
         familyCoverage = try container.decode(V4GateStatus.self, forKey: .familyCoverage)
         runtime = try container.decode(V4GateStatus.self, forKey: .runtime)
+        leaveOneFamilyOut = try container.decodeIfPresent(V4GateStatus.self, forKey: .leaveOneFamilyOut)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -196,6 +219,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
         try container.encode(pairCoverage, forKey: .pairCoverage)
         try container.encode(familyCoverage, forKey: .familyCoverage)
         try container.encode(runtime, forKey: .runtime)
+        try container.encodeIfPresent(leaveOneFamilyOut, forKey: .leaveOneFamilyOut)
     }
 
     public var coverageReady: Bool {
@@ -217,7 +241,7 @@ public struct V4PreFrozenGateResult: Codable, Sendable {
             ("runtime", runtime)
         ].compactMap { name, status in
             status == .pass ? nil : "\(name)=\(status.rawValue)"
-        }
+        } + (leaveOneFamilyOut.map { $0 == .pass ? [] : ["leaveOneFamilyOut=\($0.rawValue)"] } ?? [])
     }
 
     public var canOpenVirginFrozen: Bool { failures.isEmpty }
@@ -398,17 +422,64 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
         .frozen: []
     ]
 
+    /// Run-level SDR input convention applied to every searched candidate.
+    /// The baseline preset keeps its own (historical) convention, and source
+    /// luminance strata stay on the historical decode so objectives remain
+    /// comparable between runs that differ only in this policy.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation = .default
+
+    /// Shape-only scoring (one gain per content family before scoring).
+    /// `nil` = absolute objective; omitted from the encoding, so historical
+    /// objective hashes are unchanged.
+    public var levelNormalization: V2LevelNormalization?
+
+    /// Source-declared reconstruction for the families in
+    /// `declaredSourceFamilies`. Their pairs use the parameter-free HLG
+    /// reconstruction instead of the searched curve, while the baselines keep
+    /// their historical path. `nil` is omitted from the encoding, so
+    /// historical objective hashes are unchanged.
+    public var declaredSourceSDRTransferInterpretation: HDRSDRTransferInterpretation?
+    public var declaredSourceFamilies: [String]?
+
+    /// The preregistered coverage protocol these requirements came from.
+    public private(set) var coverageProtocol: V4CoverageProtocol = .preV6FrozenCoverageV1
+    /// Preregistered selection/promotion protocol. `nil` = historical
+    /// Tune-top/Validation-best selection (and an unchanged objective hash).
+    public private(set) var decisionProtocol: V4DecisionProtocol?
+
     public init() {}
+
+    /// Resolves the coverage requirements preregistered by a manifest. An
+    /// unknown protocol identifier fails; it never falls back to a weaker set.
+    public init(manifest: V4Manifest) throws {
+        self.init()
+        let selected: V4CoverageProtocol
+        if let identifier = manifest.coverageProtocol {
+            guard let known = V4CoverageProtocol(rawValue: identifier) else {
+                throw CalibrationError.invalidManifest("unknown coverageProtocol: \(identifier)")
+            }
+            selected = known
+        } else {
+            selected = .preV6FrozenCoverageV1
+        }
+        coverageProtocol = selected
+        if manifest.decisionProtocol != nil {
+            decisionProtocol = try V4DecisionProtocol(manifestValue: manifest.decisionProtocol)
+        }
+        requiredTransfersBySplit = selected.requiredTransfersBySplit
+        requiredFamiliesBySplit = selected.requiredFamiliesBySplit
+    }
 
     /// V5 holdout policy is exposed as named values so callers cannot infer a
     /// requirement from an evaluation result or silently omit a subgroup.
     public var frozenCoveragePolicy: V4FrozenCoveragePolicy {
         V4FrozenCoveragePolicy(
+            version: coverageProtocol.rawValue,
             requiredTransfers: requiredTransfersBySplit[.frozen] ?? V4FrozenCoveragePolicy.v5.requiredTransfers,
             requiredFamilies: requiredFamiliesBySplit[.frozen] ?? [],
             minimumVirginFrozenPairs: V4FrozenCoveragePolicy.v5.minimumVirginFrozenPairs,
             minimumDistinctVirginFrozenFamilies: V4FrozenCoveragePolicy.v5.minimumDistinctVirginFrozenFamilies,
-            rationale: V4FrozenCoveragePolicy.v5.rationale
+            rationale: coverageProtocol.rationale
         )
     }
 
@@ -417,6 +488,58 @@ public struct V4CalibrationConfiguration: Codable, Sendable {
     public var minimumVirginFrozenPairs: Int { frozenCoveragePolicy.minimumVirginFrozenPairs }
     public var minimumDistinctFrozenFamilies: Int { frozenCoveragePolicy.minimumDistinctVirginFrozenFamilies }
     public var temporalWindowPolicy: V4TemporalWindowPolicy { .v5 }
+}
+
+/// Named, versioned coverage protocols. Each is preregistered through a
+/// manifest's `coverageProtocol` before objective evaluation of that dataset.
+public enum V4CoverageProtocol: String, Codable, Sendable, CaseIterable {
+    /// Historical requirements for `manifest-v4.json`.
+    case preV6FrozenCoverageV1 = "pre-v6-frozen-coverage-v1"
+    /// `data_video/open-content`: the same transfer and breadth requirements
+    /// for Tune/Validation and holdout size, with two recorded relaxations.
+    case openContentCoverageV1 = "open-content-coverage-v1"
+
+    public var requiredTransfersBySplit: [DatasetSplit: Set<String>] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return [.tune: ["HLG", "PQ"], .validation: ["HLG", "PQ"], .frozen: ["HLG", "PQ"]]
+        case .openContentCoverageV1:
+            return [.tune: ["HLG", "PQ"], .validation: ["HLG", "PQ"], .frozen: ["PQ"]]
+        }
+    }
+
+    public var requiredFamiliesBySplit: [DatasetSplit: Set<String>] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return [.tune: ["K-Choreo", "LIVE"], .validation: ["K-Choreo", "LIVE"], .frozen: []]
+        case .openContentCoverageV1:
+            return [
+                .tune: ["Netflix Sol Levante", "K-Choreo"],
+                .validation: ["ASC StEM2", "K-Choreo"],
+                .frozen: []
+            ]
+        }
+    }
+
+    /// Whether a missing replacement HLG Virgin holdout blocks readiness.
+    /// It follows the Frozen transfer requirement, so it cannot be relaxed
+    /// independently of the preregistered coverage.
+    public var requiresHLGVirginHoldout: Bool {
+        requiredTransfersBySplit[.frozen]?.contains("HLG") ?? true
+    }
+
+    public var rationale: [String] {
+        switch self {
+        case .preV6FrozenCoverageV1:
+            return V4FrozenCoveragePolicy.v5.rationale
+        case .openContentCoverageV1:
+            return [
+                "Tune and Validation must each contain HLG and PQ references and two distinct named families; the LIVE family name is replaced because LIVE media is not available for this dataset.",
+                "RELAXATION: Virgin Frozen requires PQ only. No authorized, unexposed HLG pair was available, so HLG generalisation is not measured by this holdout and is evidenced only by Validation.",
+                "Holdout breadth is unchanged: at least three virgin pairs and two distinct virgin families."
+            ]
+        }
+    }
 }
 
 public enum V4CoveragePolicy {
@@ -447,6 +570,72 @@ public struct V4CandidateRecord: Codable, Sendable {
     public var validation: V2DatasetEvaluation?
     public var constraintsPassed: Bool
     public var rejectionReasons: [String]
+}
+
+/// One Tune/Validation pair's objective under the selected candidate, against both baselines.
+///
+/// Reported only; no gate reads it. The family-balanced maximin can hide a pair that regresses
+/// inside a family that improves on average, so the worst pairs are listed before Frozen.
+public struct V4PairGuardrailRecord: Codable, Sendable, Equatable {
+    public var pairID: String
+    public var split: DatasetSplit
+    public var candidateObjective: Double
+    public var v2Objective: Double
+    public var defaultObjective: Double
+    public var ratioToV2: Double
+    public var ratioToDefault: Double
+}
+
+public enum V4DeclaredSource {
+    /// Pair ids whose content family is one of `families`. Every declared
+    /// family must name at least one pair, so a typo or wrong case fails
+    /// instead of declaring nothing.
+    public static func pairIDs(families: [String], familyByPairID: [String: String]) throws -> Set<String> {
+        let present = Set(familyByPairID.values)
+        let unknown = families.filter { !present.contains($0) }
+        guard unknown.isEmpty else {
+            throw CalibrationError.invalidManifest(
+                "declared-source families not in the manifest: \(unknown.joined(separator: ", "))"
+            )
+        }
+        let declared = Set(families)
+        return Set(familyByPairID.filter { declared.contains($0.value) }.keys)
+    }
+}
+
+public enum V4PairGuardrail {
+    /// Pairs scored by the candidate and both baselines, worst ratio to V2 first (ties by pair id).
+    public static func rank(
+        candidate: [String: Double], v2: [String: Double], defaults: [String: Double],
+        split: [String: DatasetSplit]
+    ) -> [V4PairGuardrailRecord] {
+        candidate.compactMap { pairID, objective -> V4PairGuardrailRecord? in
+            guard let v2Objective = v2[pairID], let defaultObjective = defaults[pairID],
+                  let pairSplit = split[pairID], v2Objective > 0, defaultObjective > 0 else { return nil }
+            return V4PairGuardrailRecord(
+                pairID: pairID, split: pairSplit, candidateObjective: objective,
+                v2Objective: v2Objective, defaultObjective: defaultObjective,
+                ratioToV2: objective / v2Objective, ratioToDefault: objective / defaultObjective
+            )
+        }
+        .sorted { ($0.ratioToV2, $1.pairID) > ($1.ratioToV2, $0.pairID) }
+    }
+
+    /// The selected candidate's Tune and Validation pairs against the `v2-*` and `default-*` baselines.
+    static func rank(selected: V4CandidateRecord?, baseline: [String: V2DatasetEvaluation]) -> [V4PairGuardrailRecord]? {
+        guard let selected, let validation = selected.validation else { return nil }
+        func objectives(_ evaluations: [V2DatasetEvaluation?]) -> [String: Double] {
+            Dictionary(evaluations.compactMap { $0 }.flatMap(\.videos).map { ($0.pairID, $0.metrics.objective) },
+                       uniquingKeysWith: { first, _ in first })
+        }
+        let videos = [selected.tune, validation].flatMap(\.videos)
+        return rank(
+            candidate: objectives([selected.tune, validation]),
+            v2: objectives([baseline["v2-tune"], baseline["v2-validation"]]),
+            defaults: objectives([baseline["default-tune"], baseline["default-validation"]]),
+            split: Dictionary(videos.map { ($0.pairID, $0.split) }, uniquingKeysWith: { first, _ in first })
+        )
+    }
 }
 
 public struct V4FreezeArtifact: Codable, Sendable {
@@ -755,10 +944,12 @@ public enum V4SourceHasher {
         let handle = try FileHandle(forReadingFrom: executableURL)
         defer { handle.closeFile() }
         var digest = SHA256()
-        while true {
-            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { break }
+        // Per-chunk pool: see V4DatasetIntegrity.sha256(url:).
+        while try autoreleasepool(invoking: {
+            guard let data = try handle.read(upToCount: 1_048_576), !data.isEmpty else { return false }
             digest.update(data: data)
-        }
+            return true
+        }) {}
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
@@ -881,6 +1072,8 @@ public struct V4FinalReport: Codable, Sendable {
     public var preFrozenGates: V4PreFrozenGateResult? = nil
     public var frozenStatus: V4FrozenStatus? = nil
     public var runtimeBenchmark: V4RuntimeBenchmarkResult? = nil
+    /// Per-pair ratios of the selected candidate (`V4PairGuardrail`); reported, not gating.
+    public var pairGuardrail: [V4PairGuardrailRecord]? = nil
 }
 
 private struct V4FrozenComparison: Codable, Sendable {
@@ -890,12 +1083,64 @@ private struct V4FrozenComparison: Codable, Sendable {
     var v4Evaluation: V2DatasetEvaluation
 }
 
+/// How a v4-run may touch the Virgin Frozen holdout.
+public enum V4FrozenAccessPlan: String, Codable, Sendable, Equatable {
+    /// The manifest has no virgin holdout to open.
+    case noVirginHoldout = "NO_VIRGIN_HOLDOUT"
+    /// Search and Validation selection only; Frozen stays sealed.
+    case stopBeforeFrozen = "STOP_BEFORE_FROZEN"
+    /// Open the admitted Frozen plan exactly once after the pre-Frozen gates.
+    case openOnce = "OPEN_ONCE"
+}
+
+/// Reuses Tune/Validation pairs materialized from one sealed
+/// PreparedEvaluationPlan across runs in the same process.
+///
+/// Runs that differ only in run-level policies (SDR transfer interpretation,
+/// level normalization, decision protocol) decode identical media: source
+/// strata stay on the historical decode, and policies act only in the
+/// processor and the scorer. A hit requires the same plan hash, pair order
+/// and input byte hashes; the byte hashes come from the lock-bound audit.
+/// Virgin Frozen pairs are never cached.
+public final class V4PreparedPairCache {
+    private var entries: [String: [PreparedPair]] = [:]
+    public private(set) var hits = 0
+    public private(set) var misses = 0
+
+    public init() {}
+
+    static func key(planSHA256: String, records: [PairRecord], inputHashes: [String: V6InputHashes]) -> String {
+        records.map { record in
+            let hashes = inputHashes[record.id]
+            return [record.id, record.split.rawValue, hashes?.sdrSHA256 ?? "-", hashes?.hdrSHA256 ?? "-"].joined(separator: ":")
+        }.joined(separator: "|") + "@" + planSHA256
+    }
+
+    func lookup(_ key: String) -> [PreparedPair]? {
+        if let value = entries[key] { hits += 1; return value }
+        misses += 1
+        return nil
+    }
+
+    func store(_ value: [PreparedPair], key: String) {
+        guard !value.contains(where: { $0.record.split == .frozen }) else { return }
+        entries[key] = value
+    }
+}
+
 public final class CalibrationV4Runner {
     public let manifestURL: URL
     public let outputDirectory: URL
     public let configuration: V4CalibrationConfiguration
     public let preparedEvaluationPlanURL: URL?
     public let preparedFrozenPlanURL: URL?
+    /// Stop after Validation selection and the pre-Frozen gates without
+    /// opening Virgin Frozen. Used to compare run-level policies (e.g. SDR
+    /// transfer interpretation) on Validation so the one-use holdout is
+    /// spent only once, on the chosen policy. Not part of the objective hash.
+    public let stopBeforeFrozen: Bool
+    /// Optional in-process reuse of materialized Tune/Validation pairs.
+    public let preparedPairCache: V4PreparedPairCache?
 
     private let device: MTLDevice
     private let frozenGuard = V4FrozenExperimentGuard()
@@ -907,6 +1152,8 @@ public final class CalibrationV4Runner {
         configuration: V4CalibrationConfiguration = V4CalibrationConfiguration(),
         preparedEvaluationPlanURL: URL? = nil,
         preparedFrozenPlanURL: URL? = nil,
+        stopBeforeFrozen: Bool = false,
+        preparedPairCache: V4PreparedPairCache? = nil,
         device: MTLDevice? = MTLCreateSystemDefaultDevice()
     ) throws {
         guard let device else { throw CalibrationError.decodeFailed("Metal device unavailable") }
@@ -915,7 +1162,20 @@ public final class CalibrationV4Runner {
         self.configuration = configuration
         self.preparedEvaluationPlanURL = preparedEvaluationPlanURL
         self.preparedFrozenPlanURL = preparedFrozenPlanURL
+        self.stopBeforeFrozen = stopBeforeFrozen
+        self.preparedPairCache = preparedPairCache
         self.device = device
+    }
+
+    static func frozenAccessPlan(virginCount: Int, hasAdmittedPlan: Bool, stopBeforeFrozen: Bool) throws -> V4FrozenAccessPlan {
+        if stopBeforeFrozen { return .stopBeforeFrozen }
+        if virginCount == 0 { return .noVirginHoldout }
+        guard hasAdmittedPlan else {
+            throw CalibrationError.incompleteEvaluation(
+                "v4-run requires an explicit admitted --prepared-frozen-plan artifact"
+            )
+        }
+        return .openOnce
     }
 
     public func run() async throws -> V4FinalReport {
@@ -934,7 +1194,15 @@ public final class CalibrationV4Runner {
             mediaScope: .tuneValidationOnly
         )
 
-        let transferByPair = try await probeTransfers(manifest, includeVirginFrozen: false)
+        let auditedHDRTransfer = try JSONDecoder().decode(
+            V4DatasetAuditReport.self,
+            from: Data(contentsOf: outputDirectory.appendingPathComponent("dataset-v4-final.json"))
+        ).pairs.reduce(into: [String: String]()) { result, pair in
+            if let family = pair.hdrTransferFamily { result[pair.id] = family }
+        }
+        let transferByPair = try await probeTransfers(
+            manifest, includeVirginFrozen: false, auditedHDRTransfer: auditedHDRTransfer
+        )
         let records = makeLegacyRecords(manifest)
         let tuneValidationV4 = V6PreparedEvaluationPlanOrdering.canonical(
             records.filter { $0.split == .tune || $0.split == .validation },
@@ -979,11 +1247,31 @@ public final class CalibrationV4Runner {
         let artifact = try V6PreparedEvaluationPlanLoader.loadSealed(
             from: preparedEvaluationPlanURL
         )
-        let allPrepared = try await repository.materialize(
-            records: tuneValidationV4,
-            using: artifact.plan,
-            inputHashes: inputHashesForPlan
+        let cacheKey = V4PreparedPairCache.key(
+            planSHA256: artifact.planSHA256, records: tuneValidationV4, inputHashes: inputHashesForPlan
         )
+        let allPrepared: [PreparedPair]
+        if let cached = preparedPairCache?.lookup(cacheKey) {
+            // The sealed plan is still installed and validated against the
+            // cached material, exactly as after a fresh materialization.
+            try V6PreparedEvaluationPlanBuilder.validate(
+                plan: artifact.plan, preparedPairs: cached
+            )
+            allPrepared = cached
+            log("reused \(cached.count) materialized Tune/Validation pairs for plan \(artifact.planSHA256)")
+        } else {
+            // Evaluation reads only accepted matches and temporal windows.
+            // Each materialize job already validates its pair against the
+            // sealed plan and releases the decoded proxy sequences; the map
+            // below only guarantees that for every path into the cache.
+            allPrepared = try await repository.materialize(
+                records: tuneValidationV4,
+                using: artifact.plan,
+                inputHashes: inputHashesForPlan
+            ).map { $0.releasingDecodedSequences() }
+            repository.releaseCache()
+            preparedPairCache?.store(allPrepared, key: cacheKey)
+        }
         let tuneIDs = Set(tuneV4.map(\.id))
         let validationIDs = Set(validationV4.map(\.id))
         let tunePrepared = allPrepared.filter { tuneIDs.contains($0.record.id) }
@@ -994,15 +1282,14 @@ public final class CalibrationV4Runner {
         // A future V6 holdout is admitted with an objective-free preparation
         // artifact.  Preflight validates only this serialized contract; media
         // remains sealed until the Frozen guard opens.
+        let accessPlan = try Self.frozenAccessPlan(
+            virginCount: virginV4.count,
+            hasAdmittedPlan: preparedFrozenPlanURL != nil,
+            stopBeforeFrozen: stopBeforeFrozen
+        )
+        log("Virgin Frozen access plan: \(accessPlan.rawValue)")
         let frozenArtifact: V6PreparedEvaluationPlanArtifact?
-        if virginV4.isEmpty {
-            frozenArtifact = nil
-        } else {
-            guard let preparedFrozenPlanURL else {
-                throw CalibrationError.incompleteEvaluation(
-                    "v4-run requires an explicit admitted --prepared-frozen-plan artifact"
-                )
-            }
+        if !virginV4.isEmpty, let preparedFrozenPlanURL {
             let loaded = try V6PreparedEvaluationPlanLoader.loadSealed(
                 from: preparedFrozenPlanURL
             )
@@ -1014,9 +1301,14 @@ public final class CalibrationV4Runner {
                 preparation: artifact.plan.preparation
             )
             frozenArtifact = loaded
+        } else {
+            // Only reachable with no virgin holdout or with --stop-before-frozen.
+            frozenArtifact = nil
         }
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try engine.installPreparedEvaluationPlan(tuneValidationPlan)
+        engine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
+        engine.configureDeclaredSource(pairIDs: try declaredSourcePairIDs(manifest))
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1103,9 +1395,14 @@ public final class CalibrationV4Runner {
         }
         try writeJSON(["global": global, "local": local], name: "data-video-v4-search.json")
 
-        let tuneTop = Array((global + local).filter(\.constraintsPassed)
+        // Historical protocol: the Tune top-N go to Validation. A decision
+        // protocol scores every Tune-safe candidate on Validation so that
+        // selection and the leave-one-family-out estimate use all families.
+        let tuneSafe = (global + local).filter(\.constraintsPassed)
             .sorted { $0.tune.metrics.objective < $1.tune.metrics.objective }
-            .prefix(configuration.validationTopCount))
+        let tuneTop = configuration.decisionProtocol == nil
+            ? Array(tuneSafe.prefix(configuration.validationTopCount))
+            : tuneSafe
         var validationCandidates: [V4CandidateRecord] = []
         for var candidate in tuneTop {
             let validation = try evaluate(engine, validationPrepared, candidate.parameters, candidate.id, .validation, manifest)
@@ -1119,9 +1416,42 @@ public final class CalibrationV4Runner {
         }
         try writeJSON(validationCandidates, name: "data-video-v4-validation.json")
 
-        guard let selected = validationCandidates.filter(\.constraintsPassed).min(by: {
-            ($0.validation?.metrics.objective ?? .infinity) < ($1.validation?.metrics.objective ?? .infinity)
-        }), let selectedValidation = selected.validation else {
+        var leaveOneFamilyOut: V4LeaveOneFamilyOutReport?
+        let selectedRecord: V4CandidateRecord?
+        if let decision = configuration.decisionProtocol {
+            let familyByID = familyByPairID(manifest)
+            func scores(_ id: String, _ tune: V2DatasetEvaluation, _ validation: V2DatasetEvaluation?, safe: Bool) -> V4FamilyScores {
+                V4FamilyScores(
+                    id: id,
+                    objectiveByFamily: V4FamilyDecision.objectiveByFamily(
+                        tune.videos + (validation?.videos ?? []), familyByID: familyByID
+                    ),
+                    safe: safe
+                )
+            }
+            let v2Families = scores("v2", v2Tune, v2Validation, safe: true).objectiveByFamily
+            let defaultFamilies = scores("default", defaultTune, defaultValidation, safe: true).objectiveByFamily
+            let pool = validationCandidates.map {
+                scores($0.id, $0.tune, $0.validation, safe: $0.constraintsPassed && $0.validation != nil)
+            }
+            let lofo = V4FamilyDecision.leaveOneFamilyOut(
+                candidates: pool, v2: v2Families, defaults: defaultFamilies, protocol: decision
+            )
+            try writeJSON(lofo, name: "data-video-v4-leave-one-family-out.json")
+            leaveOneFamilyOut = lofo
+            let choice = V4FamilyDecision.select(
+                candidates: pool, v2: v2Families, defaults: defaultFamilies, protocol: decision
+            )
+            log("decision protocol \(decision.rawValue): selected \(choice?.candidateID ?? "none"); LOFO \(lofo.status.rawValue) " +
+                String(format: "mean=%.4f worst=%.4f", lofo.meanHeldOutImprovement ?? .nan, lofo.worstHeldOutImprovement ?? .nan))
+            selectedRecord = choice.flatMap { choice in validationCandidates.first { $0.id == choice.candidateID } }
+        } else {
+            selectedRecord = validationCandidates.filter(\.constraintsPassed).min(by: {
+                ($0.validation?.metrics.objective ?? .infinity) < ($1.validation?.metrics.objective ?? .infinity)
+            })
+        }
+
+        guard let selected = selectedRecord, let selectedValidation = selected.validation else {
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
                 shadowAudit: shadowAudit, sensitivity: sensitivity,
@@ -1218,8 +1548,24 @@ public final class CalibrationV4Runner {
             transferCoverage: requiredCoverage.transferCoverage,
             pairCoverage: requiredCoverage.pairCoverage,
             familyCoverage: requiredCoverage.familyCoverage,
-            runtime: runtimeBenchmark.status
+            runtime: runtimeBenchmark.status,
+            leaveOneFamilyOut: leaveOneFamilyOut?.status
         )
+        if preFrozenGates.canOpenVirginFrozen && accessPlan == .stopBeforeFrozen {
+            let report = makeFailureReport(
+                manifest: manifest, transferByPair: transferByPair, baseline: baseline,
+                shadowAudit: shadowAudit, sensitivity: sensitivity,
+                reason: "stopped before Virgin Frozen on request (--stop-before-frozen): " +
+                    "Tune search and Validation selection only; every pre-Frozen gate passed; Virgin Frozen stays sealed",
+                verdict: .incompleteEvaluation,
+                global: global, local: local, validation: validationCandidates,
+                selected: selected, selectedValidation: selectedValidation,
+                candidate: candidate, preFrozenGates: preFrozenGates,
+                frozenStatus: .notOpened
+            )
+            try writeArtifacts(report)
+            return report
+        }
         guard preFrozenGates.canOpenVirginFrozen else {
             let report = makeFailureReport(
                 manifest: manifest, transferByPair: transferByPair, baseline: baseline,
@@ -1281,6 +1627,8 @@ public final class CalibrationV4Runner {
         try frozenEngine.installPreparedEvaluationPlan(
             frozenPlan, expectedSHA256: frozenArtifact.planSHA256
         )
+        frozenEngine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
+        frozenEngine.configureDeclaredSource(pairIDs: try declaredSourcePairIDs(manifest))
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
         let frozenV1 = try evaluate(frozenEngine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
@@ -1315,7 +1663,7 @@ public final class CalibrationV4Runner {
         let decision = finalVerdict(
             tuneV2: v2Tune, tuneV4: selectedTune,
             validationV2: v2Validation, validationV4: selectedValidation,
-            frozenV2: frozenV2, frozenV4: frozenV4,
+            frozenV2: frozenV2, frozenV4: frozenV4, frozenDefault: frozenDefault,
             manifest: manifest, transferByPair: transferByPair,
             runtime: runtimeBenchmark
         )
@@ -1341,7 +1689,7 @@ public final class CalibrationV4Runner {
             reasons: decision.1,
             limitations: [
                 "Virgin Frozen metrics were opened once only after candidate, code, manifest and objective hashes were frozen.",
-                "The three Virgin Frozen pairs are a small holdout; family/transfer confidence intervals are limited.",
+                "The \(frozenRecords.count) Virgin Frozen pairs are a small holdout; family/transfer confidence intervals are limited.",
                 "Reference HDR creative grading and SDR information loss are not recoverable detail ground truth.",
                 "Runtime scene statistics use a 16x9, 64-bin causal GPU estimator; offline uses the same one-frame-late state transition."
             ],
@@ -1360,9 +1708,16 @@ public final class CalibrationV4Runner {
         let virgin = manifest.pairs.filter {
             $0.split == .frozen && $0.virginFrozen && !V6VirginHoldoutPolicy.isExcluded($0.id)
         }
-        guard tune.count == 5, validation.count == 3, virgin.count >= configuration.minimumVirginFrozenPairs else {
+        // The historical protocol fixed the split sizes exactly. A decision
+        // protocol preregisters them through the lock-bound manifest, so it
+        // only sets minimums (the historical sizes).
+        let sizesValid = configuration.decisionProtocol == nil
+            ? tune.count == 5 && validation.count == 3
+            : tune.count >= 5 && validation.count >= 3
+        guard sizesValid, virgin.count >= configuration.minimumVirginFrozenPairs else {
+            let relation = configuration.decisionProtocol == nil ? "=" : ">="
             throw CalibrationError.invalidManifest(
-                String(format: "V6 expected Tune=5, Validation=3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
+                String(format: "V6 expected Tune%@5, Validation%@3, and at least %d unconsumed Virgin Frozen records; got %d, %d, %d", relation, relation, configuration.minimumVirginFrozenPairs, tune.count, validation.count, virgin.count)
             )
         }
     }
@@ -1410,17 +1765,28 @@ public final class CalibrationV4Runner {
         relation.legacyRelation()
     }
 
+    /// Pre-open HDR transfer of a Virgin Frozen pair: the lock-bound dataset
+    /// audit's container probe (the evidence correctness-review uses), else
+    /// the manifest's documented fallback.
+    static func frozenTransfer(audited: String?, declared: String?) -> String {
+        let fromAudit = ReferenceTransfer.parse(audited)
+        if fromAudit != .unknown { return fromAudit.canonicalName }
+        return ReferenceTransfer.parse(declared).canonicalName
+    }
+
     private func probeTransfers(
         _ manifest: V4Manifest,
-        includeVirginFrozen: Bool
+        includeVirginFrozen: Bool,
+        auditedHDRTransfer: [String: String] = [:]
     ) async throws -> [String: String] {
         var result: [String: String] = [:]
         for pair in manifest.pairs {
             if pair.split == .frozen && pair.virginFrozen && !includeVirginFrozen {
-                // Preflight uses only manifest-declared source evidence for
-                // Frozen coverage. No Frozen URL is resolved or opened until
-                // the explicit guard has opened the holdout.
-                result[pair.id] = ReferenceTransfer.parse(pair.referenceTransfer).canonicalName
+                // No Frozen URL is resolved or opened until the explicit guard
+                // has opened the holdout; coverage uses recorded evidence only.
+                result[pair.id] = Self.frozenTransfer(
+                    audited: auditedHDRTransfer[pair.id], declared: pair.referenceTransfer
+                )
                 continue
             }
             let urls = pair.resolvedURLs(relativeTo: manifestURL, roots: manifest.roots)
@@ -1547,7 +1913,11 @@ public final class CalibrationV4Runner {
             highlightStrength: values[2], contrastStrength: values[3],
             saturationCompensation: values[4], shadowProtection: values[5],
             temporalStability: values[6], displayHeadroom: values[1] / values[0],
-            toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue
+            toneCurveRevision: HDRToneCurveRevision.sceneRelativeV4.rawValue,
+            sdrTransferInterpretation: configuration.sdrTransferInterpretation == .default
+                ? nil
+                : configuration.sdrTransferInterpretation.rawValue,
+            declaredSourceSDRTransferInterpretation: configuration.declaredSourceSDRTransferInterpretation?.rawValue
         )
     }
 
@@ -1559,7 +1929,7 @@ public final class CalibrationV4Runner {
         let metrics = tune.metrics
         if !metrics.objective.isFinite || metrics.invalidSampleCount != 0 { reasons.append("invalid/non-finite") }
         if metrics.clippingRatio > configuration.safety.zeroTolerance { reasons.append("clipping") }
-        if metrics.blackCrushRatio > configuration.safety.zeroTolerance { reasons.append("black crush") }
+        if configuration.safety.blackCrushFails(candidate: metrics.blackCrushRatio, baseline: baseline.metrics.blackCrushRatio) { reasons.append("black crush") }
         if metrics.shadowError > baseline.metrics.shadowError + configuration.safety.shadowErrorTolerance { reasons.append("shadow safety") }
         if metrics.shadowLiftRatio > baseline.metrics.shadowLiftRatio + configuration.safety.shadowLiftTolerance { reasons.append("shadow lift safety") }
         if metrics.temporalFlicker > baseline.metrics.temporalFlicker * (1 + configuration.safety.temporalFlickerRelativeTolerance) + configuration.safety.temporalFlickerAbsoluteTolerance {
@@ -1583,7 +1953,9 @@ public final class CalibrationV4Runner {
         if m.highlightError > b.highlightError * (1 + configuration.safety.highlightRelativeTolerance) + 0.005 { reasons.append("highlight regression") }
         if m.midtoneError > b.midtoneError * (1 + configuration.safety.midtoneRelativeTolerance) + 0.005 { reasons.append("midtone regression") }
         if m.hueP95Error > b.hueP95Error * (1 + configuration.safety.hueRelativeTolerance) + 0.002 { reasons.append("hue regression") }
-        if m.clippingRatio > configuration.safety.zeroTolerance || m.blackCrushRatio > configuration.safety.zeroTolerance || m.invalidSampleCount != 0 { reasons.append("hard safety gate") }
+        if m.clippingRatio > configuration.safety.zeroTolerance ||
+            configuration.safety.blackCrushFails(candidate: m.blackCrushRatio, baseline: b.blackCrushRatio) ||
+            m.invalidSampleCount != 0 { reasons.append("hard safety gate") }
         if perVideoCatastrophic(candidate: candidate, baseline: baseline) > 0 { reasons.append("catastrophic per-video regression") }
         return reasons
     }
@@ -1603,7 +1975,7 @@ public final class CalibrationV4Runner {
     private func finalVerdict(
         tuneV2: V2DatasetEvaluation, tuneV4: V2DatasetEvaluation,
         validationV2: V2DatasetEvaluation, validationV4: V2DatasetEvaluation,
-        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation,
+        frozenV2: V2DatasetEvaluation, frozenV4: V2DatasetEvaluation, frozenDefault: V2DatasetEvaluation,
         manifest: V4Manifest, transferByPair: [String: String],
         runtime: V4RuntimeBenchmarkResult
     ) -> (CalibrationV4Verdict, [String], V4PromotionGateResult) {
@@ -1631,13 +2003,20 @@ public final class CalibrationV4Runner {
             candidate: frozenV4, baseline: frozenV2,
             groupByID: transferByPair
         )
-        let familyByID = Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
-            guard let family = pair.contentFamily, !family.isEmpty else { return nil }
-            return (pair.id, family)
-        })
-        let family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        let familyByID = familyByPairID(manifest)
+        let family: Bool
+        if let decisionProtocol = configuration.decisionProtocol {
+            family = V4FamilyDecision.frozenFamiliesWithinTolerance(
+                candidate: V4FamilyDecision.objectiveByFamily(frozenV4.videos, familyByID: familyByID),
+                v2: V4FamilyDecision.objectiveByFamily(frozenV2.videos, familyByID: familyByID),
+                defaults: V4FamilyDecision.objectiveByFamily(frozenDefault.videos, familyByID: familyByID),
+                protocol: decisionProtocol
+            ) && groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        } else {
+            family = groupedSafetyGate(candidate: frozenV4, baseline: frozenV2, groupByID: familyByID)
+        }
         let hardSafety = frozenV4.metrics.clippingRatio <= configuration.safety.zeroTolerance &&
-            frozenV4.metrics.blackCrushRatio <= configuration.safety.zeroTolerance &&
+            !configuration.safety.blackCrushFails(candidate: frozenV4.metrics.blackCrushRatio, baseline: frozenV2.metrics.blackCrushRatio) &&
             frozenV4.metrics.invalidSampleCount == 0
         let frozenPerVideoRegression = perVideoRegressionCount(candidate: frozenV4, baseline: frozenV2) == 0
         let frozen = completeness && frozenImprovement >= configuration.safety.frozenMinimumImprovement && frozenPerVideoRegression
@@ -1665,6 +2044,22 @@ public final class CalibrationV4Runner {
         let verdict = V4PromotionGateMachine.verdict(gates)
         reasons.append("Final verdict gate: \(verdict.rawValue)")
         return (verdict, reasons, gates)
+    }
+
+    /// Pairs of the declared families. A declared family that names no
+    /// manifest pair (a typo or wrong case) is an error: otherwise the
+    /// declared variant would silently score the same as its undeclared twin.
+    private func declaredSourcePairIDs(_ manifest: V4Manifest) throws -> Set<String> {
+        guard configuration.declaredSourceSDRTransferInterpretation != nil,
+              let families = configuration.declaredSourceFamilies else { return [] }
+        return try V4DeclaredSource.pairIDs(families: families, familyByPairID: familyByPairID(manifest))
+    }
+
+    private func familyByPairID(_ manifest: V4Manifest) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: manifest.pairs.compactMap { pair -> (String, String)? in
+            guard let family = pair.contentFamily, !family.isEmpty else { return nil }
+            return (pair.id, family)
+        })
     }
 
     private func shadowSafe(_ baseline: V2MetricBreakdown, _ candidate: V2MetricBreakdown) -> Bool {
@@ -2051,6 +2446,10 @@ public final class CalibrationV4Runner {
     }
 
     private func writeArtifacts(_ report: V4FinalReport) throws {
+        var report = report
+        if report.pairGuardrail == nil {
+            report.pairGuardrail = V4PairGuardrail.rank(selected: report.selectedCandidate, baseline: report.baseline)
+        }
         try writeJSON(report, name: "data-video-v4-final.json")
         let markdown = makeMarkdown(report)
         try markdown.write(to: outputDirectory.appendingPathComponent("data-video-v4-report.md"), atomically: true, encoding: .utf8)
@@ -2124,6 +2523,16 @@ public final class CalibrationV4Runner {
         let selected = report.selectedCandidate.map { String(describing: $0.parameters) } ?? "NOT SELECTED"
         let reasons = report.reasons.map { "- " + $0 }.joined(separator: "\n")
         let limitations = report.limitations.map { "- " + $0 }.joined(separator: "\n")
+        let guardrail: String
+        if let pairs = report.pairGuardrail, !pairs.isEmpty {
+            guardrail = (["| Pair | Split | Candidate / V2 | Candidate / default |", "|---|---|---:|---:|"]
+                + pairs.prefix(5).map {
+                    "| " + $0.pairID + " | " + $0.split.rawValue + " | " + String(format: "%.3f", $0.ratioToV2)
+                        + " | " + String(format: "%.3f", $0.ratioToDefault) + " |"
+                }).joined(separator: "\n")
+        } else {
+            guardrail = "NOT MEASURED"
+        }
         let lines = [
             "# SDR to HDR Calibrated V4",
             "",
@@ -2153,6 +2562,10 @@ public final class CalibrationV4Runner {
             "## Decision",
             "",
             reasons,
+            "",
+            "## Worst pairs (reported, not gating)",
+            "",
+            guardrail,
             "",
             "## Limitations",
             "",

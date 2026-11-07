@@ -238,7 +238,7 @@ enum V2MetricsEvaluator {
         let offsets = prepared.alignment.matches.map { $0.hdrTimeSeconds - $0.sdrTimeSeconds }
         let meanOffset = average(offsets)
         let variance = offsets.isEmpty ? 0 : offsets.map { ($0 - meanOffset) * ($0 - meanOffset) }.reduce(0, +) / Double(offsets.count)
-        let sampled = prepared.sdrSequence.samples.count
+        let sampled = prepared.sdrDecodedSampleCount
         return V2AlignmentStatistics(
             sampledFrames: sampled,
             matchedFrames: prepared.alignment.matches.count,

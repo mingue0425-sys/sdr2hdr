@@ -1,0 +1,30 @@
+{
+  "auditArtifactHash" : "846f84b5c458aaaed70be467ca3731d9e1a6eef2ce088c47266f41398349a4c7",
+  "candidateID" : "local_020",
+  "codeHash" : "d86e3c9ff8bf3bbe25527f6d10e7e0a2f1c16918f771ae9234c28d5d071ddb39",
+  "datasetLockHash" : "eedca8b31fdccad0e7174b4e08bc78116eb89017f1bb2693603568a6c94cf65a",
+  "evaluationConfigHash" : "088ddd1c48b8521005e7955c158cb473e2e4b548031bc12ecb0c9eac4008d227",
+  "executableHash" : "d86e3c9ff8bf3bbe25527f6d10e7e0a2f1c16918f771ae9234c28d5d071ddb39",
+  "finalCandidateFrozen" : true,
+  "frozenOpened" : false,
+  "gitCommit" : "b12dea753c9c7e5126f21a4a44ec94c4d3bd61f2",
+  "gitTree" : "eac656180f085f76f58ba6c24032b1d945b8b064",
+  "manifestHash" : "776f0e062bab6e1f9459bdf7ce6dcf6d28dca4d12ba61fd303d5f01984654f0e",
+  "objectiveHash" : "088ddd1c48b8521005e7955c158cb473e2e4b548031bc12ecb0c9eac4008d227",
+  "parameterHash" : "40e47f0e47105a379b8c2c0cdf62ada2875c559c9d811e6d0700a8da4b05e821",
+  "parameters" : {
+    "contrastStrength" : 0.8019736,
+    "declaredSourceSDRTransferInterpretation" : "youtube-hlg-sdr-inverse-17knot-v1",
+    "displayHeadroom" : 6.9295917,
+    "highlightStrength" : 0.86,
+    "paperWhiteNits" : 203.30556,
+    "peakNits" : 1408.8245,
+    "saturationCompensation" : 0.4161492,
+    "shadowProtection" : 0.7381159,
+    "temporalStability" : 0.48427606,
+    "toneCurveRevision" : 2
+  },
+  "sourceHash" : "216412f4c6d8445dd6c0f3811f101b03d53c5d9a50226449f72b25747a377d0c",
+  "version" : "calibration-v4-freeze",
+  "workingTreeDirty" : false
+}

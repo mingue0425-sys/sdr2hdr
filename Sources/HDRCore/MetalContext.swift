@@ -51,10 +51,29 @@ internal struct HDRShaderParameters {
     var chromaReconstructionMode: UInt32
     var chromaSampleCenterX: Float
     var chromaSampleCenterY: Float
+    var gainGuidanceRadius: UInt32
+    var gainGuidanceTolerance: Float
+    var gainGuidanceReferencePath: UInt32
+    /// `HDRInputPrimaries` raw value; 0 (BT.709) skips the conversion.
+    var inputPrimaries: UInt32
+    /// Texture-adaptive gate (`HDRGainGuidance`); textureHigh <= textureLow disables it.
+    var gainGuidanceTextureLow: Float
+    var gainGuidanceTextureHigh: Float
+    var gainGuidanceMinimumTolerance: Float
 }
 
 internal final class MetalContext {
+    static let requiredFunctions = [
+        "sdrNV12ToHDR", "sdrP010ToHDR", "sdrBGRA8ToHDR",
+        "sdrNV12ToHDRDebug", "sdrP010ToHDRDebug", "sdrBGRA8ToHDRDebug",
+        "sdrNV12ToHDRGuided", "sdrP010ToHDRGuided", "sdrBGRA8ToHDRGuided",
+        "estimateNV12TemporalLuminance", "estimateP010TemporalLuminance",
+        "estimateBGRATemporalLuminance"
+    ]
+
     let device: MTLDevice
+    /// Which bundled layout supplied the shader library.
+    let libraryOrigin: HDRMetalLibraryLoader.Origin
     let commandQueue: MTLCommandQueue
     let textureCache: TextureCache
     let nv12Pipeline: MTLComputePipelineState
@@ -63,6 +82,10 @@ internal final class MetalContext {
     let nv12DebugPipeline: MTLComputePipelineState
     let p010DebugPipeline: MTLComputePipelineState
     let bgraDebugPipeline: MTLComputePipelineState
+    /// Gain-guided variants; the plain pipelines carry no guidance code.
+    let nv12GuidedPipeline: MTLComputePipelineState
+    let p010GuidedPipeline: MTLComputePipelineState
+    let bgraGuidedPipeline: MTLComputePipelineState
     let nv12TemporalPipeline: MTLComputePipelineState
     let p010TemporalPipeline: MTLComputePipelineState
     let bgraTemporalPipeline: MTLComputePipelineState
@@ -76,23 +99,20 @@ internal final class MetalContext {
         self.textureCache = try TextureCache(device: device)
 
         let library: MTLLibrary
-        if let precompiledURL = Bundle.module.url(forResource: "SDRToHDR", withExtension: "metallib"),
-           let precompiled = try? device.makeLibrary(URL: precompiledURL) {
-            library = precompiled
-        } else {
-            guard let sourceURL = Bundle.module.url(forResource: "SDRToHDR", withExtension: "metal") else {
-                throw HDRProcessorError.shaderSourceMissing
-            }
-            let source: String
-            do {
-                source = try String(contentsOf: sourceURL, encoding: .utf8)
-            } catch {
-                throw HDRProcessorError.shaderSourceReadFailed(String(describing: error))
-            }
-            do {
-                library = try device.makeLibrary(source: source, options: nil)
-            } catch {
-                throw HDRProcessorError.shaderCompilationFailed(String(describing: error))
+        do {
+            let loaded = try HDRMetalLibraryLoader.load(
+                device: device,
+                bundle: Bundle.module,
+                name: "SDRToHDR",
+                requiredFunctions: Self.requiredFunctions
+            )
+            library = loaded.library
+            libraryOrigin = loaded.origin
+        } catch let failure as HDRMetalLibraryLoader.Failure {
+            switch failure {
+            case .sourceMissing: throw HDRProcessorError.shaderSourceMissing
+            case .sourceReadFailed(let reason): throw HDRProcessorError.shaderSourceReadFailed(reason)
+            case .compilationFailed(let reason): throw HDRProcessorError.shaderCompilationFailed(reason)
             }
         }
         guard let nv12Function = library.makeFunction(name: "sdrNV12ToHDR") else {
@@ -113,6 +133,15 @@ internal final class MetalContext {
         guard let bgraDebugFunction = library.makeFunction(name: "sdrBGRA8ToHDRDebug") else {
             throw HDRProcessorError.shaderFunctionMissing("sdrBGRA8ToHDRDebug")
         }
+        guard let nv12GuidedFunction = library.makeFunction(name: "sdrNV12ToHDRGuided") else {
+            throw HDRProcessorError.shaderFunctionMissing("sdrNV12ToHDRGuided")
+        }
+        guard let p010GuidedFunction = library.makeFunction(name: "sdrP010ToHDRGuided") else {
+            throw HDRProcessorError.shaderFunctionMissing("sdrP010ToHDRGuided")
+        }
+        guard let bgraGuidedFunction = library.makeFunction(name: "sdrBGRA8ToHDRGuided") else {
+            throw HDRProcessorError.shaderFunctionMissing("sdrBGRA8ToHDRGuided")
+        }
         guard let nv12TemporalFunction = library.makeFunction(name: "estimateNV12TemporalLuminance") else {
             throw HDRProcessorError.shaderFunctionMissing("estimateNV12TemporalLuminance")
         }
@@ -129,6 +158,9 @@ internal final class MetalContext {
             self.nv12DebugPipeline = try device.makeComputePipelineState(function: nv12DebugFunction)
             self.p010DebugPipeline = try device.makeComputePipelineState(function: p010DebugFunction)
             self.bgraDebugPipeline = try device.makeComputePipelineState(function: bgraDebugFunction)
+            self.nv12GuidedPipeline = try device.makeComputePipelineState(function: nv12GuidedFunction)
+            self.p010GuidedPipeline = try device.makeComputePipelineState(function: p010GuidedFunction)
+            self.bgraGuidedPipeline = try device.makeComputePipelineState(function: bgraGuidedFunction)
             self.nv12TemporalPipeline = try device.makeComputePipelineState(function: nv12TemporalFunction)
             self.p010TemporalPipeline = try device.makeComputePipelineState(function: p010TemporalFunction)
             self.bgraTemporalPipeline = try device.makeComputePipelineState(function: bgraTemporalFunction)

@@ -1,0 +1,42 @@
+{
+  "decisionProtocol" : "family-maximin-lofo-v1",
+  "folds" : [
+    {
+      "heldOutFamily" : "ASC StEM2"
+    },
+    {
+      "heldOutFamily" : "ASC StEM3 Warped Cybercity"
+    },
+    {
+      "heldOutFamily" : "K-Choreo"
+    },
+    {
+      "heldOutFamily" : "KBS Music Bank One-take"
+    },
+    {
+      "heldOutFamily" : "Netflix Sol Levante",
+      "heldOutImprovementOverDefault" : 0.04236106598134443,
+      "heldOutImprovementOverV2" : -0.041586209996494074,
+      "selectedCandidateID" : "global_083"
+    },
+    {
+      "heldOutFamily" : "Netflix Sparks",
+      "heldOutImprovementOverDefault" : -0.021085248540057954,
+      "heldOutImprovementOverV2" : -0.02111256788547854,
+      "selectedCandidateID" : "global_075"
+    }
+  ],
+  "meanHeldOutImprovement" : -0.03134938894098631,
+  "reasons" : [
+    "no eligible candidate when ASC StEM2 is held out",
+    "no eligible candidate when ASC StEM3 Warped Cybercity is held out",
+    "no eligible candidate when K-Choreo is held out",
+    "no eligible candidate when KBS Music Bank One-take is held out",
+    "mean held-out improvement -3.13% < 5.00%",
+    "worst held-out improvement -4.16% is not positive",
+    "held-out Netflix Sparks is 2.11% worse than the default",
+    "candidate pool is fixed before folding; local-refinement centres used all Tune families"
+  ],
+  "status" : "FAIL",
+  "worstHeldOutImprovement" : -0.041586209996494074
+}

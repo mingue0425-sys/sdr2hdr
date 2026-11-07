@@ -231,6 +231,8 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
     public let effectiveChromaReconstructionMode: String
     public let chromaReconstructionFallbackReason: String?
     public let chromaReconstructionMode: String
+    /// Stable identifier of the SDR input convention used for this frame.
+    public let sdrTransferInterpretation: String
     public let sceneShadowFloor: Float
     public let sceneShadowTop: Float
     public let sceneStatisticsValid: Bool
@@ -260,6 +262,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         requestedChromaReconstructionMode: String? = nil,
         effectiveChromaReconstructionMode: String? = nil,
         chromaReconstructionFallbackReason: String? = nil,
+        sdrTransferInterpretation: String = HDRSDRTransferInterpretation.default.rawValue,
         sceneShadowFloor: Float,
         sceneShadowTop: Float,
         sceneStatisticsValid: Bool,
@@ -288,6 +291,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
         self.effectiveChromaReconstructionMode = effectiveChromaReconstructionMode ?? chromaReconstructionMode
         self.chromaReconstructionFallbackReason = chromaReconstructionFallbackReason
         self.chromaReconstructionMode = chromaReconstructionMode
+        self.sdrTransferInterpretation = sdrTransferInterpretation
         self.sceneShadowFloor = sceneShadowFloor
         self.sceneShadowTop = sceneShadowTop
         self.sceneStatisticsValid = sceneStatisticsValid
@@ -343,6 +347,7 @@ public struct HDRFrameDiagnosticSnapshot: Codable, Equatable, Sendable {
             requestedChromaReconstructionMode: requestedChromaReconstructionMode,
             effectiveChromaReconstructionMode: effectiveChromaReconstructionMode,
             chromaReconstructionFallbackReason: chromaReconstructionFallbackReason,
+            sdrTransferInterpretation: sdrTransferInterpretation,
             sceneShadowFloor: sceneShadowFloor,
             sceneShadowTop: sceneShadowTop,
             sceneStatisticsValid: sceneStatisticsValid,

@@ -1,0 +1,122 @@
+[
+  {
+    "highlightError" : 0.2726995733720735,
+    "highlightPumping" : 0.03272468605464971,
+    "midtoneError" : 0.35721034953828085,
+    "objective" : 0.26688982639383774,
+    "parameter" : "shadowProtection",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.4966432213771263,
+    "shadowLiftRatio" : 0.23299985211649538,
+    "temporalFlicker" : 0.020667182581715987,
+    "value" : 0
+  },
+  {
+    "highlightError" : 0.2718813006951169,
+    "highlightPumping" : 0.032758614120733234,
+    "midtoneError" : 0.35572670632891984,
+    "objective" : 0.2659377776885818,
+    "parameter" : "shadowProtection",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.49497329056099393,
+    "shadowLiftRatio" : 0.23144452848023817,
+    "temporalFlicker" : 0.02069553992080337,
+    "value" : 0.25
+  },
+  {
+    "highlightError" : 0.2710600578500168,
+    "highlightPumping" : 0.032792505144788583,
+    "midtoneError" : 0.35424208943376573,
+    "objective" : 0.2649858986130217,
+    "parameter" : "shadowProtection",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.4932954558548975,
+    "shadowLiftRatio" : 0.23035273548566254,
+    "temporalFlicker" : 0.020724788693715294,
+    "value" : 0.5
+  },
+  {
+    "highlightError" : 0.2702298534639906,
+    "highlightPumping" : 0.03282666278044817,
+    "midtoneError" : 0.3527449206670096,
+    "objective" : 0.2640283951108598,
+    "parameter" : "shadowProtection",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.49161130779098994,
+    "shadowLiftRatio" : 0.22911217909955064,
+    "temporalFlicker" : 0.02076440123304081,
+    "value" : 0.75
+  },
+  {
+    "highlightError" : 0.2693907322886102,
+    "highlightPumping" : 0.032862652254608264,
+    "midtoneError" : 0.3512415226687434,
+    "objective" : 0.26306455393932626,
+    "parameter" : "shadowProtection",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.48991233417684,
+    "shadowLiftRatio" : 0.226640362462556,
+    "temporalFlicker" : 0.020814786083267083,
+    "value" : 1
+  },
+  {
+    "highlightError" : 0.26985250214880685,
+    "highlightPumping" : 0.03284765185329315,
+    "midtoneError" : 0.3520711894793579,
+    "objective" : 0.26359766787941075,
+    "parameter" : "temporalStability",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.4908481149721652,
+    "shadowLiftRatio" : 0.2290381509344162,
+    "temporalFlicker" : 0.020796815487283397,
+    "value" : 0
+  },
+  {
+    "highlightError" : 0.26985250214880685,
+    "highlightPumping" : 0.03286099868108446,
+    "midtoneError" : 0.3520711894793579,
+    "objective" : 0.2635907577840897,
+    "parameter" : "temporalStability",
+    "sceneCutRecovery" : 1.9671916971916972,
+    "shadowError" : 0.4908481149721652,
+    "shadowLiftRatio" : 0.2290381509344162,
+    "temporalFlicker" : 0.020608894830848275,
+    "value" : 0.25
+  },
+  {
+    "highlightError" : 0.26985250214880685,
+    "highlightPumping" : 0.03283723276696855,
+    "midtoneError" : 0.3520711894793579,
+    "objective" : 0.2635927621061362,
+    "parameter" : "temporalStability",
+    "sceneCutRecovery" : 1.8740598290598292,
+    "shadowError" : 0.4908481149721652,
+    "shadowLiftRatio" : 0.2290381509344162,
+    "temporalFlicker" : 0.020692911839823507,
+    "value" : 0.5
+  },
+  {
+    "highlightError" : 0.26985250214880685,
+    "highlightPumping" : 0.03283876895258666,
+    "midtoneError" : 0.3520711894793579,
+    "objective" : 0.26359609075521645,
+    "parameter" : "temporalStability",
+    "sceneCutRecovery" : 1.8516849816849816,
+    "shadowError" : 0.4908481149721652,
+    "shadowLiftRatio" : 0.2290381509344162,
+    "temporalFlicker" : 0.02076941254287909,
+    "value" : 0.75
+  },
+  {
+    "highlightError" : 0.26985250214880685,
+    "highlightPumping" : 0.0328805820214514,
+    "midtoneError" : 0.3520711894793579,
+    "objective" : 0.26359605132160974,
+    "parameter" : "temporalStability",
+    "sceneCutRecovery" : 0.9739316239316238,
+    "shadowError" : 0.4908481149721652,
+    "shadowLiftRatio" : 0.2290381509344162,
+    "temporalFlicker" : 0.020593751953437767,
+    "value" : 1
+  }
+]

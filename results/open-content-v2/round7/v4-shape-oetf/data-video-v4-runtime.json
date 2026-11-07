@@ -1,0 +1,37 @@
+{
+  "baseline" : {
+    "cpuSubmissionP50Milliseconds" : 0.03095838474109769,
+    "cpuSubmissionP95Milliseconds" : 0.053708325140178204,
+    "cpuSubmissionP99Milliseconds" : 0.06583333015441895,
+    "gpuP50Milliseconds" : 0.5541249993257225,
+    "gpuP95Milliseconds" : 0.8365416433662176,
+    "gpuP99Milliseconds" : 1.1522499844431877
+  },
+  "candidate" : {
+    "cpuSubmissionP50Milliseconds" : 0.029500050004571676,
+    "cpuSubmissionP95Milliseconds" : 0.052291667088866234,
+    "cpuSubmissionP99Milliseconds" : 0.06595830200240016,
+    "gpuP50Milliseconds" : 0.5310833221301436,
+    "gpuP95Milliseconds" : 0.8071250049397349,
+    "gpuP99Milliseconds" : 1.1470000026747584
+  },
+  "deviceName" : "Apple M2",
+  "height" : 1080,
+  "measuredFrames" : 300,
+  "reasons" : [
+    "runtime within tolerance: GPU p50 0.554→0.531 ms, GPU p95 0.837→0.807 ms, CPU p95 0.054→0.052 ms"
+  ],
+  "status" : "PASS",
+  "thresholds" : {
+    "absoluteToleranceMilliseconds" : 0.1,
+    "cpuP95RelativeTolerance" : 0.15,
+    "gpuP50RelativeTolerance" : 0.08,
+    "gpuP95RelativeTolerance" : 0.1,
+    "height" : 1080,
+    "measuredFrames" : 300,
+    "warmupFrames" : 30,
+    "width" : 1920
+  },
+  "warmupFrames" : 30,
+  "width" : 1920
+}

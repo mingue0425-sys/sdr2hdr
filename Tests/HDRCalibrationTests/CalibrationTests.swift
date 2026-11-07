@@ -736,6 +736,121 @@ final class CalibrationTests: XCTestCase {
         XCTAssertThrowsError(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [drifted]))
     }
 
+    /// Releasing decoded proxy sequences after materialization must not
+    /// change plan validation or the objective: scene time bounds and decoded
+    /// counts are kept, and only unreferenced pixel buffers are dropped.
+    func testReleasedPreparedPairKeepsPlanValidityAndObjective() throws {
+        let prepared = try makePreparedDiagnosticPair(values: [0.10, 0.20, 0.30, 0.40])
+        let released = prepared.releasingDecodedSequences()
+        XCTAssertTrue(released.sdrSequence.samples.isEmpty)
+        XCTAssertEqual(released.sdrDecodedSampleCount, 4)
+        XCTAssertEqual(released.hdrDecodedSampleCount, 4)
+        XCTAssertEqual(released.sceneTimeBounds["scene-0"], prepared.sceneTimeBounds["scene-0"])
+
+        let plan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [prepared],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )],
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+        XCTAssertNoThrow(try V6PreparedEvaluationPlanBuilder.validate(plan: plan, preparedPairs: [released]))
+        let releasedPlan = try V6PreparedEvaluationPlanBuilder.makePlan(
+            preparedPairs: [released],
+            repositoryRoot: URL(fileURLWithPath: "/tmp/repository"),
+            inputHashes: [prepared.record.id: V6InputHashes(
+                sdrSHA256: String(repeating: "a", count: 64),
+                hdrSHA256: String(repeating: "b", count: 64)
+            )],
+            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+        )
+        XCTAssertEqual(
+            try V6PreparedEvaluationPlanHasher.sha256(releasedPlan),
+            try V6PreparedEvaluationPlanHasher.sha256(plan)
+        )
+
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let evaluator = PairEvaluator(device: device, experiment: ExperimentConfig(
+            seed: 1, candidateCount: 1, maxFramesPerScene: 8,
+            alignmentConfidenceThreshold: 0, referenceTargetPeakNits: 1_000, allowHLGModel: true
+        ))
+        let parameters = CalibrationParameters(configuration: .calibratedV2)
+        let full = try evaluator.evaluate(prepared: prepared, parameters: parameters, split: .tune)
+        let slim = try evaluator.evaluate(prepared: released, parameters: parameters, split: .tune)
+        // Same frames, scenes and scores. Two GPU runs agree only to a few ULPs
+        // on virtualised CI GPUs, so scores compare within 1e-9 relative.
+        XCTAssertEqual(slim.pairCount, full.pairCount)
+        XCTAssertEqual(slim.sceneCount, full.sceneCount)
+        XCTAssertEqual(slim.frameCount, full.frameCount)
+        XCTAssertEqual(slim.sceneMetrics.count, full.sceneMetrics.count)
+        let scores: [(Double, Double)] = [
+            (slim.objective, full.objective), (slim.luminanceError, full.luminanceError),
+            (slim.highlightError, full.highlightError), (slim.shadowError, full.shadowError),
+            (slim.colorError, full.colorError), (slim.temporalError, full.temporalError),
+        ]
+        for (lhs, rhs) in scores {
+            XCTAssertEqual(lhs, rhs, accuracy: max(abs(rhs) * 1e-9, 1e-15))
+        }
+        XCTAssertGreaterThan(full.frameCount, 0)
+    }
+
+    func testDeclaredSourceParametersBuildTheFixedHLGReconstruction() throws {
+        var parameters = CalibrationParameters(configuration: .calibratedV2)
+        parameters.toneCurveRevision = HDRToneCurveRevision.sceneRelativeV4.rawValue
+        let historical = try parameters.configuration()
+        XCTAssertEqual(try parameters.configuration(declaredSource: true).paperWhiteNits, historical.paperWhiteNits)
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let before = try encoder.encode(parameters)
+        XCTAssertFalse(String(decoding: before, as: UTF8.self).contains("declaredSource"))
+
+        parameters.declaredSourceSDRTransferInterpretation = HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue
+        let undeclared = try parameters.configuration(declaredSource: false)
+        XCTAssertEqual(undeclared.paperWhiteNits, historical.paperWhiteNits)
+        XCTAssertEqual(undeclared.highlightStrength, historical.highlightStrength)
+        XCTAssertEqual(undeclared.sdrTransferInterpretation, historical.sdrTransferInterpretation)
+
+        let declared = try parameters.configuration(declaredSource: true)
+        XCTAssertEqual(declared.sdrTransferInterpretation, .youtubeHLGDerivedInverse)
+        XCTAssertEqual(declared.paperWhiteNits, CalibrationParameters.declaredSourceNominalPeakNits)
+        XCTAssertEqual(declared.highlightStrength, 0)
+        XCTAssertEqual(declared.saturationCompensation, 0)
+        XCTAssertGreaterThan(declared.peakNits, declared.paperWhiteNits)
+
+        parameters.declaredSourceSDRTransferInterpretation = "not-a-policy"
+        XCTAssertThrowsError(try parameters.configuration(declaredSource: true))
+    }
+
+    func testEngineAppliesDeclaredSourceOnlyToMarkedPairsAndDeclaringParameters() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let pair = try makePreparedDiagnosticPair(values: [0.10, 0.30, 0.50, 0.70])
+        var baseline = CalibrationParameters(configuration: .calibratedV2)
+        baseline.toneCurveRevision = HDRToneCurveRevision.sceneRelativeV4.rawValue
+        var declaring = baseline
+        declaring.declaredSourceSDRTransferInterpretation = HDRSDRTransferInterpretation.youtubeHLGDerivedInverse.rawValue
+        func objective(_ parameters: CalibrationParameters, marked: Bool) throws -> Double {
+            let engine = V2EvaluationEngine(device: device, weights: V2ObjectiveWeights())
+            if marked { engine.configureDeclaredSource(pairIDs: [pair.record.id]) }
+            let result = try engine.evaluate(
+                preparedPairs: [pair], parameters: parameters, label: "t", split: .tune, confidenceThreshold: 0
+            )
+            return result.videos[0].metrics.objective
+        }
+        // Separate GPU runs agree only to a few ULPs on virtualised CI GPUs
+        // (CI saw 1.352273378511365 against 1.3522733785113652), so "unchanged"
+        // means within 1e-9 relative. The declared reconstruction moves the
+        // objective by far more than that.
+        let plain = try objective(baseline, marked: false)
+        let tolerance = abs(plain) * 1e-9
+        XCTAssertEqual(try objective(baseline, marked: true), plain, accuracy: tolerance, "baselines ignore the declaration")
+        XCTAssertEqual(try objective(declaring, marked: false), plain, accuracy: tolerance, "unmarked pairs ignore the declaration")
+        XCTAssertGreaterThan(abs(try objective(declaring, marked: true) - plain), abs(plain) * 1e-6,
+                             "marked pairs under declaring parameters use the declared reconstruction")
+    }
+
     func testPreparedEvaluationPlanTuneValidationUsesStableSplitOrdering() throws {
         let prepared = [
             try makePreparedDiagnosticPair(values: [0.10], id: "tuneA", split: .tune),

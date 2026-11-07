@@ -571,6 +571,87 @@ public enum HDRConfigurationError: Error, LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Range-gated local-mean guidance for the tone-expansion gain.
+///
+/// The expansion curve's log-slope exceeds 1 in highlights, so a per-pixel
+/// gain multiplies any small fluctuation (sensor grain, codec blocking,
+/// 8-bit quantization steps) by that slope. Guidance evaluates the gain at a
+/// bilateral mean of the luma signal within `radius` and applies it to the
+/// pixel, which keeps sub-`tolerance` fluctuations at their source contrast.
+/// Fluctuations larger than `tolerance` (signal units, 0...1) are treated as
+/// edges and keep the per-pixel gain.
+public struct HDRGainGuidance: Equatable, Sendable, Codable {
+    public static let maximumRadius = 4
+    public static let off = HDRGainGuidance(radius: 0, tolerance: 0)
+    /// Opt-in setting chosen by the Tune-only robustness study
+    /// (robustness-study-v2): it cuts the flat-highlight amplification of
+    /// injected grain, banding and codec noise from ~3-4x to ~1.1-1.3x of the
+    /// unexpanded baseline for ~6% of V4's highlight-error benefit. It is not
+    /// part of any calibrated preset until a V4 run adopts it.
+    public static let noiseGatedCandidate = HDRGainGuidance(radius: 2, tolerance: 0.12)
+
+    /// Command-line names: `off` and `noise-gated`.
+    public init?(cliName: String) {
+        switch cliName {
+        case "off": self = .off
+        case "noise-gated": self = .noiseGatedCandidate
+        default: return nil
+        }
+    }
+
+    public let radius: Int
+    public let tolerance: Float
+    /// Texture-adaptive gate (experimental, off when `textureHigh <= textureLow`).
+    /// Per pixel, the gate tolerance falls from `tolerance` to
+    /// `minimumTolerance` as the window's local luma standard deviation rises
+    /// from `textureLow` to `textureHigh` (signal units). Flat regions, where
+    /// banding steps and codec blocks live, keep the wide gate; textured
+    /// regions get a narrow one and keep most of their per-pixel expansion.
+    public let textureLow: Float
+    public let textureHigh: Float
+    public let minimumTolerance: Float
+
+    public init(radius: Int, tolerance: Float, textureLow: Float = 0, textureHigh: Float = 0, minimumTolerance: Float = 0) {
+        self.radius = min(max(radius, 0), Self.maximumRadius)
+        self.tolerance = radius > 0 ? max(tolerance, 1e-4) : 0
+        let adaptive = radius > 0 && textureHigh > textureLow && textureLow >= 0
+        self.textureLow = adaptive ? textureLow : 0
+        self.textureHigh = adaptive ? textureHigh : 0
+        self.minimumTolerance = adaptive ? min(max(minimumTolerance, 1e-4), self.tolerance) : 0
+    }
+
+    public var isEnabled: Bool { radius > 0 }
+    public var isTextureAdaptive: Bool { textureHigh > textureLow }
+
+    private enum CodingKeys: String, CodingKey { case radius, tolerance, textureLow, textureHigh, minimumTolerance }
+
+    /// Decoding goes through the clamping initializer, so a stored radius
+    /// outside 0...maximumRadius or a non-positive tolerance cannot reach
+    /// the shader parameters.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            radius: try container.decode(Int.self, forKey: .radius),
+            tolerance: try container.decode(Float.self, forKey: .tolerance),
+            textureLow: try container.decodeIfPresent(Float.self, forKey: .textureLow) ?? 0,
+            textureHigh: try container.decodeIfPresent(Float.self, forKey: .textureHigh) ?? 0,
+            minimumTolerance: try container.decodeIfPresent(Float.self, forKey: .minimumTolerance) ?? 0
+        )
+    }
+
+    /// Non-adaptive guidance encodes exactly as before (radius, tolerance).
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(radius, forKey: .radius)
+        try container.encode(tolerance, forKey: .tolerance)
+        if isTextureAdaptive {
+            try container.encode(textureLow, forKey: .textureLow)
+            try container.encode(textureHigh, forKey: .textureHigh)
+            try container.encode(minimumTolerance, forKey: .minimumTolerance)
+        }
+    }
+}
+
 /// Parameters shared by all tone-mapping presets. Changing this value does
 /// not recreate Metal libraries or pipeline states.
 public struct HDRConfiguration: Sendable, Equatable {
@@ -638,6 +719,18 @@ public struct HDRConfiguration: Sendable, Equatable {
 
     public var inputFallbackPolicy: HDRInputFallbackPolicy
 
+    /// Versioned convention for linearizing BT.709-tagged SDR input. All
+    /// presets keep the historical inverse-OETF convention; BT.1886 is an
+    /// explicit opt-in that changes output and therefore needs its own
+    /// calibration before any preset may adopt it.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation
+
+    /// Noise-gated gain guidance. `.off` (every preset) keeps the per-pixel
+    /// gain and bit-identical output; enabling it evaluates the tone gain at
+    /// a range-gated local mean so grain, compression blocks and banding are
+    /// not stretched by the expansion curve's slope.
+    public var gainGuidance: HDRGainGuidance
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -673,6 +766,8 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: HDRSceneHistogramStrategy = .production,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
+        gainGuidance: HDRGainGuidance = .off,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -700,6 +795,8 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.sceneHistogramStrategy = sceneHistogramStrategy
         self.chromaReconstructionMode = chromaReconstructionMode
         self.inputFallbackPolicy = inputFallbackPolicy
+        self.sdrTransferInterpretation = sdrTransferInterpretation
+        self.gainGuidance = gainGuidance
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController
@@ -808,6 +905,27 @@ public struct HDRConfiguration: Sendable, Equatable {
         temporalStability: 0.7308984,
         outputMode: .edr,
         displayHeadroom: 5.308875,
+        toneCurveRevision: .sceneRelativeV4,
+        sceneHistogramStrategy: .production
+    )
+
+    /// Production preset promoted from the open-content v2 calibration
+    /// (`local_020`, `results/open-content-v2/frozen-v2/`, verdict
+    /// PROMOTE_CALIBRATED_V4). It improved the objective over V2 by 33.7% on
+    /// Tune, 27.3% on Validation and 23.1% on the one-shot Virgin Frozen
+    /// holdout (gate 5%). The declared YouTube-HLG reconstruction used for
+    /// broadcast pairs during that calibration is a separate input policy and
+    /// is not part of this preset.
+    public static let calibratedV5 = HDRConfiguration(
+        paperWhiteNits: 203.30556,
+        peakNits: 1_408.8245,
+        highlightStrength: 0.86,
+        contrastStrength: 0.8019736,
+        saturationCompensation: 0.4161492,
+        shadowProtection: 0.7381159,
+        temporalStability: 0.48427606,
+        outputMode: .edr,
+        displayHeadroom: 6.9295917,
         toneCurveRevision: .sceneRelativeV4,
         sceneHistogramStrategy: .production
     )

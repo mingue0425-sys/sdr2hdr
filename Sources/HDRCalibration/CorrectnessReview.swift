@@ -390,6 +390,17 @@ public struct V4CorrectnessReviewReport: Codable, Sendable {
 /// Correctness-only harness. It may decode and align Tune/Validation media,
 /// but it never calls the objective evaluator and never opens Virgin Frozen.
 public enum V4CorrectnessReview {
+    /// The preparation settings every sealed V6 plan is built with. The
+    /// Virgin Frozen plan must reuse them exactly: its `preparation` is
+    /// required to equal the Tune/Validation plan's.
+    static func preparationSearchConfiguration() -> V2SearchConfiguration {
+        var configuration = V2SearchConfiguration()
+        configuration.maxFramesPerScene = 8
+        configuration.alignmentSearchThreshold = 0
+        configuration.referenceTargetPeakNits = 1_000
+        return configuration
+    }
+
     public static func run(
         manifestURL: URL,
         outputDirectory: URL,
@@ -410,18 +421,16 @@ public enum V4CorrectnessReview {
             from: Data(contentsOf: auditURL)
         )
         let manifest = try V4Manifest.load(from: manifestURL)
+        // Fail before any preparation if the preregistered protocol is unknown.
+        _ = try V4CalibrationConfiguration(manifest: manifest)
         let repositoryRoot = try V4SourceHasher.repositoryRoot(for: manifestURL)
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw CalibrationError.decodeFailed("Metal device unavailable for V6 preparation plan")
         }
-        var preparationConfiguration = V2SearchConfiguration()
-        preparationConfiguration.maxFramesPerScene = 8
-        preparationConfiguration.alignmentSearchThreshold = 0
-        preparationConfiguration.referenceTargetPeakNits = 1_000
         let repository = V2PreparedRepository(
             manifestURL: manifestURL,
             device: device,
-            configuration: preparationConfiguration,
+            configuration: preparationSearchConfiguration(),
             acceptedConfidenceThreshold: V4CalibrationConfiguration().confidenceThreshold
         )
         let structuralRecords = V6PreparedEvaluationPlanOrdering.canonical(
@@ -443,14 +452,21 @@ public enum V4CorrectnessReview {
             scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope,
             split: { $0.split }
         )
-        let preparedStructural = try await repository.prepare(records: structuralRecords)
         let inputHashesForPlan = V6PreparedEvaluationPlanBuilder.makeInputHashes(audit: audit)
-        let preparedPlan = try repository.sealPreparedEvaluationPlan(
-            records: structuralRecords,
-            inputHashes: inputHashesForPlan,
-            scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
-        )
-        try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        let preparedPlan: PreparedEvaluationPlan
+        do {
+            let preparedStructural = try await repository.prepare(records: structuralRecords)
+            preparedPlan = try repository.sealPreparedEvaluationPlan(
+                records: structuralRecords,
+                inputHashes: inputHashesForPlan,
+                scope: V6PreparedEvaluationPlanOrdering.tuneValidationScope
+            )
+            try V6PreparedEvaluationPlanBuilder.validate(plan: preparedPlan, preparedPairs: preparedStructural)
+        }
+        // The sealed plan carries every decision the second pass needs. Free
+        // the first pass's frames first: both passes together hold about two
+        // IOSurfaces per retained frame, and a process can create only 16,384.
+        repository.releaseCache()
         // Exercise the same read-only evaluator-entry materialization used by
         // V4/V6 after a plan is sealed.  The second pass may decode the
         // already-sealed identities, but it cannot align, select scenes, or
@@ -488,7 +504,7 @@ public enum V4CorrectnessReview {
         )
         let newHLGAudit = try await V4NewHLGHoldoutAuditor.audit(
             manifestURL: manifestURL, datasetAudit: audit, outputDirectory: outputDirectory
-        )
+        ).applying(coverageConfiguration(for: manifest).coverageProtocol)
         let frozenPlanCheck = validateFrozenPreparedPlan(
             manifest: manifest,
             audit: audit,
@@ -1190,12 +1206,19 @@ public enum V4CorrectnessReview {
         )
     }
 
+    /// Coverage requirements preregistered by the manifest. `run` has already
+    /// rejected unknown protocols; any residual failure falls back to the
+    /// stricter historical requirements rather than a weaker set.
+    private static func coverageConfiguration(for manifest: V4Manifest) -> V4CalibrationConfiguration {
+        (try? V4CalibrationConfiguration(manifest: manifest)) ?? V4CalibrationConfiguration()
+    }
+
     private static func transferCoverageSemanticsCheck(
         manifest: V4Manifest,
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         var failures: [String] = []
         var rejectedEvidenceCount = 0
@@ -1246,7 +1269,7 @@ public enum V4CorrectnessReview {
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         let requested = manifest.pairs.filter {
             $0.split == .frozen && $0.virginFrozen && !provenance.consumedSet.contains($0.id)
@@ -1277,7 +1300,7 @@ public enum V4CorrectnessReview {
         audit: V4DatasetAuditReport,
         provenance: V4HoldoutProvenanceAudit
     ) -> V4CorrectnessCheck {
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleByID = eligibleCoverageAuditRecords(audit)
         var failures: [String] = []
         var rejectedEvidenceCount = 0
@@ -1972,7 +1995,7 @@ public enum V4CorrectnessReview {
             ),
             to: outputDirectory.appendingPathComponent("freeze-hash-validation.json")
         )
-        let configuration = V4CalibrationConfiguration()
+        let configuration = coverageConfiguration(for: manifest)
         let eligibleAuditByID = eligibleCoverageAuditRecords(audit)
         let transferByID = Dictionary(uniqueKeysWithValues: eligibleAuditByID.values.compactMap { pair -> (String, String)? in
             let transfer = ReferenceTransfer.parse(pair.hdrTransferFamily)
