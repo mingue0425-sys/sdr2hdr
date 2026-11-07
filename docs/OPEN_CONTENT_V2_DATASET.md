@@ -52,6 +52,26 @@ Eleven KBS HDR uploads join Tune and Validation:
 - dataset-audit: 45/45 main calibration, `DATASET_V4_READY`.
 - They are not in the round-4 results.
 
+**Round 7 (2026-11-07): non-KBS YouTube HLG, and a new sealed holdout.**
+- **Tools:** `fetch_youtube_hlg.py` and `add_youtube_hlg_from_list.py`.
+- **Plan:** `dataset/acquisition/open-content-v2/youtube-hlg-plan-v1.json`. It was written from titles and uploaders before any download.
+- **Pair selection:**
+  - The HDR is the highest VP9 Profile 2 rendition and must be tagged HLG.
+  - The SDR is the VP9 SDR rendition of the same upload, at the same height and frame rate.
+  - Window rule as before. Originals deleted after cutting.
+- **Tune/Validation, family `YouTube HLG fancam`:** six camera-HLG uploads from five non-KBS uploaders (stage fancams, a concert, street and dragon dance).
+  - Tune: WMbTq-9DLDU, cX4o3aixYBg, 9DDPdfl--K4. The last two are from the same concert and are kept together.
+  - Validation: TMeG6fI_hyw, ihoKQohCg-w, 866WofuGz_Q.
+  - They test whether YouTube's HLG→SDR conversion, and hence the declared reconstruction, is the same outside the KBS pipeline.
+- **New Virgin Frozen holdout (sealed):**
+  - `YouTube HLG landscape` ×4: fzw9lhul0Qk, gPTN6WUOlu0, 8CU4z_0I2LI, puLTFiSqb0Y.
+  - K-Choreo ×3: rTyxh15BCsw, LdlEgjn61AE, 9zwMajaMdTo.
+  - Their media was cut and hashed for provenance only. No objective was evaluated.
+- **Consumed:** the four v2 Frozen pairs (Nocturne ×3, Sole Mates) are now marked `objectiveEvaluated` and `consumed`, after the one-shot evaluation in `OPEN_CONTENT_V2_FROZEN_RESULT.md`.
+- **Splits now:** Tune 24, Validation 23, eligible Virgin Frozen 7.
+- **dataset-audit:** 58/58 main calibration, `DATASET_V4_READY`.
+- **Provenance:** `provenance-youtube-hlg.json`. All uploads are under the Standard YouTube License, kept as private research copies and not redistributed.
+
 The four consumed v1 Frozen pairs (StEM3 t118/t197, Sparks f04133/f08266) are excluded.
 
 The new Sparks Validation windows start at 15% and 45% of the title (frames 2067 and 6200). They were fixed a priori and kept away from the consumed windows. Their HDR was assembled from the HDR10 TIFF sequence exactly like v1 (`get_sparks_validation.sh`). Per-TIFF SHA-256 hashes are in `provenance-netflix-sparks-validation.json`.

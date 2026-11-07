@@ -311,6 +311,136 @@
       "sizeBytes" : 689583065
     },
     {
+      "path" : "repo:data_video\/youtube-hlg\/866WofuGz_Q\/866WofuGz_Q_hdr_w40_10s.mp4",
+      "sha256" : "38f58b3ccc6c6c0695c73b42d8655e0b6c9715169b0865b2575583ab46a530fb",
+      "sizeBytes" : 36278499
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/866WofuGz_Q\/866WofuGz_Q_sdr_w40_10s.mp4",
+      "sha256" : "cbed8b0a33c34789e4d818b2903a8615486a2451970643d8131ca1c5ef366b1b",
+      "sizeBytes" : 31669469
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/8CU4z_0I2LI\/8CU4z_0I2LI_hdr_w40_10s.mp4",
+      "sha256" : "741b30c25189474894b5bd3f61c91890f751f2a30a7fa5f19b2408145c23a1de",
+      "sizeBytes" : 7659935
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/8CU4z_0I2LI\/8CU4z_0I2LI_sdr_w40_10s.mp4",
+      "sha256" : "bd600e94b4991015014831659390d50d029b82c5345491236febb02aa2d57d2e",
+      "sizeBytes" : 951122
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/9DDPdfl--K4\/9DDPdfl--K4_hdr_w40_10s.mp4",
+      "sha256" : "7886013950c1529cce400aa08c26d5df233e6f23124908bca3d480de9865dfbc",
+      "sizeBytes" : 29036032
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/9DDPdfl--K4\/9DDPdfl--K4_sdr_w40_10s.mp4",
+      "sha256" : "365df5ed86419afd2fa8a69da9ba622acaa146892f9d08d601223092ef12f3f5",
+      "sizeBytes" : 2827413
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/9zwMajaMdTo\/9zwMajaMdTo_hdr_w40_10s.mp4",
+      "sha256" : "fca42cb94a2052bf680be9763ff44b48a855e239487b4aab3f6df8e3d465cfda",
+      "sizeBytes" : 33684940
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/9zwMajaMdTo\/9zwMajaMdTo_sdr_w40_10s.mp4",
+      "sha256" : "ad0dc170d266d04f4b30a0c94fc5f5f866145e5ba1ef2ca9f04b87f9c6cda431",
+      "sizeBytes" : 19161590
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/LdlEgjn61AE\/LdlEgjn61AE_hdr_w40_10s.mp4",
+      "sha256" : "589ccf46a936fec19afa45f70e989e425310862c44a33878a014509905ff6fd1",
+      "sizeBytes" : 33993496
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/LdlEgjn61AE\/LdlEgjn61AE_sdr_w40_10s.mp4",
+      "sha256" : "b17edd5a011413d4dc72f18175fbf0752207cdafd605b207472598dd996fa3b3",
+      "sizeBytes" : 31031766
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/TMeG6fI_hyw\/TMeG6fI_hyw_hdr_w40_10s.mp4",
+      "sha256" : "87949a8691f8c80276f04ee8215bf895505d20ddb18a899608e037bed90c5275",
+      "sizeBytes" : 36131870
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/TMeG6fI_hyw\/TMeG6fI_hyw_sdr_w40_10s.mp4",
+      "sha256" : "7979e04be61f17a31100fd5503d2a51b3e9e11f560b188f691bd08b6732f23bf",
+      "sizeBytes" : 25752867
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/WMbTq-9DLDU\/WMbTq-9DLDU_hdr_w40_10s.mp4",
+      "sha256" : "d86e12b74a766f014e78548e160401edf46dc3a132e09c5aaf85c0890c6a5ee8",
+      "sizeBytes" : 8428500
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/WMbTq-9DLDU\/WMbTq-9DLDU_sdr_w40_10s.mp4",
+      "sha256" : "49d2b03bf84b3831b7a160c24e9b033f91e0e5764c0055d6d4329add6a6380bf",
+      "sizeBytes" : 3269958
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/cX4o3aixYBg\/cX4o3aixYBg_hdr_w40_10s.mp4",
+      "sha256" : "144552f3a72f57bd5a863bf729b2cba5aaea2622fca29b29b2872364d8148f01",
+      "sizeBytes" : 29184352
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/cX4o3aixYBg\/cX4o3aixYBg_sdr_w40_10s.mp4",
+      "sha256" : "f79f1ed8cc1a8a5ab6377e9fa05fdeb667a4183fa5baabc879e77c519dca9f49",
+      "sizeBytes" : 10447235
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/fzw9lhul0Qk\/fzw9lhul0Qk_hdr_w40_10s.mp4",
+      "sha256" : "7ded46c3675efdbb700883718baaaa0579c0541fe5fb644de96d72a564023629",
+      "sizeBytes" : 32511261
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/fzw9lhul0Qk\/fzw9lhul0Qk_sdr_w40_10s.mp4",
+      "sha256" : "97d47e3f1e92b13809b9570b46c99199498d6efe943a7614bb2d562232984bbc",
+      "sizeBytes" : 22812898
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/gPTN6WUOlu0\/gPTN6WUOlu0_hdr_w40_10s.mp4",
+      "sha256" : "024ccb14662d58d7a6597ff318ab892b405c3dcd0f2c81cbe0f77aaadf1da817",
+      "sizeBytes" : 30970201
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/gPTN6WUOlu0\/gPTN6WUOlu0_sdr_w40_10s.mp4",
+      "sha256" : "a5933c372c4007d7c75f07798c353c97e71d6692431a709611c46f171f49152f",
+      "sizeBytes" : 22833801
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/ihoKQohCg-w\/ihoKQohCg-w_hdr_w40_10s.mp4",
+      "sha256" : "ef8820e83e42b6ec89c666dd9e74c2d7c6cb3e11b4e1bfe3279f1cdd39f9a3a4",
+      "sizeBytes" : 26563929
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/ihoKQohCg-w\/ihoKQohCg-w_sdr_w40_10s.mp4",
+      "sha256" : "6bfe90a75847f6d4c2f610e5a68ee5522e415abd6c7a12264291060960c8d8a0",
+      "sizeBytes" : 14529759
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/puLTFiSqb0Y\/puLTFiSqb0Y_hdr_w40_10s.mp4",
+      "sha256" : "afa74d74d68c4b21bbe5e8824fc6a3abbb2a12fb35c3a7216ee97106f11e635f",
+      "sizeBytes" : 35979564
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/puLTFiSqb0Y\/puLTFiSqb0Y_sdr_w40_10s.mp4",
+      "sha256" : "c4d74460974298e0ab29708bebdf9ca002f30fa4d402684d26fcdf33d3896e9c",
+      "sizeBytes" : 32136019
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/rTyxh15BCsw\/rTyxh15BCsw_hdr_w40_10s.mp4",
+      "sha256" : "c3253d20ca79088075fb5cda5a0d273e1e9a4c1116b5770531be8812bcb7507c",
+      "sizeBytes" : 34025969
+    },
+    {
+      "path" : "repo:data_video\/youtube-hlg\/rTyxh15BCsw\/rTyxh15BCsw_sdr_w40_10s.mp4",
+      "sha256" : "976f9325bee4c0541c4afe3438cff5c103e35551179babff93a31ac024408041",
+      "sizeBytes" : 31057515
+    },
+    {
       "path" : "repo:sdr2hdr-real-media\/aswf-dpel\/solemates\/solemates_hdr_unh0400_61f.mov",
       "sha256" : "4351a4403e4331500b7176c2c83954e02c0cef04c641bbb975d9255614308d37",
       "sizeBytes" : 106797066
@@ -451,7 +581,7 @@
       "sizeBytes" : 381626010
     }
   ],
-  "generatedAt" : "2026-11-07T02:10:52Z",
-  "manifestSHA256" : "776f0e062bab6e1f9459bdf7ce6dcf6d28dca4d12ba61fd303d5f01984654f0e",
+  "generatedAt" : "2026-11-07T05:46:23Z",
+  "manifestSHA256" : "ed1a6ee756ce87b10099dac7cbcbcad9cc532cda359389bd20a35a339e4bd578",
   "version" : 1
 }

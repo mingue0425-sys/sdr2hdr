@@ -446,6 +446,66 @@
       "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (69.186 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
     },
     {
+      "id": "yt_WMbTq-9DLDU",
+      "sdr": "local:youtube-hlg/WMbTq-9DLDU/WMbTq-9DLDU_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/WMbTq-9DLDU/WMbTq-9DLDU_hdr_w40_10s.mp4",
+      "source": "YouTube upload WMbTq-9DLDU by 이야얍 ([4K 오토 트래킹 HLG HDR] [4K] 220604 비비지(VIVIZ) 신비(SinB) - SHAKE IT @ B.N.F Festival)",
+      "sourceURL": "https://www.youtube.com/watch?v=WMbTq-9DLDU",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "yt_WMbTq-9DLDU",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 636); SDR is the VP9 SDR rendition (itag 617) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (79.246 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
+      "id": "yt_cX4o3aixYBg",
+      "sdr": "local:youtube-hlg/cX4o3aixYBg/cX4o3aixYBg_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/cX4o3aixYBg/cX4o3aixYBg_hdr_w40_10s.mp4",
+      "source": "YouTube upload cX4o3aixYBg by 아터스84 (송하예 단독콘서트 white song 3 HLG HDR 행복해 루믹스S9)",
+      "sourceURL": "https://www.youtube.com/watch?v=cX4o3aixYBg",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "yt_cX4o3aixYBg",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 625) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (125.125 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
+      "id": "yt_9DDPdfl--K4",
+      "sdr": "local:youtube-hlg/9DDPdfl--K4/9DDPdfl--K4_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/9DDPdfl--K4/9DDPdfl--K4_hdr_w40_10s.mp4",
+      "source": "YouTube upload 9DDPdfl--K4 by 아터스84 (송하예 단독콘서트 white song 3 니 소식 HLG HDR 루믹스S9)",
+      "sourceURL": "https://www.youtube.com/watch?v=9DDPdfl--K4",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "tune",
+      "virginFrozen": false,
+      "group": "yt_9DDPdfl--K4",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 625) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (95.095 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
       "contentCategory": [
         "dance",
         "high-key",
@@ -868,6 +928,66 @@
       "notes": "Added in open-content-v2 from find_kchoreo_hdr.py discovery to widen the K-Choreo broadcast-HLG family. HDR is the platform BT.2020 HLG (arib-std-b67) VP9 Profile 2 rendition (itag 642); SDR is the platform BT.709 VP9 rendition (itag 628) of the same upload, so the SDR is YouTube's automatic conversion and the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (80.614 s), stream-copied and rebased to start at 0; window, split (balancing Tune/Validation in list order) and family (by series) were fixed before any decode. All K-Choreo pairs share the KBS production pipeline."
     },
     {
+      "id": "yt_TMeG6fI_hyw",
+      "sdr": "local:youtube-hlg/TMeG6fI_hyw/TMeG6fI_hyw_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/TMeG6fI_hyw/TMeG6fI_hyw_hdr_w40_10s.mp4",
+      "source": "YouTube upload TMeG6fI_hyw by ㅋ (230402 스테이씨 (STAYC) - ASAP 맨앞자리 시점 직캠 [4k 60fps HLG HDR])",
+      "sourceURL": "https://www.youtube.com/watch?v=TMeG6fI_hyw",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "yt_TMeG6fI_hyw",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (82.441 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
+      "id": "yt_ihoKQohCg-w",
+      "sdr": "local:youtube-hlg/ihoKQohCg-w/ihoKQohCg-w_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/ihoKQohCg-w/ihoKQohCg-w_hdr_w40_10s.mp4",
+      "source": "YouTube upload ihoKQohCg-w by javaLOOYA (-Urban Dance-  Sweet Melody, feat: begofc_   Panasonic 4K All-Intra HLG #GH5 #VILAMARXANT #JAVALOOYA)",
+      "sourceURL": "https://www.youtube.com/watch?v=ihoKQohCg-w",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "yt_ihoKQohCg-w",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 625) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (21.355 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
+      "id": "yt_866WofuGz_Q",
+      "sdr": "local:youtube-hlg/866WofuGz_Q/866WofuGz_Q_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/866WofuGz_Q/866WofuGz_Q_hdr_w40_10s.mp4",
+      "source": "YouTube upload 866WofuGz_Q by Lumpia in Texas (Kroger Dragon Dance Osmo Action 5 HLG HDR)",
+      "sourceURL": "https://www.youtube.com/watch?v=866WofuGz_Q",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG fancam",
+      "split": "validation",
+      "virginFrozen": false,
+      "group": "yt_866WofuGz_Q",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (174.174 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download."
+    },
+    {
       "id": "netflix_nocturne_f11961",
       "sdr": "netflix:nocturne/nocturne_sdr_f11961_120f.mov",
       "hdr": "netflix:nocturne/nocturne_hdr_f11961_120f.mov",
@@ -885,9 +1005,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "netflix_nocturne",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 11961 of the 60 fps film-grain SDR and HDR masters (30% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 11961 of the 60 fps film-grain SDR and HDR masters (30% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0. Consumed 2026-11-07 by the one-shot open-content-v2 Frozen evaluation (results/open-content-v2/frozen-v2/, PROMOTE_CALIBRATED_V4)."
     },
     {
       "id": "netflix_nocturne_f19935",
@@ -907,9 +1027,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "netflix_nocturne",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 19935 of the 60 fps film-grain SDR and HDR masters (50% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 19935 of the 60 fps film-grain SDR and HDR masters (50% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0. Consumed 2026-11-07 by the one-shot open-content-v2 Frozen evaluation (results/open-content-v2/frozen-v2/, PROMOTE_CALIBRATED_V4)."
     },
     {
       "id": "netflix_nocturne_f27909",
@@ -929,9 +1049,9 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "netflix_nocturne",
-      "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 27909 of the 60 fps film-grain SDR and HDR masters (70% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0."
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. Start frame 27909 of the 60 fps film-grain SDR and HDR masters (70% of duration). SDR: stream copy, ProRes frame headers retagged BT.709 (no pixel change). HDR: the master is P3-D65 ST.2084; converted exactly to BT.2020 primaries in linear light (PQ EOTF, 3x3 matrix, PQ OETF, float64), re-encoded ProRes 4444 XQ 12-bit tagged BT.2020/ST.2084; round-trip error about 0.16 10-bit codes. See provenance-netflix-nocturne.json. Attribution: 'Nocturne' by Netflix, CC BY 4.0. Consumed 2026-11-07 by the one-shot open-content-v2 Frozen evaluation (results/open-content-v2/frozen-v2/, PROMOTE_CALIBRATED_V4)."
     },
     {
       "id": "nas_solemates_unh0400",
@@ -952,9 +1072,163 @@
       "split": "frozen",
       "virginFrozen": true,
       "group": "nas_solemates",
+      "objectiveEvaluated": true,
+      "consumed": true,
+      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. The whole published 61-frame shot (unh0400_0010), so no window was chosen. Both renders come from one ACES 2.0 scene-referred composite: 2K 100-nit Rec709 ProRes 422 HQ and 2K 1000-nit Rec2020 PQ ProRes 4444 XQ. Stream copies; the SDR ProRes frame headers were retagged BT.709 with prores_metadata (no pixel change); referenceTransfer/referencePrimaries record the SDR output-transform documentation. NAS Sole Mates - HDR Production Example Copyright 2025 Netflix, Inc. All rights reserved. Consumed 2026-11-07 by the one-shot open-content-v2 Frozen evaluation (results/open-content-v2/frozen-v2/, PROMOTE_CALIBRATED_V4)."
+    },
+    {
+      "id": "yt_fzw9lhul0Qk",
+      "sdr": "local:youtube-hlg/fzw9lhul0Qk/fzw9lhul0Qk_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/fzw9lhul0Qk/fzw9lhul0Qk_hdr_w40_10s.mp4",
+      "source": "YouTube upload fzw9lhul0Qk by Paolo Bucci (Fall in the Dolomites, in 4K HLG HDR)",
+      "sourceURL": "https://www.youtube.com/watch?v=fzw9lhul0Qk",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG landscape",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "yt_fzw9lhul0Qk",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 625) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (167.601 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
       "objectiveEvaluated": false,
-      "consumed": false,
-      "notes": "Virgin Frozen candidate for open-content-v2. Window start fixed a priori before any decode; content was not viewed, sampled, or correlated, and no statistic of this pair was computed. Opening for objective evaluation requires separate explicit user approval. No hash-bound virginEvidence workflow was run; independent holdout custody is still required. The whole published 61-frame shot (unh0400_0010), so no window was chosen. Both renders come from one ACES 2.0 scene-referred composite: 2K 100-nit Rec709 ProRes 422 HQ and 2K 1000-nit Rec2020 PQ ProRes 4444 XQ. Stream copies; the SDR ProRes frame headers were retagged BT.709 with prores_metadata (no pixel change); referenceTransfer/referencePrimaries record the SDR output-transform documentation. NAS Sole Mates - HDR Production Example Copyright 2025 Netflix, Inc. All rights reserved."
+      "consumed": false
+    },
+    {
+      "id": "yt_gPTN6WUOlu0",
+      "sdr": "local:youtube-hlg/gPTN6WUOlu0/gPTN6WUOlu0_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/gPTN6WUOlu0/gPTN6WUOlu0_hdr_w40_10s.mp4",
+      "source": "YouTube upload gPTN6WUOlu0 by Paolo Bucci (San Marino in 4K HLG-HDR, Fujifilm X-T4)",
+      "sourceURL": "https://www.youtube.com/watch?v=gPTN6WUOlu0",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG landscape",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "yt_gPTN6WUOlu0",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 625) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (96.096 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
+    },
+    {
+      "id": "yt_8CU4z_0I2LI",
+      "sdr": "local:youtube-hlg/8CU4z_0I2LI/8CU4z_0I2LI_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/8CU4z_0I2LI/8CU4z_0I2LI_hdr_w40_10s.mp4",
+      "source": "YouTube upload 8CU4z_0I2LI by Ryan Zimbauer (HDR HLG Live Camera Test | Sunset Branches)",
+      "sourceURL": "https://www.youtube.com/watch?v=8CU4z_0I2LI",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG landscape",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "yt_8CU4z_0I2LI",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 636); SDR is the VP9 SDR rendition (itag 617) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (136.933 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
+    },
+    {
+      "id": "yt_puLTFiSqb0Y",
+      "sdr": "local:youtube-hlg/puLTFiSqb0Y/puLTFiSqb0Y_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/puLTFiSqb0Y/puLTFiSqb0Y_hdr_w40_10s.mp4",
+      "source": "YouTube upload puLTFiSqb0Y by Aerial Pictures (DJI Mini 5 Pro - Test flight - 4K 60fps HLG ungraded.)",
+      "sourceURL": "https://www.youtube.com/watch?v=puLTFiSqb0Y",
+      "license": "YouTube upload (Standard YouTube License); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "camera-hlg"
+      ],
+      "contentFamily": "YouTube HLG landscape",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "yt_puLTFiSqb0Y",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (118.185 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
+    },
+    {
+      "id": "kbs_rTyxh15BCsw",
+      "sdr": "local:youtube-hlg/rTyxh15BCsw/rTyxh15BCsw_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/rTyxh15BCsw/rTyxh15BCsw_hdr_w40_10s.mp4",
+      "source": "YouTube upload rTyxh15BCsw by KBS Kpop ([K-Choreo 8K HDR] 레드벨벳 직캠 'Cosmic' (Red Velvet Choreography) 🎧공간음향.Ver @MusicBank 240628)",
+      "sourceURL": "https://www.youtube.com/watch?v=rTyxh15BCsw",
+      "license": "Standard YouTube License (KBS); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "kbs_rTyxh15BCsw",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (95.729 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
+    },
+    {
+      "id": "kbs_LdlEgjn61AE",
+      "sdr": "local:youtube-hlg/LdlEgjn61AE/LdlEgjn61AE_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/LdlEgjn61AE/LdlEgjn61AE_hdr_w40_10s.mp4",
+      "source": "YouTube upload LdlEgjn61AE by KBS Kpop ([K-Choreo 8K HDR] 세븐틴 직캠 'THUNDER' (SEVENTEEN Choreography) @MusicBank 250530)",
+      "sourceURL": "https://www.youtube.com/watch?v=LdlEgjn61AE",
+      "license": "Standard YouTube License (KBS); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "kbs_LdlEgjn61AE",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (75.576 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
+    },
+    {
+      "id": "kbs_9zwMajaMdTo",
+      "sdr": "local:youtube-hlg/9zwMajaMdTo/9zwMajaMdTo_sdr_w40_10s.mp4",
+      "hdr": "local:youtube-hlg/9zwMajaMdTo/9zwMajaMdTo_hdr_w40_10s.mp4",
+      "source": "YouTube upload 9zwMajaMdTo by KBS Kpop ([K-Choreo 8K HDR] 미야오 (MEOVV) 'DDI RO RI' (MEOVV Choreography) @MusicBank 260605)",
+      "sourceURL": "https://www.youtube.com/watch?v=9zwMajaMdTo",
+      "license": "Standard YouTube License (KBS); private research copy, not redistributed",
+      "licenseURL": "https://www.youtube.com/t/terms",
+      "expectedRelation": "same-source",
+      "contentCategory": [
+        "live-action",
+        "youtube-hlg",
+        "broadcast-hlg"
+      ],
+      "contentFamily": "K-Choreo",
+      "split": "frozen",
+      "virginFrozen": true,
+      "group": "kbs_9zwMajaMdTo",
+      "notes": "Added from fetch_youtube_hlg.py. HDR is YouTube's VP9 Profile 2 HLG (arib-std-b67) rendition (itag 642); SDR is the VP9 SDR rendition (itag 628) of the same upload at the same height and frame rate, i.e. YouTube's automatic conversion, so the relation is same-source. One 10 s window starting at the last keyframe shared by both renditions at or before 40% of the duration (85.652 s), stream-copied and rebased to start at 0. Family and split were fixed in the download plan from titles and uploaders, before any download. Virgin Frozen: no frame was decoded, viewed or measured; opening it for objective evaluation requires separate explicit user approval.",
+      "objectiveEvaluated": false,
+      "consumed": false
     }
   ],
   "decisionProtocol": "family-maximin-lofo-v1"
