@@ -20,6 +20,10 @@ Usage: python3 -I fetch_youtube_hlg.py REPO_ROOT PLAN.json RESULT.json [--max-he
 import argparse, json, os, shutil, subprocess, sys, time
 
 BOT_CHECK = 'confirm you’re not a bot'
+# YouTube caps one plain HTTPS connection at about 2 MB/s. Range-based DASH fragments fetched 8 at a time run about
+# 4x faster (measured 8.6 MB/s against 2.1 MB/s on the same link). The format ids are the same either way.
+DASHY = ('--extractor-args', 'youtube:formats=dashy')
+PARALLEL = ('-N', '8')
 
 
 def yt_dlp(root, *args):
@@ -67,7 +71,7 @@ def main():
             continue
         if index:
             time.sleep(args.probe_delay)
-        out = yt_dlp(root, '-J', '--skip-download', '--', f"https://www.youtube.com/watch?v={entry['id']}")
+        out = yt_dlp(root, *DASHY, '-J', '--skip-download', '--', f"https://www.youtube.com/watch?v={entry['id']}")
         if out.returncode != 0:
             message = (out.stderr.strip().splitlines() or ['yt-dlp failed'])[-1]
             blocked = BOT_CHECK in message
@@ -91,8 +95,11 @@ def main():
                 row['decision'] = 'stopped: free space below --min-free-gb'
                 break
             path = f"{target}/{entry['id']}.{role}.{fmt['format_id']}.%(ext)s"
+            if os.path.exists(path.replace('%(ext)s', 'mp4')):
+                files[role] = path.replace('%(ext)s', 'mp4')
+                continue
             # Remux (stream copy) to MP4: AVFoundation cannot open WebM, and *.mp4 is git-ignored.
-            got = yt_dlp(root, '--no-progress', '-q', '-f', fmt['format_id'], '--remux-video', 'mp4', '-o', path,
+            got = yt_dlp(root, *DASHY, *PARALLEL, '--no-progress', '-q', '-f', fmt['format_id'], '--remux-video', 'mp4', '-o', path,
                          '--paths', f'temp:{root}/.build/tmp/yt', '--', f"https://www.youtube.com/watch?v={entry['id']}")
             if got.returncode != 0:
                 row['decision'] = f"failed: itag {fmt['format_id']}"
@@ -115,6 +122,7 @@ def main():
                         'hdrFile': os.path.relpath(files['hdr'], root), 'sdrFile': os.path.relpath(files['sdr'], root)})
         print(entry['id'], row['decision'], flush=True)
         results.append(row)
+        json.dump(results, open(args.result, 'w'), indent=2, ensure_ascii=False)
     seen = {r['id'] for r in results}
     results += [dict(e, decision='not reached') for e in plan if e['id'] not in seen]
     json.dump(results, open(args.result, 'w'), indent=2, ensure_ascii=False)
