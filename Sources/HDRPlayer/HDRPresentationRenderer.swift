@@ -17,6 +17,7 @@ public struct PresentationUniforms {
     var diagnosticROIWidth: Float
     var diagnosticROIHeight: Float
     var diagnosticEnabled: UInt32
+    var antiRingingClamp: UInt32 = 0
 }
 
 public struct HDRPresentationDiagnosticSnapshot: Equatable, Sendable {
@@ -57,6 +58,11 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
     public let pipelineState: MTLRenderPipelineState
 
     private let samplerState: MTLSamplerState
+    /// MetalFX upscale of the processed frame before presentation.
+    public var upscaleMode: HDRUpscaleMode = .off
+    private lazy var upscaler = PresentationUpscaler(device: device)
+    /// What the last presented frame did, for debug output.
+    public var upscaleDescription: String { upscaler.lastDescription }
     // The fragment function declares the texture resource unconditionally.
     // This read-only fallback can be shared by in-flight submissions.
     private let fallbackSourceTexture: MTLTexture
@@ -259,6 +265,17 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         diagnosticROI: HDRDiagnosticROI?,
         present: (() -> Void)?
     ) -> Bool {
+        let geometry = AspectFitGeometry(sourceSize: sourceSize, drawableSize: drawableSize)
+        let rect = geometry.normalizedRect
+        // Upscale before the presentation pass, to the on-screen size of the
+        // video in texture orientation.
+        var presented = texture
+        if let texture, !testPattern, upscaleMode != .off {
+            var target = CGSize(width: rect.width * drawableSize.width, height: rect.height * drawableSize.height)
+            if orientation.rotation % 2 == 1 { target = CGSize(width: target.height, height: target.width) }
+            presented = upscaler.upscale(texture, mode: upscaleMode, targetPixelSize: target, commandBuffer: commandBuffer) ?? texture
+        }
+
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = targetTexture
         pass.colorAttachments[0].loadAction = .clear
@@ -267,9 +284,6 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else {
             return false
         }
-
-        let geometry = AspectFitGeometry(sourceSize: sourceSize, drawableSize: drawableSize)
-        let rect = geometry.normalizedRect
         let diagnosticsEnabled = self.diagnosticsEnabled
         let diagnosticLifetime: PresentationDebugBufferLifetime?
         let diagnosticBuffer: MTLBuffer
@@ -317,12 +331,14 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
             diagnosticROIY: shaderROI?.y ?? 0,
             diagnosticROIWidth: shaderROI?.width ?? 0,
             diagnosticROIHeight: shaderROI?.height ?? 0,
-            diagnosticEnabled: diagnosticsEnabled ? 1 : 0
+            diagnosticEnabled: diagnosticsEnabled ? 1 : 0,
+            antiRingingClamp: presented !== texture ? 1 : 0
         )
         encoder.setRenderPipelineState(pipelineState)
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
-        encoder.setFragmentTexture(texture ?? fallbackSourceTexture, index: 0)
+        encoder.setFragmentTexture(presented ?? fallbackSourceTexture, index: 0)
+        encoder.setFragmentTexture(texture ?? fallbackSourceTexture, index: 1)
         encoder.setFragmentSamplerState(samplerState, index: 0)
         encoder.setFragmentBuffer(diagnosticBuffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
@@ -378,6 +394,7 @@ public final class HDRPresentationRenderer: @unchecked Sendable {
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<PresentationUniforms>.stride, index: 0)
         encoder.setFragmentTexture(fallbackSourceTexture, index: 0)
+        encoder.setFragmentTexture(fallbackSourceTexture, index: 1)
         encoder.setFragmentSamplerState(samplerState, index: 0)
         encoder.setFragmentBuffer(fallbackDiagnosticBuffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)

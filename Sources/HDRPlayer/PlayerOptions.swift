@@ -33,7 +33,33 @@ public enum HDRPlayerCLIError: Error, LocalizedError, Equatable {
     }
 }
 
+/// Player levels of `HDRConfiguration.skinHighlightProtection`.
+public enum HDRSkinProtection: String, CaseIterable, Sendable {
+    case off, weak, on
+
+    public var strength: Float {
+        switch self {
+        case .off: return 0
+        case .weak: return 0.5
+        case .on: return 1
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .off: return "끔"
+        case .weak: return "약하게"
+        case .on: return "켬 (기본)"
+        }
+    }
+}
+
 public struct PlayerOptions: Equatable, Sendable {
+    /// The player decodes BT.709 SDR as the SDR rendition of a YouTube HDR
+    /// (HLG) upload unless told otherwise; Y switches to the plain BT.709
+    /// inverse OETF during playback. Calibration presets are unaffected.
+    public static let defaultSDRTransferInterpretation: HDRSDRTransferInterpretation = .youtubeHLGDerivedInverseLuminanceGain
+
     public var inputURL: URL?
     public var preset: String
     public var paperWhiteNits: Float?
@@ -52,6 +78,18 @@ public struct PlayerOptions: Equatable, Sendable {
     public var chromaReconstructionMode: HDRChromaReconstructionMode
     public var sdrTransferInterpretation: HDRSDRTransferInterpretation
     public var gainGuidance: HDRGainGuidance
+    /// Convert inputs AVFoundation cannot decode (YouTube VP9/AV1) once
+    /// before playback. `--no-convert` turns it off.
+    public var convertUndecodable: Bool = true
+    /// Where converted inputs go; nil means
+    /// `PlayableInputConverter.defaultCacheDirectory()`.
+    public var convertDirectory: URL?
+    /// MetalFX upscaling before presentation (`--upscale off|1.5x|2x|auto`).
+    public var upscale: HDRUpscaleMode = .auto
+    /// `HDRConfiguration.skinHighlightProtection` (`--skin-protection off|weak|on`).
+    /// On by default: bright toon-shaded skin (MMD, anime) otherwise glows
+    /// at specular brightness. Calibration presets keep it off.
+    public var skinProtection: HDRSkinProtection = .on
 
     public init(
         inputURL: URL? = nil,
@@ -70,7 +108,7 @@ public struct PlayerOptions: Equatable, Sendable {
         v62Candidate: HDRV62ToneCurveCandidate = .adaptiveCombined,
         decodePrecision: HDRDecodePrecision = .automatic,
         chromaReconstructionMode: HDRChromaReconstructionMode = .nearest,
-        sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
+        sdrTransferInterpretation: HDRSDRTransferInterpretation = PlayerOptions.defaultSDRTransferInterpretation,
         gainGuidance: HDRGainGuidance = .off
     ) {
         self.inputURL = inputURL
@@ -102,13 +140,18 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --debug --diagnostic-json
           HDRPlayer <video-file> --decode-precision automatic|8bit|10bit
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
-          HDRPlayer <video-file> --sdr-transfer bt709-oetf|bt1886
+          HDRPlayer <video-file> --sdr-transfer \(HDRSDRTransferInterpretation.allCases.map(\.cliName).joined(separator: "|"))
           HDRPlayer <video-file> --gain-guidance off|noise-gated
+          HDRPlayer <video-file> --skin-protection off|weak|on   (default on: keeps bright skin from glowing)
+          HDRPlayer <video-file> --upscale off|1.5x|2x|auto   (MetalFX, default auto: up to the on-screen size)
+          HDRPlayer <youtube.webm> [--convert-dir DIR | --no-convert]   (VP9/AV1 inputs are converted once to HEVC)
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
           HDRPlayer <video-file> --paper-white 203 --peak 1000
           HDRPlayer --edr-test-pattern [--play-for 5]
 
-        Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen,
+        SDR is decoded as a YouTube HDR (HLG) rendition by default (youtube-hlg-v2); Y switches to bt709-oetf.
+
+        Controls: Space play/pause, Left/Right seek 5s, F fullscreen, Esc exit fullscreen, Y YouTube HDR decode on/off,
         B quick V2/V4 A/B toggle, 6 quick V4/V6 candidate toggle, 7 quick V4/V6.2 candidate toggle, D diagnostic dump, Shift-drag generic ROI, Up/Down volume,
         Command-Q quit.
         """
@@ -208,6 +251,27 @@ public struct PlayerOptions: Equatable, Sendable {
                 }
                 options.gainGuidance = guidance
                 index += 2
+            case "--skin-protection":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                guard let level = HDRSkinProtection(rawValue: value.lowercased()) else {
+                    throw HDRPlayerCLIError.invalidOption("unsupported skin protection: \(value) (off|weak|on)")
+                }
+                options.skinProtection = level
+                index += 2
+            case "--upscale":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                guard let mode = HDRUpscaleMode(cliName: value) else {
+                    throw HDRPlayerCLIError.invalidOption("unsupported upscale: \(value) (off|1.5x|2x|auto)")
+                }
+                options.upscale = mode
+                index += 2
+            case "--no-convert":
+                options.convertUndecodable = false
+                index += 1
+            case "--convert-dir":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                options.convertDirectory = URL(fileURLWithPath: value, isDirectory: true).standardizedFileURL
+                index += 2
             case "--play-for":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 let seconds = try parsePositive(value)
@@ -251,6 +315,7 @@ public struct PlayerOptions: Equatable, Sendable {
         configuration.inputFallbackPolicy = .bt709VideoRange
         configuration.chromaReconstructionMode = chromaReconstructionMode
         configuration.sdrTransferInterpretation = sdrTransferInterpretation
+        configuration.skinHighlightProtection = skinProtection.strength
         configuration.gainGuidance = gainGuidance
         return try configuration.validated()
     }

@@ -60,6 +60,9 @@ internal struct HDRShaderParameters {
     var gainGuidanceTextureLow: Float
     var gainGuidanceTextureHigh: Float
     var gainGuidanceMinimumTolerance: Float
+    /// `HDRConfiguration.skinHighlightProtection`; 0 skips it.
+    var skinHighlightProtection: Float
+    var skinHighlightCeiling: Float
 }
 
 internal final class MetalContext {

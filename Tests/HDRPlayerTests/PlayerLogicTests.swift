@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreMedia
 import CoreGraphics
 import CoreVideo
@@ -390,7 +391,7 @@ final class PlayerLogicTests: XCTestCase {
         ])
         let configuration = try options.baseConfiguration()
         XCTAssertEqual(options.preset, "calibrated-v2")
-        XCTAssertEqual(configuration, HDRConfiguration.calibratedV2)
+        XCTAssertEqual(configuration, playerDecode(HDRConfiguration.calibratedV2))
         XCTAssertEqual(
             configuration.masteringHeadroom,
             configuration.peakNits / configuration.paperWhiteNits,
@@ -417,7 +418,7 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
         XCTAssertEqual(configuration.sceneHistogramStrategy, .linear64)
         XCTAssertEqual(configuration.masteringHeadroom, 5.308875)
-        XCTAssertEqual(configuration, HDRConfiguration.calibratedV4)
+        XCTAssertEqual(configuration, playerDecode(HDRConfiguration.calibratedV4))
         XCTAssertEqual(try configuration.validated(), configuration)
     }
 
@@ -427,9 +428,9 @@ final class PlayerLogicTests: XCTestCase {
 
         let parsed = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4"])
         XCTAssertEqual(parsed.preset, "calibrated-v5")
-        XCTAssertEqual(try parsed.baseConfiguration(), HDRConfiguration.calibratedV5)
+        XCTAssertEqual(try parsed.baseConfiguration(), playerDecode(HDRConfiguration.calibratedV5))
         let previous = try PlayerOptions.parse(arguments: ["HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v4"])
-        XCTAssertEqual(try previous.baseConfiguration(), HDRConfiguration.calibratedV4)
+        XCTAssertEqual(try previous.baseConfiguration(), playerDecode(HDRConfiguration.calibratedV4))
     }
 
     func testRejectedV3CandidateIsExplicitlySelectableButDoesNotReplaceV4() throws {
@@ -437,7 +438,7 @@ final class PlayerLogicTests: XCTestCase {
             "HDRPlayer", "/tmp/video.mp4", "--preset", "calibrated-v3-candidate"
         ])
         let configuration = try options.baseConfiguration()
-        XCTAssertEqual(configuration, HDRConfiguration.calibratedV3Candidate)
+        XCTAssertEqual(configuration, playerDecode(HDRConfiguration.calibratedV3Candidate))
         XCTAssertEqual(configuration.toneCurveRevision, .shadowProtectedV3)
         XCTAssertNotEqual(configuration, HDRConfiguration.calibratedV2)
         XCTAssertNotEqual(configuration, HDRConfiguration.calibratedV4)
@@ -673,7 +674,8 @@ final class PlayerLogicTests: XCTestCase {
             arguments: ["HDRPlayer", "/tmp/video.mp4"]
         ).baseConfiguration()
         XCTAssertEqual(defaultConfiguration.chromaReconstructionMode, .nearest)
-        XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+        XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .youtubeHLGDerivedInverseLuminanceGain,
+                       "the player decodes SDR as a YouTube HDR rendition unless told otherwise")
     }
 
     func testCalibratedV5IsTheDefaultAndMatchesTheFrozenPromotedCandidate() throws {
@@ -685,7 +687,22 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(configuration.peakNits, 1_408.8245, accuracy: 1e-3)
         XCTAssertEqual(configuration.highlightStrength, 0.86, accuracy: 1e-6)
         XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
-        XCTAssertEqual(configuration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+        // The player default decode is its own choice; the promoted preset itself is unchanged.
+        XCTAssertEqual(configuration.sdrTransferInterpretation, PlayerOptions.defaultSDRTransferInterpretation)
+        XCTAssertEqual(HDRPresetResolver.configuration(for: "calibrated-v5")?.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+    }
+
+    @MainActor
+    func testSDRTransferCanBeSwitchedDuringPlayback() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal device unavailable") }
+        var configuration = try PlayerOptions.parse(arguments: ["HDRPlayer", "--edr-test-pattern"]).baseConfiguration()
+        XCTAssertEqual(configuration.sdrTransferInterpretation, .youtubeHLGDerivedInverseLuminanceGain)
+        configuration.sdrTransferInterpretation = .youtubeHLGDerivedInverseLuminanceGain
+        let controller = try await PlaybackController.make(url: nil, configuration: configuration, device: device)
+        defer { controller.stop() }
+        XCTAssertEqual(controller.sdrTransferInterpretation, .youtubeHLGDerivedInverseLuminanceGain)
+        controller.setSDRTransferInterpretation(.bt709InverseOETFSceneLinear)
+        XCTAssertEqual(controller.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
     }
 
     func testSDRTransferInterpretationOptionReachesConfiguration() throws {
@@ -704,6 +721,57 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertThrowsError(try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer"
         ]))
+    }
+
+    func testYouTubeHLGDecodeIsSelectableAndListedInUsage() throws {
+        let parsed = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mov", "--sdr-transfer", "youtube-hlg-v2"
+        ])
+        XCTAssertEqual(try parsed.baseConfiguration().sdrTransferInterpretation, .youtubeHLGDerivedInverseLuminanceGain)
+        for policy in HDRSDRTransferInterpretation.allCases {
+            XCTAssertTrue(PlayerOptions.usage.contains(policy.cliName), "usage must list \(policy.cliName)")
+        }
+    }
+
+    func testUndecodableVideoAdviceGivesAShellSafeConversion() {
+        let url = URL(fileURLWithPath: "/tmp/My Fancam's [4K].webm")
+        let advice = UndecodableVideoAdvice.message(url: url, codec: "vp09")
+        XCTAssertTrue(advice.contains("cannot decode VP9 video"))
+        XCTAssertTrue(advice.contains("-i '/tmp/My Fancam'\\''s [4K].webm'"), advice)
+        XCTAssertTrue(advice.contains("'/tmp/My Fancam'\\''s [4K]-hevc.mov'"), advice)
+        // zsh treats an unquoted 0:a? as a glob and refuses to run the command.
+        XCTAssertTrue(advice.contains("-map '0:a?'"))
+        XCTAssertTrue(advice.contains("--sdr-transfer youtube-hlg-v2"))
+        XCTAssertTrue(UndecodableVideoAdvice.message(url: url, codec: "av01").contains("AV1"))
+    }
+
+    func testUndecodableVideoAdviceFlagsVP9AndPassesHEVC() async throws {
+        guard let ffmpeg = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].first(where: {
+            FileManager.default.isExecutableFile(atPath: $0)
+        }) else { throw XCTSkip("ffmpeg is required for codec fixtures") }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("hdr-undecodable-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cases: [(String, [String], Bool)] = [
+            ("vp9.mp4", ["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8"], true),
+            ("hevc.mov", ["-c:v", "hevc_videotoolbox", "-tag:v", "hvc1"], false)
+        ]
+        for (name, codec, undecodable) in cases {
+            let url = root.appendingPathComponent(name)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ffmpeg)
+            process.arguments = ["-hide_banner", "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi",
+                                 "-i", "testsrc2=s=128x72:r=30:d=0.5", "-pix_fmt", "yuv420p"] + codec + [url.path]
+            process.standardError = FileHandle.nullDevice
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw XCTSkip("\(name) encoding unavailable") }
+            let asset = AVURLAsset(url: url)
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            let track = try XCTUnwrap(tracks.first)
+            let advice = try await UndecodableVideoAdvice.check(track: track, url: url)
+            XCTAssertEqual(advice != nil, undecodable, name)
+        }
     }
 
     func testGainGuidanceOptionIsOptInAndReachesConfiguration() throws {
@@ -726,4 +794,12 @@ final class PlayerLogicTests: XCTestCase {
         ]))
         XCTAssertTrue(PlayerOptions.usage.contains("--gain-guidance off|noise-gated"))
     }
+}
+
+/// A preset as the player runs it: identical except for the player's SDR decode.
+private func playerDecode(_ preset: HDRConfiguration) -> HDRConfiguration {
+    var configuration = preset
+    configuration.sdrTransferInterpretation = PlayerOptions.defaultSDRTransferInterpretation
+    configuration.skinHighlightProtection = HDRSkinProtection.on.strength
+    return configuration
 }

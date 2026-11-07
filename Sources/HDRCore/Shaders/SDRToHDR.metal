@@ -66,6 +66,10 @@ struct SDRToHDRParameters {
     float gainGuidanceTextureLow;
     float gainGuidanceTextureHigh;
     float gainGuidanceMinimumTolerance;
+    // Skin highlight protection (HDRConfiguration.skinHighlightProtection);
+    // 0 skips it.
+    float skinHighlightProtection;
+    float skinHighlightCeiling;
 };
 
 struct HDRDebugStats {
@@ -869,7 +873,115 @@ inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid
     return gainGuidanceRatioReference(texture, gid, layout, int(min(p.gainGuidanceRadius, 4u)), p);
 }
 
-inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, float guidanceRatio = 1.0f) {
+// How skin-like a signal RGB is (0...1): red is the largest channel, hue
+// from -25 degrees (pink) to 60 (cream yellow), saturation 0.025-0.55, with
+// soft edges. Pale pink (255,238,238) and cream-lit (252,244,200) toon skin
+// count; neutral white, cool and strongly saturated colours do not. Mirrors HDRReference.skinHighlightWeight.
+inline float skinHighlightWeight(float3 s) {
+    // HSV hue: red-max covers pink to yellow (-60..60), green-max covers
+    // yellow to green (60..180). The brightest cream-lit toon skin often has
+    // green a hair above red (246, 252, 218: hue 71), and compression noise
+    // flips the order pixel to pixel, so a red-max-only test leaves blotches.
+    if (s.b > s.r && s.b > s.g) return 0.0f;
+    float high = max(s.r, s.g);
+    float range = high - min(s.r, min(s.g, s.b));
+    if (range <= 1e-5f || high <= 1e-5f) return 0.0f;
+    float hue = s.r >= s.g ? 60.0f * (s.g - s.b) / range : 120.0f + 60.0f * (s.b - s.r) / range;
+    float saturation = range / high;
+    float hueWeight = smoothStepSafe(-35.0f, -20.0f, hue) * (1.0f - smoothStepSafe(76.0f, 86.0f, hue));
+    float saturationWeight = smoothStepSafe(0.025f, 0.06f, saturation) * (1.0f - smoothStepSafe(0.40f, 0.55f, saturation));
+    // Past pure yellow only pale cream counts; vivid yellow-green is not skin.
+    float yellowLimit = mix(1.0f, 1.0f - smoothStepSafe(0.22f, 0.32f, saturation), smoothStepSafe(58.0f, 66.0f, hue));
+    return hueWeight * saturationWeight * yellowLimit;
+}
+
+// Compresses luminance above `ceiling`: the slope eases from 1 to 0.02 over
+// about 0.1, so skin shading keeps its order but settles just above the
+// ceiling (about 1.0-1.1x paper white) instead of reaching specular
+// brightness. Mirrors HDRReference.skinRolledLuminance.
+inline float skinRolledLuminance(float y, float ceiling) {
+    float over = y - ceiling;
+    return over <= 0.0f ? y : ceiling + over * (0.02f + 0.98f * 0.1f / (0.1f + over));
+}
+
+inline float2 reconstructedChroma(texture2d<float, access::read> uvTexture, uint2 lumaPosition, constant SDRToHDRParameters& p);
+inline float2 p010ChromaSignal(float2 stored, constant SDRToHDRParameters& p);
+
+// Skin region test for skin highlight protection. 16 samples on two rings
+// (radius r and 2r, r = 1.2% of the frame height) around a bright warm or
+// neutral pixel return two fractions:
+// x: samples at least 85% as bright as the pixel. About 1 inside a broad area
+//    and 0.5 at its edge (face edges next to dark hair); 0 for a small
+//    specular on darker surroundings, which keeps its expansion.
+// y: samples that are also skin-coloured. A highlight of any colour
+//    surrounded by equally bright skin (a toon nose or cheek highlight) is
+//    part of the skin; an eye glint on the iris or a glint on darker skin
+//    is not.
+// Non-candidates return (1, 0) and pay no extra reads.
+struct SkinRegionCounter {
+    float bright = 0.0f;
+    float skin = 0.0f;
+};
+
+inline void countSkinRegionSample(thread SkinRegionCounter& counter, float3 rgb, float threshold) {
+    float3 s = clamp(rgb, 0.0f, 1.0f);
+    if (dot(s, kBT709Luma) >= threshold) {
+        counter.bright += 1.0f;
+        counter.skin += skinHighlightWeight(s) >= 0.5f ? 1.0f : 0.0f;
+    }
+}
+
+inline bool skinRegionCandidate(float3 s, constant SDRToHDRParameters& p) {
+    return p.skinHighlightProtection > 0.0f && dot(s, kBT709Luma) >= 0.5f && s.r + 0.02f >= s.b;
+}
+
+constant float2 kSkinRingDirections[8] = {
+    float2(1.0f, 0.0f), float2(0.70710678f, 0.70710678f), float2(0.0f, 1.0f), float2(-0.70710678f, 0.70710678f),
+    float2(-1.0f, 0.0f), float2(-0.70710678f, -0.70710678f), float2(0.0f, -1.0f), float2(0.70710678f, -0.70710678f)
+};
+
+// NV12 (layout 0) and P010 (layout 1).
+template <typename YTexture>
+inline float2 skinRegion(YTexture yTexture, texture2d<float, access::read> uvTexture, uint2 gid, uint layout,
+                         float3 signal, constant SDRToHDRParameters& p) {
+    float3 s = clamp(signal, 0.0f, 1.0f);
+    if (!skinRegionCandidate(s, p)) return float2(1.0f, 0.0f);
+    float threshold = dot(s, kBT709Luma) * 0.85f;
+    float radius = max(4.0f, float(yTexture.get_height()) * 0.012f);
+    int2 last = int2(int(yTexture.get_width()) - 1, int(yTexture.get_height()) - 1);
+    SkinRegionCounter counter;
+    for (uint i = 0; i < 8u; ++i) {
+        for (uint ring = 1; ring <= 2u; ++ring) {
+            uint2 q = uint2(clamp(int2(gid) + int2(round(kSkinRingDirections[i] * radius * float(ring))), int2(0), last));
+            float stored = yTexture.read(q).r;
+            float y = layout == 0u ? (stored - p.yOffset) * p.yScale : p010LumaSignal(stored, p);
+            float2 uv = reconstructedChroma(uvTexture, q, p);
+            if (layout == 1u) uv = p010ChromaSignal(uv, p);
+            countSkinRegionSample(counter, ycbcrToRGB(y, uv, p), threshold);
+        }
+    }
+    return float2(counter.bright, counter.skin) / 16.0f;
+}
+
+// BGRA.
+inline float2 skinRegion(texture2d<float, access::read> texture, uint2 gid, float3 signal, constant SDRToHDRParameters& p) {
+    float3 s = clamp(signal, 0.0f, 1.0f);
+    if (!skinRegionCandidate(s, p)) return float2(1.0f, 0.0f);
+    float threshold = dot(s, kBT709Luma) * 0.85f;
+    float radius = max(4.0f, float(texture.get_height()) * 0.012f);
+    int2 last = int2(int(texture.get_width()) - 1, int(texture.get_height()) - 1);
+    SkinRegionCounter counter;
+    for (uint i = 0; i < 8u; ++i) {
+        for (uint ring = 1; ring <= 2u; ++ring) {
+            uint2 q = uint2(clamp(int2(gid) + int2(round(kSkinRingDirections[i] * radius * float(ring))), int2(0), last));
+            countSkinRegionSample(counter, texture.read(q).rgb, threshold);
+        }
+    }
+    return float2(counter.bright, counter.skin) / 16.0f;
+}
+
+inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, float guidanceRatio = 1.0f,
+                                 float2 region = float2(1.0f, 0.0f)) {
     float3 linear = linearizeSignal(signal, p);
     float luminance = max(dot(linear, kBT709Luma), 0.0f);
     float gain;
@@ -887,6 +999,15 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, 
         float guidedLuminance = luminance * guidanceRatio;
         gain = guidedLuminance > 0.0f ? toneExpand(guidedLuminance, p) / guidedLuminance : 0.0f;
         expandedLuminance = luminance * gain;
+    }
+    if (p.skinHighlightProtection > 0.0f && expandedLuminance > p.skinHighlightCeiling) {
+        float weight = max(skinHighlightWeight(clamp(signal, 0.0f, 1.0f)) * smoothStepSafe(0.05f, 0.20f, region.x),
+                           smoothStepSafe(0.25f, 0.50f, region.y)) * p.skinHighlightProtection;
+        if (weight > 0.0f) {
+            float protectedLuminance = mix(expandedLuminance, skinRolledLuminance(expandedLuminance, p.skinHighlightCeiling), weight);
+            gain *= protectedLuminance / expandedLuminance;
+            expandedLuminance = protectedLuminance;
+        }
     }
     float3 expanded = linear * gain;
     // Use the fixed output-domain peak as the upper edge. Using the sample
@@ -995,7 +1116,7 @@ kernel void sdrNV12ToHDR(
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float2 uv = reconstructedChroma(uvTexture, gid, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, 1.0f, skinRegion(yTexture, uvTexture, gid, 0u, signalRGB, p)), 1.0f)), gid);
 }
 
 kernel void sdrP010ToHDR(
@@ -1011,7 +1132,7 @@ kernel void sdrP010ToHDR(
     float y = p010LumaSignal(yTexture.read(gid).r, p);
     float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, 1.0f, skinRegion(yTexture, uvTexture, gid, 1u, signalRGB, p)), 1.0f)), gid);
 }
 
 kernel void sdrBGRA8ToHDR(
@@ -1024,7 +1145,7 @@ kernel void sdrBGRA8ToHDR(
         return;
     }
     float4 input = inputTexture.read(gid);
-    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p, 1.0f, skinRegion(inputTexture, gid, input.rgb, p)), 1.0f)), gid);
 }
 
 // Gain-guided variants, selected only when HDRGainGuidance is enabled.
@@ -1042,7 +1163,7 @@ kernel void sdrNV12ToHDRGuided(
     float2 uv = reconstructedChroma(uvTexture, gid, p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
     float guidance = gainGuidanceRatio(yTexture, gid, 0u, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance, skinRegion(yTexture, uvTexture, gid, 0u, signalRGB, p)), 1.0f)), gid);
 }
 
 kernel void sdrP010ToHDRGuided(
@@ -1059,7 +1180,7 @@ kernel void sdrP010ToHDRGuided(
     float2 uv = p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p);
     float3 signalRGB = ycbcrToRGB(y, uv, p);
     float guidance = gainGuidanceRatio(yTexture, gid, 1u, p);
-    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(signalRGB, p, guidance, skinRegion(yTexture, uvTexture, gid, 1u, signalRGB, p)), 1.0f)), gid);
 }
 
 kernel void sdrBGRA8ToHDRGuided(
@@ -1073,7 +1194,7 @@ kernel void sdrBGRA8ToHDRGuided(
     }
     float4 input = inputTexture.read(gid);
     float guidance = gainGuidanceRatio(inputTexture, gid, 2u, p);
-    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p, guidance), 1.0f)), gid);
+    outputTexture.write(half4(float4(transformSignalRGB(input.rgb, p, guidance, skinRegion(inputTexture, gid, input.rgb, p)), 1.0f)), gid);
 }
 
 kernel void sdrNV12ToHDRDebug(
@@ -1091,7 +1212,7 @@ kernel void sdrNV12ToHDRDebug(
     }
     float y = (yTexture.read(gid).r - p.yOffset) * p.yScale;
     float3 signalRGB = ycbcrToRGB(y, reconstructedChroma(uvTexture, gid, p), p);
-    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 0u, p));
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 0u, p), skinRegion(yTexture, uvTexture, gid, 0u, signalRGB, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());
@@ -1112,7 +1233,7 @@ kernel void sdrP010ToHDRDebug(
     }
     float y = p010LumaSignal(yTexture.read(gid).r, p);
     float3 signalRGB = ycbcrToRGB(y, p010ChromaSignal(reconstructedChroma(uvTexture, gid, p), p), p);
-    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 1u, p));
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(yTexture, gid, 1u, p), skinRegion(yTexture, uvTexture, gid, 1u, signalRGB, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());
@@ -1131,7 +1252,7 @@ kernel void sdrBGRA8ToHDRDebug(
         return;
     }
     float3 signalRGB = inputTexture.read(gid).rgb;
-    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(inputTexture, gid, 2u, p));
+    float3 output = transformSignalRGB(signalRGB, p, gainGuidanceRatio(inputTexture, gid, 2u, p), skinRegion(inputTexture, gid, signalRGB, p));
     outputTexture.write(half4(float4(output, 1.0f)), gid);
     accumulateDebug(signalRGB, output, p, stats, histograms, details, gid,
                     outputTexture.get_width(), outputTexture.get_height());

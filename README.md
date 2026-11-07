@@ -111,6 +111,130 @@ explicit opt-in (`--sdr-transfer bt1886` in `HDRPlayer` and `HDRSample`). A
 preset may adopt it only after a calibration rebase that records the policy
 identifier.
 
+### SDR renditions of YouTube HDR uploads
+
+When an upload is HLG HDR, YouTube also serves an SDR rendition. That SDR file
+is YouTube's automatic conversion, not a separate grade.
+`--sdr-transfer youtube-hlg-v2` inverts that conversion: a 17-knot curve back
+to the HLG signal, then the HLG inverse OETF with a luminance OOTF.
+
+Results against YouTube's own HLG rendition (open-content v2, round 7):
+
+| family | error / V2, default decode | error / V2, `youtube-hlg-v2` |
+|---|---:|---:|
+| KBS uploads | 0.905 | 0.384 |
+| other uploaders (fancam) | 0.824 | 0.430 |
+| fancam, Validation pairs only | 0.900 | 0.545 |
+
+- The fancam pairs are other uploaders and were never used to fit the curve.
+- The absolute level is within about 6% of the HDR rendition (median level gain 0.93–0.95). The default decode is 20–30% too dark.
+- Use the flag only for such renditions. An upload that is SDR at the source has no HDR original, and the curve does not apply to it.
+
+YouTube serves VP9 or AV1, usually in WebM. AVFoundation cannot open WebM or
+decode its VP9 (checked on an M2), and AV1 may fail too. `HDRPlayer` converts
+such an input once with VideoToolbox HEVC, then plays it:
+- colour tags are kept;
+- 10-bit sources stay 10-bit (Main10) and keep their transfer (checked with HLG);
+- the copy goes to `.build/converted/` beside the binary, or to `--convert-dir DIR`;
+- the copy is reused while the source file is unchanged.
+
+```bash
+./.build/release/HDRPlayer "video.webm" --sdr-transfer youtube-hlg-v2
+```
+
+`--no-convert` turns this off. `HDRSample` and `--no-convert` print the
+equivalent ffmpeg command instead.
+
+**`HDRPlayer` decodes BT.709 SDR with `youtube-hlg-v2` by default.**
+- Press **Y** (보기 menu, or the settings window) for a video that was SDR at the source. This switches to the plain BT.709 inverse OETF while the video keeps playing.
+- The window title shows the active decode.
+- `--sdr-transfer bt709-oetf` starts in that mode.
+- The calibration presets and `HDRSample` keep the historical inverse OETF.
+
+### Skin highlight protection
+
+SDR has no way to tell bright diffuse skin from a specular highlight: both sit near the top of the code range. The expansion curve sends that range towards peak brightness.
+
+On toon-shaded CG and anime (MMD renders, for example), large bright skin areas then glow white:
+- with `calibrated-v5`, skin at (255, 232, 220) came out at 1032 nits;
+- pure white comes out at 1323 nits.
+
+`HDRPlayer` enables skin protection by default (`--skin-protection off|weak|on`, also in settings).
+
+How it works:
+- **Candidates:** bright warm or neutral pixels.
+- **Skin colour:** not blue-dominant, hue from pale pink (−25°) through cream yellow to pale cream with green a hair above red (up to about 80°; past 60° only saturation below 0.3), saturation 0.025–0.55. The brightest cream-lit toon skin is often (246, 252, 218); compression noise flips red and green pixel to pixel, so a red-largest test left glowing blotches on close-up foreheads.
+- **Ring test:** 16 samples on two rings around the pixel (radius 1.2% and 2.4% of the frame height). Each is checked for being at least 85% as bright as the pixel, and for being skin-coloured.
+- **Compressed:**
+  - skin-coloured pixels inside a broad bright area, including its edges next to dark hair;
+  - highlights of any colour surrounded by equally bright skin, such as a white toon highlight on the nose.
+- **How:** above 0.9× paper white, the slope eases from 1 to 0.02, so skin settles at about SDR white (at most about 1.1×) and its shading keeps its order.
+  - The ceiling sits just under paper white because many displays have little EDR headroom: about 2× on a MacBook Air, less at high brightness.
+  - The player squeezes everything above SDR white into that narrow range and desaturates the top of it. Skin even 1.3–1.5× paper white then ends up next to real whites and reads as glowing white.
+  - The YouTube decodes use a lower ceiling, 0.65×. They render skin about 1.5× more saturated, and saturated bright colour looks brighter than its luminance.
+- **Kept:** eye glints on the iris, glints on darker skin, neutral white, cool and strongly saturated colours.
+
+| `calibrated-v5`, BT.709 decode | before | broad skin | small glint |
+|---|---:|---:|---:|
+| pale pink (255, 238, 238) | 1153 nits | 222 nits | 1153 nits |
+| peach (255, 232, 220) | 1032 nits | 219 nits | 1032 nits |
+| white (255, 255, 255) | 1323 nits | 1323 nits | 1323 nits |
+
+Measured on a real MMD render (1080p60 H.264) through the player pipeline. Values are in multiples of paper white (1.0 = SDR white):
+
+| `calibrated-v5`, bright skin | median | p90 | p99 | white |
+|---|---:|---:|---:|---:|
+| BT.709 decode, protection off (face close-up) | 3.07 | 5.12 | 5.77 | 6.27 |
+| BT.709 decode, protection on | 1.04 | 1.08 | 1.10 | 6.27 |
+| YouTube decode, protection off | 0.70 | 1.23 | 3.43 | 6.20 |
+| YouTube decode, protection on | 0.69 | 0.75 | 0.80 | 6.20 |
+
+Thin limbs count as broad skin as well. In a full-body shot with raised arms, BT.709 skin p90 went from 4.82 to 1.11.
+
+Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
+
+### Upscaling, settings and the playback bar
+
+`HDRPlayer` upscales the processed HDR frame with **MetalFX spatial scaling** before presentation:
+- `--upscale off|1.5x|2x|auto`; the default `auto` goes up to the size the video occupies on screen.
+- Factors never exceed the on-screen size, and a video already at least as large as its window is not upscaled.
+- The scaler runs in its HDR mode on the linear EDR frame. The presentation shader then clamps each sample to the 2×2 source texels around it (anti-ringing), so sharpening adds no halo.
+- On a hard HDR edge (0.2 → 2.0) at 4× display size:
+  - 10–90% edge width: 2 px, against 4 px for bilinear;
+  - overshoot: 0% with the clamp, against 15.5% without it.
+- Cost: about 1 ms of GPU per frame for 360×640 → 704×1280 on an M2. GPU render p50 went from 1.9 to 3.0 ms.
+
+The window has a playback bar: play/pause, position, a seek slider, duration and a settings button.
+- It appears when the mouse moves and hides after a few seconds of playback.
+- The settings window (⌘, or the gear) switches preset, SDR decode and upscaling while the video plays.
+- The app remembers these choices.
+
+### Opening videos from Finder
+
+```bash
+scripts/make-hdrplayer-app.sh   # builds HDRPlayer.app in this folder
+```
+
+Then, for any video:
+- **Right-click → Open With → HDRPlayer**; or
+- **Get Info → Open with: HDRPlayer → Change All…**, after which a double-click opens HDRPlayer.
+
+How the app behaves:
+- Double-clicking the app itself asks for a file.
+- File → Open (⌘O) replaces the current video.
+- WebM/VP9 is converted on first open into `.build/converted/`.
+- The app remembers your last Y choice.
+
+### Images
+
+`HDRPlayer` also opens still images (JPEG, PNG, HEIC, TIFF, WebP, GIF), from the command line, File → Open or Finder's Open With. The same engine and settings apply: preset, upscaling and skin protection.
+- The image is decoded once with ImageIO, its EXIF orientation applied, and scaled so its longer side is at most 4096 px.
+- It is drawn into an sRGB buffer, so Display P3 colours are converted into sRGB, because the engine accepts BT.709-family primaries only. Transparency is composited over black.
+- It enters the engine as one sRGB-tagged frame, processed for 30 frames so scene statistics and temporal adaptation settle, as at a video's start. The display link then pauses until a setting or the display's headroom changes.
+- The SDR decode choice (Y, the YouTube decode) is a reinterpretation of BT.709-tagged video, so it is disabled for images.
+- The bar shrinks to a settings button.
+- The app is signed ad hoc and lives only in this folder.
+
 ## Commands
 
 ```bash

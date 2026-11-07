@@ -731,6 +731,35 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// not stretched by the expansion curve's slope.
     public var gainGuidance: HDRGainGuidance
 
+    /// Skin highlight protection, 0...1. 0 (every preset) leaves output
+    /// unchanged. Above 0, skin-like pixels (pale pink to cream yellow) that
+    /// belong to a broad bright region, and highlights surrounded by equally
+    /// bright skin (toon nose highlights), whose expanded luminance exceeds
+    /// `skinHighlightCeiling` × paper white are compressed (slope easing from
+    /// 1 to 0.02, order kept, settling just under 1.1× paper white), so large
+    /// bright diffuse skin (toon-shaded CG and anime such as MMD renders) stays
+    /// at about SDR white instead of being pushed into specular-highlight
+    /// brightness. The ceiling sits below paper white because displays with
+    /// little EDR headroom (about 2× on a MacBook Air, less at high
+    /// brightness) squeeze everything above SDR white into a narrow range and
+    /// desaturate it at the top, so skin even 1.3× paper white reads as white.
+    /// Small speculars (eye highlights, glints), neutral white, cool and
+    /// strongly saturated highlights keep their expansion.
+    public var skinHighlightProtection: Float
+    public static let skinHighlightCeiling: Float = 0.9
+    /// Lower ceiling for the YouTube HLG-derived decodes. They render skin
+    /// about 1.5x more saturated (chroma 0.8 against 0.5 on MMD skin), and
+    /// saturated bright colour reads brighter than its luminance.
+    public static let youtubeSkinHighlightCeiling: Float = 0.65
+
+    /// The skin highlight ceiling for an effective (interpreted) SDR decode.
+    public static func skinHighlightCeiling(for decode: HDRTransferFunction) -> Float {
+        switch decode {
+        case .youtubeHLGInverse, .youtubeHLGInverseLuminanceGain: return youtubeSkinHighlightCeiling
+        default: return skinHighlightCeiling
+        }
+    }
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -768,6 +797,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
         gainGuidance: HDRGainGuidance = .off,
+        skinHighlightProtection: Float = 0,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -797,6 +827,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.inputFallbackPolicy = inputFallbackPolicy
         self.sdrTransferInterpretation = sdrTransferInterpretation
         self.gainGuidance = gainGuidance
+        self.skinHighlightProtection = skinHighlightProtection
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController
@@ -940,6 +971,7 @@ public struct HDRConfiguration: Sendable, Equatable {
             ("shadowProtection", shadowProtection),
             ("temporalStability", temporalStability),
             ("masteringHeadroom", masteringHeadroom),
+            ("skinHighlightProtection", skinHighlightProtection),
             ("developmentLowMidFadePosition", developmentLowMidFadePosition),
             ("developmentLowMidStrength", developmentLowMidStrength),
             ("developmentExpansionMinimumBudget", developmentExpansionMinimumBudget),
@@ -982,6 +1014,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard (0...1).contains(temporalStability) else {
             throw HDRConfigurationError.valueOutOfRange("temporalStability (0...1)")
+        }
+        guard (0...1).contains(skinHighlightProtection) else {
+            throw HDRConfigurationError.valueOutOfRange("skinHighlightProtection (0...1)")
         }
         guard masteringHeadroom >= 1, masteringHeadroom <= 64 else {
             throw HDRConfigurationError.valueOutOfRange("masteringHeadroom (1...64)")

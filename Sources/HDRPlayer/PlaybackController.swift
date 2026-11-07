@@ -20,6 +20,7 @@ public enum HDRPlayerError: Error, LocalizedError {
     case presentationSamplerCreationFailed
     case displayLinkUnavailable
     case invalidPlaybackState(String)
+    case undecodableVideo(String)
 
     public var errorDescription: String? {
         switch self {
@@ -36,6 +37,7 @@ public enum HDRPlayerError: Error, LocalizedError {
         case .presentationSamplerCreationFailed: return "presentation sampler creation failed"
         case .displayLinkUnavailable: return "CAMetalDisplayLink could not be created"
         case .invalidPlaybackState(let reason): return "invalid playback state: \(reason)"
+        case .undecodableVideo(let advice): return advice
         }
     }
 }
@@ -87,6 +89,17 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public let player: AVPlayer
     public let metrics = PlayerMetrics()
     public let isTestPattern: Bool
+    /// A still image shown through the engine instead of a video.
+    public let stillImage: CVPixelBuffer?
+    public var isStillImage: Bool { stillImage != nil }
+    /// Frames left to process the still image (its scene statistics and
+    /// temporal adaptation settle over the first frames, as at a video's
+    /// start), then frames left before the display link pauses.
+    private var stillFramesToProcess = 0
+    private var stillIdleFramesBeforePause = 0
+    private var stillTimestampIndex: Int64 = 0
+    static let stillSettleFrames = 30
+    static let stillIdleFrames = 30
 
     public private(set) var videoInfo: PlaybackVideoInfo?
     public private(set) var displayCapabilities = DisplayCapabilities.fallback
@@ -230,7 +243,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     public var onPlaybackActivityChanged: ((Bool) -> Void)?
     public var diagnosticJSONDirectory: URL?
 
-    private let baseConfiguration: HDRConfiguration
+    private var baseConfiguration: HDRConfiguration
     private let diagnosticsEnabled: Bool
     private let v2Processor: HDRProcessor?
     private let v4Processor: HDRProcessor?
@@ -282,7 +295,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             v62Candidate: v62Candidate,
             resolvedDecodePrecision: fallbackDecision.resolved,
             precisionDecision: fallbackDecision,
-            assetOverride: nil
+            assetOverride: nil,
+            stillImage: nil
         )
     }
 
@@ -316,6 +330,24 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw HDRPlayerError.fileNotFound(url)
         }
+        if StillImageSource.isImage(url) {
+            let image = try await StillImageSource.loadInBackground(url).pixelBuffer
+            let fallbackDecision = HDRDecodePrecisionResolver.fallbackDecision(for: decodePrecision)
+            return try PlaybackController(
+                url: nil,
+                configuration: configuration,
+                device: device,
+                controlledAB: controlledAB,
+                diagnosticsEnabled: diagnosticsEnabled,
+                controlledV6: controlledV6,
+                v6Candidate: v6Candidate,
+                v62Candidate: v62Candidate,
+                resolvedDecodePrecision: fallbackDecision.resolved,
+                precisionDecision: fallbackDecision,
+                assetOverride: nil,
+                stillImage: image
+            )
+        }
         let asset = AVURLAsset(url: url)
         let decision = await HDRDecodePrecisionResolver.resolve(
             asset: asset,
@@ -332,7 +364,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
             v62Candidate: v62Candidate,
             resolvedDecodePrecision: decision.resolved,
             precisionDecision: decision,
-            assetOverride: asset
+            assetOverride: asset,
+            stillImage: nil
         )
     }
 
@@ -347,10 +380,12 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         v62Candidate: HDRV62ToneCurveCandidate,
         resolvedDecodePrecision: HDRResolvedDecodePrecision,
         precisionDecision: HDRDecodePrecisionDecision,
-        assetOverride: AVAsset?
+        assetOverride: AVAsset?,
+        stillImage: CVPixelBuffer?
     ) throws {
         self.baseConfiguration = configuration
-        self.isTestPattern = url == nil
+        self.isTestPattern = url == nil && stillImage == nil
+        self.stillImage = stillImage
         self.decodePrecisionDecision = precisionDecision
         let useControlledV6 = controlledV6 && !controlledAB
         self.controlledABComparisonEnabled = controlledAB
@@ -461,6 +496,25 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
 
     public func prepare() {
         metrics.markPrepareCalled()
+        if let stillImage {
+            let size = CGSize(width: CVPixelBufferGetWidth(stillImage), height: CVPixelBufferGetHeight(stillImage))
+            let info = PlaybackVideoInfo(
+                encodedSize: size,
+                displaySize: size,
+                orientation: .identity,
+                duration: .invalid,
+                nominalFrameRate: 0,
+                hasAudioTrack: false
+            )
+            videoInfo = info
+            isReady = true
+            didNotifyReady = true
+            stillFramesToProcess = Self.stillSettleFrames
+            stillIdleFramesBeforePause = Self.stillIdleFrames
+            metrics.markReadyToPlay()
+            onReady?(info)
+            return
+        }
         if isTestPattern {
             let info = PlaybackVideoInfo(
                 encodedSize: CGSize(width: 1920, height: 1080),
@@ -484,9 +538,12 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         }
         Task { @MainActor [weak self] in
             do {
-                let tracks = try await asset.loadTracks(withMediaType: .video)
-                guard let track = tracks.first else {
+                let sourceURL = (asset as? AVURLAsset)?.url ?? URL(fileURLWithPath: "input-video")
+                guard let track = try await UndecodableVideoAdvice.videoTrack(of: asset, url: sourceURL) else {
                     throw HDRPlayerError.assetLoadFailed("no video track")
+                }
+                if let advice = try await UndecodableVideoAdvice.check(track: track, url: sourceURL) {
+                    throw HDRPlayerError.undecodableVideo(advice)
                 }
                 let naturalSize = try await track.load(.naturalSize)
                 let transform = try await track.load(.preferredTransform)
@@ -540,8 +597,25 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         }
     }
 
+    /// The SDR decode of the base configuration.
+    public var sdrTransferInterpretation: HDRSDRTransferInterpretation {
+        baseConfiguration.sdrTransferInterpretation
+    }
+
+    /// Switches the SDR decode during playback and redraws the current frame.
+    public func setSDRTransferInterpretation(_ policy: HDRSDRTransferInterpretation) {
+        guard policy != baseConfiguration.sdrTransferInterpretation else { return }
+        baseConfiguration.sdrTransferInterpretation = policy
+        updateDisplayCapabilities(displayCapabilities)
+    }
+
     public func play() {
         guard isReady else { return }
+        if isStillImage {
+            // Nothing to play: run the display link until the image settles.
+            onPlaybackActivityChanged?(true)
+            return
+        }
         player.play()
         metrics.markPlaybackStarted()
         onPlaybackActivityChanged?(true)
@@ -553,6 +627,7 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
     }
 
     public func togglePlayPause() {
+        guard !isStillImage else { return }
         if player.rate == 0 {
             play()
         } else {
@@ -560,10 +635,30 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         }
     }
 
+    /// The playback position in seconds.
+    public var currentSeconds: Double {
+        player.currentTime().isNumeric ? player.currentTime().seconds : 0
+    }
+
+    public var isPlaying: Bool { player.rate != 0 }
+
+    /// Replaces the base configuration (for example another preset) and
+    /// redraws the current frame.
+    public func setBaseConfiguration(_ configuration: HDRConfiguration) {
+        baseConfiguration = configuration
+        updateDisplayCapabilities(displayCapabilities)
+    }
+
     public func seek(by seconds: Double) {
+        seek(toSeconds: currentSeconds + seconds)
+    }
+
+    /// Seeks to an absolute position. `exact: false` allows the nearest
+    /// keyframe within half a second, for scrubbing.
+    public func seek(toSeconds seconds: Double, exact: Bool = true) {
         guard let duration = videoInfo?.duration, duration.isNumeric else { return }
-        let current = player.currentTime().isNumeric ? player.currentTime().seconds : 0
-        let target = min(max(current + seconds, 0), max(duration.seconds, 0))
+        let target = min(max(seconds, 0), max(duration.seconds, 0))
+        let tolerance = exact ? CMTime.zero : CMTime(seconds: 0.5, preferredTimescale: 600)
         let requestedSeekGeneration = seekRedrawCoordinator.begin(wasPlaying: player.rate != 0)
         player.pause()
         selector.reset()
@@ -575,8 +670,8 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
         needsFrameReprocessing = false
         player.seek(
             to: CMTime(seconds: target, preferredTimescale: 600),
-            toleranceBefore: .zero,
-            toleranceAfter: .zero
+            toleranceBefore: tolerance,
+            toleranceAfter: tolerance
         ) { [weak self] finished in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -771,6 +866,54 @@ public final class PlaybackController: NSObject, @preconcurrency AVPlayerItemOut
                 orientation: .identity,
                 fallbackToSDR: !displayCapabilities.isActivelyUsingEDR,
                 testPattern: true,
+                masteringHeadroom: activeMasteringHeadroom,
+                displayHeadroom: effectiveDisplayHeadroom,
+                diagnosticFrameIndex: diagnosticFrameIndexStorage,
+                diagnosticROI: displayROI
+            )
+        } else if let stillImage, let info = videoInfo {
+            if needsFrameReprocessing {
+                // A setting or the display changed: settle again, then idle.
+                needsFrameReprocessing = false
+                stillFramesToProcess = Self.stillSettleFrames
+                stillIdleFramesBeforePause = Self.stillIdleFrames
+                onPlaybackActivityChanged?(true)
+            }
+            if stillFramesToProcess > 0 || lastFrame == nil {
+                do {
+                    stillTimestampIndex += 1
+                    let frames = try processFrame(
+                        pixelBuffer: stillImage,
+                        timestamp: CMTime(value: stillTimestampIndex, timescale: 60),
+                        commandBuffer: commandBuffer,
+                        frameIndex: nextDiagnosticFrameIndex(),
+                        roi: displayROI
+                    )
+                    processedFrame = frames.active
+                    lastFrame = frames.active
+                    stillFramesToProcess = max(stillFramesToProcess - 1, 0)
+                    metrics.recordProcessedFrame()
+                } catch HDRProcessorError.outputTexturePoolExhausted {
+                    metrics.recordInFlightSaturation()
+                } catch {
+                    reportError(error)
+                }
+            } else {
+                reused = lastFrame != nil
+                if stillIdleFramesBeforePause > 0 {
+                    stillIdleFramesBeforePause -= 1
+                    if stillIdleFramesBeforePause == 0 { onPlaybackActivityChanged?(false) }
+                }
+            }
+            didEncodePresentation = renderer.encode(
+                texture: processedFrame?.texture ?? lastFrame?.texture,
+                drawable: update.drawable,
+                commandBuffer: commandBuffer,
+                sourceSize: info.displaySize,
+                drawableSize: drawableSize,
+                orientation: .identity,
+                fallbackToSDR: !displayCapabilities.isActivelyUsingEDR,
+                testPattern: false,
                 masteringHeadroom: activeMasteringHeadroom,
                 displayHeadroom: effectiveDisplayHeadroom,
                 diagnosticFrameIndex: diagnosticFrameIndexStorage,
