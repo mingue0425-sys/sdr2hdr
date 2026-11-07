@@ -6,7 +6,7 @@ public enum HDRPresetResolver {
     public static let productionDefault = "calibrated-v4"
 
     public static var supportedPresetNames: [String] {
-        ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate"] +
+        ["natural", "hdr", "vivid", "calibrated-v1", "calibrated-v2", "calibrated-v4", "calibrated-v3-candidate", "open-v2-candidate"] +
             HDRV6ToneCurveCandidate.allCases.map(\.rawValue) +
             HDRV62ToneCurveCandidate.allCases.map(\.rawValue)
     }
@@ -27,6 +27,7 @@ public enum HDRPresetResolver {
         case "calibrated-v2": return .calibratedV2
         case "calibrated-v4": return .calibratedV4
         case "calibrated-v3-candidate": return .calibratedV3Candidate
+        case "open-v2-candidate": return .openContentV2Candidate
         default: return nil
         }
     }

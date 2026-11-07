@@ -880,6 +880,25 @@ public struct HDRConfiguration: Sendable, Equatable {
         sceneHistogramStrategy: .production
     )
 
+    /// Open-content v2 round-4 candidate `local_020` (shape-oetf-ythlg run,
+    /// `results/open-content-v2/round4/v4-shape-oetf-ythlg/`). Selected on
+    /// Tune/Validation only; it is **not promoted**, so it is opt-in and the
+    /// production default stays `calibratedV4`. The declared YouTube-HLG
+    /// reconstruction of that run is not part of this preset.
+    public static let openContentV2Candidate = HDRConfiguration(
+        paperWhiteNits: 203.30556,
+        peakNits: 1_408.8245,
+        highlightStrength: 0.86,
+        contrastStrength: 0.8019736,
+        saturationCompensation: 0.4161492,
+        shadowProtection: 0.7381159,
+        temporalStability: 0.48427606,
+        outputMode: .edr,
+        displayHeadroom: 6.9295917,
+        toneCurveRevision: .sceneRelativeV4,
+        sceneHistogramStrategy: .production
+    )
+
     public func validated() throws -> HDRConfiguration {
         let finiteValues: [(String, Float)] = [
             ("paperWhiteNits", paperWhiteNits),

@@ -674,6 +674,18 @@ final class PlayerLogicTests: XCTestCase {
         XCTAssertEqual(defaultConfiguration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
     }
 
+    func testOpenContentV2CandidatePresetIsOptInAndMatchesTheRound4Candidate() throws {
+        XCTAssertEqual(HDRPresetResolver.productionDefault, "calibrated-v4")
+        let configuration = try PlayerOptions.parse(arguments: [
+            "HDRPlayer", "/tmp/video.mp4", "--preset", "open-v2-candidate"
+        ]).baseConfiguration()
+        XCTAssertEqual(configuration.paperWhiteNits, 203.30556, accuracy: 1e-4)
+        XCTAssertEqual(configuration.peakNits, 1_408.8245, accuracy: 1e-3)
+        XCTAssertEqual(configuration.highlightStrength, 0.86, accuracy: 1e-6)
+        XCTAssertEqual(configuration.toneCurveRevision, .sceneRelativeV4)
+        XCTAssertEqual(configuration.sdrTransferInterpretation, .bt709InverseOETFSceneLinear)
+    }
+
     func testSDRTransferInterpretationOptionReachesConfiguration() throws {
         let parsed = try PlayerOptions.parse(arguments: [
             "HDRPlayer", "/tmp/video.mp4", "--sdr-transfer", "bt1886"
