@@ -472,6 +472,12 @@ public final class PairEvaluator {
     }
 
     func prepare(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
+        try await ProxyFrameCache.scope(for: record.split) {
+            try await prepareInScope(record: record, manifestURL: manifestURL)
+        }
+    }
+
+    private func prepareInScope(record: PairRecord, manifestURL: URL) async throws -> PreparedPair {
         guard (1...512).contains(experiment.maxFramesPerScene) else {
             throw CalibrationError.incompleteEvaluation(
                 "maxFramesPerScene is outside the supported 1...512 range"
@@ -576,6 +582,21 @@ public final class PairEvaluator {
     /// Any path, byte, decode, timestamp, or identity drift fails closed before
     /// objective pixels are evaluated.
     func materialize(
+        record: PairRecord,
+        manifestURL: URL,
+        manifest: V4Manifest,
+        pairPlan: V6PreparedPairPlan,
+        preparation: V6PreparationConfiguration
+    ) async throws -> PreparedPair {
+        try await ProxyFrameCache.scope(for: record.split) {
+            try await materializeInScope(
+                record: record, manifestURL: manifestURL, manifest: manifest,
+                pairPlan: pairPlan, preparation: preparation
+            )
+        }
+    }
+
+    private func materializeInScope(
         record: PairRecord,
         manifestURL: URL,
         manifest: V4Manifest,

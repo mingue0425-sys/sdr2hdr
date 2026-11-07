@@ -131,7 +131,34 @@ public enum FrameReader {
         startSeconds: Double,
         frameCount: Int = 16,
         framesPerSecond: Double = 30,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        cache: ProxyFrameCache? = ProxyFrameCache.current
+    ) async throws -> FrameSequence {
+        guard let cache else {
+            return try await readWindowUncached(
+                url: url, pixelFormat: pixelFormat, startSeconds: startSeconds,
+                frameCount: frameCount, framesPerSecond: framesPerSecond, proxyWidth: proxyWidth
+            )
+        }
+        let request = [
+            "window", String(pixelFormat), String(startSeconds.bitPattern), String(frameCount),
+            String(framesPerSecond.bitPattern), String(proxyWidth)
+        ]
+        return try await cache.sequence(source: url, request: request) {
+            try await readWindowUncached(
+                url: url, pixelFormat: pixelFormat, startSeconds: startSeconds,
+                frameCount: frameCount, framesPerSecond: framesPerSecond, proxyWidth: proxyWidth
+            )
+        }
+    }
+
+    private static func readWindowUncached(
+        url: URL,
+        pixelFormat: OSType,
+        startSeconds: Double,
+        frameCount: Int,
+        framesPerSecond: Double,
+        proxyWidth: Int
     ) async throws -> FrameSequence {
         guard (1...512).contains(frameCount),
               (16...512).contains(proxyWidth),
@@ -186,7 +213,23 @@ public enum FrameReader {
         url: URL,
         pixelFormat: OSType,
         maxFrames: Int = 240,
-        proxyWidth: Int = 320
+        proxyWidth: Int = 320,
+        cache: ProxyFrameCache? = ProxyFrameCache.current
+    ) async throws -> FrameSequence {
+        guard let cache else {
+            return try await readUncached(url: url, pixelFormat: pixelFormat, maxFrames: maxFrames, proxyWidth: proxyWidth)
+        }
+        let request = ["read", String(pixelFormat), String(maxFrames), String(proxyWidth)]
+        return try await cache.sequence(source: url, request: request) {
+            try await readUncached(url: url, pixelFormat: pixelFormat, maxFrames: maxFrames, proxyWidth: proxyWidth)
+        }
+    }
+
+    private static func readUncached(
+        url: URL,
+        pixelFormat: OSType,
+        maxFrames: Int,
+        proxyWidth: Int
     ) async throws -> FrameSequence {
         guard (1...512).contains(maxFrames),
               (16...512).contains(proxyWidth),
