@@ -28,6 +28,11 @@ final class SkinHighlightProtectionTests: XCTestCase {
         let skinRamp: [SIMD3<Float>] = [
             SIMD3(225, 180, 160), SIMD3(240, 200, 180), SIMD3(250, 220, 205), SIMD3(255, 232, 220)
         ].map { $0 / 255 }
+        // Pale pink toon skin, which colour-only detection missed.
+        for pale: SIMD3<Float> in [SIMD3(255, 238, 238) / 255, SIMD3(250, 230, 232) / 255, SIMD3(255, 245, 240) / 255] {
+            XCTAssertLessThan(luminance(HDRReference.process(signalRGB: pale, configuration: on)), 2.0, "\(pale)")
+            XCTAssertGreaterThan(luminance(HDRReference.process(signalRGB: pale, configuration: off)), 4.0, "\(pale)")
+        }
         var previous: Float = 0
         for skin in skinRamp {
             let before = HDRReference.process(signalRGB: skin, configuration: off)
@@ -46,11 +51,16 @@ final class SkinHighlightProtectionTests: XCTestCase {
         let lit = HDRReference.process(signalRGB: skinRamp[3], configuration: off)
         XCTAssertGreaterThan(luminance(lit), 4, "the fixture must exercise the problem")
         for untouched: SIMD3<Float> in [
-            SIMD3(repeating: 1), SIMD3(255, 250, 245) / 255, SIMD3(255, 180, 100) / 255,
+            SIMD3(repeating: 1), SIMD3(255, 180, 100) / 255,
             SIMD3(200, 225, 255) / 255, SIMD3(repeating: 0.5), SIMD3(0.9, 0.2, 0.1)
         ] {
             XCTAssertEqual(HDRReference.process(signalRGB: untouched, configuration: on),
                            HDRReference.process(signalRGB: untouched, configuration: off), "\(untouched)")
+        }
+        // A small specular (darker surroundings) keeps its expansion even in skin colours.
+        for specular in skinRamp + [SIMD3(255, 238, 238) / 255] {
+            XCTAssertEqual(HDRReference.process(signalRGB: specular, configuration: on, skinRegion: 0.6),
+                           HDRReference.process(signalRGB: specular, configuration: off), "\(specular)")
         }
     }
 
@@ -59,6 +69,9 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(repeating: 1)), 0)
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.2, 0.5, 0.9)), 0, "cool colours are not skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 180, 100) / 255), 0, "saturated orange is not skin")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 238, 238) / 255), 1, accuracy: 1e-6, "pale pink skin")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 253, 253) / 255), 0, "near-neutral white")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.9, 0.4, 0.9)), 0, "magenta is not skin")
         let ceiling = HDRConfiguration.skinHighlightCeiling
         XCTAssertEqual(HDRReference.skinRolledLuminance(1.0, ceiling: ceiling), 1.0)
         var last = ceiling
@@ -98,6 +111,70 @@ final class SkinHighlightProtectionTests: XCTestCase {
                 XCTAssertEqual(gpu[channel], cpu[channel], accuracy: max(abs(cpu[channel]) * 0.01, 2e-3), "\(bgr) channel \(channel)")
             }
         }
+    }
+
+    /// On a real frame, a broad pale skin area is compressed while a small dot
+    /// of the same colour on darker skin (an eye highlight or glint) keeps
+    /// its expansion.
+    func testGPUCompressesBroadSkinButNotSmallSpeculars() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let width = 320, height = 180
+        var configuration = HDRConfiguration.calibratedV5
+        configuration.toneCurveRevision = .legacyV2
+        configuration.skinHighlightProtection = 1
+        var result: CVPixelBuffer?
+        let attributes = [kCVPixelBufferMetalCompatibilityKey as String: true,
+                          kCVPixelBufferIOSurfacePropertiesKey as String: [:]] as CFDictionary
+        XCTAssertEqual(CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attributes, &result), kCVReturnSuccess)
+        let buffer = try XCTUnwrap(result)
+        CVPixelBufferLockBaseAddress(buffer, [])
+        let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer))
+        for y in 0..<height {
+            let row = base.advanced(by: y * CVPixelBufferGetBytesPerRow(buffer)).assumingMemoryBound(to: UInt8.self)
+            for x in 0..<width {
+                // Left half: broad pale skin. Right half: darker skin with a 3x3 glint at (240, 90).
+                let broad = x < 160
+                let glint = abs(x - 240) <= 1 && abs(y - 90) <= 1
+                let rgb: (UInt8, UInt8, UInt8) = broad || glint ? (255, 238, 238) : (190, 140, 130)
+                row[4 * x] = rgb.2; row[4 * x + 1] = rgb.1; row[4 * x + 2] = rgb.0; row[4 * x + 3] = 255
+            }
+        }
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+        CVBufferSetAttachment(buffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(buffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_709_2, .shouldPropagate)
+        let processor = try HDRProcessor(device: device, configuration: configuration)
+        let command = try processor.makeCommandBuffer()
+        let frame = try processor.process(pixelBuffer: buffer, commandBuffer: command)
+        command.commit()
+        command.waitUntilCompleted()
+        XCTAssertEqual(command.status, .completed)
+        let pixels = try readRGBA16Float(frame.texture, device: device)
+        func y(_ x: Int, _ yy: Int) -> Float {
+            let i = (yy * width + x) * 4
+            return luminance(SIMD4(pixels[i], pixels[i + 1], pixels[i + 2], 1))
+        }
+        let broadSkin = y(80, 90), glint = y(240, 90)
+        let unprotected = luminance(HDRReference.process(signalRGB: SIMD3(255, 238, 238) / 255, configuration: {
+            var c = configuration; c.skinHighlightProtection = 0; return c }()))
+        XCTAssertLessThan(broadSkin, 2.0, "broad skin no longer glows")
+        XCTAssertEqual(glint, unprotected, accuracy: unprotected * 0.02, "the glint keeps its full expansion")
+        XCTAssertGreaterThan(glint, broadSkin * 2)
+    }
+
+    private func readRGBA16Float(_ texture: MTLTexture, device: MTLDevice) throws -> [Float] {
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: texture.width, height: texture.height, mipmapped: false)
+        descriptor.storageMode = .shared
+        let shared = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let command = try XCTUnwrap(queue.makeCommandBuffer())
+        let blit = try XCTUnwrap(command.makeBlitCommandEncoder())
+        blit.copy(from: texture, to: shared)
+        blit.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        var halves = [Float16](repeating: 0, count: texture.width * texture.height * 4)
+        shared.getBytes(&halves, bytesPerRow: texture.width * 8, from: MTLRegionMake2D(0, 0, texture.width, texture.height), mipmapLevel: 0)
+        return halves.map(Float.init)
     }
 
     private func makeBuffer(bgr: (UInt8, UInt8, UInt8)) throws -> CVPixelBuffer {

@@ -69,7 +69,8 @@ public enum HDRReference {
         transferFunction: HDRTransferFunction = .bt709,
         inputPrimaries: HDRInputPrimaries = .bt709,
         temporalAdaptation: Float = 1,
-        sceneStatistics: HDRSceneStatistics? = nil
+        sceneStatistics: HDRSceneStatistics? = nil,
+        skinRegion: Float = 1
     ) -> SIMD4<Float> {
         let signal = SIMD3<Float>(
             min(max(signalRGB.x, 0), 1),
@@ -100,7 +101,8 @@ public enum HDRReference {
         var gain = luminance > 0 ? expandedLuminance / luminance : 0
         let ceiling = HDRConfiguration.skinHighlightCeiling
         if configuration.skinHighlightProtection > 0, expandedLuminance > ceiling {
-            let weight = skinHighlightWeight(signal) * configuration.skinHighlightProtection
+            let weight = skinHighlightWeight(signal) * smoothstep(0.72, 0.92, skinRegion) *
+                configuration.skinHighlightProtection
             if weight > 0 {
                 let rolled = skinRolledLuminance(expandedLuminance, ceiling: ceiling)
                 let protectedLuminance = expandedLuminance + (rolled - expandedLuminance) * weight
@@ -138,22 +140,22 @@ public enum HDRReference {
     }
 
     /// Compresses luminance above `ceiling` with a slope easing from 1 to
-    /// 0.15. Mirrors the Metal `skinRolledLuminance`.
+    /// 0.1. Mirrors the Metal `skinRolledLuminance`.
     static func skinRolledLuminance(_ y: Float, ceiling: Float) -> Float {
         let over = y - ceiling
-        return over <= 0 ? y : ceiling + over * (0.15 + 0.85 * 0.15 / (0.15 + over))
+        return over <= 0 ? y : ceiling + over * (0.1 + 0.9 * 0.15 / (0.15 + over))
     }
 
     /// How skin-like a signal RGB is (0...1). Mirrors the Metal
     /// `skinHighlightWeight`.
     static func skinHighlightWeight(_ s: SIMD3<Float>) -> Float {
-        guard s.x >= s.y, s.y >= s.z else { return 0 }
-        let range = s.x - s.z
+        guard s.x >= s.y, s.x >= s.z else { return 0 }
+        let range = s.x - min(s.y, s.z)
         guard range > 1e-5, s.x > 1e-5 else { return 0 }
         let hue = 60 * (s.y - s.z) / range
         let saturation = range / s.x
-        let hueWeight = smoothstep(3, 10, hue) * (1 - smoothstep(45, 55, hue))
-        let saturationWeight = smoothstep(0.05, 0.12, saturation) * (1 - smoothstep(0.40, 0.55, saturation))
+        let hueWeight = smoothstep(-35, -20, hue) * (1 - smoothstep(45, 55, hue))
+        let saturationWeight = smoothstep(0.025, 0.06, saturation) * (1 - smoothstep(0.40, 0.55, saturation))
         return hueWeight * saturationWeight
     }
 

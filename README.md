@@ -159,11 +159,22 @@ On toon-shaded CG and anime (MMD renders, for example), large bright skin areas 
 - with `calibrated-v5`, skin at (255, 232, 220) came out at 1032 nits;
 - pure white comes out at 1323 nits.
 
-`HDRPlayer` enables skin protection by default (`--skin-protection off|weak|on`, also in settings):
-- Warm, moderately saturated pixels whose expanded luminance exceeds 1.25× paper white are compressed. The slope eases from 1 to 0.15, so the order of skin shading is kept.
-- The same skin now comes out at 396 nits, and (250, 220, 205) at 348 nits instead of 716, with unchanged saturation.
-- Neutral white, warm white, sky, saturated colours and everything below the ceiling are bit-identical.
-- Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
+`HDRPlayer` enables skin protection by default (`--skin-protection off|weak|on`, also in settings).
+
+How it works:
+- A pixel is a candidate when its colour is skin-like: red the largest channel, hue from pale pink (−25°) to orange (50°), saturation 0.025–0.55.
+- It must also lie in a broad bright region. The mean luma on two rings around it (radius 1.2% and 2.4% of the frame height) must be close to its own luma.
+- Candidates above 1.1× paper white are compressed. The slope eases from 1 to 0.1, so skin shading keeps its order.
+- Small speculars of the same colour on darker surroundings, such as eye highlights and glints, keep their full expansion.
+- Neutral white, cool colours and strongly saturated colours are bit-identical.
+
+| `calibrated-v5`, BT.709 decode | before | broad skin | small glint |
+|---|---:|---:|---:|
+| pale pink (255, 238, 238) | 1153 nits | 343 nits | 1153 nits |
+| peach (255, 232, 220) | 1032 nits | 331 nits | 1032 nits |
+| white (255, 255, 255) | 1323 nits | 1323 nits | 1323 nits |
+
+Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
 
 ### Upscaling, settings and the playback bar
 

@@ -732,13 +732,15 @@ public struct HDRConfiguration: Sendable, Equatable {
     public var gainGuidance: HDRGainGuidance
 
     /// Skin highlight protection, 0...1. 0 (every preset) leaves output
-    /// unchanged. Above 0, skin-like warm pixels whose expanded luminance
-    /// exceeds `skinHighlightCeiling` × paper white are compressed (slope
-    /// easing from 1 to 0.15, order kept), so large bright diffuse skin (toon-shaded CG and anime
+    /// unchanged. Above 0, skin-like pixels (pale pink to orange) that belong
+    /// to a broad bright region and whose expanded luminance exceeds
+    /// `skinHighlightCeiling` × paper white are compressed (slope easing from
+    /// 1 to 0.1, order kept), so large bright diffuse skin (toon-shaded CG and anime
     /// such as MMD renders) is not pushed into specular-highlight brightness.
-    /// White, desaturated and strongly saturated highlights are unaffected.
+    /// Small speculars (eye highlights, glints), neutral white, cool and
+    /// strongly saturated highlights keep their expansion.
     public var skinHighlightProtection: Float
-    public static let skinHighlightCeiling: Float = 1.25
+    public static let skinHighlightCeiling: Float = 1.1
 
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
