@@ -168,16 +168,27 @@ How it works:
 - **Compressed:**
   - skin-coloured pixels inside a broad bright area, including its edges next to dark hair;
   - highlights of any colour surrounded by equally bright skin, such as a white toon highlight on the nose.
-- **How:** above 1.1× paper white, the slope eases from 1 to 0.1, so skin shading keeps its order.
+- **How:** above 0.9× paper white, the slope eases from 1 to 0.02, so skin settles at about SDR white (at most about 1.1×) and its shading keeps its order.
+  - The ceiling sits just under paper white because many displays have little EDR headroom: about 2× on a MacBook Air, less at high brightness.
+  - The player squeezes everything above SDR white into that narrow range and desaturates the top of it. Skin even 1.3–1.5× paper white then ends up next to real whites and reads as glowing white.
 - **Kept:** eye glints on the iris, glints on darker skin, neutral white, cool and strongly saturated colours.
 
 | `calibrated-v5`, BT.709 decode | before | broad skin | small glint |
 |---|---:|---:|---:|
-| pale pink (255, 238, 238) | 1153 nits | 343 nits | 1153 nits |
-| peach (255, 232, 220) | 1032 nits | 331 nits | 1032 nits |
+| pale pink (255, 238, 238) | 1153 nits | 222 nits | 1153 nits |
+| peach (255, 232, 220) | 1032 nits | 219 nits | 1032 nits |
 | white (255, 255, 255) | 1323 nits | 1323 nits | 1323 nits |
 
-On a face close-up from a real MMD render (1080p H.264), face skin went from median 856 / p95 1149 nits to 313 / 344 nits. White elsewhere in the frame stayed at 1270 nits.
+Measured on a real MMD render (1080p60 H.264) through the player pipeline. Values are in multiples of paper white (1.0 = SDR white):
+
+| `calibrated-v5`, bright skin | median | p90 | p99 | white |
+|---|---:|---:|---:|---:|
+| BT.709 decode, protection off (face close-up) | 3.07 | 5.12 | 5.77 | 6.27 |
+| BT.709 decode, protection on | 1.04 | 1.08 | 1.10 | 6.27 |
+| YouTube decode, protection off | 0.70 | 1.23 | 3.43 | 6.20 |
+| YouTube decode, protection on | 0.70 | 0.98 | 1.04 | 6.20 |
+
+Thin limbs count as broad skin as well. In a full-body shot with raised arms, BT.709 skin p90 went from 4.82 to 1.11.
 
 Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
 

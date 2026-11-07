@@ -102,7 +102,7 @@ public enum HDRReference {
         let ceiling = HDRConfiguration.skinHighlightCeiling
         if configuration.skinHighlightProtection > 0, expandedLuminance > ceiling {
             let region = skinRegion ?? flatFieldSkinRegion(signal)
-            let weight = max(skinHighlightWeight(signal) * smoothstep(0.10, 0.35, region.x),
+            let weight = max(skinHighlightWeight(signal) * smoothstep(0.05, 0.20, region.x),
                              smoothstep(0.25, 0.50, region.y)) * configuration.skinHighlightProtection
             if weight > 0 {
                 let rolled = skinRolledLuminance(expandedLuminance, ceiling: ceiling)
@@ -141,10 +141,10 @@ public enum HDRReference {
     }
 
     /// Compresses luminance above `ceiling` with a slope easing from 1 to
-    /// 0.1. Mirrors the Metal `skinRolledLuminance`.
+    /// 0.02. Mirrors the Metal `skinRolledLuminance`.
     static func skinRolledLuminance(_ y: Float, ceiling: Float) -> Float {
         let over = y - ceiling
-        return over <= 0 ? y : ceiling + over * (0.1 + 0.9 * 0.15 / (0.15 + over))
+        return over <= 0 ? y : ceiling + over * (0.02 + 0.98 * 0.1 / (0.1 + over))
     }
 
     /// The kernel's ring test on a flat field of `signal`: every sample is as

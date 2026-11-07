@@ -736,12 +736,17 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// belong to a broad bright region, and highlights surrounded by equally
     /// bright skin (toon nose highlights), whose expanded luminance exceeds
     /// `skinHighlightCeiling` × paper white are compressed (slope easing from
-    /// 1 to 0.1, order kept), so large bright diffuse skin (toon-shaded CG and anime
-    /// such as MMD renders) is not pushed into specular-highlight brightness.
+    /// 1 to 0.02, order kept, settling just under 1.1× paper white), so large
+    /// bright diffuse skin (toon-shaded CG and anime such as MMD renders) stays
+    /// at about SDR white instead of being pushed into specular-highlight
+    /// brightness. The ceiling sits below paper white because displays with
+    /// little EDR headroom (about 2× on a MacBook Air, less at high
+    /// brightness) squeeze everything above SDR white into a narrow range and
+    /// desaturate it at the top, so skin even 1.3× paper white reads as white.
     /// Small speculars (eye highlights, glints), neutral white, cool and
     /// strongly saturated highlights keep their expansion.
     public var skinHighlightProtection: Float
-    public static let skinHighlightCeiling: Float = 1.1
+    public static let skinHighlightCeiling: Float = 0.9
 
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains

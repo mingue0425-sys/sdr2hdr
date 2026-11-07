@@ -30,7 +30,7 @@ final class SkinHighlightProtectionTests: XCTestCase {
         ].map { $0 / 255 }
         // Pale pink toon skin, which colour-only detection missed.
         for pale: SIMD3<Float> in [SIMD3(255, 238, 238) / 255, SIMD3(250, 230, 232) / 255, SIMD3(255, 245, 240) / 255] {
-            XCTAssertLessThan(luminance(HDRReference.process(signalRGB: pale, configuration: on)), 2.0, "\(pale)")
+            XCTAssertLessThan(luminance(HDRReference.process(signalRGB: pale, configuration: on)), 1.15, "\(pale)")
             XCTAssertGreaterThan(luminance(HDRReference.process(signalRGB: pale, configuration: off)), 4.0, "\(pale)")
         }
         var previous: Float = 0
@@ -39,7 +39,7 @@ final class SkinHighlightProtectionTests: XCTestCase {
             let after = HDRReference.process(signalRGB: skin, configuration: on)
             let y = luminance(after)
             XCTAssertLessThanOrEqual(y, luminance(before) + 1e-6)
-            XCTAssertLessThan(y, 2.0, "skin \(skin) stays below 2x paper white")
+            XCTAssertLessThan(y, 1.15, "skin \(skin) stays at about SDR white")
             XCTAssertGreaterThan(y, previous, "skin shading keeps its order")
             previous = y
             // Same chromaticity: the protected value is a uniform scale of the
@@ -76,12 +76,13 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 253, 253) / 255), 0, "near-neutral white")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.9, 0.4, 0.9)), 0, "magenta is not skin")
         let ceiling = HDRConfiguration.skinHighlightCeiling
-        XCTAssertEqual(HDRReference.skinRolledLuminance(1.0, ceiling: ceiling), 1.0)
+        XCTAssertEqual(HDRReference.skinRolledLuminance(ceiling - 0.1, ceiling: ceiling), ceiling - 0.1)
         var last = ceiling
         for y in stride(from: ceiling + 0.05, through: 8, by: 0.25) as StrideThrough<Float> {
             let rolled = HDRReference.skinRolledLuminance(y, ceiling: ceiling)
             XCTAssertGreaterThan(rolled, last)
             XCTAssertLessThan(rolled, y)
+            XCTAssertLessThan(rolled, 1.15, "skin settles at about SDR white even from \(y)")
             last = rolled
         }
     }
@@ -163,11 +164,11 @@ final class SkinHighlightProtectionTests: XCTestCase {
         let broadSkin = y(80, 90), glint = y(240, 90)
         let unprotected = luminance(HDRReference.process(signalRGB: SIMD3(255, 238, 238) / 255, configuration: {
             var c = configuration; c.skinHighlightProtection = 0; return c }()))
-        XCTAssertLessThan(broadSkin, 2.0, "broad skin no longer glows")
+        XCTAssertLessThan(broadSkin, 1.15, "broad skin no longer glows")
         XCTAssertEqual(glint, unprotected, accuracy: unprotected * 0.02, "the glint keeps its full expansion")
         XCTAssertGreaterThan(glint, broadSkin * 2)
         let white = luminance(HDRReference.process(signalRGB: SIMD3(repeating: 1), configuration: configuration))
-        XCTAssertLessThan(y(80, 40), 2.0, "a white toon highlight inside bright skin is part of the skin")
+        XCTAssertLessThan(y(80, 40), 1.15, "a white toon highlight inside bright skin is part of the skin")
         XCTAssertEqual(y(240, 40), white, accuracy: white * 0.02, "a white glint on darker skin keeps its expansion")
     }
 

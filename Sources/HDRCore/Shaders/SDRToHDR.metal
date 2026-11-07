@@ -889,12 +889,13 @@ inline float skinHighlightWeight(float3 s) {
     return hueWeight * saturationWeight;
 }
 
-// Compresses luminance above `ceiling`: the slope eases from 1 to 0.1 over
-// about 0.15, so skin shading keeps its order and gradient but no longer
-// reaches specular brightness. Mirrors HDRReference.skinRolledLuminance.
+// Compresses luminance above `ceiling`: the slope eases from 1 to 0.02 over
+// about 0.1, so skin shading keeps its order but settles just above the
+// ceiling (about 1.0-1.1x paper white) instead of reaching specular
+// brightness. Mirrors HDRReference.skinRolledLuminance.
 inline float skinRolledLuminance(float y, float ceiling) {
     float over = y - ceiling;
-    return over <= 0.0f ? y : ceiling + over * (0.1f + 0.9f * 0.15f / (0.15f + over));
+    return over <= 0.0f ? y : ceiling + over * (0.02f + 0.98f * 0.1f / (0.1f + over));
 }
 
 inline float2 reconstructedChroma(texture2d<float, access::read> uvTexture, uint2 lumaPosition, constant SDRToHDRParameters& p);
@@ -994,7 +995,7 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, 
         expandedLuminance = luminance * gain;
     }
     if (p.skinHighlightProtection > 0.0f && expandedLuminance > p.skinHighlightCeiling) {
-        float weight = max(skinHighlightWeight(clamp(signal, 0.0f, 1.0f)) * smoothStepSafe(0.10f, 0.35f, region.x),
+        float weight = max(skinHighlightWeight(clamp(signal, 0.0f, 1.0f)) * smoothStepSafe(0.05f, 0.20f, region.x),
                            smoothStepSafe(0.25f, 0.50f, region.y)) * p.skinHighlightProtection;
         if (weight > 0.0f) {
             float protectedLuminance = mix(expandedLuminance, skinRolledLuminance(expandedLuminance, p.skinHighlightCeiling), weight);
