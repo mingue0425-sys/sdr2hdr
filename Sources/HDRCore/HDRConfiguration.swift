@@ -747,6 +747,18 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// strongly saturated highlights keep their expansion.
     public var skinHighlightProtection: Float
     public static let skinHighlightCeiling: Float = 0.9
+    /// Lower ceiling for the YouTube HLG-derived decodes. They render skin
+    /// about 1.5x more saturated (chroma 0.8 against 0.5 on MMD skin), and
+    /// saturated bright colour reads brighter than its luminance.
+    public static let youtubeSkinHighlightCeiling: Float = 0.75
+
+    /// The skin highlight ceiling for an effective (interpreted) SDR decode.
+    public static func skinHighlightCeiling(for decode: HDRTransferFunction) -> Float {
+        switch decode {
+        case .youtubeHLGInverse, .youtubeHLGInverseLuminanceGain: return youtubeSkinHighlightCeiling
+        default: return skinHighlightCeiling
+        }
+    }
 
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains

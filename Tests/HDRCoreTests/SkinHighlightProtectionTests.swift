@@ -21,6 +21,25 @@ final class SkinHighlightProtectionTests: XCTestCase {
         }
     }
 
+    /// The YouTube HLG-derived decode renders skin more saturated, so its
+    /// skin settles lower than with the BT.709 decode; white is unaffected.
+    func testYouTubeDecodeHoldsSkinLower() {
+        var youtube = configuration(protection: 1)
+        youtube.sdrTransferInterpretation = .youtubeHLGDerivedInverseLuminanceGain
+        var youtubeOff = youtube
+        youtubeOff.skinHighlightProtection = 0
+        XCTAssertEqual(HDRConfiguration.skinHighlightCeiling(for: .youtubeHLGInverseLuminanceGain),
+                       HDRConfiguration.youtubeSkinHighlightCeiling)
+        XCTAssertEqual(HDRConfiguration.skinHighlightCeiling(for: .bt709), HDRConfiguration.skinHighlightCeiling)
+        for skin: SIMD3<Float> in [SIMD3(255, 232, 220) / 255, SIMD3(255, 238, 238) / 255, SIMD3(252, 244, 200) / 255] {
+            let y = luminance(HDRReference.process(signalRGB: skin, configuration: youtube))
+            XCTAssertLessThan(y, HDRConfiguration.youtubeSkinHighlightCeiling + 0.2, "\(skin)")
+            XCTAssertLessThan(y, luminance(HDRReference.process(signalRGB: skin, configuration: configuration(protection: 1))), "\(skin)")
+        }
+        XCTAssertEqual(HDRReference.process(signalRGB: SIMD3(repeating: 1), configuration: youtube),
+                       HDRReference.process(signalRGB: SIMD3(repeating: 1), configuration: youtubeOff))
+    }
+
     /// Bright toon-shaded skin (MMD) no longer reaches specular brightness,
     /// keeps its colour and shading order; nothing else changes.
     func testBrightSkinIsCompressedAndOtherHighlightsAreUntouched() {
@@ -101,6 +120,8 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertLessThan(luminance(HDRReference.process(signalRGB: lit, configuration: configuration)),
                           luminance(HDRReference.process(signalRGB: lit, configuration: unprotected)) * 0.8,
                           "the GPU fixture must exercise the protection")
+        for decode: HDRSDRTransferInterpretation in [.bt709InverseOETFSceneLinear, .youtubeHLGDerivedInverseLuminanceGain] {
+        configuration.sdrTransferInterpretation = decode
         for bgr: (UInt8, UInt8, UInt8) in [(220, 232, 255), (205, 220, 250), (255, 255, 255), (60, 120, 230)] {
             let signal = SIMD3<Float>(Float(bgr.2), Float(bgr.1), Float(bgr.0)) / 255
             let processor = try HDRProcessor(device: device, configuration: configuration)
@@ -112,8 +133,9 @@ final class SkinHighlightProtectionTests: XCTestCase {
             let gpu = try readFirstRGBA16FloatPixel(from: frame.texture, device: device)
             let cpu = HDRReference.process(signalRGB: signal, configuration: configuration)
             for channel in 0..<3 {
-                XCTAssertEqual(gpu[channel], cpu[channel], accuracy: max(abs(cpu[channel]) * 0.01, 2e-3), "\(bgr) channel \(channel)")
+                XCTAssertEqual(gpu[channel], cpu[channel], accuracy: max(abs(cpu[channel]) * 0.01, 2e-3), "\(decode) \(bgr) channel \(channel)")
             }
+        }
         }
     }
 

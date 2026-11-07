@@ -99,7 +99,7 @@ public enum HDRReference {
         // A fixed denominator floor attenuates valid near-black light twice.
         // Positive RGB has positive luminance, so only exact black needs a guard.
         var gain = luminance > 0 ? expandedLuminance / luminance : 0
-        let ceiling = HDRConfiguration.skinHighlightCeiling
+        let ceiling = HDRConfiguration.skinHighlightCeiling(for: decode)
         if configuration.skinHighlightProtection > 0, expandedLuminance > ceiling {
             let region = skinRegion ?? flatFieldSkinRegion(signal)
             let weight = max(skinHighlightWeight(signal) * smoothstep(0.05, 0.20, region.x),

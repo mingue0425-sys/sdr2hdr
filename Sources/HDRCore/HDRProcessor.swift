@@ -1514,7 +1514,8 @@ public final class HDRProcessor {
             gainGuidanceTextureHigh: configuration.gainGuidance.textureHigh,
             gainGuidanceMinimumTolerance: configuration.gainGuidance.minimumTolerance,
             skinHighlightProtection: configuration.skinHighlightProtection,
-            skinHighlightCeiling: HDRConfiguration.skinHighlightCeiling
+            skinHighlightCeiling: HDRConfiguration.skinHighlightCeiling(
+                for: color.metadata.transferFunction.interpreted(by: configuration.sdrTransferInterpretation))
         )
         return (parameters, temporalSnapshot.sequence, shadowCoordinates.sequence)
     }

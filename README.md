@@ -171,6 +171,7 @@ How it works:
 - **How:** above 0.9× paper white, the slope eases from 1 to 0.02, so skin settles at about SDR white (at most about 1.1×) and its shading keeps its order.
   - The ceiling sits just under paper white because many displays have little EDR headroom: about 2× on a MacBook Air, less at high brightness.
   - The player squeezes everything above SDR white into that narrow range and desaturates the top of it. Skin even 1.3–1.5× paper white then ends up next to real whites and reads as glowing white.
+  - The YouTube decodes use a lower ceiling, 0.75×. They render skin about 1.5× more saturated, and saturated bright colour looks brighter than its luminance.
 - **Kept:** eye glints on the iris, glints on darker skin, neutral white, cool and strongly saturated colours.
 
 | `calibrated-v5`, BT.709 decode | before | broad skin | small glint |
@@ -186,7 +187,7 @@ Measured on a real MMD render (1080p60 H.264) through the player pipeline. Value
 | BT.709 decode, protection off (face close-up) | 3.07 | 5.12 | 5.77 | 6.27 |
 | BT.709 decode, protection on | 1.04 | 1.08 | 1.10 | 6.27 |
 | YouTube decode, protection off | 0.70 | 1.23 | 3.43 | 6.20 |
-| YouTube decode, protection on | 0.70 | 0.98 | 1.04 | 6.20 |
+| YouTube decode, protection on | 0.70 | 0.84 | 0.90 | 6.20 |
 
 Thin limbs count as broad skin as well. In a full-body shot with raised arms, BT.709 skin p90 went from 4.82 to 1.11.
 
