@@ -20,8 +20,8 @@ are reused, so re-running later continues where it stopped. Browser cookies are 
 - each HDR file must decode as HLG (arib-std-b67), otherwise the download is removed;
 - downloading stops when free disk space would fall below --min-free-gb.
 
-The report (JSON) lists every listing with its decision. `--emit-list` writes the downloaded ids, in order,
-for add_kchoreo_from_list.py. No media is decoded beyond ffprobe stream tags.
+The report (JSON) lists every listing with its decision. `--emit-list` writes, for add_kchoreo_from_list.py,
+every downloaded upload not yet in the manifest: earlier runs' in listing order, then this run's. No media is decoded beyond ffprobe stream tags.
 
 Usage:
   python3 -I find_kchoreo_hdr.py REPO_ROOT --report OUT.json [--download N] [--emit-list LIST.json]
@@ -138,7 +138,14 @@ def main():
     entries = json.loads(listing.stdout).get('entries', [])
     known_ids, known_songs = existing(root)
 
-    rows, seen_songs, to_probe = [], set(), []
+    def on_disk(vid):
+        return all(os.path.exists(f'{root}/data_video/kchoreo-v2/{vid}/{vid}.f{itag}.mp4') for itag in ('642', '628'))
+
+    # A downloaded upload that is not yet in the manifest reserves its song wherever it sits in the
+    # listing, so a second copy of the same stage is never picked ahead of it.
+    pending = [e for e in entries if e.get('id') not in known_ids and on_disk(e.get('id'))]
+    seen_songs = {song_key(e.get('title')) for e in pending} - {None}
+    rows, to_probe, unadded = [], [], []
     for entry in entries:
         vid, title = entry.get('id'), entry.get('title') or ''
         key = song_key(title)
@@ -147,10 +154,9 @@ def main():
             row['decision'] = 'skip: title lacks K-Choreo/HDR'
         elif vid in known_ids:
             row['decision'] = 'skip: already in manifest'
-        elif all(os.path.exists(f'{root}/data_video/kchoreo-v2/{vid}/{vid}.f{itag}.mp4') for itag in ('642', '628')):
+        elif on_disk(vid):
             row['decision'] = 'skip: already downloaded, not yet in manifest'
-            if key:
-                seen_songs.add(key)
+            unadded.append({'id': vid, 'title': title, 'uploadDate': entry.get('upload_date')})
         elif key is None:
             row['decision'] = 'skip: no artist/song in title'
         elif key in known_songs:
@@ -166,15 +172,21 @@ def main():
     # Probe one listing at a time, at most --probe-limit of them, with a pause between requests.
     # YouTube answers a burst of metadata requests with a bot check; on the first one, probing stops
     # and the remaining rows are left unprobed. Probe results from an earlier report are reused.
-    previous = {}
+    previous, rejected = {}, {}
     if os.path.exists(args.report):
         for row in json.load(open(args.report)).get('rows', []):
-            if row.get('decision') in ('candidate', 'downloaded') or 'has642' in row:
+            if row.get('decision', '').startswith('removed'):
+                # The download was not HLG; keep that verdict instead of downloading it again.
+                rejected[row['id']] = row['decision']
+            elif row.get('decision') in ('candidate', 'downloaded') or 'has642' in row:
                 previous[row['id']] = {k: row[k] for k in ('channel', 'uploadDate', 'duration', 'has642', 'has628')
                                        if k in row}
     probed = 0
     blocked = False
     for row in to_probe:
+        if row['id'] in rejected:
+            row['decision'] = rejected[row['id']]
+            continue
         if row['id'] in previous:
             info = previous[row['id']]
         elif blocked or probed >= args.probe_limit:
@@ -214,7 +226,7 @@ def main():
     json.dump({'query': args.query, 'listed': len(entries), 'rows': rows}, open(args.report, 'w'),
               indent=2, ensure_ascii=False)
     if args.emit_list:
-        json.dump(downloaded, open(args.emit_list, 'w'), indent=2, ensure_ascii=False)
+        json.dump(unadded + downloaded, open(args.emit_list, 'w'), indent=2, ensure_ascii=False)
     counts = {}
     for row in rows:
         counts[row['decision'].split(':')[0]] = counts.get(row['decision'].split(':')[0], 0) + 1

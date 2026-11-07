@@ -33,4 +33,18 @@ final class V4PairGuardrailTests: XCTestCase {
         )
         XCTAssertEqual(records.map(\.pairID), ["m", "z"])
     }
+
+    func testDeclaredFamiliesResolveToTheirPairs() throws {
+        let families = ["a": "K-Choreo", "b": "KBS Music Bank One-take", "c": "Netflix Sparks"]
+        XCTAssertEqual(
+            try V4DeclaredSource.pairIDs(families: ["K-Choreo", "KBS Music Bank One-take"], familyByPairID: families),
+            ["a", "b"]
+        )
+    }
+
+    func testDeclaredFamilyThatNamesNoPairIsAnError() {
+        XCTAssertThrowsError(
+            try V4DeclaredSource.pairIDs(families: ["K-choreo"], familyByPairID: ["a": "K-Choreo"])
+        )
+    }
 }

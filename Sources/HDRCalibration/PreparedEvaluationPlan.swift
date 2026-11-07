@@ -51,7 +51,7 @@ public struct V6PreparationConfiguration: Codable, Hashable, Sendable {
         referenceDecoderPolicy: String = "HDRReferenceDecoder.linear-reference-v1",
         pathResolutionPolicy: String = "manifest-resolved-once;repository-relative-plan-paths",
         sceneSelectionPolicy: String = "SceneDetector.v6;sequencePosition-domain",
-        temporalSelectionPolicy: String = "anchor=max-confidence;start=anchorTime-0.05;paired-contiguous-window;pts-paired-prefix-half-frame-v1",
+        temporalSelectionPolicy: String = "anchor=max-confidence;fallback=next-4-accepted-when-pair-has-none;start=anchorTime-0.05;paired-contiguous-window;pts-paired-prefix-half-frame-v1",
         matcherConfiguration: V6MatcherConfiguration = .v6
     ) {
         self.version = version

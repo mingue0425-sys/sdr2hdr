@@ -902,10 +902,13 @@ public final class PairEvaluator {
         // Every pair needs one temporal window. When no scene's best anchor
         // leaves room for one (for example, the best anchor falls in the
         // last few frames of a short clip), try each scene's next-best
-        // anchors. A pair that already has a window is unchanged.
+        // anchors. Only anchors that pass the accepted-confidence threshold
+        // are tried, because a window on a weaker anchor would be sealed as
+        // not accepted. A pair that already has a window is unchanged.
         if windows.isEmpty {
             for (scene, anchors) in zip(scenes, sceneAnchors) {
-                for anchor in anchors.dropFirst().prefix(V6TemporalAnchorOrder.fallbackAttempts) {
+                for anchor in anchors.dropFirst().prefix(V6TemporalAnchorOrder.fallbackAttempts)
+                    where anchor.confidence >= matcherConfiguration.acceptedConfidenceThreshold {
                     if let window = try await prepareTemporalWindow(
                         scene: scene, anchor: anchor, sdrURL: sdrURL, hdrURL: hdrURL, hdrTransfer: hdrTransfer
                     ) {

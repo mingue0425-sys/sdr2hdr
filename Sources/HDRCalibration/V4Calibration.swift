@@ -586,6 +586,23 @@ public struct V4PairGuardrailRecord: Codable, Sendable, Equatable {
     public var ratioToDefault: Double
 }
 
+public enum V4DeclaredSource {
+    /// Pair ids whose content family is one of `families`. Every declared
+    /// family must name at least one pair, so a typo or wrong case fails
+    /// instead of declaring nothing.
+    public static func pairIDs(families: [String], familyByPairID: [String: String]) throws -> Set<String> {
+        let present = Set(familyByPairID.values)
+        let unknown = families.filter { !present.contains($0) }
+        guard unknown.isEmpty else {
+            throw CalibrationError.invalidManifest(
+                "declared-source families not in the manifest: \(unknown.joined(separator: ", "))"
+            )
+        }
+        let declared = Set(families)
+        return Set(familyByPairID.filter { declared.contains($0.value) }.keys)
+    }
+}
+
 public enum V4PairGuardrail {
     /// Pairs scored by the candidate and both baselines, worst ratio to V2 first (ties by pair id).
     public static func rank(
@@ -1243,9 +1260,10 @@ public final class CalibrationV4Runner {
             allPrepared = cached
             log("reused \(cached.count) materialized Tune/Validation pairs for plan \(artifact.planSHA256)")
         } else {
-            // Evaluation reads only accepted matches and temporal windows, so
-            // the full decoded proxy sequences are released after the sealed
-            // plan has been validated against them.
+            // Evaluation reads only accepted matches and temporal windows.
+            // Each materialize job already validates its pair against the
+            // sealed plan and releases the decoded proxy sequences; the map
+            // below only guarantees that for every path into the cache.
             allPrepared = try await repository.materialize(
                 records: tuneValidationV4,
                 using: artifact.plan,
@@ -1290,7 +1308,7 @@ public final class CalibrationV4Runner {
         let engine = V2EvaluationEngine(device: device, weights: configuration.weights)
         try engine.installPreparedEvaluationPlan(tuneValidationPlan)
         engine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
-        engine.configureDeclaredSource(pairIDs: declaredSourcePairIDs(manifest))
+        engine.configureDeclaredSource(pairIDs: try declaredSourcePairIDs(manifest))
 
         let defaults = parameters(.hdr, revision: .legacyV2)
         let v1 = parameters(.calibratedV1, revision: .legacyV2)
@@ -1610,7 +1628,7 @@ public final class CalibrationV4Runner {
             frozenPlan, expectedSHA256: frozenArtifact.planSHA256
         )
         frozenEngine.configureLevelNormalization(configuration.levelNormalization, familyByPairID: familyByPairID(manifest))
-        frozenEngine.configureDeclaredSource(pairIDs: declaredSourcePairIDs(manifest))
+        frozenEngine.configureDeclaredSource(pairIDs: try declaredSourcePairIDs(manifest))
         V4FrozenObjectiveAccessRegistry.shared.record(pairIDs: frozenRecords.map(\.id))
         let frozenDefault = try evaluate(frozenEngine, frozenPrepared, defaults, "default-virgin-frozen", .frozen, manifest)
         let frozenV1 = try evaluate(frozenEngine, frozenPrepared, v1, "v1-virgin-frozen", .frozen, manifest)
@@ -2028,11 +2046,13 @@ public final class CalibrationV4Runner {
         return (verdict, reasons, gates)
     }
 
-    private func declaredSourcePairIDs(_ manifest: V4Manifest) -> Set<String> {
+    /// Pairs of the declared families. A declared family that names no
+    /// manifest pair (a typo or wrong case) is an error: otherwise the
+    /// declared variant would silently score the same as its undeclared twin.
+    private func declaredSourcePairIDs(_ manifest: V4Manifest) throws -> Set<String> {
         guard configuration.declaredSourceSDRTransferInterpretation != nil,
               let families = configuration.declaredSourceFamilies else { return [] }
-        let declared = Set(families)
-        return Set(familyByPairID(manifest).filter { declared.contains($0.value) }.keys)
+        return try V4DeclaredSource.pairIDs(families: families, familyByPairID: familyByPairID(manifest))
     }
 
     private func familyByPairID(_ manifest: V4Manifest) -> [String: String] {
