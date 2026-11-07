@@ -66,6 +66,10 @@ struct SDRToHDRParameters {
     float gainGuidanceTextureLow;
     float gainGuidanceTextureHigh;
     float gainGuidanceMinimumTolerance;
+    // Skin highlight protection (HDRConfiguration.skinHighlightProtection);
+    // 0 skips it.
+    float skinHighlightProtection;
+    float skinHighlightCeiling;
 };
 
 struct HDRDebugStats {
@@ -869,6 +873,28 @@ inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid
     return gainGuidanceRatioReference(texture, gid, layout, int(min(p.gainGuidanceRadius, 4u)), p);
 }
 
+// How skin-like a signal RGB is (0...1): warm (R >= G >= B), hue 3-55
+// degrees, saturation 0.05-0.55, with soft edges. Mirrors
+// HDRReference.skinHighlightWeight.
+inline float skinHighlightWeight(float3 s) {
+    if (!(s.r >= s.g && s.g >= s.b)) return 0.0f;
+    float range = s.r - s.b;
+    if (range <= 1e-5f || s.r <= 1e-5f) return 0.0f;
+    float hue = 60.0f * (s.g - s.b) / range;
+    float saturation = range / s.r;
+    float hueWeight = smoothStepSafe(3.0f, 10.0f, hue) * (1.0f - smoothStepSafe(45.0f, 55.0f, hue));
+    float saturationWeight = smoothStepSafe(0.05f, 0.12f, saturation) * (1.0f - smoothStepSafe(0.40f, 0.55f, saturation));
+    return hueWeight * saturationWeight;
+}
+
+// Compresses luminance above `ceiling`: the slope eases from 1 to 0.15 over
+// about 0.15, so skin shading keeps its order and gradient but no longer
+// reaches specular brightness. Mirrors HDRReference.skinRolledLuminance.
+inline float skinRolledLuminance(float y, float ceiling) {
+    float over = y - ceiling;
+    return over <= 0.0f ? y : ceiling + over * (0.15f + 0.85f * 0.15f / (0.15f + over));
+}
+
 inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, float guidanceRatio = 1.0f) {
     float3 linear = linearizeSignal(signal, p);
     float luminance = max(dot(linear, kBT709Luma), 0.0f);
@@ -887,6 +913,14 @@ inline float3 transformSignalRGB(float3 signal, constant SDRToHDRParameters& p, 
         float guidedLuminance = luminance * guidanceRatio;
         gain = guidedLuminance > 0.0f ? toneExpand(guidedLuminance, p) / guidedLuminance : 0.0f;
         expandedLuminance = luminance * gain;
+    }
+    if (p.skinHighlightProtection > 0.0f && expandedLuminance > p.skinHighlightCeiling) {
+        float weight = skinHighlightWeight(clamp(signal, 0.0f, 1.0f)) * p.skinHighlightProtection;
+        if (weight > 0.0f) {
+            float protectedLuminance = mix(expandedLuminance, skinRolledLuminance(expandedLuminance, p.skinHighlightCeiling), weight);
+            gain *= protectedLuminance / expandedLuminance;
+            expandedLuminance = protectedLuminance;
+        }
     }
     float3 expanded = linear * gain;
     // Use the fixed output-domain peak as the upper edge. Using the sample

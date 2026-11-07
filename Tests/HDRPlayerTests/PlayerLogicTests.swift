@@ -800,5 +800,6 @@ final class PlayerLogicTests: XCTestCase {
 private func playerDecode(_ preset: HDRConfiguration) -> HDRConfiguration {
     var configuration = preset
     configuration.sdrTransferInterpretation = PlayerOptions.defaultSDRTransferInterpretation
+    configuration.skinHighlightProtection = HDRSkinProtection.on.strength
     return configuration
 }

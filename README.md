@@ -151,6 +151,20 @@ equivalent ffmpeg command instead.
 - `--sdr-transfer bt709-oetf` starts in that mode.
 - The calibration presets and `HDRSample` keep the historical inverse OETF.
 
+### Skin highlight protection
+
+SDR has no way to tell bright diffuse skin from a specular highlight: both sit near the top of the code range. The expansion curve sends that range towards peak brightness.
+
+On toon-shaded CG and anime (MMD renders, for example), large bright skin areas then glow white:
+- with `calibrated-v5`, skin at (255, 232, 220) came out at 1032 nits;
+- pure white comes out at 1323 nits.
+
+`HDRPlayer` enables skin protection by default (`--skin-protection off|weak|on`, also in settings):
+- Warm, moderately saturated pixels whose expanded luminance exceeds 1.25× paper white are compressed. The slope eases from 1 to 0.15, so the order of skin shading is kept.
+- The same skin now comes out at 396 nits, and (250, 220, 205) at 348 nits instead of 716, with unchanged saturation.
+- Neutral white, warm white, sky, saturated colours and everything below the ceiling are bit-identical.
+- Calibration presets keep it off (`HDRConfiguration.skinHighlightProtection = 0`).
+
 ### Upscaling, settings and the playback bar
 
 `HDRPlayer` upscales the processed HDR frame with **MetalFX spatial scaling** before presentation:

@@ -89,7 +89,7 @@ public enum HDRReference {
             linear = simd_max(toBT709 * linear, SIMD3<Float>(repeating: 0))
         }
         let luminance = max(simd_dot(linear, HDRColorMath.bt709Luminance), 0)
-        let expandedLuminance = toneExpand(
+        var expandedLuminance = toneExpand(
             luminance,
             configuration: configuration,
             temporalAdaptation: temporalAdaptation,
@@ -97,7 +97,17 @@ public enum HDRReference {
         )
         // A fixed denominator floor attenuates valid near-black light twice.
         // Positive RGB has positive luminance, so only exact black needs a guard.
-        let gain = luminance > 0 ? expandedLuminance / luminance : 0
+        var gain = luminance > 0 ? expandedLuminance / luminance : 0
+        let ceiling = HDRConfiguration.skinHighlightCeiling
+        if configuration.skinHighlightProtection > 0, expandedLuminance > ceiling {
+            let weight = skinHighlightWeight(signal) * configuration.skinHighlightProtection
+            if weight > 0 {
+                let rolled = skinRolledLuminance(expandedLuminance, ceiling: ceiling)
+                let protectedLuminance = expandedLuminance + (rolled - expandedLuminance) * weight
+                gain *= protectedLuminance / expandedLuminance
+                expandedLuminance = protectedLuminance
+            }
+        }
         var expanded = linear * gain
         let chromaReduction = highlightChromaReduction(
             expandedLuminance: expandedLuminance,
@@ -125,6 +135,26 @@ public enum HDRReference {
                 1
             )
         }
+    }
+
+    /// Compresses luminance above `ceiling` with a slope easing from 1 to
+    /// 0.15. Mirrors the Metal `skinRolledLuminance`.
+    static func skinRolledLuminance(_ y: Float, ceiling: Float) -> Float {
+        let over = y - ceiling
+        return over <= 0 ? y : ceiling + over * (0.15 + 0.85 * 0.15 / (0.15 + over))
+    }
+
+    /// How skin-like a signal RGB is (0...1). Mirrors the Metal
+    /// `skinHighlightWeight`.
+    static func skinHighlightWeight(_ s: SIMD3<Float>) -> Float {
+        guard s.x >= s.y, s.y >= s.z else { return 0 }
+        let range = s.x - s.z
+        guard range > 1e-5, s.x > 1e-5 else { return 0 }
+        let hue = 60 * (s.y - s.z) / range
+        let saturation = range / s.x
+        let hueWeight = smoothstep(3, 10, hue) * (1 - smoothstep(45, 55, hue))
+        let saturationWeight = smoothstep(0.05, 0.12, saturation) * (1 - smoothstep(0.40, 0.55, saturation))
+        return hueWeight * saturationWeight
     }
 
     private static func gamutCompress(_ rgb: SIMD3<Float>, luminance: Float, peakRatio: Float) -> SIMD3<Float> {

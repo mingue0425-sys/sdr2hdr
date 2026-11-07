@@ -171,11 +171,13 @@ public final class PlayerSettingsPanel: NSObject {
     public var onPreset: ((String) -> Void)?
     public var onSDRTransfer: ((HDRSDRTransferInterpretation) -> Void)?
     public var onUpscale: ((HDRUpscaleMode) -> Void)?
+    public var onSkinProtection: ((HDRSkinProtection) -> Void)?
 
     private let panel: NSPanel
     private let presetPopup = NSPopUpButton()
     private let sdrPopup = NSPopUpButton()
     private let upscalePopup = NSPopUpButton()
+    private let skinPopup = NSPopUpButton()
     private static let sdrChoices: [(HDRSDRTransferInterpretation, String)] = [
         (.youtubeHLGDerivedInverseLuminanceGain, "YouTube HDR 영상의 SDR 버전"),
         (.bt709InverseOETFSceneLinear, "일반 SDR")
@@ -199,26 +201,28 @@ public final class PlayerSettingsPanel: NSObject {
             upscalePopup.lastItem?.representedObject = mode.rawValue
         }
         upscalePopup.isEnabled = upscaleSupported
-        for popup in [presetPopup, sdrPopup, upscalePopup] {
+        for level in HDRSkinProtection.allCases { skinPopup.addItem(withTitle: level.displayName) }
+        for popup in [presetPopup, sdrPopup, upscalePopup, skinPopup] {
             popup.target = self
             popup.action = #selector(changed(_:))
         }
 
         let note = NSTextField(wrappingLabelWithString: upscaleSupported
-            ? "YouTube 모드는 YouTube에 HDR로 올라온 영상의 SDR 버전용입니다. 처음부터 SDR인 영상은 \"일반 SDR\"을 고르세요 (단축키 Y). 업스케일은 MetalFX로 화면 크기까지 키웁니다."
+            ? "YouTube 모드는 YouTube에 HDR로 올라온 영상의 SDR 버전용입니다. 처음부터 SDR인 영상(MMD 등)은 \"일반 SDR\"을 고르세요 (단축키 Y). 피부 보호는 밝은 피부가 하이라이트처럼 하얗게 빛나는 것을 막습니다. 업스케일은 MetalFX로 화면 크기까지 키웁니다."
             : "이 Mac은 MetalFX 업스케일을 지원하지 않습니다.")
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
         let grid = NSGridView(views: [
             [NSTextField(labelWithString: "프리셋"), presetPopup],
             [NSTextField(labelWithString: "SDR 해석"), sdrPopup],
-            [NSTextField(labelWithString: "업스케일"), upscalePopup]
+            [NSTextField(labelWithString: "업스케일"), upscalePopup],
+            [NSTextField(labelWithString: "피부 보호"), skinPopup]
         ])
         grid.column(at: 0).xPlacement = .trailing
         grid.rowAlignment = .firstBaseline
         grid.rowSpacing = 10
         grid.columnSpacing = 12
-        for popup in [presetPopup, sdrPopup, upscalePopup] {
+        for popup in [presetPopup, sdrPopup, upscalePopup, skinPopup] {
             popup.widthAnchor.constraint(equalToConstant: 280).isActive = true
         }
         let stack = NSStackView(views: [grid, note])
@@ -232,7 +236,9 @@ public final class PlayerSettingsPanel: NSObject {
         panel.setContentSize(stack.fittingSize)
     }
 
-    public func show(preset: String, sdrTransfer: HDRSDRTransferInterpretation, upscale: HDRUpscaleMode) {
+    public func show(preset: String, sdrTransfer: HDRSDRTransferInterpretation, upscale: HDRUpscaleMode,
+                     skinProtection: HDRSkinProtection) {
+        if let index = HDRSkinProtection.allCases.firstIndex(of: skinProtection) { skinPopup.selectItem(at: index) }
         if let index = presetPopup.itemArray.firstIndex(where: { ($0.representedObject as? String) == preset }) {
             presetPopup.selectItem(at: index)
         }
@@ -250,6 +256,8 @@ public final class PlayerSettingsPanel: NSObject {
             if let name = sender.selectedItem?.representedObject as? String { onPreset?(name) }
         case sdrPopup:
             onSDRTransfer?(Self.sdrChoices[max(sender.indexOfSelectedItem, 0)].0)
+        case skinPopup:
+            onSkinProtection?(HDRSkinProtection.allCases[max(sender.indexOfSelectedItem, 0)])
         default:
             if let raw = sender.selectedItem?.representedObject as? String, let mode = HDRUpscaleMode(rawValue: raw) {
                 onUpscale?(mode)

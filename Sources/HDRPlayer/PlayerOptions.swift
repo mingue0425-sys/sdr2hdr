@@ -33,6 +33,27 @@ public enum HDRPlayerCLIError: Error, LocalizedError, Equatable {
     }
 }
 
+/// Player levels of `HDRConfiguration.skinHighlightProtection`.
+public enum HDRSkinProtection: String, CaseIterable, Sendable {
+    case off, weak, on
+
+    public var strength: Float {
+        switch self {
+        case .off: return 0
+        case .weak: return 0.5
+        case .on: return 1
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .off: return "끔"
+        case .weak: return "약하게"
+        case .on: return "켬 (기본)"
+        }
+    }
+}
+
 public struct PlayerOptions: Equatable, Sendable {
     /// The player decodes BT.709 SDR as the SDR rendition of a YouTube HDR
     /// (HLG) upload unless told otherwise; Y switches to the plain BT.709
@@ -65,6 +86,10 @@ public struct PlayerOptions: Equatable, Sendable {
     public var convertDirectory: URL?
     /// MetalFX upscaling before presentation (`--upscale off|1.5x|2x|auto`).
     public var upscale: HDRUpscaleMode = .auto
+    /// `HDRConfiguration.skinHighlightProtection` (`--skin-protection off|weak|on`).
+    /// On by default: bright toon-shaded skin (MMD, anime) otherwise glows
+    /// at specular brightness. Calibration presets keep it off.
+    public var skinProtection: HDRSkinProtection = .on
 
     public init(
         inputURL: URL? = nil,
@@ -117,6 +142,7 @@ public struct PlayerOptions: Equatable, Sendable {
           HDRPlayer <video-file> --chroma-reconstruction nearest|siting-aware-bilinear
           HDRPlayer <video-file> --sdr-transfer \(HDRSDRTransferInterpretation.allCases.map(\.cliName).joined(separator: "|"))
           HDRPlayer <video-file> --gain-guidance off|noise-gated
+          HDRPlayer <video-file> --skin-protection off|weak|on   (default on: keeps bright skin from glowing)
           HDRPlayer <video-file> --upscale off|1.5x|2x|auto   (MetalFX, default auto: up to the on-screen size)
           HDRPlayer <youtube.webm> [--convert-dir DIR | --no-convert]   (VP9/AV1 inputs are converted once to HEVC)
           HDRPlayer <video-file> --controlled-ab --debug --diagnostic-roi x,y,width,height
@@ -225,6 +251,13 @@ public struct PlayerOptions: Equatable, Sendable {
                 }
                 options.gainGuidance = guidance
                 index += 2
+            case "--skin-protection":
+                let value = try valueAfter(argument, arguments: arguments, index: index)
+                guard let level = HDRSkinProtection(rawValue: value.lowercased()) else {
+                    throw HDRPlayerCLIError.invalidOption("unsupported skin protection: \(value) (off|weak|on)")
+                }
+                options.skinProtection = level
+                index += 2
             case "--upscale":
                 let value = try valueAfter(argument, arguments: arguments, index: index)
                 guard let mode = HDRUpscaleMode(cliName: value) else {
@@ -282,6 +315,7 @@ public struct PlayerOptions: Equatable, Sendable {
         configuration.inputFallbackPolicy = .bt709VideoRange
         configuration.chromaReconstructionMode = chromaReconstructionMode
         configuration.sdrTransferInterpretation = sdrTransferInterpretation
+        configuration.skinHighlightProtection = skinProtection.strength
         configuration.gainGuidance = gainGuidance
         return try configuration.validated()
     }

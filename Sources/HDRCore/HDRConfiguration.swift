@@ -731,6 +731,15 @@ public struct HDRConfiguration: Sendable, Equatable {
     /// not stretched by the expansion curve's slope.
     public var gainGuidance: HDRGainGuidance
 
+    /// Skin highlight protection, 0...1. 0 (every preset) leaves output
+    /// unchanged. Above 0, skin-like warm pixels whose expanded luminance
+    /// exceeds `skinHighlightCeiling` × paper white are compressed (slope
+    /// easing from 1 to 0.15, order kept), so large bright diffuse skin (toon-shaded CG and anime
+    /// such as MMD renders) is not pushed into specular-highlight brightness.
+    /// White, desaturated and strongly saturated highlights are unaffected.
+    public var skinHighlightProtection: Float
+    public static let skinHighlightCeiling: Float = 1.25
+
     /// Development-only V6 structural controls. They are ignored by every
     /// revision except `sceneRelativeV6Candidate`, so calibrated V4 retains
     /// its exact production arithmetic and output.
@@ -768,6 +777,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         inputFallbackPolicy: HDRInputFallbackPolicy = .bt709VideoRange,
         sdrTransferInterpretation: HDRSDRTransferInterpretation = .default,
         gainGuidance: HDRGainGuidance = .off,
+        skinHighlightProtection: Float = 0,
         developmentLowMidFadePosition: Float = 0.55,
         developmentLowMidStrength: Float = 0.08,
         developmentExpansionController: HDRV62ExpansionController = .compactCombined,
@@ -797,6 +807,7 @@ public struct HDRConfiguration: Sendable, Equatable {
         self.inputFallbackPolicy = inputFallbackPolicy
         self.sdrTransferInterpretation = sdrTransferInterpretation
         self.gainGuidance = gainGuidance
+        self.skinHighlightProtection = skinHighlightProtection
         self.developmentLowMidFadePosition = developmentLowMidFadePosition
         self.developmentLowMidStrength = developmentLowMidStrength
         self.developmentExpansionController = developmentExpansionController
@@ -940,6 +951,7 @@ public struct HDRConfiguration: Sendable, Equatable {
             ("shadowProtection", shadowProtection),
             ("temporalStability", temporalStability),
             ("masteringHeadroom", masteringHeadroom),
+            ("skinHighlightProtection", skinHighlightProtection),
             ("developmentLowMidFadePosition", developmentLowMidFadePosition),
             ("developmentLowMidStrength", developmentLowMidStrength),
             ("developmentExpansionMinimumBudget", developmentExpansionMinimumBudget),
@@ -982,6 +994,9 @@ public struct HDRConfiguration: Sendable, Equatable {
         }
         guard (0...1).contains(temporalStability) else {
             throw HDRConfigurationError.valueOutOfRange("temporalStability (0...1)")
+        }
+        guard (0...1).contains(skinHighlightProtection) else {
+            throw HDRConfigurationError.valueOutOfRange("skinHighlightProtection (0...1)")
         }
         guard masteringHeadroom >= 1, masteringHeadroom <= 64 else {
             throw HDRConfigurationError.valueOutOfRange("masteringHeadroom (1...64)")

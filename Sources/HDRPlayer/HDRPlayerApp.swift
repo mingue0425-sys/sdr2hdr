@@ -22,6 +22,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     static let sdrTransferDefaultsKey = "HDRPlayerSDRTransfer"
     static let presetDefaultsKey = "HDRPlayerPreset"
     static let upscaleDefaultsKey = "HDRPlayerUpscale"
+    static let skinDefaultsKey = "HDRPlayerSkinProtection"
 
     public init(options: PlayerOptions, documentMode: Bool = false) {
         var options = options
@@ -38,6 +39,9 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             }
             if let stored = defaults.string(forKey: Self.upscaleDefaultsKey), let mode = HDRUpscaleMode(rawValue: stored) {
                 options.upscale = mode
+            }
+            if let stored = defaults.string(forKey: Self.skinDefaultsKey), let level = HDRSkinProtection(rawValue: stored) {
+                options.skinProtection = level
             }
         }
         self.options = options
@@ -315,12 +319,14 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
     @objc public func showSettings(_ sender: Any?) {
         let panel = settingsPanel ?? makeSettingsPanel()
         settingsPanel = panel
-        panel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale)
+        panel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale,
+                   skinProtection: options.skinProtection)
     }
 
     private func refreshSettingsPanel() {
         guard let settingsPanel else { return }
-        settingsPanel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale)
+        settingsPanel.show(preset: options.preset, sdrTransfer: options.sdrTransferInterpretation, upscale: options.upscale,
+                           skinProtection: options.skinProtection)
     }
 
     private func makeSettingsPanel() -> PlayerSettingsPanel {
@@ -332,6 +338,7 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
             self.toggleYouTubeDecode(nil)
         }
         panel.onUpscale = { [weak self] mode in self?.applyUpscale(mode) }
+        panel.onSkinProtection = { [weak self] level in self?.applySkinProtection(level) }
         return panel
     }
 
@@ -347,6 +354,16 @@ public final class HDRPlayerApplication: NSObject, NSApplicationDelegate, NSMenu
         } catch {
             NSSound.beep()
         }
+    }
+
+    private func applySkinProtection(_ level: HDRSkinProtection) {
+        var next = options
+        next.skinProtection = level
+        guard let configuration = try? next.baseConfiguration() else { NSSound.beep(); return }
+        options = next
+        controller?.setBaseConfiguration(configuration)
+        if documentMode { UserDefaults.standard.set(level.rawValue, forKey: Self.skinDefaultsKey) }
+        if options.debug { print("skin protection: \(level.rawValue)") }
     }
 
     private func applyUpscale(_ mode: HDRUpscaleMode) {
