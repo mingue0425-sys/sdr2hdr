@@ -161,3 +161,44 @@ The first two runs were invalid for video3.
   may differ.
 - High-pass energy in flat regions is a proxy for visible artifacts. It is
   not a perceptual metric.
+
+## Texture-adaptive gate (texture-v1, 2026-11-07)
+
+- **Question:** can a per-pixel gate keep texture expansion on clean input and still suppress structured artifacts? The global, clip-level noise estimate (v3) could not suppress structured artifacts.
+- **Mechanism (`HDRGainGuidance` textureLow/textureHigh/minimumTolerance, opt-in):**
+  - For each pixel, the 5×5 window's local luma standard deviation is measured.
+  - As it rises from textureLow to textureHigh, the bilateral tolerance narrows from 0.12 to minimumTolerance.
+  - Flat regions, where banding steps sit, keep the wide gate. Textured regions get a narrow gate and keep their per-pixel expansion.
+- **Setup:** same 5 Tune pairs, 8 degradations and V4 base as the studies above. Command: `HDRCalibrate robustness-study --guidance-set texture-v1`. Results: `results/robustness-v1/robustness-study-texture-v1.json`.
+
+Highlight benefit (10⁻³ PQ):
+
+| input | V4 | fixed t0.12 | tex l0.015/h0.035/m0.02 | tex l0.02/h0.05/m0.03 | tex l0.03/h0.08/m0.04 |
+|---|---:|---:|---:|---:|---:|
+| clean | 95.3 | 89.5 | 94.4 | 93.6 | 92.2 |
+| CRF 42 | 81.7 | 80.3 | 81.5 | 81.3 | 81.0 |
+
+Amplification:
+
+| input | V4 | fixed t0.12 | tex l0.015/h0.035/m0.02 | tex l0.02/h0.05/m0.03 | tex l0.03/h0.08/m0.04 |
+|---|---:|---:|---:|---:|---:|
+| noise 6 | 4.12 | 1.08 | 1.46 | 1.27 | 1.14 |
+| noise 14 | 4.02 | 1.20 | 2.68 | 1.63 | 1.29 |
+| CRF 32 | 3.62 | 0.93 | 2.87 | 1.88 | 1.42 |
+| CRF 42 | 3.45 | 2.24 | 3.67 | 3.41 | 3.04 |
+| low-res upscale | 3.39 | 2.32 | 3.38 | 3.19 | 2.92 |
+| 6-bit banding | 4.16 | 0.89 | 1.51 | 1.25 | 0.88 |
+| noise 10 + CRF 35 | 2.48 | 0.90 | 2.08 | 1.75 | 1.35 |
+
+Findings:
+- **Banding: confirmed.** l0.03/h0.08/m0.04 suppresses 6-bit banding exactly as well as the fixed gate (0.88× against 0.89×). It costs half as much clean highlight benefit: −3.3% against −6.1%.
+- **Codec artifacts: not confirmed.** Blocking and ringing have local deviation in the same range as real texture, so the gate narrows there too. CRF 32 rises from 0.93× to 1.4×, and CRF 42 from 2.2× to 3.0×.
+- **It dominates the clip-level adaptive tolerance (v3).**
+  - At equal clean benefit, l0.015/h0.035 against adaptive k3 (94.4 against 94.3) cuts CRF 32 amplification from 4.17× to 2.87×, and banding from 1.86× to 1.51×.
+  - Local measurement beats a global one.
+- **No setting dominates the fixed gate on every input.**
+
+Decision:
+- `noise-gated` (fixed) stays the robust opt-in default.
+- The texture-adaptive gate stays experimental. Its best use would be clean or banded sources, where it halves the cost of guidance.
+- The open problem is telling codec blocks from texture. A block-grid-aligned feature such as 8×8 boundary energy against interior energy is the obvious next probe. The v4 study showed that a clip-level blockiness statistic does not survive x264 deblocking, so it would have to be measured locally.
