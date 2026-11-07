@@ -58,7 +58,8 @@ final class SkinHighlightProtectionTests: XCTestCase {
                            HDRReference.process(signalRGB: untouched, configuration: off), "\(untouched)")
         }
         // A small specular (darker surroundings) keeps its expansion even in skin colours.
-        for specular in skinRamp + [SIMD3(255, 238, 238) / 255] {
+        let speculars: [SIMD3<Float>] = skinRamp + [SIMD3<Float>(255, 238, 238) / 255]
+        for specular in speculars {
             XCTAssertEqual(HDRReference.process(signalRGB: specular, configuration: on, skinRegion: 0.6),
                            HDRReference.process(signalRGB: specular, configuration: off), "\(specular)")
         }
