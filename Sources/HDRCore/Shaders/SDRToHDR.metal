@@ -878,15 +878,21 @@ inline float gainGuidanceRatio(texture2d<float, access::read> texture, uint2 gid
 // soft edges. Pale pink (255,238,238) and cream-lit (252,244,200) toon skin
 // count; neutral white, cool and strongly saturated colours do not. Mirrors HDRReference.skinHighlightWeight.
 inline float skinHighlightWeight(float3 s) {
-    if (!(s.r >= s.g && s.r >= s.b)) return 0.0f;
-    float low = min(s.g, s.b);
-    float range = s.r - low;
-    if (range <= 1e-5f || s.r <= 1e-5f) return 0.0f;
-    float hue = 60.0f * (s.g - s.b) / range;
-    float saturation = range / s.r;
-    float hueWeight = smoothStepSafe(-35.0f, -20.0f, hue) * (1.0f - smoothStepSafe(58.0f, 68.0f, hue));
+    // HSV hue: red-max covers pink to yellow (-60..60), green-max covers
+    // yellow to green (60..180). The brightest cream-lit toon skin often has
+    // green a hair above red (246, 252, 218: hue 71), and compression noise
+    // flips the order pixel to pixel, so a red-max-only test leaves blotches.
+    if (s.b > s.r && s.b > s.g) return 0.0f;
+    float high = max(s.r, s.g);
+    float range = high - min(s.r, min(s.g, s.b));
+    if (range <= 1e-5f || high <= 1e-5f) return 0.0f;
+    float hue = s.r >= s.g ? 60.0f * (s.g - s.b) / range : 120.0f + 60.0f * (s.b - s.r) / range;
+    float saturation = range / high;
+    float hueWeight = smoothStepSafe(-35.0f, -20.0f, hue) * (1.0f - smoothStepSafe(76.0f, 86.0f, hue));
     float saturationWeight = smoothStepSafe(0.025f, 0.06f, saturation) * (1.0f - smoothStepSafe(0.40f, 0.55f, saturation));
-    return hueWeight * saturationWeight;
+    // Past pure yellow only pale cream counts; vivid yellow-green is not skin.
+    float yellowLimit = mix(1.0f, 1.0f - smoothStepSafe(0.22f, 0.32f, saturation), smoothStepSafe(58.0f, 66.0f, hue));
+    return hueWeight * saturationWeight * yellowLimit;
 }
 
 // Compresses luminance above `ceiling`: the slope eases from 1 to 0.02 over

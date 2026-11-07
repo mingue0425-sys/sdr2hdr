@@ -163,7 +163,7 @@ On toon-shaded CG and anime (MMD renders, for example), large bright skin areas 
 
 How it works:
 - **Candidates:** bright warm or neutral pixels.
-- **Skin colour:** red is the largest channel, hue runs from pale pink (−25°) to cream yellow (60°), and saturation is 0.025–0.55.
+- **Skin colour:** not blue-dominant, hue from pale pink (−25°) through cream yellow to pale cream with green a hair above red (up to about 80°; past 60° only saturation below 0.3), saturation 0.025–0.55. The brightest cream-lit toon skin is often (246, 252, 218); compression noise flips red and green pixel to pixel, so a red-largest test left glowing blotches on close-up foreheads.
 - **Ring test:** 16 samples on two rings around the pixel (radius 1.2% and 2.4% of the frame height). Each is checked for being at least 85% as bright as the pixel, and for being skin-coloured.
 - **Compressed:**
   - skin-coloured pixels inside a broad bright area, including its edges next to dark hair;

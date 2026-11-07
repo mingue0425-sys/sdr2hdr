@@ -92,6 +92,13 @@ final class SkinHighlightProtectionTests: XCTestCase {
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 238, 238) / 255), 1, accuracy: 1e-6, "pale pink skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(252, 244, 200) / 255), 1, accuracy: 1e-6, "cream-lit skin (MMD)")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 255, 0) / 255), 0, "saturated yellow is not skin")
+        // MMD close-up forehead: green a hair above red, flipping with noise.
+        for cream: SIMD3<Float> in [SIMD3(246, 252, 218) / 255, SIMD3(249, 250, 211) / 255, SIMD3(243, 251, 219) / 255] {
+            XCTAssertGreaterThan(HDRReference.skinHighlightWeight(cream), 0.9, "pale cream with green above red \(cream * 255)")
+        }
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(200, 255, 100) / 255), 0, "vivid yellow-green is not skin")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(225, 255, 200) / 255), 0, "pale green is not skin")
+        XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(180, 255, 180) / 255), 0, "green is not skin")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(255, 253, 253) / 255), 0, "near-neutral white")
         XCTAssertEqual(HDRReference.skinHighlightWeight(SIMD3(0.9, 0.4, 0.9)), 0, "magenta is not skin")
         let ceiling = HDRConfiguration.skinHighlightCeiling

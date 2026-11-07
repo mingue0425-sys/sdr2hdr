@@ -158,14 +158,17 @@ public enum HDRReference {
     /// How skin-like a signal RGB is (0...1). Mirrors the Metal
     /// `skinHighlightWeight`.
     static func skinHighlightWeight(_ s: SIMD3<Float>) -> Float {
-        guard s.x >= s.y, s.x >= s.z else { return 0 }
-        let range = s.x - min(s.y, s.z)
-        guard range > 1e-5, s.x > 1e-5 else { return 0 }
-        let hue = 60 * (s.y - s.z) / range
-        let saturation = range / s.x
-        let hueWeight = smoothstep(-35, -20, hue) * (1 - smoothstep(58, 68, hue))
+        if s.z > s.x, s.z > s.y { return 0 }
+        let high = max(s.x, s.y)
+        let range = high - min(s.x, min(s.y, s.z))
+        guard range > 1e-5, high > 1e-5 else { return 0 }
+        let hue = s.x >= s.y ? 60 * (s.y - s.z) / range : 120 + 60 * (s.z - s.x) / range
+        let saturation = range / high
+        let hueWeight = smoothstep(-35, -20, hue) * (1 - smoothstep(76, 86, hue))
         let saturationWeight = smoothstep(0.025, 0.06, saturation) * (1 - smoothstep(0.40, 0.55, saturation))
-        return hueWeight * saturationWeight
+        let yellowness = smoothstep(58, 66, hue)
+        let yellowLimit = 1 + ((1 - smoothstep(0.22, 0.32, saturation)) - 1) * yellowness
+        return hueWeight * saturationWeight * yellowLimit
     }
 
     private static func gamutCompress(_ rgb: SIMD3<Float>, luminance: Float, peakRatio: Float) -> SIMD3<Float> {
